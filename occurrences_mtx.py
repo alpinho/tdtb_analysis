@@ -17,6 +17,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
+# ############################# FUNCTIONS #####################################
+
 def condcomp(selected_tasks, df):
     """
     Extract conditions and components from selected tasks in the data frame
@@ -76,9 +78,10 @@ def plot_design_mtx(occ_df, outdir):
     components_labels = [component_label.replace("_", " ")
                          for component_label in occ_df.columns]
     # Plot labels in both axes
-    plt.yticks(np.arange(len(conditions_labels)), conditions_labels, fontsize=44)
-    plt.xticks(np.arange(len(components_labels)), components_labels, ha='right',
-               rotation=60, fontsize=44)
+    plt.yticks(np.arange(len(conditions_labels)), conditions_labels,
+               fontsize=44)
+    plt.xticks(np.arange(len(components_labels)), components_labels,
+               ha='right', rotation=60, fontsize=44)
     # Set borders length
     plt.subplots_adjust(left=.05, right=.99, bottom=.2, top=.95)
     plt.savefig(os.path.join(fout_path))
@@ -92,7 +95,7 @@ fout_path = os.path.abspath('occ_mtx.png')
 selected_tasks = ['zatorre1994', 'ramnani2001', 'pope2005', 'grahn2007',
                   'chen2008', 'thaut2008', 'karabanov2009', 'bengtsson2006']
 
-# #################################### RUN ####################################
+# ############################## RUN ##########################################
 
 if __name__ == "__main__":
     # Read file
