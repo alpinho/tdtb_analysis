@@ -66,15 +66,20 @@ def occurences_matrix(tgs_list, unique_tgs, conds):
 
 
 def plot_design_mtx(occ_df, outdir):
+    # Set fig size
     plt.figure(figsize=(50, 50))
+    # Create bitmap
     plt.imshow(occ_df.values, interpolation='nearest', cmap="Greens")
+    # Remove underscores from labels
     conditions_labels = [condition_label.replace("_", " ")
                          for condition_label in occ_df.index]
     components_labels = [component_label.replace("_", " ")
                          for component_label in occ_df.columns]
+    # Plot labels in both axes
     plt.yticks(np.arange(len(conditions_labels)), conditions_labels, fontsize=44)
     plt.xticks(np.arange(len(components_labels)), components_labels, ha='right',
                rotation=60, fontsize=44)
+    # Set borders length
     plt.subplots_adjust(left=.05, right=.99, bottom=.2, top=.95)
     plt.savefig(os.path.join(fout_path))
 
@@ -82,12 +87,10 @@ def plot_design_mtx(occ_df, outdir):
 # ############################# INPUTS ########################################
 
 fin_path = os.path.abspath('conditions_components.tsv')
+fout_path = os.path.abspath('occ_mtx.png')
 
 selected_tasks = ['zatorre1994', 'ramnani2001', 'pope2005', 'grahn2007',
                   'chen2008', 'thaut2008', 'karabanov2009', 'bengtsson2006']
-
-fout_path = os.path.abspath('occ_mtx.png')
-
 
 # #################################### RUN ####################################
 
@@ -100,4 +103,5 @@ if __name__ == "__main__":
     unique_components = utags(components_list)
     dmtx = occurences_matrix(components_list, unique_components,
                              conditions_list)
+    # Plot matrix
     plot_design_mtx(dmtx, fout_path)
