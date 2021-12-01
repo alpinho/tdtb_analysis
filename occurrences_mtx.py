@@ -84,6 +84,7 @@ def plot_design_mtx(occ_df, outdir):
                ha='right', rotation=60, fontsize=44)
     # Set borders length
     plt.subplots_adjust(left=.05, right=.99, bottom=.2, top=.95)
+    # Save final figure
     plt.savefig(os.path.join(fout_path))
 
 
@@ -93,7 +94,8 @@ fin_path = os.path.abspath('conditions_components.tsv')
 fout_path = os.path.abspath('occ_mtx.png')
 
 selected_tasks = ['zatorre1994', 'ramnani2001', 'pope2005', 'grahn2007',
-                  'chen2008', 'thaut2008', 'karabanov2009', 'bengtsson2006']
+                  'chen2008', 'thaut2008', 'karabanov2009', 'bengtsson2006',
+                  'meister2004', 'bianco2016']
 
 # ############################## RUN ##########################################
 
