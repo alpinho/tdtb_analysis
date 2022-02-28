@@ -1,2 +1,2 @@
-# Music MDTB analysis 
-Analysis of the music-dataset extension of the Multi-Domain Task Battery (MDTB)
+# Music SDTB analysis 
+Analysis of the Single-Domain Task Battery (SDTB) on temporal predictions in music cognition
