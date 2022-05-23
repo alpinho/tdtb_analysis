@@ -141,9 +141,9 @@ def production_results(subjects, this_dir,
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.055, .85 - s * .225, 'Subject %d' % subject, ha='center',
-                 fontsize=10, weight='bold')
-    fig.text(.127, .415, 'Mean of assynchrony (ms)', ha='center',
+        fig.text(.06, .862 - s * .233, 'Subject %d' % subject, ha='center',
+                 fontsize=12, weight='bold')
+    fig.text(.13, .415, 'Mean of assynchrony (ms)', ha='center',
              fontsize=14, rotation = 90)
 
     # plt.show()
@@ -204,15 +204,17 @@ def ntfd_results(subjects, this_dir,
             plt.ylim([0., 800.])
 
             if s == 0:
-                ax.set_title(task, fontsize=10)
+                ax.set_title(task, fontsize=10, pad=20)
+                if t == 0:
+                    fig.text(.211, .835, 'Error bars: SD', fontsize=9)
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.055, .7 - s * .4, 'Subject %d' % subject, ha='center',
-                 fontsize=10, weight='bold')
-    fig.text(.135, .42, 'Mean of RT (ms)', ha='center',
+        fig.text(.065, .7 - s * .4, 'Subject %d' % subject, ha='center',
+                 fontsize=12, weight='bold')
+    fig.text(.132, .42, 'Mean of RT (ms)', ha='center',
              fontsize=12, rotation = 90)
 
     # plt.show()
