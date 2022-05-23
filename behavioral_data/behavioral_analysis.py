@@ -49,22 +49,35 @@ def parse_logfile(parent_dir, subject_no, task_name, ttl=False):
     return trials_info
 
 
-def production_results(subjects, tasks, this_dir):
+def filter_trialtype(trs):
+    beat = [tr[1:] for tr in trs if tr[0][:4] == 'beat']
+    beat = [list(map(int, b)) for b in beat]
+    interval = [tr[1:] for tr in trs if tr[0][:8] == 'interval']
+    interval = [list(map(int, i)) for i in interval]
+
+    return beat, interval
+
+
+def production_results(subjects, this_dir,
+                       tasks = ['Auditory Production', 'Visual Production']):
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
+            if task not in ['Auditory Production', 'Visual Production']:
+                raise NameError('Task not valid!')
             data = parse_logfile(this_dir, subject, task)
             trials = []
             # good_trials = []
-            for d, datum in enumerate(data):
+            for dt, datum in enumerate(data):
                 if datum[4] == 'isi_1':
                     condition = datum[3]
                     isi1 = datum[6]
                     # isi2 = data[d+2][6]
                     # isi3 = data[d+4][6]
                     # isi4 = data[d+6][6]
-                    if data[d+8][4] == 'feedback' and data[d+8][8] == 'o':
-                        rt = data[d+8][7]
-                    elif data[d+8][4] == 'feedback' and data[d+8][8] == 'None':
+                    if data[dt+8][4] == 'feedback' and data[dt+8][8] == 'o':
+                        rt = data[dt+8][7]
+                    elif data[dt+8][4] == 'feedback' and \
+                         data[dt+8][8] == 'None':
                         continue
                     else:
                         raise ValueError('No feedback entry!')
@@ -74,14 +87,9 @@ def production_results(subjects, tasks, this_dir):
                     # if condition[:4] == 'beat' and isi2 != isi4:
                     #     continue
                     # good_trials.append([condition, isi1])
-            beat_trials = [trial[1:] for trial in trials
-                           if trial[0][:4] == 'beat']
-            beat_trials = [list(map(int, beat_trial))
-                           for beat_trial in beat_trials]
-            interval_trials = [trial[1:] for trial in trials
-                               if trial[0][:8] == 'interval']
-            interval_trials = [list(map(int, interval_trial))
-                               for interval_trial in interval_trials]
+
+            beat_trials, interval_trials = filter_trialtype(trials)
+
             # #### Synchronies ####
             ssb = np.array([round((bt[0]-bt[1])/bt[0], 2)
                             for bt in beat_trials])
@@ -91,7 +99,7 @@ def production_results(subjects, tasks, this_dir):
             asb = np.array([abs(ssb) for ssb in ssb])
             asi = np.array([abs(ssi) for ssi in ssi])
 
-            # Plotting
+            # #### Plotting ####
             if s == 0 and t == 0:
                 fig = plt.figure(figsize=(8, 12))
 
@@ -104,15 +112,17 @@ def production_results(subjects, tasks, this_dir):
             width = 0.35  # the width of the bars
             signed = ax.bar(x - width/2,
                             [round(ssb.mean(0), 2), round(ssi.mean(0), 2)],
-                            width, yerr=[ssb.std(0), ssi.std(0)],
+                            width=width, yerr=[ssb.std(0), ssi.std(0)],
                             error_kw=dict(capsize=2), label='Signed assynchrony')
             absolute = ax.bar(x + width/2,
                               [round(asb.mean(0), 2), round(asi.mean(0), 2)],
-                              width, yerr=[asb.std(0), asi.std(0)],
+                              width=width, yerr=[asb.std(0), asi.std(0)],
                               error_kw=dict(capsize=2),
                               label='Absolute assynchrony')
+            plt.ylim([-.6, .6])
+            # ax.bar_label(signed, padding=3)
+            # ax.bar_label(absolute, padding=3)
 
-            # Add some text for labels, title and custom x-axis tick labels, etc.
             # ax.set_ylabel('Mean of assynchrony (ms)')
             if s == 0:
                 ax.set_title(task)
@@ -125,9 +135,6 @@ def production_results(subjects, tasks, this_dir):
                 ax.set_xticks(x, '')
                 ax.tick_params(bottom=False)
                 ax.spines['bottom'].set_visible(False)
-
-            # ax.bar_label(signed, padding=3)
-            # ax.bar_label(absolute, padding=3)
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
@@ -144,11 +151,80 @@ def production_results(subjects, tasks, this_dir):
     plt.savefig(os.path.join(this_dir, 'production_assynchronies.pdf'))
 
 
+def ntfd_results(subjects, this_dir,
+                 tasks = ['Auditory No-Temporal Feature Discrimination',
+                          'Visual No-Temporal Feature Discrimination']):
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory No-Temporal Feature Discrimination',
+                            'Visual No-Temporal Feature Discrimination']:
+                raise NameError('Task not valid!')
+            data = parse_logfile(this_dir, subject, task)
+            if subject == 2 and \
+               task == 'Visual No-Temporal Feature Discrimination':
+                data = data[:476]
+            trials = []
+            for dt, datum in enumerate(data):
+                if datum[4] == 'feedback':
+                    condition = datum[3]
+                    if datum[8] in ['o', 'p']:
+                        rt = datum[7]
+                    elif datum[8] == 'None':
+                        continue
+                    else:
+                        raise ValueError('No feedback entry!')
+                    trials.append([condition, rt])
+
+            beat_trials, interval_trials = filter_trialtype(trials)
+            beat_trials = np.array(beat_trials).ravel()
+            interval_trials = np.array(interval_trials).ravel()
+
+            # #### Plotting ####
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 6))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.2 + t*.425, .55 - s*.4, .36, .3])
+
+            labels = ['beat', 'interval']
+            x = [.2, .6]  # the label locations
+            width = 0.2  # the width of the bars
+            ax.bar(x,
+                   [round(beat_trials.mean(0), 2),
+                    round(interval_trials.mean(0), 2)],
+                   width=width,
+                   color=['b', 'y'],
+                   yerr=[round(beat_trials.std(0), 2),
+                         round(interval_trials.std(0), 2)],
+                   error_kw=dict(capsize=2), label=labels)
+            ax.set_xticks(x, labels)
+            plt.xlim([0., .8])
+            plt.ylim([0., 800.])
+
+            if s == 0:
+                ax.set_title(task, fontsize=10)
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+        fig.text(.055, .7 - s * .4, 'Subject %d' % subject, ha='center',
+                 fontsize=10, weight='bold')
+    fig.text(.135, .42, 'Mean of RT (ms)', ha='center',
+             fontsize=12, rotation = 90)
+
+    # plt.show()
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, 'ntfd_rt.pdf'))
+
+
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [1, 2, 3, 4]
-# SUBJECTS = [1]
+# SUBJECTS = [1, 2, 3, 4]
+SUBJECTS = [2, 4]
 
 # TASKS = ['Auditory Production',
 #          'Auditory Perception',
@@ -169,7 +245,8 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    production_results(SUBJECTS, TASKS, MAIN_DIR)
+    # production_results(SUBJECTS, MAIN_DIR)
+    ntfd_results(SUBJECTS, MAIN_DIR)
 
 
 
