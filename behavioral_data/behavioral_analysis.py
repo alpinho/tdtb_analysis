@@ -49,37 +49,10 @@ def parse_logfile(parent_dir, subject_no, task_name, ttl=False):
     return trials_info
 
 
-# %%
-# =========================== INPUTS ===================================
-
-# subjects = [1, 2, 3, 4]
-subjects = [1]
-
-# tasks = ['Auditory Production',
-#          'Auditory Perception',
-#          'Auditory No-Temporal Feature Discrimination',
-#          'Visual Production',
-#          'Visual Perception',
-#          'Visual No-Temporal Feature Discrimination']
-
-tasks = ['Auditory Production']
-
-# %%
-# ========================= PARAMETERS =================================
-
-this_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Subject, task, condition, reaction time, response
-
-# %%
-# ============================ RUN =====================================
-
-if __name__ == "__main__":
-    for subject in subjects:
-        for task in tasks:
+def production_results(subjects, tasks, this_dir):
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
             data = parse_logfile(this_dir, subject, task)
-            # ****************** Production Tasks **********************
-            # trials = np.empty((0, 3))
             trials = []
             # good_trials = []
             for d, datum in enumerate(data):
@@ -91,9 +64,10 @@ if __name__ == "__main__":
                     # isi4 = data[d+6][6]
                     if data[d+8][4] == 'feedback' and data[d+8][8] == 'o':
                         rt = data[d+8][7]
+                    elif data[d+8][4] == 'feedback' and data[d+8][8] == 'None':
+                        continue
                     else:
                         raise ValueError('No feedback entry!')
-                    # trials = np.append(trials, [[condition, isi1, rt]], axis=0)
                     trials.append([condition, isi1, rt])
                     # if isi1 != isi3:
                     #     continue
@@ -109,46 +83,48 @@ if __name__ == "__main__":
             interval_trials = [list(map(int, interval_trial))
                                for interval_trial in interval_trials]
             # #### Synchronies ####
-            signed_sync_beat = [round((bt[0]-bt[1])/bt[0], 2)
-                                for bt in beat_trials]
-            signed_sync_interval = [round((it[0]-it[1])/it[0], 2)
-                                    for it in interval_trials]
+            ssb = np.array([round((bt[0]-bt[1])/bt[0], 2)
+                            for bt in beat_trials])
+            ssi = np.array([round((it[0]-it[1])/it[0], 2)
+                            for it in interval_trials])
 
-            abs_sync_beat = [abs(ssb) for ssb in signed_sync_beat]
-            abs_sync_interval = [abs(ssi) for ssi in signed_sync_interval]
+            asb = np.array([abs(ssb) for ssb in ssb])
+            asi = np.array([abs(ssi) for ssi in ssi])
 
-            ssb_mean = round(np.mean(signed_sync_beat), 2)
-            asb_mean = round(np.mean(abs_sync_beat), 2)
+            # Plotting
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 12))
 
-            ssi_mean = round(np.mean(signed_sync_interval), 2)
-            asi_mean = round(np.mean(abs_sync_interval), 2)
-
-            ssb_std = round(np.std(signed_sync_beat), 2)
-            asb_std = round(np.std(abs_sync_beat), 2)
-
-            ssi_std = round(np.std(signed_sync_interval), 2)
-            asi_std = round(np.std(abs_sync_interval), 2)
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.2 + t*.425, .75 - s*.23, .36, .2])
 
             labels = ['beat', 'interval']
             x = np.arange(len(labels))  # the label locations
             width = 0.35  # the width of the bars
-
-            fig, ax = plt.subplots()
-            ax.legend(frameon=False)
-            signed = ax.bar(x - width/2, [ssb_mean, ssi_mean], width,
-                            yerr=[ssb_std, ssi_std],
-                            error_kw=dict(capsize=2),
-                            label='Signed synchrony')
-            absolute = ax.bar(x + width/2, [asb_mean, asi_mean], width,
-                              yerr=[asb_std, asi_std],
+            signed = ax.bar(x - width/2,
+                            [round(ssb.mean(0), 2), round(ssi.mean(0), 2)],
+                            width, yerr=[ssb.std(0), ssi.std(0)],
+                            error_kw=dict(capsize=2), label='Signed assynchrony')
+            absolute = ax.bar(x + width/2,
+                              [round(asb.mean(0), 2), round(asi.mean(0), 2)],
+                              width, yerr=[asb.std(0), asi.std(0)],
                               error_kw=dict(capsize=2),
-                              label='Absolute synchrony')
+                              label='Absolute assynchrony')
 
             # Add some text for labels, title and custom x-axis tick labels, etc.
-            ax.set_ylabel('Mean of assynchrony (ms)')
-            ax.set_title(tasks[0])
-            ax.set_xticks(x, labels)
-            ax.legend(frameon=False)
+            # ax.set_ylabel('Mean of assynchrony (ms)')
+            if s == 0:
+                ax.set_title(task)
+                if t == 0:
+                    ax.legend(frameon=False, loc = 'lower left',
+                              prop={'size': 8})
+            if s == len(subjects) - 1:
+                ax.set_xticks(x, labels)
+            else:
+                ax.set_xticks(x, '')
+                ax.tick_params(bottom=False)
+                ax.spines['bottom'].set_visible(False)
 
             # ax.bar_label(signed, padding=3)
             # ax.bar_label(absolute, padding=3)
@@ -157,9 +133,43 @@ if __name__ == "__main__":
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            fig.tight_layout()
+        fig.text(.055, .85 - s * .225, 'Subject %d' % subject, ha='center',
+                 fontsize=10, weight='bold')
+    fig.text(.135, .42, 'Mean of assynchrony (ms)', ha='center',
+             fontsize=14, rotation = 90)
 
-            plt.show()
+    # plt.show()
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, 'production_assynchronies.pdf'))
+
+
+# %%
+# =========================== INPUTS ===================================
+
+SUBJECTS = [1, 2, 3, 4]
+# SUBJECTS = [1]
+
+# TASKS = ['Auditory Production',
+#          'Auditory Perception',
+#          'Auditory No-Temporal Feature Discrimination',
+#          'Visual Production',
+#          'Visual Perception',
+#          'Visual No-Temporal Feature Discrimination']
+
+TASKS = ['Auditory Production', 'Visual Production']
+
+
+# %%
+# ========================= PARAMETERS =================================
+
+MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# %%
+# ============================ RUN =====================================
+
+if __name__ == "__main__":
+    production_results(SUBJECTS, TASKS, MAIN_DIR)
 
 
 
