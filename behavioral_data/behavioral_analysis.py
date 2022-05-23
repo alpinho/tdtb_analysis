@@ -119,7 +119,7 @@ def production_results(subjects, this_dir,
                               width=width, yerr=[asb.std(0), asi.std(0)],
                               error_kw=dict(capsize=2),
                               label='Absolute assynchrony')
-            plt.ylim([-.6, .6])
+            plt.ylim([-.6, .7])
             # ax.bar_label(signed, padding=3)
             # ax.bar_label(absolute, padding=3)
 
@@ -129,6 +129,7 @@ def production_results(subjects, this_dir,
                 if t == 0:
                     ax.legend(frameon=False, loc = 'lower left',
                               prop={'size': 8})
+                    fig.text(.211, .79, 'Error bars: SD', fontsize=9)
             if s == len(subjects) - 1:
                 ax.set_xticks(x, labels)
             else:
@@ -142,7 +143,7 @@ def production_results(subjects, this_dir,
 
         fig.text(.055, .85 - s * .225, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
-    fig.text(.135, .42, 'Mean of assynchrony (ms)', ha='center',
+    fig.text(.127, .415, 'Mean of assynchrony (ms)', ha='center',
              fontsize=14, rotation = 90)
 
     # plt.show()
@@ -223,8 +224,8 @@ def ntfd_results(subjects, this_dir,
 # %%
 # =========================== INPUTS ===================================
 
-# SUBJECTS = [1, 2, 3, 4]
-SUBJECTS = [2, 4]
+SUBJECTS = [1, 2, 3, 4]
+# SUBJECTS = [2, 4]
 
 # TASKS = ['Auditory Production',
 #          'Auditory Perception',
@@ -245,8 +246,8 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    # production_results(SUBJECTS, MAIN_DIR)
-    ntfd_results(SUBJECTS, MAIN_DIR)
+    production_results(SUBJECTS, MAIN_DIR)
+    # ntfd_results(SUBJECTS, MAIN_DIR)
 
 
 
