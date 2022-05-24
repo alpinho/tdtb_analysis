@@ -49,13 +49,42 @@ def parse_logfile(parent_dir, subject_no, task_name, ttl=False):
     return trials_info
 
 
-def filter_trialtype(trs):
+def filter_trialtype(trs, category):
     beat = [tr[1:] for tr in trs if tr[0][:4] == 'beat']
-    beat = [list(map(int, b)) for b in beat]
     interval = [tr[1:] for tr in trs if tr[0][:8] == 'interval']
-    interval = [list(map(int, i)) for i in interval]
+
+    if category in ['production', 'ntfd']:
+        beat = [list(map(int, b)) for b in beat]
+        interval = [list(map(int, i)) for i in interval]
+    else:
+        assert category == 'perception'
+        beat = [[int(b[0]), int(b[1]), int(b[2]), b[3]] for b in beat]
+        interval = [[int(i[0]), int(i[1]), int(i[2]), i[3]] for i in interval]
 
     return beat, interval
+
+
+def perception_frequencies(isi_diff_condition, condition_trials, min_val,
+                           max_val, n_steps):
+    time_diff, step = np.linspace(min_val, max_val, num=n_steps, dtype=int,
+                                  retstep=True)
+    frequencies = []
+    for s in np.arange(len(time_diff) - 1):
+        responses = []
+        for idb, btr in zip(isi_diff_condition, condition_trials):
+            if time_diff[s] <= idb < time_diff[s+1]:
+                responses.append(btr[3])
+        occurr = responses.count('o')
+        if occurr == 0:
+            percent_occurr = 0
+        else:
+            percent_occurr = (occurr/len(responses))*100
+        frequencies.append(percent_occurr)
+
+    time_val = time_diff + step/2
+    time_val = time_val[:-1]
+
+    return time_diff, time_val, frequencies
 
 
 def production_results(subjects, this_dir,
@@ -88,7 +117,8 @@ def production_results(subjects, this_dir,
                     #     continue
                     # good_trials.append([condition, isi1])
 
-            beat_trials, interval_trials = filter_trialtype(trials)
+            beat_trials, interval_trials = filter_trialtype(trials,
+                                                            'production')
 
             # #### Synchronies ####
             ssb = np.array([round((bt[0]-bt[1])/bt[0], 2)
@@ -152,6 +182,90 @@ def production_results(subjects, this_dir,
     plt.savefig(os.path.join(this_dir, 'production_assynchronies.pdf'))
 
 
+def perception_results(subjects, this_dir,
+                       tasks = ['Auditory Perception', 'Visual Perception']):
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory Perception', 'Visual Perception']:
+                raise NameError('Task not valid!')
+            data = parse_logfile(this_dir, subject, task)
+            trials = []
+            for dt, datum in enumerate(data):
+                if datum[4] == 'isi_1':
+                    condition = datum[3]
+                    isi1 = datum[6]
+                    isi5 = data[dt+8][6]
+                    if data[dt+10][4] == 'feedback' and \
+                       data[dt+10][8] in ['o', 'p']:
+                        rt = data[dt+10][7]
+                        answer = data[dt+10][8]
+                    elif data[dt+10][4] == 'feedback' and \
+                         data[dt+10][8] == 'None':
+                        continue
+                    else:
+                        raise ValueError('No feedback entry!')
+                    trials.append([condition, isi1, isi5, rt, answer])
+            beat_trials, interval_trials = filter_trialtype(trials,
+                                                            'perception')
+            isi_diff_beat = [bt[1] - bt[0] for bt in beat_trials]
+            isi_diff_interval = [it[1] - it[0] for it in interval_trials]
+
+            x_labels, x_vals, y_beat_vals = perception_frequencies(
+                isi_diff_beat, beat_trials, -400, 400, 5)
+            _, _, y_interval_val = perception_frequencies(
+                isi_diff_interval, interval_trials, -400, 400, 5)
+
+            # #### Plotting ####
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 12))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.2 + t*.41, .75 - s*.22, .36, .2])
+
+            ax.plot(x_vals, y_beat_vals, marker='o', markersize=3,
+                    color='b', label='Beat')
+            ax.plot(x_vals, y_interval_val, marker='o', markersize=3,
+                    color='y', label='Interval')
+
+            # X axis
+            plt.xticks(x_labels)
+            if s != len(subjects) - 1:
+                plt.xticks([])
+                ax.tick_params(bottom=False)
+                ax.spines['bottom'].set_visible(False)
+
+            # Y axis
+            y_vals = np.arange(0, 1.5, .5) * 100
+            y_labels = ['shorter', 'equal', 'longer']
+            if t == 0:
+                ax.set_yticks(y_vals, y_labels)
+            else:
+                ax.set_yticks(y_vals, '')
+
+            # Title per column with Task name and legend
+            if s == 0:
+                ax.set_title(task)
+                if t == 0:
+                    ax.legend(frameon=False, loc = 'upper left',
+                              prop={'size': 10})
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+        fig.text(.055, .875 - s * .25, 'Subject %d' % subject, ha='center',
+                 fontsize=10, weight='bold')
+
+    fig.text(.5, .02, 'Time difference (ms)', fontsize=12)
+    fig.text(.1, .415, '% of responses', fontsize=12, rotation=90)
+
+    # plt.show()
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, 'perception_responses.pdf'))
+
+
 def ntfd_results(subjects, this_dir,
                  tasks = ['Auditory No-Temporal Feature Discrimination',
                           'Visual No-Temporal Feature Discrimination']):
@@ -176,7 +290,7 @@ def ntfd_results(subjects, this_dir,
                         raise ValueError('No feedback entry!')
                     trials.append([condition, rt])
 
-            beat_trials, interval_trials = filter_trialtype(trials)
+            beat_trials, interval_trials = filter_trialtype(trials, 'ntfd')
             beat_trials = np.array(beat_trials).ravel()
             interval_trials = np.array(interval_trials).ravel()
 
@@ -228,6 +342,7 @@ def ntfd_results(subjects, this_dir,
 
 SUBJECTS = [1, 2, 3, 4]
 # SUBJECTS = [2, 4]
+# SUBJECTS = [4]
 
 # TASKS = ['Auditory Production',
 #          'Auditory Perception',
@@ -236,7 +351,7 @@ SUBJECTS = [1, 2, 3, 4]
 #          'Visual Perception',
 #          'Visual No-Temporal Feature Discrimination']
 
-TASKS = ['Auditory Production', 'Visual Production']
+# TASKS = ['Auditory Perception']
 
 
 # %%
@@ -248,7 +363,8 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    production_results(SUBJECTS, MAIN_DIR)
+    # production_results(SUBJECTS, MAIN_DIR)
+    perception_results(SUBJECTS, MAIN_DIR)
     # ntfd_results(SUBJECTS, MAIN_DIR)
 
 
