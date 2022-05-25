@@ -68,6 +68,7 @@ def perception_frequencies(isi_diff_condition, condition_trials, min_val,
                            max_val, n_steps):
     time_diff, step = np.linspace(min_val, max_val, num=n_steps, dtype=int,
                                   retstep=True)
+    print('Step: ', step)
     frequencies = []
     for s in np.arange(len(time_diff) - 1):
         responses = []
@@ -173,7 +174,7 @@ def production_results(subjects, this_dir,
 
         fig.text(.06, .862 - s * .233, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
-    fig.text(.13, .415, 'Mean of assynchrony (ms)', ha='center',
+    fig.text(.13, .435, 'Mean of assynchrony', ha='center',
              fontsize=14, rotation = 90)
 
     # plt.show()
@@ -183,7 +184,8 @@ def production_results(subjects, this_dir,
 
 
 def perception_results(subjects, this_dir,
-                       tasks = ['Auditory Perception', 'Visual Perception']):
+                       tasks = ['Auditory Perception', 'Visual Perception'],
+                       step_size=5):
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Perception', 'Visual Perception']:
@@ -211,9 +213,9 @@ def perception_results(subjects, this_dir,
             isi_diff_interval = [it[1] - it[0] for it in interval_trials]
 
             x_labels, x_vals, y_beat_vals = perception_frequencies(
-                isi_diff_beat, beat_trials, -400, 400, 5)
+                isi_diff_beat, beat_trials, -400, 400, step_size)
             _, _, y_interval_val = perception_frequencies(
-                isi_diff_interval, interval_trials, -400, 400, 5)
+                isi_diff_interval, interval_trials, -400, 400, step_size)
 
             # #### Plotting ####
             if s == 0 and t == 0:
@@ -364,7 +366,7 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == "__main__":
     # production_results(SUBJECTS, MAIN_DIR)
-    perception_results(SUBJECTS, MAIN_DIR)
+    perception_results(SUBJECTS, MAIN_DIR, step_size=5)
     # ntfd_results(SUBJECTS, MAIN_DIR)
 
 
