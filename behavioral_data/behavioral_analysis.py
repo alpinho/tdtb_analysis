@@ -260,7 +260,7 @@ def perception_results(subjects, this_dir,
                  fontsize=10, weight='bold')
 
     fig.text(.5, .02, 'Time difference (ms)', fontsize=12)
-    fig.text(.1, .415, '% of responses', fontsize=12, rotation=90)
+    fig.text(.1, .46, '% of responses', fontsize=12, rotation=90)
 
     # plt.show()
 
