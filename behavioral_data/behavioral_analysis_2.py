@@ -290,9 +290,9 @@ def ntfd_results(subjects, this_dir,
             for dt, datum in enumerate(data):
                 if datum[4] == 'feedback':
                     condition = datum[3]
-                    if datum[8] in ['o', 'p']:
-                        rt = datum[7]
-                    elif datum[8] == 'None':
+                    if datum[10] in ['o', 'p']:
+                        rt = int(data[dt-1][6]) + int(datum[9])
+                    elif datum[10] == 'None':
                         continue
                     else:
                         raise ValueError('No feedback entry!')
@@ -304,39 +304,44 @@ def ntfd_results(subjects, this_dir,
 
             # #### Plotting ####
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 6))
+                fig = plt.figure(figsize=(8, 12))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.2 + t*.425, .55 - s*.4, .36, .3])
+            ax = plt.axes([.235 + t*.42, .725 - s*.325, .3, .2])
 
             labels = ['beat', 'interval']
             x = [.2, .6]  # the label locations
             width = .2  # the width of the bars
-            ax.bar(x,
-                   [round(beat_trials.mean(0), 2),
-                    round(interval_trials.mean(0), 2)],
-                   width=width,
-                   color=['b', 'y'],
-                   yerr=[round(beat_trials.std(0), 2),
-                         round(interval_trials.std(0), 2)],
-                   error_kw=dict(capsize=2), label=labels)
+            ntfd_plt = ax.bar(x,
+                              [round(beat_trials.mean(0), 2),
+                               round(interval_trials.mean(0), 2)],
+                              width=width,
+                              color=['b', 'y'],
+                              yerr=[round(beat_trials.std(0), 2),
+                                    round(interval_trials.std(0), 2)],
+                              error_kw=dict(capsize=2), label=labels)
+            ax.bar_label(ntfd_plt, padding=3)
             ax.set_xticks(x, labels)
             plt.xlim([0., .8])
-            plt.ylim([0., 800.])
+            plt.ylim([0., 700.])
 
             if s == 0:
-                ax.set_title(task, fontsize=10, pad=20)
+                if task == 'Auditory No-Temporal Feature Discrimination':
+                    ax.set_title('Auditory NTFD', weight='bold', pad=20)
+                else:
+                    assert task == 'Visual No-Temporal Feature Discrimination'
+                    ax.set_title('Visual NTFD', weight='bold', pad=20)
                 if t == 0:
-                    fig.text(.211, .835, 'Error bars: SD', fontsize=9)
+                    fig.text(.25, .915, 'Error bars: SD', fontsize=12)
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.065, .7 - s * .4, 'Subject %d' % subject, ha='center',
+        fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
-    fig.text(.132, .42, 'Mean of RT (ms)', ha='center',
+    fig.text(.155, .45, 'Mean of RT (ms)', ha='center',
              fontsize=12, rotation = 90)
 
     # plt.show()
@@ -349,7 +354,7 @@ def ntfd_results(subjects, this_dir,
 # =========================== INPUTS ===================================
 
 SUBJECTS = [5, 6, 7]
-# SUBJECTS = [6]
+# SUBJECTS = [5]
 
 # TASKS = ['Auditory Production',
 #          'Auditory Perception',
@@ -358,7 +363,7 @@ SUBJECTS = [5, 6, 7]
 #          'Visual Perception',
 #          'Visual No-Temporal Feature Discrimination']
 
-TASKS = ['Auditory Production']
+TASKS = ['Auditory No-Temporal Feature Discrimination']
 
 
 # %%
@@ -370,10 +375,10 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    production_results(SUBJECTS, MAIN_DIR, 'signed')
-    production_results(SUBJECTS, MAIN_DIR, 'absolute')
+    # production_results(SUBJECTS, MAIN_DIR, 'signed')
+    # production_results(SUBJECTS, MAIN_DIR, 'absolute')
     # perception_results(SUBJECTS, MAIN_DIR, step_size=5)
-    # ntfd_results(SUBJECTS, MAIN_DIR)
+    ntfd_results(SUBJECTS, MAIN_DIR)
 
 
 
