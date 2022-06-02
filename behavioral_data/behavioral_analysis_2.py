@@ -87,8 +87,8 @@ def perception_frequencies(isi_diff_condition, condition_trials):
     return idiffs, frequencies
 
 
-def production_results(subjects, this_dir, sync_type,
-                       tasks = ['Auditory Production', 'Visual Production']):
+def production_synchronies(subjects, this_dir, sync_type,
+                           tasks = ['Auditory Production', 'Visual Production']):
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
@@ -111,8 +111,7 @@ def production_results(subjects, this_dir, sync_type,
 
             beat_trials, interval_trials = filter_trialtype(trials,
                                                             'production')
-
-            # #### Synchronies ####
+            # ################# Synchronies ############################
             ssb = np.array([round((bt[0]-bt[1])/bt[0], 2)
                             for bt in beat_trials])
             ssi = np.array([round((it[0]-it[1])/it[0], 2)
@@ -185,6 +184,282 @@ def production_results(subjects, this_dir, sync_type,
     # Save figure
     plt.savefig(os.path.join(
         this_dir, 'production_' + sync_type + '_assynchronies.pdf'))
+
+
+def production_rts(subjects, this_dir,
+                   tasks = ['Auditory Production', 'Visual Production']):
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory Production', 'Visual Production']:
+                raise NameError('Task not valid!')
+            data = parse_logfile(this_dir, subject, task)
+            trials = []
+
+            for dt, datum in enumerate(data):
+                if datum[4] == 'interval_1':
+                    condition = datum[3]
+                    if data[dt+8][4] == 'feedback' and data[dt+8][10] == 'o':
+                        rt = int(data[dt+7][6]) + int(data[dt+8][9])
+                    elif data[dt+8][4] == 'feedback' and \
+                         data[dt+8][10] == 'None':
+                        continue
+                    else:
+                        raise ValueError('No feedback entry!')
+                    trials.append([condition, rt])
+
+            beat_trials, interval_trials = filter_trialtype(trials,
+                                                            'production')
+            rt_beat = np.ravel(beat_trials)
+            rt_interval = np.ravel(interval_trials)
+
+            # #### Plotting #####
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 12))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.235 + t*.42, .725 - s*.325, .3, .2])
+
+            labels = ['beat', 'interval']
+            x = np.arange(len(labels))  # the label locations
+            width = 0.35  # the width of the bars
+
+            means = ax.bar(
+                x - width/2,
+                [round(rt_beat.mean(0), 2), round(rt_interval.mean(0), 2)],
+                width=width, label = 'Mean')
+
+            sds = ax.bar(
+                x + width/2,
+                [round(rt_beat.std(0), 2), round(rt_interval.std(0), 2)],
+                width=width, label = 'Standard Deviation')
+
+            ax.bar_label(means, padding=3)
+            ax.bar_label(sds, padding=3)
+            plt.ylim([0., 1200])
+
+            # ax.set_ylabel('Mean of assynchrony (ms)')
+            if s == 0:
+                ax.set_title(task, pad=20, weight='bold')
+                if t == 0:
+                    ax.legend(frameon=False, loc='best',
+                              bbox_to_anchor=(0.6, 0.5, 0.5, 0.5),
+                              prop={'size': 10})
+            if s == len(subjects) - 1:
+                ax.set_xticks(x, labels)
+            else:
+                ax.set_xticks(x, '')
+                ax.tick_params(bottom=False)
+                ax.spines['bottom'].set_visible(False)
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+        fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
+                 fontsize=12, weight='bold')
+    fig.text(.16, .275, 'Magnitude of Mean and SD of RTs',
+             ha='center', fontsize=14, rotation = 90)
+
+    # plt.show()
+
+    # Save figure
+    plt.savefig(os.path.join(
+        this_dir, 'production_rts.pdf'))
+
+
+def production_isi_meanrts(subjects, this_dir,
+                           tasks = ['Auditory Production',
+                                    'Visual Production']):
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory Production', 'Visual Production']:
+                raise NameError('Task not valid!')
+            data = parse_logfile(this_dir, subject, task)
+            trials = []
+
+            for dt, datum in enumerate(data):
+                if datum[4] == 'interval_1':
+                    condition = datum[3]
+                    isi1 = int(datum[7])
+                    if data[dt+8][4] == 'feedback' and data[dt+8][10] == 'o':
+                        rt = int(data[dt+7][6]) + int(data[dt+8][9])
+                    elif data[dt+8][4] == 'feedback' and \
+                         data[dt+8][10] == 'None':
+                        continue
+                    else:
+                        raise ValueError('No feedback entry!')
+                    trials.append([condition, isi1, rt])
+
+            beat_trials, interval_trials = filter_trialtype(trials,
+                                                            'production')
+            isi1s = np.unique(np.array(beat_trials)[:,0])
+
+            rt_isi1_grouped_beat = []
+            for i in isi1s:
+                rts_beat = []
+                for beat_trial in beat_trials:
+                    if beat_trial[0] == i:
+                        rts_beat.append(beat_trial[1])
+                rt_isi1_grouped_beat.append(rts_beat)
+
+            rt_isi1_grouped_interval = []
+            for j in isi1s:
+                rts_interval = []
+                for interval_trial in interval_trials:
+                    if interval_trial[0] == j:
+                        rts_interval.append(interval_trial[1])
+                rt_isi1_grouped_interval.append(rts_interval)
+
+            rt_mean_isi1_beat = np.around(
+                np.mean(rt_isi1_grouped_beat, axis=1), decimals=0)
+            rt_mean_isi1_interval = np.around(
+                np.mean(rt_isi1_grouped_interval, axis=1), decimals=0)
+
+            # #### Plotting #####
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 12))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.235 + t*.42, .725 - s*.325, .3, .2])
+
+            x_labels = [str(k) for k in isi1s]
+            x = np.arange(len(x_labels))  # the label locations
+            width = 0.35  # the width of the bars
+
+            beat_plot = ax.bar(x - width/2, rt_mean_isi1_beat, width=width,
+                               label='Beat')
+
+            interval_plot = ax.bar(x + width/2, rt_mean_isi1_interval,
+                                   width=width, label='Interval')
+
+            ax.bar_label(beat_plot, padding=3, fontsize=4)
+            ax.bar_label(interval_plot, padding=3, fontsize=4)
+            plt.ylim([0., 1500])
+
+            if s == 0:
+                ax.set_title(task, pad=20, weight='bold')
+                if t == 0:
+                    ax.legend(frameon=False, loc='upper left',
+                              prop={'size': 10})
+            if s == len(subjects) - 1:
+                ax.set_xticks(x, x_labels)
+            else:
+                ax.set_xticks(x, '')
+                ax.tick_params(bottom=False)
+                ax.spines['bottom'].set_visible(False)
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+        fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
+                 fontsize=12, weight='bold')
+
+    fig.text(.5, .03, 'ISI standards', fontsize=12)
+    fig.text(.16, .45, 'Mean of RTs',
+             ha='center', fontsize=14, rotation = 90)
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, 'production_rts_isis_mean.pdf'))
+
+
+def production_isi_stdrts(subjects, this_dir,
+                          tasks = ['Auditory Production',
+                                   'Visual Production']):
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory Production', 'Visual Production']:
+                raise NameError('Task not valid!')
+            data = parse_logfile(this_dir, subject, task)
+            trials = []
+
+            for dt, datum in enumerate(data):
+                if datum[4] == 'interval_1':
+                    condition = datum[3]
+                    isi1 = int(datum[7])
+                    if data[dt+8][4] == 'feedback' and data[dt+8][10] == 'o':
+                        rt = int(data[dt+7][6]) + int(data[dt+8][9])
+                    elif data[dt+8][4] == 'feedback' and \
+                         data[dt+8][10] == 'None':
+                        continue
+                    else:
+                        raise ValueError('No feedback entry!')
+                    trials.append([condition, isi1, rt])
+
+            beat_trials, interval_trials = filter_trialtype(trials,
+                                                            'production')
+            isi1s = np.unique(np.array(beat_trials)[:,0])
+
+            rt_isi1_grouped_beat = []
+            for i in isi1s:
+                rts_beat = []
+                for beat_trial in beat_trials:
+                    if beat_trial[0] == i:
+                        rts_beat.append(beat_trial[1])
+                rt_isi1_grouped_beat.append(rts_beat)
+
+            rt_isi1_grouped_interval = []
+            for j in isi1s:
+                rts_interval = []
+                for interval_trial in interval_trials:
+                    if interval_trial[0] == j:
+                        rts_interval.append(interval_trial[1])
+                rt_isi1_grouped_interval.append(rts_interval)
+
+            rt_std_isi1_beat = np.around(
+                np.std(rt_isi1_grouped_beat, axis=1), decimals=0)
+            rt_std_isi1_interval = np.around(
+                np.std(rt_isi1_grouped_interval, axis=1), decimals=0)
+
+            # #### Plotting #####
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 12))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.235 + t*.42, .725 - s*.325, .3, .2])
+
+            x_labels = [str(k) for k in isi1s]
+            x = np.arange(len(x_labels))  # the label locations
+            width = 0.35  # the width of the bars
+
+            beat_plot = ax.bar(x - width/2, rt_std_isi1_beat, width=width,
+                               label='Beat')
+
+            interval_plot = ax.bar(x + width/2, rt_std_isi1_interval,
+                                   width=width, label='Interval')
+
+            ax.bar_label(beat_plot, padding=3, fontsize=4)
+            ax.bar_label(interval_plot, padding=3, fontsize=4)
+            plt.ylim([0., 350])
+
+            if s == 0:
+                ax.set_title(task, pad=20, weight='bold')
+                if t == 0:
+                    ax.legend(frameon=False, loc='upper left',
+                              prop={'size': 10})
+            if s == len(subjects) - 1:
+                ax.set_xticks(x, x_labels)
+            else:
+                ax.set_xticks(x, '')
+                ax.tick_params(bottom=False)
+                ax.spines['bottom'].set_visible(False)
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+        fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
+                 fontsize=12, weight='bold')
+
+    fig.text(.5, .03, 'ISI standards', fontsize=12)
+    fig.text(.16, .4, 'Standard Deviation of RTs',
+             ha='center', fontsize=14, rotation = 90)
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, 'production_rts_isis_std.pdf'))
 
 
 def perception_results(subjects, this_dir,
@@ -377,9 +652,12 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    # production_results(SUBJECTS, MAIN_DIR, 'signed')
+    # production_rts(SUBJECTS, MAIN_DIR)
+    production_isi_meanrts(SUBJECTS, MAIN_DIR)
+    production_isi_stdrts(SUBJECTS, MAIN_DIR)
+    # production_synchronies(SUBJECTS, MAIN_DIR, 'signed')
     # production_results(SUBJECTS, MAIN_DIR, 'absolute')
-    perception_results(SUBJECTS, MAIN_DIR)
+    # perception_results(SUBJECTS, MAIN_DIR)
     # ntfd_results(SUBJECTS, MAIN_DIR)
 
 
