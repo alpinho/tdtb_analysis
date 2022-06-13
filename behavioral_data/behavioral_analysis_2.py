@@ -112,9 +112,9 @@ def production_synchronies(subjects, this_dir, sync_type,
             beat_trials, interval_trials = filter_trialtype(trials,
                                                             'production')
             # ################# Synchronies ############################
-            ssb = np.array([round((bt[0]-bt[1])/bt[0], 2)
+            ssb = np.array([round((bt[1]-bt[0])/bt[0], 2)
                             for bt in beat_trials])
-            ssi = np.array([round((it[0]-it[1])/it[0], 2)
+            ssi = np.array([round((it[1]-it[0])/it[0], 2)
                             for it in interval_trials])
 
             # #### Plotting #####
@@ -135,7 +135,7 @@ def production_synchronies(subjects, this_dir, sync_type,
                        error_kw=dict(capsize=2), facecolor='tab:blue',
                        label='Signed assynchrony')
                 ax.bar_label(signed, padding=3)
-                plt.ylim([-2., .5])
+                plt.ylim([-1., 2.])
             else:
                 assert sync_type == 'absolute'
 
@@ -155,20 +155,22 @@ def production_synchronies(subjects, this_dir, sync_type,
                 ax.set_title(task, pad=30, weight='bold')
                 if t == 0:
                     if sync_type == 'signed':
-                        ax.legend(frameon=False, loc = 'lower left',
+                        ax.legend(frameon=False, loc = 'upper left',
                                   prop={'size': 12})
-                        fig.text(.25, .765, 'Error bars: SD', fontsize=12)
+                        fig.text(.25, .875, 'Error bars: SD', fontsize=12)
                     else:
                         assert sync_type == 'absolute'
                         ax.legend(frameon=False, loc = 'upper left',
                                   prop={'size': 12})
                         fig.text(.25, .88, 'Error bars: SD', fontsize=12)
-            if s == len(subjects) - 1:
-                ax.set_xticks([x[0] + .4, x[1] - .4], labels)
-            else:
-                ax.set_xticks([x[0] + .4, x[1] - .4], '')
-                ax.tick_params(bottom=False)
-                ax.spines['bottom'].set_visible(False)
+
+            ax.set_xticks([x[0] + .4, x[1] - .4], labels)
+            # if s == len(subjects) - 1:
+            #     ax.set_xticks([x[0] + .4, x[1] - .4], labels)
+            # else:
+            #     ax.set_xticks([x[0] + .4, x[1] - .4], '')
+            #     ax.tick_params(bottom=False)
+            #     ax.spines['bottom'].set_visible(False)
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
@@ -343,12 +345,14 @@ def production_isi_meanrts(subjects, this_dir,
                 if t == 0:
                     ax.legend(frameon=False, loc='upper left',
                               prop={'size': 10})
-            if s == len(subjects) - 1:
-                ax.set_xticks(x, x_labels)
-            else:
-                ax.set_xticks(x, '')
-                ax.tick_params(bottom=False)
-                ax.spines['bottom'].set_visible(False)
+
+            ax.set_xticks(x, x_labels)
+            # if s == len(subjects) - 1:
+            #     ax.set_xticks(x, x_labels)
+            # else:
+            #     ax.set_xticks(x, '')
+            #     ax.tick_params(bottom=False)
+            #     ax.spines['bottom'].set_visible(False)
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
@@ -357,8 +361,8 @@ def production_isi_meanrts(subjects, this_dir,
         fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
-    fig.text(.5, .03, 'ISI standards', fontsize=12)
-    fig.text(.16, .45, 'Mean of RTs',
+    fig.text(.5, .03, 'ISI1=ISI (ms)', fontsize=12)
+    fig.text(.16, .45, 'Mean of RTs (ms)',
              ha='center', fontsize=14, rotation = 90)
 
     # Save figure
@@ -440,12 +444,14 @@ def production_isi_stdrts(subjects, this_dir,
                 if t == 0:
                     ax.legend(frameon=False, loc='upper left',
                               prop={'size': 10})
-            if s == len(subjects) - 1:
-                ax.set_xticks(x, x_labels)
-            else:
-                ax.set_xticks(x, '')
-                ax.tick_params(bottom=False)
-                ax.spines['bottom'].set_visible(False)
+
+            ax.set_xticks(x, x_labels)
+            # if s == len(subjects) - 1:
+            #     ax.set_xticks(x, x_labels)
+            # else:
+            #     ax.set_xticks(x, '')
+            #     ax.tick_params(bottom=False)
+            #     ax.spines['bottom'].set_visible(False)
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
@@ -454,8 +460,8 @@ def production_isi_stdrts(subjects, this_dir,
         fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
-    fig.text(.5, .03, 'ISI standards', fontsize=12)
-    fig.text(.16, .4, 'Standard Deviation of RTs',
+    fig.text(.5, .03, 'ISI1=ISI3 (ms)', fontsize=12)
+    fig.text(.16, .4, 'Standard Deviation of RTs (ms)',
              ha='center', fontsize=14, rotation = 90)
 
     # Save figure
@@ -507,22 +513,24 @@ def perception_results(subjects, this_dir,
             # plt.axes([left, bottom, width, height])
             ax = plt.axes([.235 + t*.42, .65 - s*.25, .3, .2])
 
-            ax.plot(x_vals, y_beat_vals, marker='o', markersize=3,
-                    color='b', label='Beat')
-            ax.plot(x_vals, y_interval_val, marker='o', markersize=3,
-                    color='y', label='Interval')
+            ax.plot(x_vals, y_beat_vals, marker='o', markersize=5,
+                    color='b', label='Beat', linewidth=3)
+            ax.plot(x_vals, y_interval_val, marker='o', markersize=5,
+                    color='y', label='Interval', linewidth=3)
 
             # X axis
             x_labels = np.arange(len(x_vals))
             plt.xticks(x_labels)
-            if s != len(subjects) - 1:
-                plt.xticks([])
-                ax.tick_params(bottom=False)
-                ax.spines['bottom'].set_visible(False)
+            # if s != len(subjects) - 1:
+            #     plt.xticks([])
+            #     ax.tick_params(bottom=False)
+            #     ax.spines['bottom'].set_visible(False)
 
             # Y axis
             y_vals = np.arange(0, 1.5, .5) * 100
-            y_labels = ['shorter', 'equal', 'longer']
+            y_vals = y_vals.astype('int')
+            y_labels = ['%d' % yv + '%' for yv in y_vals]
+            # y_labels = ['shorter', 'equal', 'longer']
             if t == 0:
                 ax.set_yticks(y_vals, y_labels)
             else:
@@ -542,8 +550,9 @@ def perception_results(subjects, this_dir,
         fig.text(.055, .75 - s * .25, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
 
-    fig.text(.5, .08, 'Time difference (ms)', fontsize=12)
-    fig.text(.125, .46, '% of responses', fontsize=12, rotation=90)
+    fig.text(.3, .08, 'Proportion of time difference between RTs and ISI1 (%)',
+             fontsize=12)
+    fig.text(.14, .4, '% of "longer" responses', fontsize=12, rotation=90)
 
     # plt.show()
 
@@ -653,11 +662,11 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == "__main__":
     # production_rts(SUBJECTS, MAIN_DIR)
-    production_isi_meanrts(SUBJECTS, MAIN_DIR)
-    production_isi_stdrts(SUBJECTS, MAIN_DIR)
+    # production_isi_meanrts(SUBJECTS, MAIN_DIR)
+    # production_isi_stdrts(SUBJECTS, MAIN_DIR)
     # production_synchronies(SUBJECTS, MAIN_DIR, 'signed')
-    # production_results(SUBJECTS, MAIN_DIR, 'absolute')
-    # perception_results(SUBJECTS, MAIN_DIR)
+    # production_synchronies(SUBJECTS, MAIN_DIR, 'absolute')
+    perception_results(SUBJECTS, MAIN_DIR)
     # ntfd_results(SUBJECTS, MAIN_DIR)
 
 
