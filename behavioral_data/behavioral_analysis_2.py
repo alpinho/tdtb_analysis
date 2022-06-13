@@ -133,7 +133,7 @@ def production_synchronies(subjects, this_dir, sync_type,
                        [round(ssb.mean(0), 2), round(ssi.mean(0), 2)],
                        width=.15, yerr=[ssb.std(0), ssi.std(0)],
                        error_kw=dict(capsize=2), facecolor='tab:blue',
-                       label='Signed assynchrony')
+                       label='Signed Asynchrony')
                 ax.bar_label(signed, padding=3)
                 plt.ylim([-1., 2.])
             else:
@@ -146,7 +146,7 @@ def production_synchronies(subjects, this_dir, sync_type,
                        [round(asb.mean(0), 2), round(asi.mean(0), 2)],
                        width=.15, yerr=[asb.std(0), asi.std(0)],
                        error_kw=dict(capsize=2), facecolor='tab:orange',
-                       label='Absolute assynchrony')
+                       label='Absolute Asynchrony')
                 ax.bar_label(absolute, padding=3)
                 plt.ylim([0., 1.8])
 
@@ -178,7 +178,7 @@ def production_synchronies(subjects, this_dir, sync_type,
 
         fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
-    fig.text(.15, .41, 'Mean of assynchrony', ha='center',
+    fig.text(.15, .41, 'Mean of Asynchrony', ha='center',
              fontsize=14, rotation = 90)
 
     # plt.show()
@@ -664,9 +664,9 @@ if __name__ == "__main__":
     # production_rts(SUBJECTS, MAIN_DIR)
     # production_isi_meanrts(SUBJECTS, MAIN_DIR)
     # production_isi_stdrts(SUBJECTS, MAIN_DIR)
-    # production_synchronies(SUBJECTS, MAIN_DIR, 'signed')
-    # production_synchronies(SUBJECTS, MAIN_DIR, 'absolute')
-    perception_results(SUBJECTS, MAIN_DIR)
+    production_synchronies(SUBJECTS, MAIN_DIR, 'signed')
+    production_synchronies(SUBJECTS, MAIN_DIR, 'absolute')
+    # perception_results(SUBJECTS, MAIN_DIR)
     # ntfd_results(SUBJECTS, MAIN_DIR)
 
 
