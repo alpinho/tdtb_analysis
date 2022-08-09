@@ -268,11 +268,11 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
 
             # #### Plotting #####
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 12))
+                fig = plt.figure(figsize=(8, 36))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .725 - s*.325, .3, .2])
+            ax = plt.axes([.235 + t*.42, .9 - s*.095, .3, .05])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -286,7 +286,7 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
 
             ax.bar_label(beat_plot, padding=3, fontsize=4)
             ax.bar_label(interval_plot, padding=3, fontsize=4)
-            plt.ylim([0., 1500])
+            plt.ylim([0., 850])
 
             if s == 0:
                 ax.set_title(task, pad=20, weight='bold')
@@ -306,7 +306,7 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     fig.text(.5, .03, 'ISI1=ISI (ms)', fontsize=12)
@@ -494,8 +494,8 @@ def ntfd_results(subjects, this_dir,
 # %%
 # =========================== INPUTS ===================================
 
-# SUBJECTS = [5, 6, 7]
-SUBJECTS = [12]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13]
+# SUBJECTS = [3]
 
 # TASKS = ['Auditory Production',
 #          'Auditory Perception',
@@ -518,10 +518,8 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, tasks = TASKS,
-                       mode='mean')
-    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, tasks = TASKS,
-                       mode='std')
+    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
+    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
     # production_isi_stdrts(SUBJECTS, MAIN_DIR, SESSTYPE, tasks= TASKS)
     # production_synchronies(SUBJECTS, MAIN_DIR, 'signed')
     # production_synchronies(SUBJECTS, MAIN_DIR, 'absolute')
