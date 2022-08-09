@@ -82,8 +82,8 @@ def filter_trialtype(trs, category):
                     for i in interval]
     else:
         assert category == 'perception'
-        beat = [[int(b[0]), int(b[1]), int(b[2]), b[3]] for b in beat]
-        interval = [[int(i[0]), int(i[1]), int(i[2]), i[3]] for i in interval]
+        beat = [[int(b[0]), int(b[1]), b[2]] for b in beat]
+        interval = [[int(i[0]), int(i[1]), i[2]] for i in interval]
 
     return beat, interval
 
@@ -99,7 +99,7 @@ def perception_frequencies(isi_diff_condition, condition_trials):
         for i, idiff_cond in enumerate(isi_diff_condition):
             if idiff_cond == idiff:
                 count += 1
-                responses.append(condition_trials[i][3])
+                responses.append(condition_trials[i][2])
         frequency = responses.count('o') / count
         frequencies.append(frequency)
 
@@ -327,29 +327,29 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
         plt.savefig(os.path.join(this_dir, 'production_rts_isis_std.pdf'))
 
 
-def perception_results(subjects, this_dir,
+def perception_results(subjects, this_dir, sesstype, n_sess,
                        tasks = ['Auditory Perception', 'Visual Perception']):
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Perception', 'Visual Perception']:
                 raise NameError('Task not valid!')
-            data = parse_logfile(this_dir, subject, task)
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
             trials = []
             for dt, datum in enumerate(data):
-                if datum[4] == 'interval_1':
-                    condition = datum[3]
-                    isi1 = datum[7]
-                    isi5 = data[dt+8][7]
-                    if data[dt+10][4] == 'feedback' and \
-                       data[dt+10][10] in ['o', 'p']:
-                        rt = int(data[dt+9][6]) + int(data[dt+10][9])
-                        answer = data[dt+10][10]
-                    elif data[dt+10][4] == 'feedback' and \
-                         data[dt+10][10] == 'None':
+                if datum[5] == 'interval_1':
+                    condition = datum[4]
+                    real_isi1 = datum[9]
+                    real_isi5 = data[dt+8][9]
+                    if data[dt+10][5] == 'feedback' and \
+                       data[dt+10][11] in ['o', 'p']:
+                        # rt = int(data[dt+9][7]) + int(data[dt+10][10])
+                        answer = data[dt+10][11]
+                    elif data[dt+10][5] == 'feedback' and \
+                         data[dt+10][11] == 'None':
                         continue
                     else:
                         raise ValueError('No feedback entry!')
-                    trials.append([condition, isi1, isi5, rt, answer])
+                    trials.append([condition, real_isi1, real_isi5, answer])
 
             beat_trials, interval_trials = filter_trialtype(trials,
                                                             'perception')
@@ -366,11 +366,11 @@ def perception_results(subjects, this_dir,
 
             # #### Plotting ####
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 12))
+                fig = plt.figure(figsize=(8, 36))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .65 - s*.25, .3, .2])
+            ax = plt.axes([.235 + t*.42, .9 - s*.095, .3, .05])
 
             ax.plot(x_vals, y_beat_vals, marker='o', markersize=5,
                     color='b', label='Beat', linewidth=3)
@@ -406,10 +406,10 @@ def perception_results(subjects, this_dir,
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.055, .75 - s * .25, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
 
-    fig.text(.3, .08, 'Proportion of time difference between RTs and ISI1 (%)',
+    fig.text(.3, .02, 'Proportion of time difference between RTs and ISI1 (%)',
              fontsize=12)
     fig.text(.14, .4, '% of "longer" responses', fontsize=12, rotation=90)
 
@@ -419,7 +419,7 @@ def perception_results(subjects, this_dir,
     plt.savefig(os.path.join(this_dir, 'perception_responses.pdf'))
 
 
-def ntfd_results(subjects, this_dir,
+def ntfd_results(subjects, this_dir, sesstype, n_sess,
                  tasks = ['Auditory No-Temporal Feature Discrimination',
                           'Visual No-Temporal Feature Discrimination']):
     for s, subject in enumerate(subjects):
@@ -427,16 +427,16 @@ def ntfd_results(subjects, this_dir,
             if task not in ['Auditory No-Temporal Feature Discrimination',
                             'Visual No-Temporal Feature Discrimination']:
                 raise NameError('Task not valid!')
-            data = parse_logfile(this_dir, subject, task)
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
             trials = []
             for dt, datum in enumerate(data):
-                if datum[4] == 'feedback':
-                    condition = datum[3]
-                    if datum[10] in ['o', 'p']:
-                        rt = int(data[dt-1][6]) + int(datum[9])
+                if datum[5] == 'feedback':
+                    condition = datum[4]
+                    if datum[11] in ['o', 'p']:
+                        rt = int(data[dt-1][7]) + int(datum[10])
                     elif datum[10] == 'None':
                         continue
                     else:
@@ -449,11 +449,11 @@ def ntfd_results(subjects, this_dir,
 
             # #### Plotting ####
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 12))
+                fig = plt.figure(figsize=(8, 36))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .725 - s*.325, .3, .2])
+            ax = plt.axes([.235 + t*.42, .9 - s*.095, .3, .05])
 
             labels = ['beat', 'interval']
             x = [.2, .6]  # the label locations
@@ -469,7 +469,7 @@ def ntfd_results(subjects, this_dir,
             ax.bar_label(ntfd_plt, padding=3)
             ax.set_xticks(x, labels)
             plt.xlim([0., .8])
-            plt.ylim([0., 700.])
+            plt.ylim([0., 1000.])
 
             if s == 0:
                 if task == 'Auditory No-Temporal Feature Discrimination':
@@ -478,13 +478,13 @@ def ntfd_results(subjects, this_dir,
                     assert task == 'Visual No-Temporal Feature Discrimination'
                     ax.set_title('Visual NTFD', weight='bold', pad=20)
                 if t == 0:
-                    fig.text(.25, .915, 'Error bars: SD', fontsize=12)
+                    fig.text(.25, .945, 'Error bars: SD', fontsize=12)
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
     fig.text(.155, .45, 'Mean of RT (ms)', ha='center',
              fontsize=12, rotation = 90)
@@ -525,8 +525,8 @@ if __name__ == "__main__":
                            'absolute')
     production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
     production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
-    # perception_results(SUBJECTS, MAIN_DIR)
-    # ntfd_results(SUBJECTS, MAIN_DIR)
+    perception_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    ntfd_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
 
 
