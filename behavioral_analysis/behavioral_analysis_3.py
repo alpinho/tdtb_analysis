@@ -110,27 +110,27 @@ def perception_frequencies(isi_diff_condition, condition_trials):
     return idiffs, frequencies
 
 
-def production_synchronies(subjects, this_dir, sync_type,
+def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
                            tasks = ['Auditory Production', 'Visual Production']):
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
-            data = parse_logfile(this_dir, subject, task)
-            trials = []
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
 
+            trials = []
             for dt, datum in enumerate(data):
-                if datum[4] == 'interval_1':
-                    condition = datum[3]
-                    isi1 = int(datum[7])
-                    if data[dt+8][4] == 'feedback' and data[dt+8][10] == 'o':
-                        rt = int(data[dt+7][6]) + int(data[dt+8][9])
-                    elif data[dt+8][4] == 'feedback' and \
+                if datum[5] == 'interval_1':
+                    condition = datum[4]
+                    real_isi1 = int(datum[9])
+                    if data[dt+8][5] == 'feedback' and data[dt+8][11] == 'o':
+                        rt = int(data[dt+7][7]) + int(data[dt+8][10])
+                    elif data[dt+8][5] == 'feedback' and \
                          data[dt+8][10] == 'None':
                         continue
                     else:
                         raise ValueError('No feedback entry!')
-                    trials.append([condition, isi1, rt])
+                    trials.append([condition, real_isi1, rt])
 
             beat_trials, interval_trials = filter_trialtype(trials,
                                                             'production')
@@ -142,11 +142,11 @@ def production_synchronies(subjects, this_dir, sync_type,
 
             # #### Plotting #####
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 12))
+                fig = plt.figure(figsize=(8, 36))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .725 - s*.325, .3, .2])
+            ax = plt.axes([.235 + t*.42, .9 - s*.095, .3, .05])
 
             labels = ['beat', 'interval']
             x = np.arange(len(labels))  # the label locations
@@ -158,7 +158,7 @@ def production_synchronies(subjects, this_dir, sync_type,
                        error_kw=dict(capsize=2), facecolor='tab:blue',
                        label='Signed Asynchrony')
                 ax.bar_label(signed, padding=3)
-                plt.ylim([-1., 2.])
+                plt.ylim([-.8, .8])
             else:
                 assert sync_type == 'absolute'
 
@@ -171,7 +171,7 @@ def production_synchronies(subjects, this_dir, sync_type,
                        error_kw=dict(capsize=2), facecolor='tab:orange',
                        label='Absolute Asynchrony')
                 ax.bar_label(absolute, padding=3)
-                plt.ylim([0., 1.8])
+                plt.ylim([-.8, .8])
 
             # ax.set_ylabel('Mean of assynchrony (ms)')
             if s == 0:
@@ -180,12 +180,12 @@ def production_synchronies(subjects, this_dir, sync_type,
                     if sync_type == 'signed':
                         ax.legend(frameon=False, loc = 'upper left',
                                   prop={'size': 12})
-                        fig.text(.25, .875, 'Error bars: SD', fontsize=12)
+                        fig.text(.25, .91, 'Error bars: SD', fontsize=12)
                     else:
                         assert sync_type == 'absolute'
                         ax.legend(frameon=False, loc = 'upper left',
                                   prop={'size': 12})
-                        fig.text(.25, .88, 'Error bars: SD', fontsize=12)
+                        fig.text(.25, .91, 'Error bars: SD', fontsize=12)
 
             ax.set_xticks([x[0] + .4, x[1] - .4], labels)
             # if s == len(subjects) - 1:
@@ -199,7 +199,7 @@ def production_synchronies(subjects, this_dir, sync_type,
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.06, .8 - s * .3, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
     fig.text(.15, .41, 'Mean of Asynchrony', ha='center',
              fontsize=14, rotation = 90)
@@ -286,7 +286,11 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
 
             ax.bar_label(beat_plot, padding=3, fontsize=4)
             ax.bar_label(interval_plot, padding=3, fontsize=4)
-            plt.ylim([0., 850])
+            if mode == 'mean':
+                plt.ylim([0., 850])
+            else:
+                assert mode == 'std'
+                plt.ylim([0., 400])
 
             if s == 0:
                 ax.set_title(task, pad=20, weight='bold')
@@ -309,7 +313,7 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
         fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
-    fig.text(.5, .03, 'ISI1=ISI (ms)', fontsize=12)
+    fig.text(.5, .02, 'ISI1=ISI (ms)', fontsize=12)
     if mode == 'mean':
         fig.text(.16, .45, 'Mean of RTs (ms)',
                  ha='center', fontsize=14, rotation = 90)
@@ -504,10 +508,8 @@ SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13]
 #          'Visual Perception',
 #          'Visual No-Temporal Feature Discrimination']
 
-TASKS = ['Auditory Production']
 SESSTYPE = 'behavioral session'
 N_SESSIONS = 3
-
 
 # %%
 # ========================= PARAMETERS =================================
@@ -518,11 +520,11 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
+    production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed')
+    production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+                           'absolute')
     production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
     production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
-    # production_isi_stdrts(SUBJECTS, MAIN_DIR, SESSTYPE, tasks= TASKS)
-    # production_synchronies(SUBJECTS, MAIN_DIR, 'signed')
-    # production_synchronies(SUBJECTS, MAIN_DIR, 'absolute')
     # perception_results(SUBJECTS, MAIN_DIR)
     # ntfd_results(SUBJECTS, MAIN_DIR)
 
