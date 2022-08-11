@@ -15,6 +15,8 @@ import glob
 import csv
 import numpy as np
 
+from scipy import stats
+
 from matplotlib import pyplot as plt
 
 
@@ -422,6 +424,11 @@ def perception_results(subjects, this_dir, sesstype, n_sess,
 def ntfd_results(subjects, this_dir, sesstype, n_sess,
                  tasks = ['Auditory No-Temporal Feature Discrimination',
                           'Visual No-Temporal Feature Discrimination']):
+
+    allsub_beat_audio = []
+    allsub_intv_audio = []
+    allsub_beat_visual = []
+    allsub_intv_visual = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory No-Temporal Feature Discrimination',
@@ -484,6 +491,15 @@ def ntfd_results(subjects, this_dir, sesstype, n_sess,
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
+            # Aggregate data to compute the paired sample t-test
+            if task == 'Auditory No-Temporal Feature Discrimination':
+                allsub_beat_audio.append(round(beat_trials.mean(0), 2))
+                allsub_intv_audio.append(round(interval_trials.mean(0), 2))
+            else:
+                assert task == 'Visual No-Temporal Feature Discrimination'
+                allsub_beat_visual.append(round(beat_trials.mean(0), 2))
+                allsub_intv_visual.append(round(interval_trials.mean(0), 2))
+
         fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
     fig.text(.155, .45, 'Mean of RT (ms)', ha='center',
@@ -493,6 +509,9 @@ def ntfd_results(subjects, this_dir, sesstype, n_sess,
 
     # Save figure
     plt.savefig(os.path.join(this_dir, 'ntfd_rt.pdf'))
+
+    return (allsub_beat_audio, allsub_intv_audio, allsub_beat_visual,
+            allsub_intv_visual)
 
 
 # %%
@@ -520,14 +539,18 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed')
-    production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-                           'absolute')
-    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
-    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
-    perception_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
-    ntfd_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed')
+    # production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+    #                        'absolute')
+    # production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
+    # production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
+    # perception_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
+        ntfd_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-
-
-
+    # Compute paired-sample t-test for NTFD tasks
+    tstat_audio, pval_audio = stats.ttest_rel(ntdf_audio_beat, ntfd_audio_intv,
+                                              alternative='less')
+    tstat_visual, pval_visual = stats.ttest_rel(ntfd_visual_beat,
+                                                ntfd_visual_intv,
+                                                alternative='less')
