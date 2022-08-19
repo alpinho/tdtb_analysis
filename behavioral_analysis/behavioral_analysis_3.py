@@ -73,6 +73,61 @@ def parse_logfile(parent_dir, subject_no, sesstype, n_sess, task_name,
     return allsessions
 
 
+def production_data(data):
+    trials = []
+    for dt, datum in enumerate(data):
+        if datum[5] == 'interval_1':
+            condition = datum[4]
+            theoretical_isi1 = int(datum[8])
+            real_isi1 = int(datum[9])
+            if data[dt+8][5] == 'feedback' and data[dt+8][11] == 'o':
+                rt = int(data[dt+7][7]) + int(data[dt+8][10])
+            elif data[dt+8][5] == 'feedback' and data[dt+8][10] == 'None':
+                rt = np.nan
+            else:
+                raise ValueError('No feedback entry!')
+            trials.append([condition, theoretical_isi1, real_isi1, rt])
+
+    return trials
+
+
+def perception_data(data):
+    trials = []
+    for dt, datum in enumerate(data):
+        if datum[5] == 'interval_1':
+            condition = datum[4]
+            real_isi1 = datum[9]
+            real_isi5 = data[dt+8][9]
+            if data[dt+10][5] == 'feedback' and \
+               data[dt+10][11] in ['o', 'p']:
+                # rt = int(data[dt+9][7]) + int(data[dt+10][10])
+                answer = data[dt+10][11]
+            elif data[dt+10][5] == 'feedback' and \
+                 data[dt+10][11] == 'None':
+                continue
+            else:
+                raise ValueError('No feedback entry!')
+            trials.append([condition, real_isi1, real_isi5, answer])
+
+    return trials
+
+
+def ntfd_data(data):
+    trials = []
+    for dt, datum in enumerate(data):
+        if datum[5] == 'feedback':
+            condition = datum[4]
+            if datum[11] in ['o', 'p']:
+                rt = int(data[dt-1][7]) + int(datum[10])
+            elif datum[10] == 'None':
+                continue
+            else:
+                raise ValueError('No feedback entry!')
+            trials.append([condition, rt])
+
+    return trials
+
+
 def filter_trialtype(trs, category):
     beat = [tr[1:] for tr in trs if tr[0][:4] == 'beat']
     interval = [tr[1:] for tr in trs if tr[0][:8] == 'interval']
@@ -123,31 +178,24 @@ def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
+
             data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
-
-            trials = []
-            for dt, datum in enumerate(data):
-                if datum[5] == 'interval_1':
-                    condition = datum[4]
-                    real_isi1 = int(datum[9])
-                    if data[dt+8][5] == 'feedback' and data[dt+8][11] == 'o':
-                        rt = int(data[dt+7][7]) + int(data[dt+8][10])
-                    elif data[dt+8][5] == 'feedback' and \
-                         data[dt+8][10] == 'None':
-                        continue
-                    else:
-                        raise ValueError('No feedback entry!')
-                    trials.append([condition, real_isi1, rt])
-
+            trials = production_data(data)
             beat_trials, interval_trials = filter_trialtype(trials,
                                                             'production')
+            # Filter necessary data
+            beat_trials = [trial[1:] for trial in beat_trials
+                           if ~np.any(np.isnan(trial))]
+            interval_trials = [trial[1:] for trial in interval_trials
+                               if ~np.any(np.isnan(trial))]
+
             # ################# Synchronies ############################
             ssb = np.array([round((bt[1]-bt[0])/bt[0], 2)
                             for bt in beat_trials])
             ssi = np.array([round((it[1]-it[0])/it[0], 2)
                             for it in interval_trials])
 
-            # #### Plotting #####
+            # ################## Plotting ###############################
             if s == 0 and t == 0:
                 fig = plt.figure(figsize=(8, 36))
 
@@ -173,12 +221,12 @@ def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
                 asi = np.array([abs(ssi) for ssi in ssi])
 
                 # Truncate the error bars for the abs assynchronies
-                if round(asb.mean(0), 2) > asb.std(0):
+                if asb.mean(0) > asb.std(0):
                     lowlim_std_b = asb.std(0)
                 else:
                     lowlim_std_b = asb.mean(0)
 
-                if round(asi.mean(0), 2) > asi.std(0):
+                if asi.mean(0) > asi.std(0):
                     lowlim_std_i = asi.std(0)
                 else:
                     lowlim_std_i = asi.mean(0)
@@ -189,8 +237,8 @@ def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
                                         [asb.std(0), asi.std(0)]],
                        error_kw=dict(capsize=2), facecolor='tab:orange',
                        label='Absolute Asynchrony')
-                ax.bar_label(absolute, padding=3)
-                plt.ylim([-.8, .8])
+                # ax.bar_label(absolute, padding=3)
+                plt.ylim([0., .8])
 
             # ax.set_ylabel('Mean of assynchrony (ms)')
             if s == 0:
@@ -204,7 +252,7 @@ def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
                         assert sync_type == 'absolute'
                         ax.legend(frameon=False, loc = 'upper left',
                                   prop={'size': 12})
-                        fig.text(.25, .91, 'Error bars: SD', fontsize=12)
+                        fig.text(.25, .93, 'Error bars: SD', fontsize=12)
 
             ax.set_xticks([x[0] + .4, x[1] - .4], labels)
             # if s == len(subjects) - 1:
@@ -256,24 +304,18 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
+
             data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
-
-            trials = []
-            for dt, datum in enumerate(data):
-                if datum[5] == 'interval_1':
-                    condition = datum[4]
-                    theoretical_isi1 = int(datum[8])
-                    if data[dt+8][5] == 'feedback' and data[dt+8][11] == 'o':
-                        rt = int(data[dt+7][7]) + int(data[dt+8][10])
-                    elif data[dt+8][5] == 'feedback' and \
-                         data[dt+8][10] == 'None':
-                        rt = np.nan
-                    else:
-                        raise ValueError('No feedback entry!')
-                    trials.append([condition, theoretical_isi1, rt])
-
+            trials = production_data(data)
             beat_trials, interval_trials = filter_trialtype(trials,
                                                             'production')
+            # Filter necessary data
+            beat_trials = [np.delete(trial, 1).tolist()
+                           for trial in beat_trials]
+            interval_trials = [np.delete(trial, 1).tolist()
+                               for trial in interval_trials]
+
+            # ############## Compute RT's per ISI ###################### 
             isi1s = np.unique(np.array(beat_trials)[:, 0]).astype('int')
 
             rt_isi1_grouped_beat = []
@@ -304,7 +346,7 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
                 rt_isi1_interval = np.around(
                     np.nanstd(rt_isi1_grouped_interval, axis=1), decimals=0)
 
-            # #### Plotting #####
+            # ################## Plotting ###############################
             if s == 0 and t == 0:
                 fig = plt.figure(figsize=(8, 36))
 
@@ -371,27 +413,13 @@ def perception_results(subjects, this_dir, sesstype, n_sess,
         for t, task in enumerate(tasks):
             if task not in ['Auditory Perception', 'Visual Perception']:
                 raise NameError('Task not valid!')
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
-            trials = []
-            for dt, datum in enumerate(data):
-                if datum[5] == 'interval_1':
-                    condition = datum[4]
-                    real_isi1 = datum[9]
-                    real_isi5 = data[dt+8][9]
-                    if data[dt+10][5] == 'feedback' and \
-                       data[dt+10][11] in ['o', 'p']:
-                        # rt = int(data[dt+9][7]) + int(data[dt+10][10])
-                        answer = data[dt+10][11]
-                    elif data[dt+10][5] == 'feedback' and \
-                         data[dt+10][11] == 'None':
-                        continue
-                    else:
-                        raise ValueError('No feedback entry!')
-                    trials.append([condition, real_isi1, real_isi5, answer])
 
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
+            trials = perception_data(data)
             beat_trials, interval_trials = filter_trialtype(trials,
                                                             'perception')
 
+            # ######### Compute perception frequencies #################
             isi_diff_beat = [round((bt[1] - bt[0]) / bt[0], 2)
                              for bt in beat_trials]
             isi_diff_interval = [round((it[1] - it[0]) / it[0], 2)
@@ -402,7 +430,7 @@ def perception_results(subjects, this_dir, sesstype, n_sess,
             _, y_interval_val = perception_frequencies(isi_diff_interval,
                                                        interval_trials)
 
-            # #### Plotting ####
+            # ################## Plotting ###############################
             if s == 0 and t == 0:
                 fig = plt.figure(figsize=(8, 36))
 
@@ -470,27 +498,18 @@ def ntfd_results(subjects, this_dir, sesstype, n_sess,
             if task not in ['Auditory No-Temporal Feature Discrimination',
                             'Visual No-Temporal Feature Discrimination']:
                 raise NameError('Task not valid!')
+
             data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
-            trials = []
-            for dt, datum in enumerate(data):
-                if datum[5] == 'feedback':
-                    condition = datum[4]
-                    if datum[11] in ['o', 'p']:
-                        rt = int(data[dt-1][7]) + int(datum[10])
-                    elif datum[10] == 'None':
-                        continue
-                    else:
-                        raise ValueError('No feedback entry!')
-                    trials.append([condition, rt])
-
+            trials = ntfd_data(data)
             beat_trials, interval_trials = filter_trialtype(trials, 'ntfd')
+
             beat_trials = np.array(beat_trials).ravel()
             interval_trials = np.array(interval_trials).ravel()
 
-            # #### Plotting ####
+            # ################## Plotting ###############################
             if s == 0 and t == 0:
                 fig = plt.figure(figsize=(8, 36))
 
@@ -554,7 +573,7 @@ def ntfd_results(subjects, this_dir, sesstype, n_sess,
 # =========================== INPUTS ===================================
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13]
-# SUBJECTS = [3]
+# SUBJECTS = [4]
 
 # TASKS = ['Auditory Production',
 #          'Auditory Perception',
@@ -578,14 +597,14 @@ if __name__ == "__main__":
 
     # ############### PRODUCTION SYNCHRONIES ###########################
 
-    # ssync_audio_beat, ssync_audio_intv, \
-    #     ssync_visual_beat, ssync_visual_intv = \
-    # production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-    #                        'signed')
+    ssync_audio_beat, ssync_audio_intv, \
+        ssync_visual_beat, ssync_visual_intv = \
+            production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+                                   'signed')
     async_audio_beat, async_audio_intv, \
         async_visual_beat, async_visual_intv = \
-    production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-                           'absolute')
+            production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+                                   'absolute')
 
     # Compute paired-sample t-test for production synchronies
     # tssync_audio, pssync_audio = stats.ttest_rel(
@@ -600,11 +619,11 @@ if __name__ == "__main__":
 
     # ################# PRODUCTION RT'S ##############################
 
-    # production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
-    # production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
-    # perception_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
-    # ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
-    #     ntfd_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
+    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
+    perception_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
+        ntfd_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # Compute paired-sample t-test for NTFD tasks
     # tntfd_audio, pntfd_audio = stats.ttest_rel(
