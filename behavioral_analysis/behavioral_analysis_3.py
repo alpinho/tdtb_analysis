@@ -167,8 +167,9 @@ def perception_frequencies(isi_diff_condition, condition_trials):
     return idiffs, frequencies
 
 
-def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
-                           tasks = ['Auditory Production', 'Visual Production']):
+def individual_production_sync(
+        subjects, this_dir, sesstype, n_sess, sync_type,
+        tasks = ['Auditory Production', 'Visual Production']):
 
     allsub_beat_audio = []
     allsub_intv_audio = []
@@ -296,9 +297,10 @@ def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
             allsub_intv_visual)
 
 
-def production_isi_rts(subjects, this_dir, sesstype, n_sess,
-                       tasks = ['Auditory Production', 'Visual Production'],
-                       mode = 'mean'):
+def individual_production_rts(
+        subjects, this_dir, sesstype, n_sess,
+        tasks = ['Auditory Production', 'Visual Production'],
+        mode = 'mean'):
 
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
@@ -407,8 +409,9 @@ def production_isi_rts(subjects, this_dir, sesstype, n_sess,
         plt.savefig(os.path.join(this_dir, 'production_rts_isis_std.pdf'))
 
 
-def perception_results(subjects, this_dir, sesstype, n_sess,
-                       tasks = ['Auditory Perception', 'Visual Perception']):
+def individual_perception(
+        subjects, this_dir, sesstype, n_sess,
+        tasks = ['Auditory Perception', 'Visual Perception']):
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Perception', 'Visual Perception']:
@@ -485,9 +488,9 @@ def perception_results(subjects, this_dir, sesstype, n_sess,
     plt.savefig(os.path.join(this_dir, 'perception_responses.pdf'))
 
 
-def ntfd_results(subjects, this_dir, sesstype, n_sess,
-                 tasks = ['Auditory No-Temporal Feature Discrimination',
-                          'Visual No-Temporal Feature Discrimination']):
+def individual_ntfd(subjects, this_dir, sesstype, n_sess,
+                    tasks = ['Auditory No-Temporal Feature Discrimination',
+                             'Visual No-Temporal Feature Discrimination']):
 
     allsub_beat_audio = []
     allsub_intv_audio = []
@@ -599,12 +602,13 @@ if __name__ == "__main__":
 
     ssync_audio_beat, ssync_audio_intv, \
         ssync_visual_beat, ssync_visual_intv = \
-            production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-                                   'signed')
+            individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
+                                       N_SESSIONS, 'signed')
+
     async_audio_beat, async_audio_intv, \
         async_visual_beat, async_visual_intv = \
-            production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-                                   'absolute')
+            individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
+                                       N_SESSIONS, 'absolute')
 
     # Compute paired-sample t-test for production synchronies
     # tssync_audio, pssync_audio = stats.ttest_rel(
@@ -619,11 +623,13 @@ if __name__ == "__main__":
 
     # ################# PRODUCTION RT'S ##############################
 
-    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
-    production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
-    perception_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+                              mode='mean')
+    individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+                              mode='std')
+    individual_perception_(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
     ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
-        ntfd_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+        individual_ntfd(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # Compute paired-sample t-test for NTFD tasks
     # tntfd_audio, pntfd_audio = stats.ttest_rel(
