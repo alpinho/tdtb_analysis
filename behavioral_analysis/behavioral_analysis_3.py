@@ -114,6 +114,11 @@ def perception_frequencies(isi_diff_condition, condition_trials):
 
 def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
                            tasks = ['Auditory Production', 'Visual Production']):
+
+    allsub_beat_audio = []
+    allsub_intv_audio = []
+    allsub_beat_visual = []
+    allsub_intv_visual = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
@@ -167,9 +172,21 @@ def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
                 asb = np.array([abs(ssb) for ssb in ssb])
                 asi = np.array([abs(ssi) for ssi in ssi])
 
+                # Truncate the error bars for the abs assynchronies
+                if round(asb.mean(0), 2) > asb.std(0):
+                    lowlim_std_b = asb.std(0)
+                else:
+                    lowlim_std_b = asb.mean(0)
+
+                if round(asi.mean(0), 2) > asi.std(0):
+                    lowlim_std_i = asi.std(0)
+                else:
+                    lowlim_std_i = asi.mean(0)
+
                 absolute = ax.bar([x[0] + .4, x[1] - .4],
                        [round(asb.mean(0), 2), round(asi.mean(0), 2)],
-                       width=.15, yerr=[asb.std(0), asi.std(0)],
+                       width=.15, yerr=[[lowlim_std_b, lowlim_std_i],
+                                        [asb.std(0), asi.std(0)]],
                        error_kw=dict(capsize=2), facecolor='tab:orange',
                        label='Absolute Asynchrony')
                 ax.bar_label(absolute, padding=3)
@@ -201,6 +218,21 @@ def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
+            # Aggregate data to compute the paired sample t-test
+            if task == 'Auditory Production' and sync_type == 'signed':
+                allsub_beat_audio.append(round(ssb.mean(0), 2))
+                allsub_intv_audio.append(round(ssi.mean(0), 2))
+            elif task == 'Visual Production' and sync_type == 'signed':
+                allsub_beat_visual.append(round(ssb.mean(0), 2))
+                allsub_intv_visual.append(round(ssi.mean(0), 2))
+            elif task == 'Auditory Production' and sync_type == 'absolute':
+                allsub_beat_audio.append(round(asb.mean(0), 2))
+                allsub_intv_audio.append(round(asi.mean(0), 2))
+            else:
+                assert task == 'Visual Production' and sync_type == 'absolute'
+                allsub_beat_visual.append(round(asb.mean(0), 2))
+                allsub_intv_visual.append(round(asi.mean(0), 2))
+
         fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
     fig.text(.15, .41, 'Mean of Asynchrony', ha='center',
@@ -212,10 +244,14 @@ def production_synchronies(subjects, this_dir, sesstype, n_sess, sync_type,
     plt.savefig(os.path.join(
         this_dir, 'production_' + sync_type + '_assynchronies.pdf'))
 
+    return (allsub_beat_audio, allsub_intv_audio, allsub_beat_visual,
+            allsub_intv_visual)
+
 
 def production_isi_rts(subjects, this_dir, sesstype, n_sess,
                        tasks = ['Auditory Production', 'Visual Production'],
                        mode = 'mean'):
+
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
@@ -539,18 +575,40 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    # production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed')
+
+    # ############### PRODUCTION SYNCHRONIES ###########################
+
+    # ssync_audio_beat, ssync_audio_intv, \
+    #     ssync_visual_beat, ssync_visual_intv = \
     # production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-    #                        'absolute')
+    #                        'signed')
+    async_audio_beat, async_audio_intv, \
+        async_visual_beat, async_visual_intv = \
+    production_synchronies(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+                           'absolute')
+
+    # Compute paired-sample t-test for production synchronies
+    # tssync_audio, pssync_audio = stats.ttest_rel(
+    #     ssync_audio_beat, ssync_audio_intv, alternative='less')
+    # tssync_visual, pssync_visual = stats.ttest_rel(
+    #     ssync_visual_beat, ssync_visual_intv, alternative='less')
+
+    # tasync_audio, pasync_audio = stats.ttest_rel(
+    #     async_audio_beat, async_audio_intv, alternative='less')
+    # tasync_visual, pasync_visual = stats.ttest_rel(
+    #     async_visual_beat, async_visual_intv, alternative='less')
+
+    # ################# PRODUCTION RT'S ##############################
+
     # production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='mean')
     # production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, mode='std')
     # perception_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
-    ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
-        ntfd_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
+    #     ntfd_results(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # Compute paired-sample t-test for NTFD tasks
-    tstat_audio, pval_audio = stats.ttest_rel(ntdf_audio_beat, ntfd_audio_intv,
-                                              alternative='less')
-    tstat_visual, pval_visual = stats.ttest_rel(ntfd_visual_beat,
-                                                ntfd_visual_intv,
-                                                alternative='less')
+    # tntfd_audio, pntfd_audio = stats.ttest_rel(
+    #     ntdf_audio_beat, ntfd_audio_intv, alternative='less')
+    # tntfd_visual, pntfd_visual = stats.ttest_rel(
+    #     ntfd_visual_beat, ntfd_visual_intv, alternative='less')
+
