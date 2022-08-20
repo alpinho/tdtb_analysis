@@ -202,7 +202,7 @@ def individual_production_sync(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .9 - s*.095, .3, .05])
+            ax = plt.axes([.235 + t*.42, .88 - s*.07, .3, .05])
 
             labels = ['beat', 'interval']
             x = np.arange(len(labels))  # the label locations
@@ -243,7 +243,7 @@ def individual_production_sync(
 
             # ax.set_ylabel('Mean of assynchrony (ms)')
             if s == 0:
-                ax.set_title(task, pad=30, weight='bold')
+                ax.set_title(task, pad=75, weight='bold')
                 if t == 0:
                     if sync_type == 'signed':
                         ax.legend(frameon=False, loc = 'upper left',
@@ -282,7 +282,7 @@ def individual_production_sync(
                 allsub_beat_visual.append(round(asb.mean(0), 2))
                 allsub_intv_visual.append(round(asi.mean(0), 2))
 
-        fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
     fig.text(.15, .41, 'Mean of Asynchrony', ha='center',
              fontsize=14, rotation = 90)
@@ -291,7 +291,7 @@ def individual_production_sync(
 
     # Save figure
     plt.savefig(os.path.join(
-        this_dir, 'production_' + sync_type + '_assynchronies.pdf'))
+        this_dir, 'production_individual_' + sync_type + '_assynch.pdf'))
 
     return (allsub_beat_audio, allsub_intv_audio, allsub_beat_visual,
             allsub_intv_visual)
@@ -575,7 +575,7 @@ def individual_ntfd(subjects, this_dir, sesstype, n_sess,
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 # SUBJECTS = [4]
 
 # TASKS = ['Auditory Production',
@@ -623,13 +623,13 @@ if __name__ == "__main__":
 
     # ################# PRODUCTION RT'S ##############################
 
-    individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-                              mode='mean')
-    individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-                              mode='std')
-    individual_perception_(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
-    ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
-        individual_ntfd(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+    #                           mode='mean')
+    # individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+    #                           mode='std')
+    # individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
+    #     individual_ntfd(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # Compute paired-sample t-test for NTFD tasks
     # tntfd_audio, pntfd_audio = stats.ttest_rel(
