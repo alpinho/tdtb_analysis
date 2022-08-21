@@ -18,6 +18,7 @@ import numpy as np
 from scipy import stats
 
 from matplotlib import pyplot as plt
+import matplotlib.patches as mpatches
 
 
 # %%
@@ -172,14 +173,31 @@ def perception_frequencies(isi_diff_condition, condition_trials):
     return idiffs, frequencies
 
 
+def adjacent_values(vals, q1, q3):
+    upper_adjacent_value = q3 + (q3 - q1) * 1.5
+    upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
+
+    lower_adjacent_value = q1 - (q3 - q1) * 1.5
+    lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+    return lower_adjacent_value, upper_adjacent_value
+
+
+def set_axis_style(ax, labels):
+    ax.xaxis.set_tick_params(direction='out')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.set_xticks(np.arange(1, len(labels) + 1), labels=labels)
+    ax.set_xlim(0.25, len(labels) + 0.75)
+    ax.set_xlabel('Sample name')
+
+
 def individual_production_isi_sync(
         subjects, this_dir, sesstype, n_sess, sync_type,
         tasks = ['Auditory Production', 'Visual Production']):
 
-    # allsub_beat_audio = []
-    # allsub_intv_audio = []
-    # allsub_beat_visual = []
-    # allsub_intv_visual = []
+    allsub_beat_audio = []
+    allsub_interval_audio = []
+    allsub_beat_visual = []
+    allsub_interval_visual = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
@@ -344,25 +362,24 @@ def individual_production_isi_sync(
                     fig.text(.285, 0.9225, ' Mean', color='black',
                              weight='roman', size='x-small')
 
-
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            # # Aggregate data to compute the paired sample t-test
-            # if task == 'Auditory Production' and sync_type == 'signed':
-            #     allsub_beat_audio.append(round(ssb.mean(0), 2))
-            #     allsub_intv_audio.append(round(ssi.mean(0), 2))
-            # elif task == 'Visual Production' and sync_type == 'signed':
-            #     allsub_beat_visual.append(round(ssb.mean(0), 2))
-            #     allsub_intv_visual.append(round(ssi.mean(0), 2))
-            # elif task == 'Auditory Production' and sync_type == 'absolute':
-            #     allsub_beat_audio.append(round(asb.mean(0), 2))
-            #     allsub_intv_audio.append(round(asi.mean(0), 2))
-            # else:
-            #     assert task == 'Visual Production' and sync_type == 'absolute'
-            #     allsub_beat_visual.append(round(asb.mean(0), 2))
-            #     allsub_intv_visual.append(round(asi.mean(0), 2))
+            # Aggregate data to compute the paired sample t-test
+            if task == 'Auditory Production' and sync_type == 'signed':
+                allsub_beat_audio.append(ss_isi_beat)
+                allsub_interval_audio.append(ss_isi_interval)
+            elif task == 'Visual Production' and sync_type == 'signed':
+                allsub_beat_visual.append(ss_isi_beat)
+                allsub_interval_visual.append(ss_isi_interval)
+            elif task == 'Auditory Production' and sync_type == 'absolute':
+                allsub_beat_audio.append(as_isi_beat)
+                allsub_interval_audio.append(as_isi_interval)
+            else:
+                assert task == 'Visual Production' and sync_type == 'absolute'
+                allsub_beat_visual.append(as_isi_beat)
+                allsub_interval_visual.append(as_isi_interval)
 
         fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
@@ -373,8 +390,76 @@ def individual_production_isi_sync(
     plt.savefig(os.path.join(
         this_dir, 'production_individual_isi_' + sync_type + '_assynch.pdf'))
 
-    # return (allsub_beat_audio, allsub_intv_audio, allsub_beat_visual,
-    #         allsub_intv_visual)
+    return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
+            allsub_interval_visual)
+
+
+def production_groupsync_violin(allaudio_beat, allaudio_interval,
+                                allvisual_beat, allvisual_interval,
+                                this_dir, sync_type):
+    allaudio_beat = np.ravel(allaudio_beat)
+    allaudio_interval = np.ravel(allaudio_interval)
+    allvisual_beat = np.ravel(allvisual_beat)
+    allvisual_interval = np.ravel(allvisual_interval)
+    data_to_plot = [allaudio_beat, allaudio_interval,
+                    allvisual_beat, allvisual_interval]
+    pos = np.array([1.15, 1.85, 3.15, 3.85])
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 4),
+                           sharey=True)
+
+    ax.set_title('Group Asynchrony for Production Task')
+    parts = ax.violinplot(data_to_plot, pos, showmeans=True, showmedians=False,
+                          showextrema=True)
+
+    labels = []
+    for pc in parts['bodies'][:2]:
+        pc.set_facecolor('#D43F3A')
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+        color = parts["bodies"][0].get_facecolor().flatten()
+        labels.append((mpatches.Patch(color=color), 'Auditory'))
+
+    for pc in parts['bodies'][2:]:
+        pc.set_facecolor('#dede00')
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+        color = parts["bodies"][2].get_facecolor().flatten()
+        labels.append((mpatches.Patch(color=color), 'Visual'))
+
+    quartile1, medians, quartile3 = np.percentile(data_to_plot, [25, 50, 75],
+                                                  axis=1)
+    whiskers = np.array([
+        adjacent_values(sorted_array, q1, q3)
+        for sorted_array, q1, q3 in zip(data_to_plot, quartile1, quartile3)])
+    whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
+
+    # inds = np.arange(1, len(medians) + 1)
+    ax.scatter(pos, medians, marker='o', color='white', s=6, zorder=3)
+    ax.vlines(pos, quartile1, quartile3, color='k', linestyle='-', lw=5)
+    ax.vlines(pos, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
+
+    # set style for the axes
+    x_labels = ['Beat', 'Interval', 'Beat', 'Interval']
+    ax.set_xticks(pos, x_labels)
+    plt.ylabel("Asynchrony")
+
+    plt.subplots_adjust(bottom=0.15, wspace=0.05)
+
+    # Hide the right and top spines
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+    # Add legend
+    labels.remove(labels[1])
+    labels.remove(labels[-1])
+    plt.legend(*zip(*labels), loc=2)
+    fig.text(.43, 0.84, 'white circle: median', size=8)
+    fig.text(.43, 0.79, 'hline: mean', size=8)
+
+    # Save figure
+    plt.savefig(os.path.join(
+        this_dir, 'production_groupviolin_' + sync_type + '_assynch.pdf'))
 
 
 def individual_production_isi_rts(
@@ -826,15 +911,19 @@ if __name__ == "__main__":
 
     # ############### PRODUCTION SYNCHRONIES ###########################
 
-    # ssync_audio_beat, ssync_audio_intv, \
-    #     ssync_visual_beat, ssync_visual_intv = \
+    ssync_audio_beat, ssync_audio_interval, \
+        ssync_visual_beat, ssync_visual_interval = \
     individual_production_isi_sync(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
                                    'signed')
 
-    # async_audio_beat, async_audio_intv, \
-    #     async_visual_beat, async_visual_intv = \
+    async_audio_beat, async_audio_interval, \
+        async_visual_beat, async_visual_interval = \
     individual_production_isi_sync(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
                                    'absolute')
+
+    production_groupsync_violin(ssync_audio_beat, ssync_audio_interval,
+                                ssync_visual_beat, ssync_visual_interval,
+                                MAIN_DIR, 'signed')
 
     # Compute paired-sample t-test for production synchronies
     # tssync_audio, pssync_audio = stats.ttest_rel(
@@ -849,13 +938,13 @@ if __name__ == "__main__":
 
     # ################# PRODUCTION RT'S ##############################
 
-    individual_production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # individual_production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
-    individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
-    individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # Compute paired-sample t-test for NTFD tasks
     # tntfd_audio, pntfd_audio = stats.ttest_rel(
