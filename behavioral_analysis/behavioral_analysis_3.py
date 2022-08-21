@@ -168,13 +168,13 @@ def perception_frequencies(isi_diff_condition, condition_trials):
 
 
 def individual_production_sync(
-        subjects, this_dir, sesstype, n_sess, sync_type,
+        subjects, this_dir, sesstype, n_sess, sync_type, mode='mean',
         tasks = ['Auditory Production', 'Visual Production']):
 
-    allsub_beat_audio = []
-    allsub_intv_audio = []
-    allsub_beat_visual = []
-    allsub_intv_visual = []
+    # allsub_beat_audio = []
+    # allsub_intv_audio = []
+    # allsub_beat_visual = []
+    # allsub_intv_visual = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
@@ -184,17 +184,48 @@ def individual_production_sync(
             trials = production_data(data)
             beat_trials, interval_trials = filter_trialtype(trials,
                                                             'production')
-            # Filter necessary data
-            beat_trials = [trial[1:] for trial in beat_trials
-                           if ~np.any(np.isnan(trial))]
-            interval_trials = [trial[1:] for trial in interval_trials
-                               if ~np.any(np.isnan(trial))]
 
-            # ################# Synchronies ############################
-            ssb = np.array([round((bt[1]-bt[0])/bt[0], 2)
-                            for bt in beat_trials])
-            ssi = np.array([round((it[1]-it[0])/it[0], 2)
-                            for it in interval_trials])
+            # ############# Assynchronies per ISI ######################
+            isi1s = np.unique(np.array(beat_trials)[:, 0]).astype('int')
+
+            ss_isi_beat = []
+            as_isi_beat = []
+            for i in isi1s:
+                ss_beat = []
+                as_beat = []
+                for b, beat_trial in enumerate(beat_trials):
+                    if beat_trial[0] == i:
+                        if ~np.any(np.isnan(beat_trial)):
+                            ssb = round((beat_trial[2] - beat_trial[1]) / \
+                                        beat_trial[1], 2)
+                            asb = abs(ssb)
+                        # else:
+                        #     ssb = np.nan
+                        #     asb = np.nan
+                        ss_beat.append(ssb)
+                        as_beat.append(asb)
+                ss_isi_beat.append(ss_beat)
+                as_isi_beat.append(as_beat)
+
+            ss_isi_interval = []
+            as_isi_interval = []
+            for i in isi1s:
+                ss_interval = []
+                as_interval = []
+                for interval_trial in interval_trials:
+                    if interval_trial[0] == i:
+                        if ~np.any(np.isnan(interval_trial)):
+                            ssi = round((interval_trial[2] - \
+                                         interval_trial[1]) / \
+                                        interval_trial[1], 2)
+                            asi = abs(ssi)
+                        # else:
+                        #     ssi = np.nan
+                        #     asi = np.nan
+                        ss_interval.append(ssi)
+                        as_interval.append(asi)
+                ss_isi_interval.append(ss_interval)
+                as_isi_interval.append(as_interval)
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
@@ -204,88 +235,138 @@ def individual_production_sync(
             # plt.axes([left, bottom, width, height])
             ax = plt.axes([.235 + t*.42, .88 - s*.07, .3, .05])
 
-            labels = ['beat', 'interval']
-            x = np.arange(len(labels))  # the label locations
+            x_labels = [str(k) for k in isi1s]
+            x = np.arange(len(x_labels))  # the label locations
+            width = 0.35  # the width of the bars
 
             if sync_type == 'signed':
-                signed = ax.bar([x[0] + .4, x[1] - .4],
-                       [round(ssb.mean(0), 2), round(ssi.mean(0), 2)],
-                       width=.15, yerr=[ssb.std(0), ssi.std(0)],
-                       error_kw=dict(capsize=2), facecolor='tab:blue',
-                       label='Signed Asynchrony')
-                ax.bar_label(signed, padding=3)
-                plt.ylim([-.8, .8])
+                beat = ax.boxplot(ss_isi_beat,
+                                  bootstrap=100,
+                                  positions=np.arange(len(x))*2. - width,
+                                  widths=0.6,
+                                  flierprops={'marker': '+', 'markersize': 5},
+                                  patch_artist=True)
+                interval = ax.boxplot(ss_isi_interval,
+                                      bootstrap=100,
+                                      positions=np.arange(len(x))*2. + width,
+                                      widths=0.6,
+                                      flierprops={'marker': '+', 'markersize': 5},
+                                      patch_artist=True)
+                # Overplot the mean, with horizontal alignment
+                # in the center of each box
+                for j in np.arange(len(x)):
+                    medbeat = beat['medians'][j]
+                    medinterval = interval['medians'][j]
+                    ax.plot(np.average(medbeat.get_xdata()),
+                            np.average(ss_isi_beat[j]),
+                            color='w', marker='*', markeredgecolor='k')
+                    ax.plot(np.average(medinterval.get_xdata()),
+                            np.average(ss_isi_interval[j]),
+                            color='w', marker='*', markeredgecolor='k')
             else:
                 assert sync_type == 'absolute'
+                beat = ax.boxplot(as_isi_beat,
+                                  bootstrap=100,
+                                  positions=np.arange(len(x))*2. - width,
+                                  widths=0.6,
+                                  flierprops={'marker': '+', 'markersize': 5},
+                                  patch_artist=True)
+                interval = ax.boxplot(as_isi_interval,
+                                      bootstrap=100,
+                                      positions=np.arange(len(x))*2. + width,
+                                      widths=0.6,
+                                      flierprops={'marker': '+', 'markersize': 5},
+                                      patch_artist=True)
+                # Overplot the mean, with horizontal alignment
+                # in the center of each box
+                for j in np.arange(len(x)):
+                    medbeat = beat['medians'][j]
+                    medinterval = interval['medians'][j]
+                    ax.plot(np.average(medbeat.get_xdata()),
+                            np.average(as_isi_beat[j]),
+                            color='w', marker='*', markeredgecolor='k')
+                    ax.plot(np.average(medinterval.get_xdata()),
+                            np.average(as_isi_interval[j]),
+                            color='w', marker='*', markeredgecolor='k')
 
-                asb = np.array([abs(ssb) for ssb in ssb])
-                asi = np.array([abs(ssi) for ssi in ssi])
-
-                # Truncate the error bars for the abs assynchronies
-                if asb.mean(0) > asb.std(0):
-                    lowlim_std_b = asb.std(0)
+            # Fill boxes with colors
+            colors1 = ['tab:blue', 'lightblue']
+            colors2 = ['purple', 'thistle']
+            for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
+                if sync_type == 'signed':
+                    patch1.set_facecolor(colors1[0])
+                    patch2.set_facecolor(colors1[1])
                 else:
-                    lowlim_std_b = asb.mean(0)
+                    assert sync_type == 'absolute'
+                    patch1.set_facecolor(colors2[0])
+                    patch2.set_facecolor(colors2[1])
 
-                if asi.mean(0) > asi.std(0):
-                    lowlim_std_i = asi.std(0)
-                else:
-                    lowlim_std_i = asi.mean(0)
+            # if s == len(subjects) - 1:
+            #     ax.set_xticks(x, x_labels)
+            # else:
+            #     # ax.set_xticks([x[0] + .4, x[1] - .4], '')
+            #     ax.tick_params(bottom=False)
+            #     ax.spines['bottom'].set_visible(False)
+            if s == len(subjects) - 1:
+                fig.text(.5, .02, ' ISIs', size=18)
 
-                absolute = ax.bar([x[0] + .4, x[1] - .4],
-                       [round(asb.mean(0), 2), round(asi.mean(0), 2)],
-                       width=.15, yerr=[[lowlim_std_b, lowlim_std_i],
-                                        [asb.std(0), asi.std(0)]],
-                       error_kw=dict(capsize=2), facecolor='tab:orange',
-                       label='Absolute Asynchrony')
-                # ax.bar_label(absolute, padding=3)
-                plt.ylim([0., .8])
+            ax.set_xticks(x*2., x_labels)
 
-            # ax.set_ylabel('Mean of assynchrony (ms)')
+            if sync_type == 'signed':
+                y_ticks = np.arange(-1., 4., .5)
+            else:
+                assert sync_type == 'absolute'
+                y_ticks = np.arange(0., 4., .5)
+            y_labels = np.array([str(y_tick) if (y % 2) != 0 else ''
+                                 for y, y_tick in enumerate(y_ticks)])
+            ax.set_yticks(y_ticks, y_labels)
+            # plt.ylim([-1., 3.7])
+
+            if (t % 2) == 0:
+                ax.set_ylabel('Asynchrony')
+
             if s == 0:
-                ax.set_title(task, pad=75, weight='bold')
+                ax.set_title(task, pad=60, weight='bold')
                 if t == 0:
                     if sync_type == 'signed':
                         ax.legend(frameon=False, loc = 'upper left',
                                   prop={'size': 12})
-                        fig.text(.25, .91, 'Error bars: SD', fontsize=12)
                     else:
                         assert sync_type == 'absolute'
                         ax.legend(frameon=False, loc = 'upper left',
                                   prop={'size': 12})
-                        fig.text(.25, .93, 'Error bars: SD', fontsize=12)
 
-            ax.set_xticks([x[0] + .4, x[1] - .4], labels)
-            # if s == len(subjects) - 1:
-            #     ax.set_xticks([x[0] + .4, x[1] - .4], labels)
-            # else:
-            #     ax.set_xticks([x[0] + .4, x[1] - .4], '')
-            #     ax.tick_params(bottom=False)
-            #     ax.spines['bottom'].set_visible(False)
+                    ax.legend([beat["boxes"][0], interval["boxes"][0]],
+                              ['Beat', 'Interval'],
+                              loc='upper right')
+                    fig.text(.27, 0.923, '*', color='white',
+                             backgroundcolor='silver', weight='roman',
+                             size='medium')
+                    fig.text(.285, 0.9225, ' Mean', color='black',
+                             weight='roman', size='x-small')
+
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            # Aggregate data to compute the paired sample t-test
-            if task == 'Auditory Production' and sync_type == 'signed':
-                allsub_beat_audio.append(round(ssb.mean(0), 2))
-                allsub_intv_audio.append(round(ssi.mean(0), 2))
-            elif task == 'Visual Production' and sync_type == 'signed':
-                allsub_beat_visual.append(round(ssb.mean(0), 2))
-                allsub_intv_visual.append(round(ssi.mean(0), 2))
-            elif task == 'Auditory Production' and sync_type == 'absolute':
-                allsub_beat_audio.append(round(asb.mean(0), 2))
-                allsub_intv_audio.append(round(asi.mean(0), 2))
-            else:
-                assert task == 'Visual Production' and sync_type == 'absolute'
-                allsub_beat_visual.append(round(asb.mean(0), 2))
-                allsub_intv_visual.append(round(asi.mean(0), 2))
+            # # Aggregate data to compute the paired sample t-test
+            # if task == 'Auditory Production' and sync_type == 'signed':
+            #     allsub_beat_audio.append(round(ssb.mean(0), 2))
+            #     allsub_intv_audio.append(round(ssi.mean(0), 2))
+            # elif task == 'Visual Production' and sync_type == 'signed':
+            #     allsub_beat_visual.append(round(ssb.mean(0), 2))
+            #     allsub_intv_visual.append(round(ssi.mean(0), 2))
+            # elif task == 'Auditory Production' and sync_type == 'absolute':
+            #     allsub_beat_audio.append(round(asb.mean(0), 2))
+            #     allsub_intv_audio.append(round(asi.mean(0), 2))
+            # else:
+            #     assert task == 'Visual Production' and sync_type == 'absolute'
+            #     allsub_beat_visual.append(round(asb.mean(0), 2))
+            #     allsub_intv_visual.append(round(asi.mean(0), 2))
 
         fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
-    fig.text(.15, .41, 'Mean of Asynchrony', ha='center',
-             fontsize=14, rotation = 90)
 
     # plt.show()
 
@@ -293,8 +374,8 @@ def individual_production_sync(
     plt.savefig(os.path.join(
         this_dir, 'production_individual_' + sync_type + '_assynch.pdf'))
 
-    return (allsub_beat_audio, allsub_intv_audio, allsub_beat_visual,
-            allsub_intv_visual)
+    # return (allsub_beat_audio, allsub_intv_audio, allsub_beat_visual,
+    #         allsub_intv_visual)
 
 
 def individual_production_rts(
@@ -576,7 +657,7 @@ def individual_ntfd(subjects, this_dir, sesstype, n_sess,
 # =========================== INPUTS ===================================
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-# SUBJECTS = [4]
+# SUBJECTS = [8]
 
 # TASKS = ['Auditory Production',
 #          'Auditory Perception',
@@ -600,15 +681,25 @@ if __name__ == "__main__":
 
     # ############### PRODUCTION SYNCHRONIES ###########################
 
-    ssync_audio_beat, ssync_audio_intv, \
-        ssync_visual_beat, ssync_visual_intv = \
-            individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
-                                       N_SESSIONS, 'signed')
+    # ssync_audio_beat, ssync_audio_intv, \
+    #     ssync_visual_beat, ssync_visual_intv = \
+    individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
+                               N_SESSIONS, 'signed', mode='mean')
 
-    async_audio_beat, async_audio_intv, \
-        async_visual_beat, async_visual_intv = \
-            individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
-                                       N_SESSIONS, 'absolute')
+    # async_audio_beat, async_audio_intv, \
+    #     async_visual_beat, async_visual_intv = \
+    individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
+                               N_SESSIONS, 'absolute', mode='mean')
+
+    # ssync_audio_beat, ssync_audio_intv, \
+    #     ssync_visual_beat, ssync_visual_intv = \
+    #         individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
+    #                                    N_SESSIONS, 'signed', mode='std')
+
+    # async_audio_beat, async_audio_intv, \
+    #     async_visual_beat, async_visual_intv = \
+    #         individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
+    #                                    N_SESSIONS, 'absolute', mode='std')
 
     # Compute paired-sample t-test for production synchronies
     # tssync_audio, pssync_audio = stats.ttest_rel(
