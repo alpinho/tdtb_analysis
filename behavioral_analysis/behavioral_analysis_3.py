@@ -308,7 +308,7 @@ def individual_production_sync(
             #     ax.tick_params(bottom=False)
             #     ax.spines['bottom'].set_visible(False)
             if s == len(subjects) - 1:
-                fig.text(.5, .02, ' ISIs', size=18)
+                fig.text(.5, .02, ' ISIs (ms)', size=18)
 
             ax.set_xticks(x*2., x_labels)
 
@@ -328,14 +328,8 @@ def individual_production_sync(
             if s == 0:
                 ax.set_title(task, pad=60, weight='bold')
                 if t == 0:
-                    if sync_type == 'signed':
-                        ax.legend(frameon=False, loc = 'upper left',
-                                  prop={'size': 12})
-                    else:
-                        assert sync_type == 'absolute'
-                        ax.legend(frameon=False, loc = 'upper left',
-                                  prop={'size': 12})
-
+                    ax.legend(frameon=False, loc = 'upper left',
+                              prop={'size': 12})
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right')
@@ -380,8 +374,7 @@ def individual_production_sync(
 
 def individual_production_rts(
         subjects, this_dir, sesstype, n_sess,
-        tasks = ['Auditory Production', 'Visual Production'],
-        mode = 'mean'):
+        tasks = ['Auditory Production', 'Visual Production']):
 
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
@@ -406,7 +399,8 @@ def individual_production_rts(
                 rts_beat = []
                 for beat_trial in beat_trials:
                     if beat_trial[0] == i:
-                        rts_beat.append(beat_trial[1])
+                        if ~np.any(np.isnan(beat_trial)):
+                            rts_beat.append(beat_trial[1])
                 rt_isi1_grouped_beat.append(rts_beat)
 
             rt_isi1_grouped_interval = []
@@ -414,20 +408,9 @@ def individual_production_rts(
                 rts_interval = []
                 for interval_trial in interval_trials:
                     if interval_trial[0] == j:
-                        rts_interval.append(interval_trial[1])
+                        if ~np.any(np.isnan(interval_trial)):
+                            rts_interval.append(interval_trial[1])
                 rt_isi1_grouped_interval.append(rts_interval)
-
-            if mode == 'mean':
-                rt_isi1_beat = np.around(
-                    np.nanmean(rt_isi1_grouped_beat, axis=1), decimals=0)
-                rt_isi1_interval = np.around(
-                    np.nanmean(rt_isi1_grouped_interval, axis=1), decimals=0)
-            else:
-                assert mode == 'std'
-                rt_isi1_beat = np.around(
-                    np.nanstd(rt_isi1_grouped_beat, axis=1), decimals=0)
-                rt_isi1_interval = np.around(
-                    np.nanstd(rt_isi1_grouped_interval, axis=1), decimals=0)
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
@@ -435,59 +418,88 @@ def individual_production_rts(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .9 - s*.095, .3, .05])
+            ax = plt.axes([.235 + t*.42, .88 - s*.07, .3, .05])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
             width = 0.35  # the width of the bars
 
-            beat_plot = ax.bar(x - width/2, rt_isi1_beat, width=width,
-                               label='Beat')
+            beat = ax.boxplot(rt_isi1_grouped_beat,
+                              bootstrap=100,
+                              positions=np.arange(len(x))*2. - width,
+                              widths=0.6,
+                              flierprops={'marker': '+', 'markersize': 5},
+                              patch_artist=True)
+            interval = ax.boxplot(rt_isi1_grouped_interval,
+                                  bootstrap=100,
+                                  positions=np.arange(len(x))*2. + width,
+                                  widths=0.6,
+                                  flierprops={'marker': '+', 'markersize': 5},
+                                  patch_artist=True)
 
-            interval_plot = ax.bar(x + width/2, rt_isi1_interval, width=width,
-                                   label='Interval')
+            # Overplot the mean, with horizontal alignment
+            # in the center of each box
+            for j in np.arange(len(x)):
+                medbeat = beat['medians'][j]
+                medinterval = interval['medians'][j]
+                ax.plot(np.average(medbeat.get_xdata()),
+                        np.average(rt_isi1_grouped_beat[j]),
+                        color='w', marker='*', markeredgecolor='k')
+                ax.plot(np.average(medinterval.get_xdata()),
+                        np.average(rt_isi1_grouped_interval[j]),
+                        color='w', marker='*', markeredgecolor='k')
 
-            ax.bar_label(beat_plot, padding=3, fontsize=4)
-            ax.bar_label(interval_plot, padding=3, fontsize=4)
-            if mode == 'mean':
-                plt.ylim([0., 850])
-            else:
-                assert mode == 'std'
-                plt.ylim([0., 400])
+            # Fill boxes with colors
+            colors = ['b', 'y']
+            for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
+                patch1.set_facecolor(colors[0])
+                patch2.set_facecolor(colors[1])
 
-            if s == 0:
-                ax.set_title(task, pad=20, weight='bold')
-                if t == 0:
-                    ax.legend(frameon=False, loc='upper left',
-                              prop={'size': 10})
-
-            ax.set_xticks(x, x_labels)
             # if s == len(subjects) - 1:
             #     ax.set_xticks(x, x_labels)
             # else:
-            #     ax.set_xticks(x, '')
+            #     # ax.set_xticks([x[0] + .4, x[1] - .4], '')
             #     ax.tick_params(bottom=False)
             #     ax.spines['bottom'].set_visible(False)
+            if s == len(subjects) - 1:
+                fig.text(.5, .02, ' ISIs', size=18)
+
+            ax.set_xticks(x*2., x_labels)
+
+            y_ticks = np.linspace(0., 2200, 6, dtype='int')
+            y_labels = np.array([str(y_tick) if (y % 2) != 0 else ''
+                                 for y, y_tick in enumerate(y_ticks)])
+            ax.set_yticks(y_ticks, y_labels)
+            # plt.ylim([0., 2100.])
+
+            if (t % 2) == 0:
+                ax.set_ylabel('RTs (ms)')
+
+            if s == 0:
+                ax.set_title(task, pad=60, weight='bold')
+                if t == 0:
+                    ax.legend(frameon=False, loc = 'upper left',
+                              prop={'size': 12})
+                    ax.legend([beat["boxes"][0], interval["boxes"][0]],
+                              ['Beat', 'Interval'],
+                              loc='upper right')
+                    fig.text(.27, 0.923, '*', color='white',
+                             backgroundcolor='silver', weight='roman',
+                             size='medium')
+                    fig.text(.285, 0.9225, ' Mean', color='black',
+                             weight='roman', size='x-small')
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.07, .9275 - s * .095, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
-    fig.text(.5, .02, 'ISI1=ISI (ms)', fontsize=12)
-    if mode == 'mean':
-        fig.text(.16, .45, 'Mean of RTs (ms)',
-                 ha='center', fontsize=14, rotation = 90)
-        # Save figure
-        plt.savefig(os.path.join(this_dir, 'production_rts_isis_mean.pdf'))
-    else:
-        assert mode == 'std'
-        fig.text(.16, .4, 'Standard Deviation of RTs (ms)',
-                 ha='center', fontsize=14, rotation = 90)
-        # Save figure
-        plt.savefig(os.path.join(this_dir, 'production_rts_isis_std.pdf'))
+    # plt.show()
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, 'production_individual_rts.pdf'))
 
 
 def individual_perception(
@@ -683,13 +695,13 @@ if __name__ == "__main__":
 
     # ssync_audio_beat, ssync_audio_intv, \
     #     ssync_visual_beat, ssync_visual_intv = \
-    individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
-                               N_SESSIONS, 'signed', mode='mean')
+    # individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
+    #                            N_SESSIONS, 'signed', mode='mean')
 
     # async_audio_beat, async_audio_intv, \
     #     async_visual_beat, async_visual_intv = \
-    individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
-                               N_SESSIONS, 'absolute', mode='mean')
+    # individual_production_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
+    #                            N_SESSIONS, 'absolute', mode='mean')
 
     # ssync_audio_beat, ssync_audio_intv, \
     #     ssync_visual_beat, ssync_visual_intv = \
@@ -714,8 +726,7 @@ if __name__ == "__main__":
 
     # ################# PRODUCTION RT'S ##############################
 
-    # individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-    #                           mode='mean')
+    individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
     # individual_production_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
     #                           mode='std')
     # individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
