@@ -195,27 +195,30 @@ def set_axis_style(ax, labels):
     ax.set_xlabel('Sample name')
 
 
-def plot_violin(data, title, first_color, second_color, y_label, this_dir,
-                fname):
+def plot_violin(allaudio_beat, allaudio_interval,
+                allvisual_beat, allvisual_interval,
+                title, y_label, this_dir, fname, loc):
+
+    data = [allaudio_beat, allaudio_interval,
+            allvisual_beat, allvisual_interval]
     pos = np.array([1.15, 1.85, 3.15, 3.85])
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 4),
                            sharey=True)
-
     ax.set_title(title, size=10)
     parts = ax.violinplot(data, pos, showmeans=True, showmedians=False,
                           showextrema=True)
 
     labels = []
     for pc in parts['bodies'][:2]:
-        pc.set_facecolor(first_color)
+        pc.set_facecolor('#D43F3A')
         pc.set_edgecolor('black')
         pc.set_alpha(1)
         color = parts["bodies"][0].get_facecolor().flatten()
         labels.append((mpatches.Patch(color=color), 'Auditory'))
 
     for pc in parts['bodies'][2:]:
-        pc.set_facecolor(second_color)
+        pc.set_facecolor('#dede00')
         pc.set_edgecolor('black')
         pc.set_alpha(1)
         color = parts["bodies"][2].get_facecolor().flatten()
@@ -248,7 +251,7 @@ def plot_violin(data, title, first_color, second_color, y_label, this_dir,
     ax.set_xticks(pos, x_labels)
     plt.ylabel(y_label)
 
-    plt.subplots_adjust(bottom=0.15, wspace=0.05)
+    plt.subplots_adjust(left=.2, bottom=0.1, top=.85, wspace=0.05)
 
     # Hide the right and top spines
     ax.spines['right'].set_visible(False)
@@ -257,7 +260,7 @@ def plot_violin(data, title, first_color, second_color, y_label, this_dir,
     # Add legend
     labels.remove(labels[1])
     labels.remove(labels[-1])
-    plt.legend(*zip(*labels), loc=0)
+    plt.legend(*zip(*labels), loc=loc)
     fig.text(.01, 0.96, 'white circle: median', size=8)
     fig.text(.01, 0.92, 'hline: mean', size=8)
 
@@ -470,31 +473,18 @@ def individual_production_isi_sync(
                  fontsize=12, weight='bold')
 
     # plt.show()
-
     # Save figure
     plt.savefig(os.path.join(
         this_dir, 'production_individual_isi_' + sync_type + '_asynch.pdf'))
 
+    # Flatten the data arrays
+    allsub_beat_audio = np.ravel(allsub_beat_audio)
+    allsub_interval_audio = np.ravel(allsub_interval_audio)
+    allsub_beat_visual = np.ravel(allsub_beat_visual)
+    allsub_interval_visual = np.ravel(allsub_interval_visual)
+
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
             allsub_interval_visual)
-
-
-def production_groupsync_violin(allaudio_beat, allaudio_interval,
-                                allvisual_beat, allvisual_interval,
-                                title, this_dir, sync_type):
-
-    allaudio_beat = np.ravel(allaudio_beat)
-    allaudio_interval = np.ravel(allaudio_interval)
-    allvisual_beat = np.ravel(allvisual_beat)
-    allvisual_interval = np.ravel(allvisual_interval)
-
-    data_to_plot = [allaudio_beat, allaudio_interval,
-                    allvisual_beat, allvisual_interval]
-    plot_violin(data_to_plot, title, '#D43F3A', '#dede00', 'Asynchrony',
-                this_dir, 'production_groupviolin_' + sync_type + '_asynch')
-
-    return(allaudio_beat, allaudio_interval, allvisual_beat,
-           allvisual_interval)
 
 
 def individual_production_isi_rts(
@@ -634,31 +624,17 @@ def individual_production_isi_rts(
                  fontsize=12, weight='bold')
 
     # plt.show()
-
     # Save figure
     plt.savefig(os.path.join(this_dir, 'production_individual_isi_rts.pdf'))
 
+    # Flatten the data arrays
+    allsub_beat_audio = flatten(allsub_beat_audio)
+    allsub_interval_audio = flatten(allsub_interval_audio)
+    allsub_beat_visual = flatten(allsub_beat_visual)
+    allsub_interval_visual = flatten(allsub_interval_visual)
+
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
             allsub_interval_visual)
-
-
-def production_grouprts_violin(allaudio_beat, allaudio_interval,
-                               allvisual_beat, allvisual_interval,
-                               title, this_dir):
-
-    allaudio_beat = flatten(allaudio_beat)
-    allaudio_interval = flatten(allaudio_interval)
-    allvisual_beat = flatten(allvisual_beat)
-    allvisual_interval = flatten(allvisual_interval)
-
-    data_to_plot = [allaudio_beat, allaudio_interval,
-                    allvisual_beat, allvisual_interval]
-
-    plot_violin(data_to_plot, title, '#D43F3A', '#dede00', 'RTs (ms)',
-                this_dir, 'production_groupviolin_rts')
-
-    return(allaudio_beat, allaudio_interval, allvisual_beat,
-           allvisual_interval)
 
 
 def individual_perception(
@@ -950,30 +926,17 @@ def individual_ntfd_isi_rts(
                  fontsize=12, weight='bold')
 
     # plt.show()
-
     # Save figure
     plt.savefig(os.path.join(this_dir, 'ntfd_individual_isi_rts.pdf'))
 
+    # Flatten the data arrays
+    allsub_beat_audio = flatten(allsub_beat_audio)
+    allsub_interval_audio = flatten(allsub_interval_audio)
+    allsub_beat_visual = flatten(allsub_beat_visual)
+    allsub_interval_visual = flatten(allsub_interval_visual)
+
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
             allsub_interval_visual)
-
-
-def ntfd_grouprts_violin(allaudio_beat, allaudio_interval,
-                         allvisual_beat, allvisual_interval,
-                         title, this_dir):
-    allaudio_beat = flatten(allaudio_beat)
-    allaudio_interval = flatten(allaudio_interval)
-    allvisual_beat = flatten(allvisual_beat)
-    allvisual_interval = flatten(allvisual_interval)
-
-    data_to_plot = [allaudio_beat, allaudio_interval,
-                    allvisual_beat, allvisual_interval]
-
-    plot_violin(data_to_plot, title, '#D43F3A', '#dede00', 'RTs (ms)',
-                this_dir, 'ntfd_groupviolin_rts')
-
-    return(allaudio_beat, allaudio_interval, allvisual_beat,
-           allvisual_interval)
 
 
 # %%
@@ -1016,36 +979,29 @@ if __name__ == "__main__":
 
     # ###############
 
-    ssync_audio_beat_ravel, ssync_audio_interval_ravel, \
-        ssync_visual_beat_ravel, ssync_visual_interval_ravel = \
-            production_groupsync_violin(
-                ssync_audio_beat, ssync_audio_interval,
+    plot_violin(ssync_audio_beat, ssync_audio_interval,
                 ssync_visual_beat, ssync_visual_interval,
-                'Group Signed-Asynchrony for Production Tasks',
-                MAIN_DIR, 'signed')
+                'Group Signed-Asynchrony for Production Tasks', 'Asynchrony',
+                MAIN_DIR, 'production_groupviolin_signed_asynch', 'upper left')
 
-    async_audio_beat_ravel, async_audio_interval_ravel, \
-        async_visual_beat_ravel, async_visual_interval_ravel = \
-            production_groupsync_violin(
-                async_audio_beat, async_audio_interval,
+
+    plot_violin(async_audio_beat, async_audio_interval,
                 async_visual_beat, async_visual_interval,
-                'Group Absolute-Asynchrony for Production Tasks',
-                MAIN_DIR, 'absolute')
+                'Group Absolute-Asynchrony for Production Tasks', 'Asynchrony',
+                MAIN_DIR, 'production_groupviolin_absolute_asynch', 'upper left')
 
     # ###############
 
     # Compute paired-sample t-test for production asynchronies
     tssync_audio, pssync_audio = stats.ttest_rel(
-        ssync_audio_beat_ravel, ssync_audio_interval_ravel, alternative='less')
+        ssync_audio_beat, ssync_audio_interval, alternative='less')
     tssync_visual, pssync_visual = stats.ttest_rel(
-        ssync_visual_beat_ravel, ssync_visual_interval_ravel,
-        alternative='less')
+        ssync_visual_beat, ssync_visual_interval, alternative='less')
 
     tasync_audio, pasync_audio = stats.ttest_rel(
-        async_audio_beat_ravel, async_audio_interval_ravel, alternative='less')
+        async_audio_beat, async_audio_interval, alternative='less')
     tasync_visual, pasync_visual = stats.ttest_rel(
-        async_visual_beat_ravel, async_visual_interval_ravel,
-        alternative='less')
+        async_visual_beat, async_visual_interval, alternative='less')
 
     # ################# PRODUCTION RT'S ##############################
 
@@ -1054,21 +1010,18 @@ if __name__ == "__main__":
             individual_production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE,
                                           N_SESSIONS)
 
-    rts_audio_beat_flatten, rts_audio_interval_flatten, \
-        rts_visual_beat_flatten, rts_visual_interval_flatten = \
-            production_grouprts_violin(rts_audio_beat, rts_audio_interval,
-                                       rts_visual_beat, rts_visual_interval,
-                                       'Group RTs for Production Tasks',
-                                       MAIN_DIR)
+    plot_violin(rts_audio_beat, rts_audio_interval,
+                rts_visual_beat, rts_visual_interval,
+                'Group RTs for Production Tasks', 'RTs (ms)', MAIN_DIR,
+                'production_groupviolin_rts', 'upper center')
 
     # ###############
 
     # Compute paired-sample t-test for production RT's
     trt_audio, prt_audio = stats.ttest_rel(
-        rts_audio_beat_flatten, rts_audio_interval_flatten, alternative='less')
+        rts_audio_beat, rts_audio_interval, alternative='less')
     trt_visual, prt_visual = stats.ttest_rel(
-        rts_visual_beat_flatten, rts_visual_interval_flatten,
-        alternative='less')
+        rts_visual_beat, rts_visual_interval, alternative='less')
 
     # ################### PERCEPTION ###################################
 
@@ -1082,20 +1035,16 @@ if __name__ == "__main__":
         ntfd_visual_beat, ntfd_visual_interval = \
             individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    ntdf_audio_beat_flatten, ntfd_audio_interval_flatten, \
-        ntfd_visual_beat_flatten, ntfd_visual_interval_flatten = \
-            ntfd_grouprts_violin(ntdf_audio_beat, ntfd_audio_interval,
-                                 ntfd_visual_beat, ntfd_visual_interval,
-                                 'Group RTs for NTFD Tasks',
-                                 MAIN_DIR)
+    plot_violin(ntdf_audio_beat, ntfd_audio_interval,
+                ntfd_visual_beat, ntfd_visual_interval,
+                'Group RTs for NTFD Tasks', 'RTs (ms)', MAIN_DIR,
+                'ntfd_groupviolin_rts', 'upper center')
 
     # ###############
 
     # Compute paired-sample t-test for NTFD tasks
     tntfd_audio, pntfd_audio = stats.ttest_rel(
-        ntdf_audio_beat_flatten, ntfd_audio_interval_flatten,
-        alternative='less')
+        ntdf_audio_beat, ntfd_audio_interval, alternative='less')
     tntfd_visual, pntfd_visual = stats.ttest_rel(
-        ntfd_visual_beat_flatten, ntfd_visual_interval_flatten,
+        ntfd_visual_beat, ntfd_visual_interval,
         alternative='less')
-
