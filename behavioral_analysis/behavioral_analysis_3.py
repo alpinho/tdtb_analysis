@@ -334,55 +334,58 @@ def individual_production_isi_sync(
             x = np.arange(len(x_labels))  # the label locations
             width = 0.35  # the width of the bars
 
+            # Transform in Symlog
+            logbeat = []
+            loginterval = []
+            shift = 2
             if sync_type == 'signed':
-                beat = ax.boxplot(ss_isi_beat,
-                                  bootstrap=100,
-                                  positions=np.arange(len(x))*2. - width,
-                                  widths=0.6,
-                                  flierprops={'marker': '+', 'markersize': 5},
-                                  patch_artist=True)
-                interval = ax.boxplot(ss_isi_interval,
-                                      bootstrap=100,
-                                      positions=np.arange(len(x))*2. + width,
-                                      widths=0.6,
-                                      flierprops={'marker': '+', 'markersize': 5},
-                                      patch_artist=True)
-                # Overplot the mean, with horizontal alignment
-                # in the center of each box
-                for j in np.arange(len(x)):
-                    medbeat = beat['medians'][j]
-                    medinterval = interval['medians'][j]
-                    ax.plot(np.average(medbeat.get_xdata()),
-                            np.average(ss_isi_beat[j]),
-                            color='w', marker='*', markeredgecolor='k')
-                    ax.plot(np.average(medinterval.get_xdata()),
-                            np.average(ss_isi_interval[j]),
-                            color='w', marker='*', markeredgecolor='k')
+                for lsbeat in ss_isi_beat:
+                    logv = np.abs(lsbeat)*(10.**shift)
+                    logv[np.where(logv<1.)] = 1.
+                    logv = np.sign(lsbeat)*np.log10(logv)
+                    logbeat.append(logv)
+                for lsint in ss_isi_interval:
+                    logv = np.abs(lsint)*(10.**shift)
+                    logv[np.where(logv<1.)] = 1.
+                    logv = np.sign(lsint)*np.log10(logv)
+                    loginterval.append(logv)
             else:
                 assert sync_type == 'absolute'
-                beat = ax.boxplot(as_isi_beat,
+                for lsbeat in as_isi_beat:
+                    logv = np.abs(lsbeat)*(10.**shift)
+                    logv[np.where(logv<1.)] = 1.
+                    logv = np.sign(lsbeat)*np.log10(logv)
+                    logbeat.append(logv)
+                for lsint in as_isi_interval:
+                    logv = np.abs(lsint)*(10.**shift)
+                    logv[np.where(logv<1.)] = 1.
+                    logv = np.sign(lsint)*np.log10(logv)
+                    loginterval.append(logv)
+
+
+            beat = ax.boxplot(logbeat,
+                              bootstrap=100,
+                              positions=np.arange(len(x))*2. - width,
+                              widths=0.6,
+                              flierprops={'marker': '+', 'markersize': 5},
+                              patch_artist=True)
+            interval = ax.boxplot(loginterval,
                                   bootstrap=100,
-                                  positions=np.arange(len(x))*2. - width,
+                                  positions=np.arange(len(x))*2. + width,
                                   widths=0.6,
                                   flierprops={'marker': '+', 'markersize': 5},
                                   patch_artist=True)
-                interval = ax.boxplot(as_isi_interval,
-                                      bootstrap=100,
-                                      positions=np.arange(len(x))*2. + width,
-                                      widths=0.6,
-                                      flierprops={'marker': '+', 'markersize': 5},
-                                      patch_artist=True)
-                # Overplot the mean, with horizontal alignment
-                # in the center of each box
-                for j in np.arange(len(x)):
-                    medbeat = beat['medians'][j]
-                    medinterval = interval['medians'][j]
-                    ax.plot(np.average(medbeat.get_xdata()),
-                            np.average(as_isi_beat[j]),
-                            color='w', marker='*', markeredgecolor='k')
-                    ax.plot(np.average(medinterval.get_xdata()),
-                            np.average(as_isi_interval[j]),
-                            color='w', marker='*', markeredgecolor='k')
+            # Overplot the mean, with horizontal alignment
+            # in the center of each box
+            for j in np.arange(len(x)):
+                medbeat = beat['medians'][j]
+                medinterval = interval['medians'][j]
+                ax.plot(np.average(medbeat.get_xdata()),
+                        np.average(ss_isi_beat[j]),
+                        color='w', marker='*', markeredgecolor='k')
+                ax.plot(np.average(medinterval.get_xdata()),
+                        np.average(ss_isi_interval[j]),
+                        color='w', marker='*', markeredgecolor='k')
 
             # Fill boxes with colors
             colors1 = ['tab:blue', 'lightblue']
@@ -407,31 +410,36 @@ def individual_production_isi_sync(
 
             ax.set_xticks(x*2., x_labels)
 
+            # if sync_type == 'signed':
+            #     y_ticks = np.arange(-1., 4., .5)
+            # else:
+            #     assert sync_type == 'absolute'
+            #     y_ticks = np.arange(0., 4., .5)
+            # y_labels = np.array([str(y_tick) if (y % 2) != 0 else ''
+            #                      for y, y_tick in enumerate(y_ticks)])
+            # ax.set_yticks(y_ticks, y_labels)
             if sync_type == 'signed':
-                y_ticks = np.arange(-1., 4., .5)
+                plt.ylim([-3., 3.])
+                if (t % 2) == 0:
+                    ax.set_ylabel('SymLog10(Asynchrony)')
             else:
                 assert sync_type == 'absolute'
-                y_ticks = np.arange(0., 4., .5)
-            y_labels = np.array([str(y_tick) if (y % 2) != 0 else ''
-                                 for y, y_tick in enumerate(y_ticks)])
-            ax.set_yticks(y_ticks, y_labels)
-            # plt.ylim([-1., 3.7])
-
-            if (t % 2) == 0:
-                ax.set_ylabel('Asynchrony')
+                plt.ylim([-.3, 3.])
+                if (t % 2) == 0:
+                    ax.set_ylabel('Log10(Asynchrony)')
 
             if s == 0:
                 ax.set_title(task, pad=60, weight='bold')
                 if t == 0:
-                    ax.legend(frameon=False, loc = 'upper left',
-                              prop={'size': 12})
+                    ax.legend(frameon=False, loc = 'upper right',
+                              prop={'size': 8})
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
-                              loc='upper right')
-                    fig.text(.27, 0.923, '*', color='white',
+                              loc='upper right', prop={'size': 8})
+                    fig.text(.27, 0.925, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.285, 0.9225, ' Mean', color='black',
+                    fig.text(.285, 0.925, ' Mean', color='black',
                              weight='roman', size='x-small')
 
             # Hide the right and top spines
@@ -535,13 +543,17 @@ def individual_production_isi_rts(
             x = np.arange(len(x_labels))  # the label locations
             width = 0.35  # the width of the bars
 
-            beat = ax.boxplot(rt_isi1_grouped_beat,
+            # Transform in the LogSpace
+            logbeat = [np.log10(i) for i in rt_isi1_grouped_beat]
+            loginterval = [np.log10(j) for j in rt_isi1_grouped_interval]
+
+            beat = ax.boxplot(logbeat,
                               bootstrap=100,
                               positions=np.arange(len(x))*2. - width,
                               widths=0.6,
                               flierprops={'marker': '+', 'markersize': 5},
                               patch_artist=True)
-            interval = ax.boxplot(rt_isi1_grouped_interval,
+            interval = ax.boxplot(loginterval,
                                   bootstrap=100,
                                   positions=np.arange(len(x))*2. + width,
                                   widths=0.6,
@@ -576,15 +588,10 @@ def individual_production_isi_rts(
                 fig.text(.5, .02, ' ISIs (ms)', size=18)
 
             ax.set_xticks(x*2., x_labels)
-
-            y_ticks = np.linspace(0., 2200, 6, dtype='int')
-            y_labels = np.array([str(y_tick) if (y % 2) != 0 else ''
-                                 for y, y_tick in enumerate(y_ticks)])
-            ax.set_yticks(y_ticks, y_labels)
-            # plt.ylim([0., 2100.])
+            plt.ylim([2., 3.35])
 
             if (t % 2) == 0:
-                ax.set_ylabel('RTs (ms)')
+                ax.set_ylabel('Log10(RT)')
 
             if s == 0:
                 ax.set_title(task, pad=60, weight='bold')
@@ -781,13 +788,17 @@ def individual_ntfd_isi_rts(
             x = np.arange(len(x_labels))  # the label locations
             width = 0.35  # the width of the bars
 
-            beat = ax.boxplot(rt_isi1_grouped_beat,
+            # Transform in the LogSpace
+            logbeat = [np.log10(i) for i in rt_isi1_grouped_beat]
+            loginterval = [np.log10(j) for j in rt_isi1_grouped_interval]
+
+            beat = ax.boxplot(logbeat,
                               bootstrap=100,
                               positions=np.arange(len(x))*2. - width,
                               widths=0.6,
                               flierprops={'marker': '+', 'markersize': 5},
                               patch_artist=True)
-            interval = ax.boxplot(rt_isi1_grouped_interval,
+            interval = ax.boxplot(loginterval,
                                   bootstrap=100,
                                   positions=np.arange(len(x))*2. + width,
                                   widths=0.6,
@@ -822,15 +833,10 @@ def individual_ntfd_isi_rts(
                 fig.text(.5, .02, ' ISIs (ms)', size=18)
 
             ax.set_xticks(x*2., x_labels)
-
-            # y_ticks = np.linspace(0., 2200, 6, dtype='int')
-            # y_labels = np.array([str(y_tick) if (y % 2) != 0 else ''
-            #                      for y, y_tick in enumerate(y_ticks)])
-            # ax.set_yticks(y_ticks, y_labels)
-            plt.ylim([0., 2100.])
+            plt.ylim([2., 3.35])
 
             if (t % 2) == 0:
-                ax.set_ylabel('RTs (ms)')
+                ax.set_ylabel('Log10(RT)')
 
             if s == 0:
                 if t == 0:
@@ -1015,10 +1021,15 @@ if __name__ == "__main__":
                                'Group RTs for Production Task',
                                MAIN_DIR)
 
+    # ################### PERCEPTION ###################################
+
     # individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
+    # ################### NTFD RT'S ####################################
+
     # ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
-    # individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+
     # individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # Compute paired-sample t-test for NTFD tasks
