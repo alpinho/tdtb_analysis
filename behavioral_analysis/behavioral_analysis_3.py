@@ -25,6 +25,11 @@ import matplotlib.patches as mpatches
 # =========================== FUNCTIONS ================================
 
 
+def flatten(li):
+    return sum(([x] if not isinstance(x, list) else flatten(x)
+                for x in li), [])
+
+
 def parse_logfile(parent_dir, subject_no, sesstype, n_sess, task_name,
                   ttl=False, concatenate=True):
 
@@ -252,9 +257,9 @@ def plot_violin(data, title, first_color, second_color, y_label, this_dir,
     # Add legend
     labels.remove(labels[1])
     labels.remove(labels[-1])
-    plt.legend(*zip(*labels), loc=2)
-    fig.text(.43, 0.84, 'white circle: median', size=8)
-    fig.text(.43, 0.79, 'hline: mean', size=8)
+    plt.legend(*zip(*labels), loc=0)
+    fig.text(.01, 0.96, 'white circle: median', size=8)
+    fig.text(.01, 0.92, 'hline: mean', size=8)
 
     # plt.show()
 
@@ -446,7 +451,7 @@ def individual_production_isi_sync(
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            # Aggregate data to compute the paired sample t-test
+            # Aggregate all data
             if task == 'Auditory Production' and sync_type == 'signed':
                 allsub_beat_audio.append(ss_isi_beat)
                 allsub_interval_audio.append(ss_isi_interval)
@@ -477,14 +482,19 @@ def individual_production_isi_sync(
 def production_groupsync_violin(allaudio_beat, allaudio_interval,
                                 allvisual_beat, allvisual_interval,
                                 title, this_dir, sync_type):
+
     allaudio_beat = np.ravel(allaudio_beat)
     allaudio_interval = np.ravel(allaudio_interval)
     allvisual_beat = np.ravel(allvisual_beat)
     allvisual_interval = np.ravel(allvisual_interval)
+
     data_to_plot = [allaudio_beat, allaudio_interval,
                     allvisual_beat, allvisual_interval]
     plot_violin(data_to_plot, title, '#D43F3A', '#dede00', 'Asynchrony',
                 this_dir, 'production_groupviolin_' + sync_type + '_asynch')
+
+    return(allaudio_beat, allaudio_interval, allvisual_beat,
+           allvisual_interval)
 
 
 def individual_production_isi_rts(
@@ -611,14 +621,14 @@ def individual_production_isi_rts(
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            # Aggregate data to compute the paired sample t-test
+            # Aggregate data
             if task == 'Auditory Production':
-                allsub_beat_audio.append(beat_trials)
-                allsub_interval_audio.append(interval_trials)
+                allsub_beat_audio.append(rt_isi1_grouped_beat)
+                allsub_interval_audio.append(rt_isi1_grouped_interval)
             else:
                 assert task == 'Visual Production'
-                allsub_beat_visual.append(beat_trials)
-                allsub_interval_visual.append(interval_trials)
+                allsub_beat_visual.append(rt_isi1_grouped_beat)
+                allsub_interval_visual.append(rt_isi1_grouped_interval)
 
         fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
@@ -635,27 +645,20 @@ def individual_production_isi_rts(
 def production_grouprts_violin(allaudio_beat, allaudio_interval,
                                allvisual_beat, allvisual_interval,
                                title, this_dir):
-    # Remove theoretical isi
-    allaudio_beat = [np.delete(trial, 0).tolist() for trial in allaudio_beat
-                     if ~np.any(np.isnan(trial))]
-    allaudio_interval = [np.delete(trial, 0).tolist()
-                         for trial in allaudio_interval
-                         if ~np.any(np.isnan(trial))]
-    allvisual_beat = [np.delete(trial, 0).tolist() for trial in allvisual_beat
-                      if ~np.any(np.isnan(trial))]
-    allvisual_interval = [np.delete(trial, 0).tolist()
-                          for trial in allvisual_interval
-                          if ~np.any(np.isnan(trial))]
-    allaudio_beat = np.ravel(allaudio_beat)
-    allaudio_interval = np.ravel(allaudio_interval)
-    allvisual_beat = np.ravel(allvisual_beat)
-    allvisual_interval = np.ravel(allvisual_interval)
+
+    allaudio_beat = flatten(allaudio_beat)
+    allaudio_interval = flatten(allaudio_interval)
+    allvisual_beat = flatten(allvisual_beat)
+    allvisual_interval = flatten(allvisual_interval)
 
     data_to_plot = [allaudio_beat, allaudio_interval,
                     allvisual_beat, allvisual_interval]
 
     plot_violin(data_to_plot, title, '#D43F3A', '#dede00', 'RTs (ms)',
                 this_dir, 'production_groupviolin_rts')
+
+    return(allaudio_beat, allaudio_interval, allvisual_beat,
+           allvisual_interval)
 
 
 def individual_perception(
@@ -737,11 +740,86 @@ def individual_perception(
     plt.savefig(os.path.join(this_dir, 'perception_responses.pdf'))
 
 
+def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
+                        tasks = ['Auditory No-Temporal Feature Discrimination',
+                                 'Visual No-Temporal Feature Discrimination']):
+
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory No-Temporal Feature Discrimination',
+                            'Visual No-Temporal Feature Discrimination']:
+                raise NameError('Task not valid!')
+
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
+            if subject == 2 and \
+               task == 'Visual No-Temporal Feature Discrimination':
+                data = data[:476]
+            trials = ntfd_data(data)
+            beat_trials, interval_trials, random_trials = \
+                filter_trialtype(trials, 'ntfd')
+
+            beat_trials = np.array(beat_trials).ravel()
+            interval_trials = np.array(interval_trials).ravel()
+            random_trials = np.array(random_trials).ravel()
+
+            # ################## Plotting ###############################
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 4))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.235 + t*.42, .15, .3, .5])
+
+            labels = ['beat', 'interval', 'random']
+            x = [.2, .4, .6]  # the label locations
+            width = .175  # the width of the bars
+            ntfd_plt = ax.bar(x,
+                              [round(beat_trials.mean(0), 2),
+                               round(interval_trials.mean(0), 2),
+                               round(random_trials.mean(0), 2)],
+                              width=width,
+                              color=['b', 'y', 'm'],
+                              yerr=[round(beat_trials.std(0), 2),
+                                    round(interval_trials.std(0), 2),
+                                    round(random_trials.std(0), 2)],
+                              error_kw=dict(capsize=2), label=labels)
+            ax.bar_label(ntfd_plt, padding=3)
+            ax.set_xticks(x, labels)
+            plt.xlim([0., .8])
+            plt.ylim([0., 1500.])
+
+            if s == 0:
+                if t == 0:
+                    ax.set_title('Auditory NTFD', weight='bold', pad=40)
+                    fig.text(.25, .625, 'Error bars: SD', fontsize=12)
+                else:
+                    assert t ==1
+                    ax.set_title('Visual NTFD', weight='bold', pad=40)
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+        fig.text(.07, .4, 'Subject %d' % subject, ha='center',
+                 fontsize=12, weight='bold')
+    fig.text(.155, .25, 'Mean of RT (ms)', ha='center',
+             fontsize=12, rotation = 90)
+
+    # plt.show()
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, 'ntfd_individual_rts_sub-16.pdf'))
+
+
 def individual_ntfd_isi_rts(
         subjects, this_dir, sesstype, n_sess,
         tasks = ['Auditory No-Temporal Feature Discrimination',
                  'Visual No-Temporal Feature Discrimination']):
 
+    allsub_beat_audio = []
+    allsub_interval_audio = []
+    allsub_beat_visual = []
+    allsub_interval_visual = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory No-Temporal Feature Discrimination',
@@ -859,6 +937,15 @@ def individual_ntfd_isi_rts(
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
+            # Aggregate data to compute the paired sample t-test
+            if task == 'Auditory No-Temporal Feature Discrimination':
+                allsub_beat_audio.append(rt_isi1_grouped_beat)
+                allsub_interval_audio.append(rt_isi1_grouped_interval)
+            else:
+                assert task == 'Visual No-Temporal Feature Discrimination'
+                allsub_beat_visual.append(rt_isi1_grouped_beat)
+                allsub_interval_visual.append(rt_isi1_grouped_interval)
+
         fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
@@ -867,85 +954,26 @@ def individual_ntfd_isi_rts(
     # Save figure
     plt.savefig(os.path.join(this_dir, 'ntfd_individual_isi_rts.pdf'))
 
+    return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
+            allsub_interval_visual)
 
-def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
-                        tasks = ['Auditory No-Temporal Feature Discrimination',
-                                 'Visual No-Temporal Feature Discrimination']):
 
-    for s, subject in enumerate(subjects):
-        for t, task in enumerate(tasks):
-            if task not in ['Auditory No-Temporal Feature Discrimination',
-                            'Visual No-Temporal Feature Discrimination']:
-                raise NameError('Task not valid!')
+def ntfd_grouprts_violin(allaudio_beat, allaudio_interval,
+                         allvisual_beat, allvisual_interval,
+                         title, this_dir):
+    allaudio_beat = flatten(allaudio_beat)
+    allaudio_interval = flatten(allaudio_interval)
+    allvisual_beat = flatten(allvisual_beat)
+    allvisual_interval = flatten(allvisual_interval)
 
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
-            if subject == 2 and \
-               task == 'Visual No-Temporal Feature Discrimination':
-                data = data[:476]
-            trials = ntfd_data(data)
-            beat_trials, interval_trials, random_trials = \
-                filter_trialtype(trials, 'ntfd')
+    data_to_plot = [allaudio_beat, allaudio_interval,
+                    allvisual_beat, allvisual_interval]
 
-            beat_trials = np.array(beat_trials).ravel()
-            interval_trials = np.array(interval_trials).ravel()
-            random_trials = np.array(random_trials).ravel()
+    plot_violin(data_to_plot, title, '#D43F3A', '#dede00', 'RTs (ms)',
+                this_dir, 'ntfd_groupviolin_rts')
 
-            # ################## Plotting ###############################
-            if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 4))
-
-            # Define subplot of bar charts and its position in the fig
-            # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .15, .3, .5])
-
-            labels = ['beat', 'interval', 'random']
-            x = [.2, .4, .6]  # the label locations
-            width = .175  # the width of the bars
-            ntfd_plt = ax.bar(x,
-                              [round(beat_trials.mean(0), 2),
-                               round(interval_trials.mean(0), 2),
-                               round(random_trials.mean(0), 2)],
-                              width=width,
-                              color=['b', 'y', 'm'],
-                              yerr=[round(beat_trials.std(0), 2),
-                                    round(interval_trials.std(0), 2),
-                                    round(random_trials.std(0), 2)],
-                              error_kw=dict(capsize=2), label=labels)
-            ax.bar_label(ntfd_plt, padding=3)
-            ax.set_xticks(x, labels)
-            plt.xlim([0., .8])
-            plt.ylim([0., 1500.])
-
-            if s == 0:
-                if t == 0:
-                    ax.set_title('Auditory NTFD', weight='bold', pad=40)
-                    fig.text(.25, .625, 'Error bars: SD', fontsize=12)
-                else:
-                    assert t ==1
-                    ax.set_title('Visual NTFD', weight='bold', pad=40)
-
-            # Hide the right and top spines
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-
-            # # Aggregate data to compute the paired sample t-test
-            # if task == 'Auditory No-Temporal Feature Discrimination':
-            #     allsub_beat_audio.append(round(beat_trials.mean(0), 2))
-            #     allsub_intv_audio.append(round(interval_trials.mean(0), 2))
-            # else:
-            #     assert task == 'Visual No-Temporal Feature Discrimination'
-            #     allsub_beat_visual.append(round(beat_trials.mean(0), 2))
-            #     allsub_intv_visual.append(round(interval_trials.mean(0), 2))
-
-        fig.text(.07, .4, 'Subject %d' % subject, ha='center',
-                 fontsize=12, weight='bold')
-    fig.text(.155, .25, 'Mean of RT (ms)', ha='center',
-             fontsize=12, rotation = 90)
-
-    # plt.show()
-
-    # Save figure
-    plt.savefig(os.path.join(this_dir, 'ntfd_individual_rts_sub-16.pdf'))
+    return(allaudio_beat, allaudio_interval, allvisual_beat,
+           allvisual_interval)
 
 
 # %%
@@ -986,28 +1014,38 @@ if __name__ == "__main__":
             individual_production_isi_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
                                            N_SESSIONS, 'absolute')
 
-    production_groupsync_violin(
-        ssync_audio_beat, ssync_audio_interval,
-        ssync_visual_beat, ssync_visual_interval,
-        'Group Signed-Asynchrony for Production Task',
-        MAIN_DIR, 'signed')
+    # ###############
 
-    production_groupsync_violin(
-        async_audio_beat, async_audio_interval,
-        async_visual_beat, async_visual_interval,
-        'Group Absolute-Asynchrony for Production Task',
-        MAIN_DIR, 'absolute')
+    ssync_audio_beat_ravel, ssync_audio_interval_ravel, \
+        ssync_visual_beat_ravel, ssync_visual_interval_ravel = \
+            production_groupsync_violin(
+                ssync_audio_beat, ssync_audio_interval,
+                ssync_visual_beat, ssync_visual_interval,
+                'Group Signed-Asynchrony for Production Tasks',
+                MAIN_DIR, 'signed')
 
-    # Compute paired-sample t-test for production synchronies
-    # tssync_audio, pssync_audio = stats.ttest_rel(
-    #     ssync_audio_beat, ssync_audio_intv, alternative='less')
-    # tssync_visual, pssync_visual = stats.ttest_rel(
-    #     ssync_visual_beat, ssync_visual_intv, alternative='less')
+    async_audio_beat_ravel, async_audio_interval_ravel, \
+        async_visual_beat_ravel, async_visual_interval_ravel = \
+            production_groupsync_violin(
+                async_audio_beat, async_audio_interval,
+                async_visual_beat, async_visual_interval,
+                'Group Absolute-Asynchrony for Production Tasks',
+                MAIN_DIR, 'absolute')
 
-    # tasync_audio, pasync_audio = stats.ttest_rel(
-    #     async_audio_beat, async_audio_intv, alternative='less')
-    # tasync_visual, pasync_visual = stats.ttest_rel(
-    #     async_visual_beat, async_visual_intv, alternative='less')
+    # ###############
+
+    # Compute paired-sample t-test for production asynchronies
+    tssync_audio, pssync_audio = stats.ttest_rel(
+        ssync_audio_beat_ravel, ssync_audio_interval_ravel, alternative='less')
+    tssync_visual, pssync_visual = stats.ttest_rel(
+        ssync_visual_beat_ravel, ssync_visual_interval_ravel,
+        alternative='less')
+
+    tasync_audio, pasync_audio = stats.ttest_rel(
+        async_audio_beat_ravel, async_audio_interval_ravel, alternative='less')
+    tasync_visual, pasync_visual = stats.ttest_rel(
+        async_visual_beat_ravel, async_visual_interval_ravel,
+        alternative='less')
 
     # ################# PRODUCTION RT'S ##############################
 
@@ -1016,10 +1054,21 @@ if __name__ == "__main__":
             individual_production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE,
                                           N_SESSIONS)
 
-    production_grouprts_violin(rts_audio_beat, rts_audio_interval,
-                               rts_visual_beat, rts_visual_interval,
-                               'Group RTs for Production Task',
-                               MAIN_DIR)
+    rts_audio_beat_flatten, rts_audio_interval_flatten, \
+        rts_visual_beat_flatten, rts_visual_interval_flatten = \
+            production_grouprts_violin(rts_audio_beat, rts_audio_interval,
+                                       rts_visual_beat, rts_visual_interval,
+                                       'Group RTs for Production Tasks',
+                                       MAIN_DIR)
+
+    # ###############
+
+    # Compute paired-sample t-test for production RT's
+    trt_audio, prt_audio = stats.ttest_rel(
+        rts_audio_beat_flatten, rts_audio_interval_flatten, alternative='less')
+    trt_visual, prt_visual = stats.ttest_rel(
+        rts_visual_beat_flatten, rts_visual_interval_flatten,
+        alternative='less')
 
     # ################### PERCEPTION ###################################
 
@@ -1027,14 +1076,26 @@ if __name__ == "__main__":
 
     # ################### NTFD RT'S ####################################
 
-    # ntdf_audio_beat, ntfd_audio_intv, ntfd_visual_beat, ntfd_visual_intv = \
-    individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    # individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
+    ntdf_audio_beat, ntfd_audio_interval, \
+        ntfd_visual_beat, ntfd_visual_interval = \
+            individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+
+    ntdf_audio_beat_flatten, ntfd_audio_interval_flatten, \
+        ntfd_visual_beat_flatten, ntfd_visual_interval_flatten = \
+            ntfd_grouprts_violin(ntdf_audio_beat, ntfd_audio_interval,
+                                 ntfd_visual_beat, ntfd_visual_interval,
+                                 'Group RTs for NTFD Tasks',
+                                 MAIN_DIR)
+
+    # ###############
 
     # Compute paired-sample t-test for NTFD tasks
-    # tntfd_audio, pntfd_audio = stats.ttest_rel(
-    #     ntdf_audio_beat, ntfd_audio_intv, alternative='less')
-    # tntfd_visual, pntfd_visual = stats.ttest_rel(
-    #     ntfd_visual_beat, ntfd_visual_intv, alternative='less')
+    tntfd_audio, pntfd_audio = stats.ttest_rel(
+        ntdf_audio_beat_flatten, ntfd_audio_interval_flatten,
+        alternative='less')
+    tntfd_visual, pntfd_visual = stats.ttest_rel(
+        ntfd_visual_beat_flatten, ntfd_visual_interval_flatten,
+        alternative='less')
 
