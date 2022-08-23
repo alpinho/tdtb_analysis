@@ -25,11 +25,6 @@ import matplotlib.patches as mpatches
 # =========================== FUNCTIONS ================================
 
 
-def flatten(li):
-    return sum(([x] if not isinstance(x, list) else flatten(x)
-                for x in li), [])
-
-
 def parse_logfile(parent_dir, subject_no, sesstype, n_sess, task_name,
                   ttl=False, concatenate=True):
 
@@ -42,7 +37,6 @@ def parse_logfile(parent_dir, subject_no, sesstype, n_sess, task_name,
         inputs_lists = [[line for line in csv.reader(open(logfile),
                                                      delimiter=',')]
                         for logfile in logfiles]
-
         # Pick log files of selected task
         allruns = []
         for i, inputs_list in enumerate(inputs_lists, 1):
@@ -127,7 +121,7 @@ def ntfd_data(data):
             if datum[11] in ['o', 'p']:
                 rt = int(data[dt-1][7]) + int(datum[10])
             elif datum[10] == 'None':
-                continue
+                rt = np.nan
             else:
                 raise ValueError('No feedback entry!')
             trials.append([condition, theoretical_isi1, rt])
@@ -296,17 +290,25 @@ def individual_production_isi_sync(
             for i in isi1s:
                 ss_beat = []
                 as_beat = []
-                for b, beat_trial in enumerate(beat_trials):
+                for beat_trial in beat_trials:
                     if beat_trial[0] == i:
                         if ~np.any(np.isnan(beat_trial)):
                             ssb = round((beat_trial[2] - beat_trial[1]) / \
                                         beat_trial[1], 2)
                             asb = abs(ssb)
-                        # else:
-                        #     ssb = np.nan
-                        #     asb = np.nan
+                        else:
+                            ssb = np.nan
+                            asb = np.nan
                         ss_beat.append(ssb)
                         as_beat.append(asb)
+                # Replace missing values (nan's) by median of the sample
+                if np.any(np.isnan(ss_beat)):
+                    miss_sbval = np.nanmedian(ss_beat)
+                    ss_beat = np.where(np.isnan(ss_beat), miss_sbval, ss_beat)
+                if np.any(np.isnan(as_beat)):
+                    miss_abval = np.nanmedian(as_beat)
+                    as_beat = np.where(np.isnan(as_beat), miss_abval, as_beat)
+                # Append isi array
                 ss_isi_beat.append(ss_beat)
                 as_isi_beat.append(as_beat)
 
@@ -322,11 +324,21 @@ def individual_production_isi_sync(
                                          interval_trial[1]) / \
                                         interval_trial[1], 2)
                             asi = abs(ssi)
-                        # else:
-                        #     ssi = np.nan
-                        #     asi = np.nan
+                        else:
+                            ssi = np.nan
+                            asi = np.nan
                         ss_interval.append(ssi)
                         as_interval.append(asi)
+                # Replace missing values (nan's) by median of the sample
+                if np.any(np.isnan(ss_interval)):
+                    miss_sival = np.nanmedian(ss_interval)
+                    ss_interval = np.where(np.isnan(ss_interval), miss_sival,
+                                           ss_interval)
+                if np.any(np.isnan(as_interval)):
+                    miss_aival = np.nanmedian(as_interval)
+                    as_interval = np.where(np.isnan(as_interval), miss_aival,
+                                           as_interval)
+                # Append isi array
                 ss_isi_interval.append(ss_interval)
                 as_isi_interval.append(as_interval)
 
@@ -504,6 +516,7 @@ def individual_production_isi_rts(
             trials = production_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'production')
+
             # Filter necessary data
             beat_trials = [np.delete(trial, 1).tolist()
                            for trial in beat_trials]
@@ -520,6 +533,14 @@ def individual_production_isi_rts(
                     if beat_trial[0] == i:
                         if ~np.any(np.isnan(beat_trial)):
                             rts_beat.append(beat_trial[1])
+                        else:
+                            rts_beat.append(np.nan)
+                # Replace missing values (nan's) by median of the sample
+                if np.any(np.isnan(rts_beat)):
+                    miss_bval = np.nanmedian(rts_beat)
+                    rts_beat = np.where(np.isnan(rts_beat), miss_bval,
+                                        rts_beat)
+                # Append isi array
                 rt_isi1_grouped_beat.append(rts_beat)
 
             rt_isi1_grouped_interval = []
@@ -529,6 +550,14 @@ def individual_production_isi_rts(
                     if interval_trial[0] == j:
                         if ~np.any(np.isnan(interval_trial)):
                             rts_interval.append(interval_trial[1])
+                        else:
+                            rts_interval.append(np.nan)
+                # Replace missing values (nan's) by median of the sample
+                if np.any(np.isnan(rts_interval)):
+                    miss_ival = np.nanmedian(rts_interval)
+                    rts_interval = np.where(np.isnan(rts_interval), miss_ival,
+                                            rts_interval)
+                # Append isi array
                 rt_isi1_grouped_interval.append(rts_interval)
 
             # ################## Plotting ###############################
@@ -628,10 +657,10 @@ def individual_production_isi_rts(
     plt.savefig(os.path.join(this_dir, 'production_individual_isi_rts.pdf'))
 
     # Flatten the data arrays
-    allsub_beat_audio = flatten(allsub_beat_audio)
-    allsub_interval_audio = flatten(allsub_interval_audio)
-    allsub_beat_visual = flatten(allsub_beat_visual)
-    allsub_interval_visual = flatten(allsub_interval_visual)
+    allsub_beat_audio = np.ravel(allsub_beat_audio)
+    allsub_interval_audio = np.ravel(allsub_interval_audio)
+    allsub_beat_visual = np.ravel(allsub_beat_visual)
+    allsub_interval_visual = np.ravel(allsub_interval_visual)
 
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
             allsub_interval_visual)
@@ -819,6 +848,13 @@ def individual_ntfd_isi_rts(
                     if beat_trial[0] == i:
                         if ~np.any(np.isnan(beat_trial)):
                             rts_beat.append(beat_trial[1])
+                        else:
+                            rts_beat.append(np.nan)
+                # Replace missing values (nan's) by median of the sample
+                if np.any(np.isnan(rts_beat)):
+                    miss_bval = np.nanmedian(rts_beat)
+                    rts_beat = np.where(np.isnan(rts_beat), miss_bval,
+                                        rts_beat).tolist()
                 rt_isi1_grouped_beat.append(rts_beat)
 
             rt_isi1_grouped_interval = []
@@ -828,6 +864,13 @@ def individual_ntfd_isi_rts(
                     if interval_trial[0] == j:
                         if ~np.any(np.isnan(interval_trial)):
                             rts_interval.append(interval_trial[1])
+                        else:
+                            rts_interval.append(np.nan)
+                # Replace missing values (nan's) by median of the sample
+                if np.any(np.isnan(rts_interval)):
+                    miss_ival = np.nanmedian(rts_interval)
+                    rts_interval = np.where(np.isnan(rts_interval), miss_ival,
+                                            rts_interval).tolist()
                 rt_isi1_grouped_interval.append(rts_interval)
 
             # ################## Plotting set 1 ########################
@@ -914,13 +957,16 @@ def individual_ntfd_isi_rts(
             ax.spines['top'].set_visible(False)
 
             # Aggregate data to compute the paired sample t-test
+            rt_isi1_grouped_beat = np.ravel(rt_isi1_grouped_beat).tolist()
+            rt_isi1_grouped_interval = np.ravel(
+                rt_isi1_grouped_interval).tolist()
             if task == 'Auditory No-Temporal Feature Discrimination':
-                allsub_beat_audio.append(rt_isi1_grouped_beat)
-                allsub_interval_audio.append(rt_isi1_grouped_interval)
+                allsub_beat_audio.extend(rt_isi1_grouped_beat)
+                allsub_interval_audio.extend(rt_isi1_grouped_interval)
             else:
                 assert task == 'Visual No-Temporal Feature Discrimination'
-                allsub_beat_visual.append(rt_isi1_grouped_beat)
-                allsub_interval_visual.append(rt_isi1_grouped_interval)
+                allsub_beat_visual.extend(rt_isi1_grouped_beat)
+                allsub_interval_visual.extend(rt_isi1_grouped_interval)
 
         fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
@@ -928,12 +974,6 @@ def individual_ntfd_isi_rts(
     # plt.show()
     # Save figure
     plt.savefig(os.path.join(this_dir, 'ntfd_individual_isi_rts.pdf'))
-
-    # Flatten the data arrays
-    allsub_beat_audio = flatten(allsub_beat_audio)
-    allsub_interval_audio = flatten(allsub_interval_audio)
-    allsub_beat_visual = flatten(allsub_beat_visual)
-    allsub_interval_visual = flatten(allsub_interval_visual)
 
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
             allsub_interval_visual)
@@ -943,7 +983,7 @@ def individual_ntfd_isi_rts(
 # =========================== INPUTS ===================================
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-# SUBJECTS = [8]
+# SUBJECTS = [16]
 
 # TASKS = ['Auditory Production',
 #          'Auditory Perception',
@@ -967,28 +1007,33 @@ if __name__ == "__main__":
 
     # ############### PRODUCTION SYNCHRONIES ###########################
 
-    ssync_audio_beat, ssync_audio_interval, \
-        ssync_visual_beat, ssync_visual_interval = \
-            individual_production_isi_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
-                                           N_SESSIONS, 'signed')
+    ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
+        ssync_visual_interval = individual_production_isi_sync(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed')
 
-    async_audio_beat, async_audio_interval, \
-        async_visual_beat, async_visual_interval = \
-            individual_production_isi_sync(SUBJECTS, MAIN_DIR, SESSTYPE,
-                                           N_SESSIONS, 'absolute')
+    async_audio_beat, async_audio_interval, async_visual_beat, \
+        async_visual_interval = individual_production_isi_sync(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'absolute')
 
     # ###############
 
-    plot_violin(ssync_audio_beat, ssync_audio_interval,
-                ssync_visual_beat, ssync_visual_interval,
-                'Group Signed-Asynchrony for Production Tasks', 'Asynchrony',
-                MAIN_DIR, 'production_groupviolin_signed_asynch', 'upper left')
+    plot_violin(
+        ssync_audio_beat, ssync_audio_interval,
+        ssync_visual_beat, ssync_visual_interval,
+        'Group Signed-Asynchrony for Production Tasks',
+        'Asynchrony',
+        MAIN_DIR,
+        'production_groupviolin_signed_asynch',
+        'upper left')
 
-
-    plot_violin(async_audio_beat, async_audio_interval,
-                async_visual_beat, async_visual_interval,
-                'Group Absolute-Asynchrony for Production Tasks', 'Asynchrony',
-                MAIN_DIR, 'production_groupviolin_absolute_asynch', 'upper left')
+    plot_violin(
+        async_audio_beat, async_audio_interval,
+        async_visual_beat, async_visual_interval,
+        'Group Absolute-Asynchrony for Production Tasks',
+        'Asynchrony',
+        MAIN_DIR,
+        'production_groupviolin_absolute_asynch',
+        'upper left')
 
     # ###############
 
@@ -1003,21 +1048,24 @@ if __name__ == "__main__":
     tasync_visual, pasync_visual = stats.ttest_rel(
         async_visual_beat, async_visual_interval, alternative='less')
 
-    # ################# PRODUCTION RT'S ##############################
+    # ################# PRODUCTION RT'S ################################
 
     rts_audio_beat, rts_audio_interval, \
-        rts_visual_beat, rts_visual_interval = \
-            individual_production_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE,
-                                          N_SESSIONS)
+        rts_visual_beat, rts_visual_interval = individual_production_isi_rts(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    plot_violin(rts_audio_beat, rts_audio_interval,
-                rts_visual_beat, rts_visual_interval,
-                'Group RTs for Production Tasks', 'RTs (ms)', MAIN_DIR,
-                'production_groupviolin_rts', 'upper center')
+    plot_violin(
+        rts_audio_beat, rts_audio_interval,
+        rts_visual_beat, rts_visual_interval,
+        'Group RTs for Production Tasks',
+        'RTs (ms)',
+        MAIN_DIR,
+        'production_groupviolin_rts',
+        'upper center')
 
     # ###############
 
-    # Compute paired-sample t-test for production RT's
+    # # Compute paired-sample t-test for production RT's
     trt_audio, prt_audio = stats.ttest_rel(
         rts_audio_beat, rts_audio_interval, alternative='less')
     trt_visual, prt_visual = stats.ttest_rel(
@@ -1031,20 +1079,23 @@ if __name__ == "__main__":
 
     individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    ntdf_audio_beat, ntfd_audio_interval, \
-        ntfd_visual_beat, ntfd_visual_interval = \
-            individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    ntfd_audio_beat, ntfd_audio_interval, \
+        ntfd_visual_beat, ntfd_visual_interval = individual_ntfd_isi_rts(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    plot_violin(ntdf_audio_beat, ntfd_audio_interval,
-                ntfd_visual_beat, ntfd_visual_interval,
-                'Group RTs for NTFD Tasks', 'RTs (ms)', MAIN_DIR,
-                'ntfd_groupviolin_rts', 'upper center')
+    plot_violin(
+        ntfd_audio_beat, ntfd_audio_interval,
+        ntfd_visual_beat, ntfd_visual_interval,
+        'Group RTs for NTFD Tasks',
+        'RTs (ms)',
+        MAIN_DIR,
+        'ntfd_groupviolin_rts',
+        'upper center')
 
     # ###############
 
     # Compute paired-sample t-test for NTFD tasks
     tntfd_audio, pntfd_audio = stats.ttest_rel(
-        ntdf_audio_beat, ntfd_audio_interval, alternative='less')
+        ntfd_audio_beat, ntfd_audio_interval, alternative='less')
     tntfd_visual, pntfd_visual = stats.ttest_rel(
-        ntfd_visual_beat, ntfd_visual_interval,
-        alternative='less')
+        ntfd_visual_beat, ntfd_visual_interval, alternative='less')
