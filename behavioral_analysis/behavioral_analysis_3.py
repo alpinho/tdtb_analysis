@@ -1000,7 +1000,7 @@ def plot_violin(allaudio_beat, allaudio_interval,
 
 
 def plot_pairedttest(data_audio, data_visual, pval_audio, pval_visual,
-                     ylim_b, ylim_t, title, this_dir, fname):
+                     y, ylim_b, ylim_t, yshift, title, this_dir, fname):
 
     modalities = ['audio', 'visual']
     fig, ax = plt.subplots(1, len(modalities))
@@ -1019,7 +1019,6 @@ def plot_pairedttest(data_audio, data_visual, pval_audio, pval_visual,
 
     # Prepare the data
     x = 'Conditions'
-    y = 'Signed Asynchrony'
     for m, modality in enumerate(modalities):
         if modality == 'audio':
             data_list = data_audio
@@ -1070,14 +1069,13 @@ def plot_pairedttest(data_audio, data_visual, pval_audio, pval_visual,
 
         # Display means rounded to two decimals on the top
         # ax.bar_label(ax.containers[0], padding=-50)
-        yshift = -.02
         for p in ax[m].patches:
             ax[m].text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
                        '{:.2e}'.format(p.get_height()), fontsize=10,
                        color='black', ha='center', va='bottom')
 
         # Change width of seaborn barplots
-        change_width(ax[m], .6)
+        change_width(ax[m], .7)
 
         # Hide the right and top spines
         ax[m].spines['right'].set_visible(False)
@@ -1130,23 +1128,23 @@ if __name__ == "__main__":
 
     # ###############
 
-    # plot_violin(
-    #     ssync_audio_beat, ssync_audio_interval,
-    #     ssync_visual_beat, ssync_visual_interval,
-    #     'Group Signed-Asynchrony for Production Tasks',
-    #     'Asynchrony',
-    #     MAIN_DIR,
-    #     'production_groupviolin_signed_asynch',
-    #     'upper left')
+    plot_violin(
+        ssync_audio_beat, ssync_audio_interval,
+        ssync_visual_beat, ssync_visual_interval,
+        'Group Signed-Asynchrony for Production Tasks',
+        'Asynchrony',
+        MAIN_DIR,
+        'production_groupviolin_signed_asynch',
+        'upper left')
 
-    # plot_violin(
-    #     async_audio_beat, async_audio_interval,
-    #     async_visual_beat, async_visual_interval,
-    #     'Group Absolute-Asynchrony for Production Tasks',
-    #     'Asynchrony',
-    #     MAIN_DIR,
-    #     'production_groupviolin_absolute_asynch',
-    #     'upper left')
+    plot_violin(
+        async_audio_beat, async_audio_interval,
+        async_visual_beat, async_visual_interval,
+        'Group Absolute-Asynchrony for Production Tasks',
+        'Asynchrony',
+        MAIN_DIR,
+        'production_groupviolin_absolute_asynch',
+        'upper left')
 
     # ###############
 
@@ -1156,43 +1154,77 @@ if __name__ == "__main__":
         ssync_audio_beat, ssync_audio_interval, alternative='two-sided')
     ssync_audio = ssync_audio_beat.tolist() + ssync_audio_interval.tolist()
 
+    print('tssync_audio: ', tssync_audio)
+
     tssync_visual, pssync_visual = stats.ttest_rel(
         ssync_visual_beat, ssync_visual_interval, alternative='two-sided')
     ssync_visual = ssync_visual_beat.tolist() + ssync_visual_interval.tolist()
 
+    print('tssync_visual: ', tssync_visual)
+
     ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
     ssync_f = 'paired-ttest_signed_asynch'
-
     plot_pairedttest(ssync_audio, ssync_visual, pssync_audio, pssync_visual,
-                     -.03, .14, ssync_title, MAIN_DIR, ssync_f)
+                     'Signed Asynchrony', -.03, .14, -.02, ssync_title,
+                     MAIN_DIR, ssync_f)
 
-    # tasync_audio, pasync_audio = stats.ttest_rel(
-    #     async_audio_beat, async_audio_interval, alternative='two-sided')
-    # tasync_visual, pasync_visual = stats.ttest_rel(
-    #     async_visual_beat, async_visual_interval, alternative='two-sided')
+    # #######
+
+    tasync_audio, pasync_audio = stats.ttest_rel(
+        async_audio_beat, async_audio_interval, alternative='two-sided')
+    async_audio = async_audio_beat.tolist() + async_audio_interval.tolist()
+
+    print('tasync_audio: ', tasync_audio)
+
+    tasync_visual, pasync_visual = stats.ttest_rel(
+        async_visual_beat, async_visual_interval, alternative='two-sided')
+    async_visual = async_visual_beat.tolist() + async_visual_interval.tolist()
+
+    print('tasync_visual: ', tasync_visual)
+
+    async_title = 'Group Mean of Absolute Asynchrony for the Production tasks'
+    async_f = 'paired-ttest_absolute_asynch'
+    plot_pairedttest(async_audio, async_visual, pasync_audio, pasync_visual,
+                     'Absolute Asynchrony', 0., .2, -.02, async_title,
+                     MAIN_DIR, async_f)
 
     # # ################# PRODUCTION RT'S ################################
 
-    # rts_audio_beat, rts_audio_interval, \
-    #     rts_visual_beat, rts_visual_interval = individual_production_isi_rts(
-    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
+        rtsprod_visual_interval = individual_production_isi_rts(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    # plot_violin(
-    #     rts_audio_beat, rts_audio_interval,
-    #     rts_visual_beat, rts_visual_interval,
-    #     'Group RTs for Production Tasks',
-    #     'RTs (ms)',
-    #     MAIN_DIR,
-    #     'production_groupviolin_rts',
-    #     'upper center')
+    plot_violin(
+        rtsprod_audio_beat, rtsprod_audio_interval,
+        rtsprod_visual_beat, rtsprod_visual_interval,
+        'Group RTs for Production Tasks',
+        'RTs (ms)',
+        MAIN_DIR,
+        'production_groupviolin_rts',
+        'upper center')
 
     # # ###############
 
-    # # # Compute paired-sample t-test for production RT's
-    # trt_audio, prt_audio = stats.ttest_rel(
-    #     rts_audio_beat, rts_audio_interval, alternative='two-sided')
-    # trt_visual, prt_visual = stats.ttest_rel(
-    #     rts_visual_beat, rts_visual_interval, alternative='two-sided')
+    # Compute paired-sample t-test for production RT's
+    trtprod_audio, prtprod_audio = stats.ttest_rel(
+        rtsprod_audio_beat, rtsprod_audio_interval, alternative='two-sided')
+    rtsprod_audio = rtsprod_audio_beat.tolist() + \
+        rtsprod_audio_interval.tolist()
+
+    print('trtprod_audio: ', trtprod_audio)
+
+    trtprod_visual, prtprod_visual = stats.ttest_rel(
+        rtsprod_visual_beat, rtsprod_visual_interval, alternative='two-sided')
+    rtsprod_visual = rtsprod_visual_beat.tolist() + \
+        rtsprod_visual_interval.tolist()
+
+    print('trtprod_visual: ', trtprod_visual)
+
+    rtprod_title = 'Group Mean of RTs for the Production tasks'
+    rtprod_f = 'paired-ttest_rt_production'
+    plot_pairedttest(rtsprod_audio, rtsprod_visual, prtprod_audio,
+                     prtprod_visual, 'RT (ms)', 0., 900., -100., rtprod_title,
+                     MAIN_DIR, rtprod_f)
 
     # # ################### PERCEPTION ###################################
 
@@ -1200,25 +1232,38 @@ if __name__ == "__main__":
 
     # # ################### NTFD RT'S ####################################
 
-    # individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
+    individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    # ntfd_audio_beat, ntfd_audio_interval, \
-    #     ntfd_visual_beat, ntfd_visual_interval = individual_ntfd_isi_rts(
-    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
+        rtsntfd_visual_interval = individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR,
+                                                          SESSTYPE, N_SESSIONS)
 
-    # plot_violin(
-    #     ntfd_audio_beat, ntfd_audio_interval,
-    #     ntfd_visual_beat, ntfd_visual_interval,
-    #     'Group RTs for NTFD Tasks',
-    #     'RTs (ms)',
-    #     MAIN_DIR,
-    #     'ntfd_groupviolin_rts',
-    #     'upper center')
+    plot_violin(
+        rtsntfd_audio_beat, rtsntfd_audio_interval,
+        rtsntfd_visual_beat, rtsntfd_visual_interval,
+        'Group RTs for NTFD Tasks',
+        'RTs (ms)',
+        MAIN_DIR,
+        'ntfd_groupviolin_rts',
+        'upper center')
 
     # # ###############
 
-    # # Compute paired-sample t-test for NTFD tasks
-    # tntfd_audio, pntfd_audio = stats.ttest_rel(
-    #     ntfd_audio_beat, ntfd_audio_interval, alternative='two-sided')
-    # tntfd_visual, pntfd_visual = stats.ttest_rel(
-    #     ntfd_visual_beat, ntfd_visual_interval, alternative='two-sided')
+    # Compute paired-sample t-test for NTFD tasks
+    trtntfd_audio, prtntfd_audio = stats.ttest_rel(
+        rtsntfd_audio_beat, rtsntfd_audio_interval, alternative='two-sided')
+    rtsntfd_audio = rtsntfd_audio_beat + rtsntfd_audio_interval
+
+    print('trtntfd_audio: ', trtntfd_audio)
+
+    trtntfd_visual, prtntfd_visual = stats.ttest_rel(
+        rtsntfd_visual_beat, rtsntfd_visual_interval, alternative='two-sided')
+    rtsntfd_visual = rtsntfd_visual_beat + rtsntfd_visual_interval
+
+    print('trtntfd_visual: ', trtntfd_visual)
+
+    rtntfd_title = 'Group Mean of RTs for the NTFD tasks'
+    rtntfd_f = 'paired-ttest_rt_ntfd'
+    plot_pairedttest(rtsntfd_audio, rtsntfd_visual, prtntfd_audio,
+                     prtntfd_visual, 'RT (ms)', 0., 900., -100., rtntfd_title,
+                     MAIN_DIR, rtntfd_f)
