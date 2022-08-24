@@ -13,16 +13,53 @@ Compatibility: Python 3.7.11
 import os
 import glob
 import csv
-import numpy as np
 
+import numpy as np
+import pandas as pd
 from scipy import stats
 
 from matplotlib import pyplot as plt
-import matplotlib.patches as mpatches
+from matplotlib import patches as mpatches
+
+import seaborn as sns
+from statannotations.Annotator import Annotator
 
 
 # %%
-# =========================== FUNCTIONS ================================
+# =========================== UTILS ====================================
+
+
+def adjacent_values(vals, q1, q3):
+    upper_adjacent_value = q3 + (q3 - q1) * 1.5
+    upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
+
+    lower_adjacent_value = q1 - (q3 - q1) * 1.5
+    lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+    return lower_adjacent_value, upper_adjacent_value
+
+
+def set_axis_style(ax, labels):
+    ax.xaxis.set_tick_params(direction='out')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.set_xticks(np.arange(1, len(labels) + 1), labels=labels)
+    ax.set_xlim(0.25, len(labels) + 0.75)
+    ax.set_xlabel('Sample name')
+
+
+def change_width(ax, new_value) :
+    for patch in ax.patches :
+        current_width = patch.get_width()
+        diff = current_width - new_value
+
+        # we change the bar width
+        patch.set_width(new_value)
+
+        # we recenter the bar
+        patch.set_x(patch.get_x() + diff * .5)
+
+
+# %%
+# ======================== MAIN FUNCTIONS ==============================
 
 
 def parse_logfile(parent_dir, subject_no, sesstype, n_sess, task_name,
@@ -170,98 +207,6 @@ def perception_frequencies(isi_diff_condition, condition_trials):
     frequencies = [round(f * 100, 0) for f in frequencies]
 
     return idiffs, frequencies
-
-
-def adjacent_values(vals, q1, q3):
-    upper_adjacent_value = q3 + (q3 - q1) * 1.5
-    upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
-
-    lower_adjacent_value = q1 - (q3 - q1) * 1.5
-    lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
-    return lower_adjacent_value, upper_adjacent_value
-
-
-def set_axis_style(ax, labels):
-    ax.xaxis.set_tick_params(direction='out')
-    ax.xaxis.set_ticks_position('bottom')
-    ax.set_xticks(np.arange(1, len(labels) + 1), labels=labels)
-    ax.set_xlim(0.25, len(labels) + 0.75)
-    ax.set_xlabel('Sample name')
-
-
-def plot_violin(allaudio_beat, allaudio_interval,
-                allvisual_beat, allvisual_interval,
-                title, y_label, this_dir, fname, loc):
-
-    data = [allaudio_beat, allaudio_interval,
-            allvisual_beat, allvisual_interval]
-    pos = np.array([1.15, 1.85, 3.15, 3.85])
-
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 4),
-                           sharey=True)
-    ax.set_title(title, size=10)
-    parts = ax.violinplot(data, pos, showmeans=True, showmedians=False,
-                          showextrema=True)
-
-    labels = []
-    for pc in parts['bodies'][:2]:
-        pc.set_facecolor('#D43F3A')
-        pc.set_edgecolor('black')
-        pc.set_alpha(1)
-        color = parts["bodies"][0].get_facecolor().flatten()
-        labels.append((mpatches.Patch(color=color), 'Auditory'))
-
-    for pc in parts['bodies'][2:]:
-        pc.set_facecolor('#dede00')
-        pc.set_edgecolor('black')
-        pc.set_alpha(1)
-        color = parts["bodies"][2].get_facecolor().flatten()
-        labels.append((mpatches.Patch(color=color), 'Visual'))
-
-    quartile1 = []
-    medians = []
-    quartile3 = []
-    for datum in data:
-        q1, median, q3 = np.percentile(datum, [25, 50, 75])
-        quartile1.append(q1)
-        medians.append(median)
-        quartile3.append(q3)
-    quartile1 = np.array(quartile1)
-    medians = np.array(medians)
-    quartile3 = np.array(quartile3)
-
-    whiskers = np.array([
-        adjacent_values(sorted_array, q1, q3)
-        for sorted_array, q1, q3 in zip(data, quartile1, quartile3)])
-    whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
-
-    # inds = np.arange(1, len(medians) + 1)
-    ax.scatter(pos, medians, marker='o', color='white', s=6, zorder=3)
-    ax.vlines(pos, quartile1, quartile3, color='k', linestyle='-', lw=5)
-    ax.vlines(pos, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
-
-    # set style for the axes
-    x_labels = ['Beat', 'Interval', 'Beat', 'Interval']
-    ax.set_xticks(pos, x_labels)
-    plt.ylabel(y_label)
-
-    plt.subplots_adjust(left=.2, bottom=0.1, top=.85, wspace=0.05)
-
-    # Hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-
-    # Add legend
-    labels.remove(labels[1])
-    labels.remove(labels[-1])
-    plt.legend(*zip(*labels), loc=loc)
-    fig.text(.01, 0.96, 'white circle: median', size=8)
-    fig.text(.01, 0.92, 'hline: mean', size=8)
-
-    # plt.show()
-
-    # Save figure
-    plt.savefig(os.path.join(this_dir, fname + '.pdf'))
 
 
 def individual_production_isi_sync(
@@ -979,6 +924,141 @@ def individual_ntfd_isi_rts(
             allsub_interval_visual)
 
 
+def plot_violin(allaudio_beat, allaudio_interval,
+                allvisual_beat, allvisual_interval,
+                title, y_label, this_dir, fname, loc):
+
+    data = [allaudio_beat, allaudio_interval,
+            allvisual_beat, allvisual_interval]
+    pos = np.array([1.15, 1.85, 3.15, 3.85])
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 4),
+                           sharey=True)
+    ax.set_title(title, size=10)
+    parts = ax.violinplot(data, pos, showmeans=True, showmedians=False,
+                          showextrema=True)
+
+    labels = []
+    for pc in parts['bodies'][:2]:
+        pc.set_facecolor('#D43F3A')
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+        color = parts["bodies"][0].get_facecolor().flatten()
+        labels.append((mpatches.Patch(color=color), 'Auditory'))
+
+    for pc in parts['bodies'][2:]:
+        pc.set_facecolor('#dede00')
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+        color = parts["bodies"][2].get_facecolor().flatten()
+        labels.append((mpatches.Patch(color=color), 'Visual'))
+
+    quartile1 = []
+    medians = []
+    quartile3 = []
+    for datum in data:
+        q1, median, q3 = np.percentile(datum, [25, 50, 75])
+        quartile1.append(q1)
+        medians.append(median)
+        quartile3.append(q3)
+    quartile1 = np.array(quartile1)
+    medians = np.array(medians)
+    quartile3 = np.array(quartile3)
+
+    whiskers = np.array([
+        adjacent_values(sorted_array, q1, q3)
+        for sorted_array, q1, q3 in zip(data, quartile1, quartile3)])
+    whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
+
+    # inds = np.arange(1, len(medians) + 1)
+    ax.scatter(pos, medians, marker='o', color='white', s=6, zorder=3)
+    ax.vlines(pos, quartile1, quartile3, color='k', linestyle='-', lw=5)
+    ax.vlines(pos, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
+
+    # set style for the axes
+    x_labels = ['Beat', 'Interval', 'Beat', 'Interval']
+    ax.set_xticks(pos, x_labels)
+    plt.ylabel(y_label)
+
+    plt.subplots_adjust(left=.2, bottom=0.1, top=.85, wspace=0.05)
+
+    # Hide the right and top spines
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+    # Add legend
+    labels.remove(labels[1])
+    labels.remove(labels[-1])
+    plt.legend(*zip(*labels), loc=loc)
+    fig.text(.01, 0.96, 'white circle: median', size=8)
+    fig.text(.01, 0.92, 'hline: mean', size=8)
+
+    # plt.show()
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, fname + '.pdf'))
+
+
+def plot_pairedttest(beat, interval, pvalue, this_dir, fname):
+
+    fig = plt.figure(figsize=(4, 4))
+    # Define subplot of bar charts and its position in the fig
+    # plt.axes([left, bottom, width, height])
+    ax = plt.axes([.225, .145, .65, .65])
+
+    # Prepare the data
+    x = 'Conditions'
+    y = 'Signed Asynchrony'
+
+    data_list = beat.tolist() + interval.tolist()
+    conditions = np.repeat('Beat', len(beat)).tolist() + \
+        np.repeat('Interval', len(interval)).tolist()
+    d = {x: conditions, y: data_list}
+    df = pd.DataFrame(data=d)
+
+    # Create bar plot
+    ax = sns.barplot(
+        x=x,
+        y=y,
+        data=df,
+        estimator=np.mean,
+        ci=95, # 1.96 * standard error (95% confidence interval)
+        errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+
+    # Annotate
+    pairs = [(('Beat', 'Interval'))]
+    annotator = Annotator(ax, pairs, data=df, x=x, y=y)
+    annotator.configure(test=None, text_format="simple", test_short_name="Paired t-test")
+    annotator.set_pvalues([pvalue])
+    annotator.annotate()
+
+    # Set limits of y-axis
+    ax.set_ylim(bottom=0., top=.14)
+
+    # Display means rounded to two decimals on the top
+    # ax.bar_label(ax.containers[0], padding=-50)
+    yshift = -.02
+    for p in ax.patches:
+        ax.text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
+                '{0:.2f}'.format(p.get_height()), fontsize=10, color='black',
+                ha='center', va='bottom')
+
+    # Change width of seaborn barplots
+    change_width(ax, .5)
+
+    # Hide the right and top spines
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+    # Title
+    plt.suptitle('Group Mean of Signed Asynchrony for \n\n the Auditory Production task', size=10, linespacing=.75)
+    plt.title('95% CI for the Mean', size=8)
+
+    # plt.show()
+    # Save figure
+    plt.savefig(os.path.join(this_dir, fname + '.pdf'))
+
+
 # %%
 # =========================== INPUTS ===================================
 
@@ -1017,29 +1097,30 @@ if __name__ == "__main__":
 
     # ###############
 
-    plot_violin(
-        ssync_audio_beat, ssync_audio_interval,
-        ssync_visual_beat, ssync_visual_interval,
-        'Group Signed-Asynchrony for Production Tasks',
-        'Asynchrony',
-        MAIN_DIR,
-        'production_groupviolin_signed_asynch',
-        'upper left')
+    # plot_violin(
+    #     ssync_audio_beat, ssync_audio_interval,
+    #     ssync_visual_beat, ssync_visual_interval,
+    #     'Group Signed-Asynchrony for Production Tasks',
+    #     'Asynchrony',
+    #     MAIN_DIR,
+    #     'production_groupviolin_signed_asynch',
+    #     'upper left')
 
-    plot_violin(
-        async_audio_beat, async_audio_interval,
-        async_visual_beat, async_visual_interval,
-        'Group Absolute-Asynchrony for Production Tasks',
-        'Asynchrony',
-        MAIN_DIR,
-        'production_groupviolin_absolute_asynch',
-        'upper left')
+    # plot_violin(
+    #     async_audio_beat, async_audio_interval,
+    #     async_visual_beat, async_visual_interval,
+    #     'Group Absolute-Asynchrony for Production Tasks',
+    #     'Asynchrony',
+    #     MAIN_DIR,
+    #     'production_groupviolin_absolute_asynch',
+    #     'upper left')
 
     # ###############
 
-    # Compute paired-sample t-test for production asynchronies
+    # Compute and plot paired-sample t-test for production asynchronies
     tssync_audio, pssync_audio = stats.ttest_rel(
-        ssync_audio_beat, ssync_audio_interval, alternative='less')
+        ssync_audio_beat, ssync_audio_interval, alternative='two-sided')
+
     tssync_visual, pssync_visual = stats.ttest_rel(
         ssync_visual_beat, ssync_visual_interval, alternative='less')
 
@@ -1048,54 +1129,60 @@ if __name__ == "__main__":
     tasync_visual, pasync_visual = stats.ttest_rel(
         async_visual_beat, async_visual_interval, alternative='less')
 
-    # ################# PRODUCTION RT'S ################################
+    plot_pairedttest(ssync_audio_beat, ssync_audio_interval, pssync_audio,
+                     MAIN_DIR, 'pairedttest_signed_asynch')
 
-    rts_audio_beat, rts_audio_interval, \
-        rts_visual_beat, rts_visual_interval = individual_production_isi_rts(
-            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    print(tssync_audio)
+    print(pssync_audio)
 
-    plot_violin(
-        rts_audio_beat, rts_audio_interval,
-        rts_visual_beat, rts_visual_interval,
-        'Group RTs for Production Tasks',
-        'RTs (ms)',
-        MAIN_DIR,
-        'production_groupviolin_rts',
-        'upper center')
+    # # ################# PRODUCTION RT'S ################################
 
-    # ###############
+    # rts_audio_beat, rts_audio_interval, \
+    #     rts_visual_beat, rts_visual_interval = individual_production_isi_rts(
+    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    # # Compute paired-sample t-test for production RT's
-    trt_audio, prt_audio = stats.ttest_rel(
-        rts_audio_beat, rts_audio_interval, alternative='less')
-    trt_visual, prt_visual = stats.ttest_rel(
-        rts_visual_beat, rts_visual_interval, alternative='less')
+    # plot_violin(
+    #     rts_audio_beat, rts_audio_interval,
+    #     rts_visual_beat, rts_visual_interval,
+    #     'Group RTs for Production Tasks',
+    #     'RTs (ms)',
+    #     MAIN_DIR,
+    #     'production_groupviolin_rts',
+    #     'upper center')
 
-    # ################### PERCEPTION ###################################
+    # # ###############
 
-    # individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # # # Compute paired-sample t-test for production RT's
+    # trt_audio, prt_audio = stats.ttest_rel(
+    #     rts_audio_beat, rts_audio_interval, alternative='less')
+    # trt_visual, prt_visual = stats.ttest_rel(
+    #     rts_visual_beat, rts_visual_interval, alternative='less')
 
-    # ################### NTFD RT'S ####################################
+    # # ################### PERCEPTION ###################################
 
-    individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # # individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    ntfd_audio_beat, ntfd_audio_interval, \
-        ntfd_visual_beat, ntfd_visual_interval = individual_ntfd_isi_rts(
-            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # # ################### NTFD RT'S ####################################
 
-    plot_violin(
-        ntfd_audio_beat, ntfd_audio_interval,
-        ntfd_visual_beat, ntfd_visual_interval,
-        'Group RTs for NTFD Tasks',
-        'RTs (ms)',
-        MAIN_DIR,
-        'ntfd_groupviolin_rts',
-        'upper center')
+    # individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    # ###############
+    # ntfd_audio_beat, ntfd_audio_interval, \
+    #     ntfd_visual_beat, ntfd_visual_interval = individual_ntfd_isi_rts(
+    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    # Compute paired-sample t-test for NTFD tasks
-    tntfd_audio, pntfd_audio = stats.ttest_rel(
-        ntfd_audio_beat, ntfd_audio_interval, alternative='less')
-    tntfd_visual, pntfd_visual = stats.ttest_rel(
-        ntfd_visual_beat, ntfd_visual_interval, alternative='less')
+    # plot_violin(
+    #     ntfd_audio_beat, ntfd_audio_interval,
+    #     ntfd_visual_beat, ntfd_visual_interval,
+    #     'Group RTs for NTFD Tasks',
+    #     'RTs (ms)',
+    #     MAIN_DIR,
+    #     'ntfd_groupviolin_rts',
+    #     'upper center')
+
+    # # ###############
+
+    # # Compute paired-sample t-test for NTFD tasks
+    # tntfd_audio, pntfd_audio = stats.ttest_rel(
+    #     ntfd_audio_beat, ntfd_audio_interval, alternative='less')
+    # tntfd_visual, pntfd_visual = stats.ttest_rel(
+    #     ntfd_visual_beat, ntfd_visual_interval, alternative='less')
