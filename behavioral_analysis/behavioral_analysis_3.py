@@ -999,60 +999,93 @@ def plot_violin(allaudio_beat, allaudio_interval,
     plt.savefig(os.path.join(this_dir, fname + '.pdf'))
 
 
-def plot_pairedttest(beat, interval, pvalue, this_dir, fname):
+def plot_pairedttest(data_audio, data_visual, pval_audio, pval_visual,
+                     ylim_b, ylim_t, title, this_dir, fname):
 
-    fig = plt.figure(figsize=(4, 4))
+    modalities = ['audio', 'visual']
+    fig, ax = plt.subplots(1, len(modalities))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25)
+
     # Define subplot of bar charts and its position in the fig
     # plt.axes([left, bottom, width, height])
-    ax = plt.axes([.225, .145, .65, .65])
+    # ax = plt.axes([.225, .145, .65, .65])
 
     # Prepare the data
     x = 'Conditions'
     y = 'Signed Asynchrony'
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            data_list = data_audio
+            pvalue = pval_audio
+            x_label = 'Auditory Conditions'
+        else:
+            assert modality == 'visual'
+            data_list = data_visual
+            pvalue = pval_visual
+            x_label = 'Visual Conditions'
+        conditions = np.repeat('Beat', len(data_list) / 2).tolist() + \
+            np.repeat('Interval', len(data_list) / 2).tolist()
+        d = {x: conditions, y: data_list}
+        df = pd.DataFrame(data=d)
 
-    data_list = beat.tolist() + interval.tolist()
-    conditions = np.repeat('Beat', len(beat)).tolist() + \
-        np.repeat('Interval', len(interval)).tolist()
-    d = {x: conditions, y: data_list}
-    df = pd.DataFrame(data=d)
+        # Create bar plot
+        sns.barplot(ax=ax[m],
+            x=x,
+            y=y,
+            data=df,
+            estimator=np.mean,
+            ci=95, # 1.96 * standard error (95% confidence interval)
+            errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
 
-    # Create bar plot
-    ax = sns.barplot(
-        x=x,
-        y=y,
-        data=df,
-        estimator=np.mean,
-        ci=95, # 1.96 * standard error (95% confidence interval)
-        errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+        # Annotate
+        pairs = [(('Beat', 'Interval'))]
+        annotator = Annotator(ax[m], pairs, data=df, x=x, y=y)
+        annotator.configure(test=None, text_format="simple",
+                            test_short_name="Paired t-test")
+        annotator.set_pvalues([pvalue])
+        annotator.annotate()
 
-    # Annotate
-    pairs = [(('Beat', 'Interval'))]
-    annotator = Annotator(ax, pairs, data=df, x=x, y=y)
-    annotator.configure(test=None, text_format="simple", test_short_name="Paired t-test")
-    annotator.set_pvalues([pvalue])
-    annotator.annotate()
+        # Set limits of y-axis
+        ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
 
-    # Set limits of y-axis
-    ax.set_ylim(bottom=0., top=.14)
+        if m ==1:
+            # Remove labels and ticks
+            ax[m].axes.get_yaxis().set_visible(False)
+            # Remove y frame
+            ax[m].spines['left'].set_visible(False)
+            # Change x label
+            ax[m].set_xlabel('Visual Conditions', fontweight='semibold',
+                             labelpad=15)
+        else:
+            assert m == 0
+            ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
+                             labelpad=15)
 
-    # Display means rounded to two decimals on the top
-    # ax.bar_label(ax.containers[0], padding=-50)
-    yshift = -.02
-    for p in ax.patches:
-        ax.text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
-                '{0:.2f}'.format(p.get_height()), fontsize=10, color='black',
-                ha='center', va='bottom')
+        # Display means rounded to two decimals on the top
+        # ax.bar_label(ax.containers[0], padding=-50)
+        yshift = -.02
+        for p in ax[m].patches:
+            ax[m].text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
+                       '{:.2e}'.format(p.get_height()), fontsize=10,
+                       color='black', ha='center', va='bottom')
 
-    # Change width of seaborn barplots
-    change_width(ax, .5)
+        # Change width of seaborn barplots
+        change_width(ax[m], .6)
 
-    # Hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
+        # Hide the right and top spines
+        ax[m].spines['right'].set_visible(False)
+        ax[m].spines['top'].set_visible(False)
 
     # Title
-    plt.suptitle('Group Mean of Signed Asynchrony for \n\n the Auditory Production task', size=10, linespacing=.75)
-    plt.title('95% CI for the Mean', size=8)
+    plt.suptitle(title, size=10, linespacing=.75)
+    plt.title('95% CI for the Mean', size=8, x=-.15)
 
     # plt.show()
     # Save figure
@@ -1118,22 +1151,25 @@ if __name__ == "__main__":
     # ###############
 
     # Compute and plot paired-sample t-test for production asynchronies
+
     tssync_audio, pssync_audio = stats.ttest_rel(
         ssync_audio_beat, ssync_audio_interval, alternative='two-sided')
+    ssync_audio = ssync_audio_beat.tolist() + ssync_audio_interval.tolist()
 
     tssync_visual, pssync_visual = stats.ttest_rel(
-        ssync_visual_beat, ssync_visual_interval, alternative='less')
+        ssync_visual_beat, ssync_visual_interval, alternative='two-sided')
+    ssync_visual = ssync_visual_beat.tolist() + ssync_visual_interval.tolist()
 
-    tasync_audio, pasync_audio = stats.ttest_rel(
-        async_audio_beat, async_audio_interval, alternative='less')
-    tasync_visual, pasync_visual = stats.ttest_rel(
-        async_visual_beat, async_visual_interval, alternative='less')
+    ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
+    ssync_f = 'paired-ttest_signed_asynch'
 
-    plot_pairedttest(ssync_audio_beat, ssync_audio_interval, pssync_audio,
-                     MAIN_DIR, 'pairedttest_signed_asynch')
+    plot_pairedttest(ssync_audio, ssync_visual, pssync_audio, pssync_visual,
+                     -.03, .14, ssync_title, MAIN_DIR, ssync_f)
 
-    print(tssync_audio)
-    print(pssync_audio)
+    # tasync_audio, pasync_audio = stats.ttest_rel(
+    #     async_audio_beat, async_audio_interval, alternative='two-sided')
+    # tasync_visual, pasync_visual = stats.ttest_rel(
+    #     async_visual_beat, async_visual_interval, alternative='two-sided')
 
     # # ################# PRODUCTION RT'S ################################
 
@@ -1154,9 +1190,9 @@ if __name__ == "__main__":
 
     # # # Compute paired-sample t-test for production RT's
     # trt_audio, prt_audio = stats.ttest_rel(
-    #     rts_audio_beat, rts_audio_interval, alternative='less')
+    #     rts_audio_beat, rts_audio_interval, alternative='two-sided')
     # trt_visual, prt_visual = stats.ttest_rel(
-    #     rts_visual_beat, rts_visual_interval, alternative='less')
+    #     rts_visual_beat, rts_visual_interval, alternative='two-sided')
 
     # # ################### PERCEPTION ###################################
 
@@ -1183,6 +1219,6 @@ if __name__ == "__main__":
 
     # # Compute paired-sample t-test for NTFD tasks
     # tntfd_audio, pntfd_audio = stats.ttest_rel(
-    #     ntfd_audio_beat, ntfd_audio_interval, alternative='less')
+    #     ntfd_audio_beat, ntfd_audio_interval, alternative='two-sided')
     # tntfd_visual, pntfd_visual = stats.ttest_rel(
-    #     ntfd_visual_beat, ntfd_visual_interval, alternative='less')
+    #     ntfd_visual_beat, ntfd_visual_interval, alternative='two-sided')
