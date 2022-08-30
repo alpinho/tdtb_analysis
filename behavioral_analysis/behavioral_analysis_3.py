@@ -565,7 +565,7 @@ def individual_production_isi_rts(
             plt.ylim([2., 3.35])
 
             if (t % 2) == 0:
-                ax.set_ylabel('Log10(RT)')
+                ax.set_ylabel('Log10(Response Time)')
 
             if s == 0:
                 ax.set_title(task, pad=60, weight='bold')
@@ -925,6 +925,37 @@ def individual_ntfd_isi_rts(
             allsub_interval_visual)
 
 
+def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
+    # Reshape (n_subjects, n_isi, n_trials) --> (n_isi, n_subjects*n_trials)
+
+    s_audio_beat = np.swapaxes(audio_beat, 0, 1)
+    s_audio_interval = np.swapaxes(audio_interval, 0, 1)
+    s_visual_beat = np.swapaxes(visual_beat, 0, 1)
+    s_visual_interval = np.swapaxes(visual_interval, 0, 1)
+
+    rs_audio_beat = np.reshape(
+        s_audio_beat,
+        (s_audio_beat.shape[0],
+         s_audio_beat.shape[1]*s_audio_beat.shape[2]))
+
+    rs_audio_interval = np.reshape(
+        s_audio_interval,
+        (s_audio_interval.shape[0],
+         s_audio_interval.shape[1]*s_audio_interval.shape[2]))
+
+    rs_visual_beat = np.reshape(
+        s_visual_beat,
+        (s_visual_beat.shape[0],
+         s_visual_beat.shape[1]*s_visual_beat.shape[2]))
+
+    rs_visual_interval = np.reshape(
+        s_visual_interval,
+        (s_visual_interval.shape[0],
+         s_visual_interval.shape[1]*s_visual_interval.shape[2]))
+
+    return rs_audio_beat, rs_audio_interval, rs_visual_beat, rs_visual_interval
+
+
 def plot_violin(allaudio_beat, allaudio_interval,
                 allvisual_beat, allvisual_interval,
                 title, y_label, this_dir, fname, loc):
@@ -1000,8 +1031,16 @@ def plot_violin(allaudio_beat, allaudio_interval,
     plt.savefig(os.path.join(this_dir, fname + '.pdf'))
 
 
-def plot_pairedttest(data_audio, data_visual, pval_audio, pval_visual, isi1s,
-                     y, ylim_b, ylim_t, yshift, title, this_dir, fname):
+def plot_pttest(audio_beat, audio_interval, visual_beat, visual_interval,
+                pval_audio, pval_visual,
+                isi1s, y, ylim_b, ylim_t, yshift,
+                title, this_dir, fname):
+
+    # Concatenate data
+    data_audio = [np.append(audio_beat[j], audio_interval[j]).tolist()
+                  for j in np.arange(len(audio_beat))]
+    data_visual = [np.append(visual_beat[j], visual_interval[j]).tolist()
+                   for j in np.arange(len(visual_beat))]
 
     modalities = ['audio', 'visual']
     fig, ax = plt.subplots(1, len(modalities))
@@ -1229,58 +1268,28 @@ if __name__ == "__main__":
     # # ###############
 
     # Reshape
-    rtsprod_audio_beat = np.swapaxes(rtsprod_audio_beat, 0, 1)
-    rtsprod_audio_interval = np.swapaxes(rtsprod_audio_interval, 0, 1)
-    rtsprod_visual_beat = np.swapaxes(rtsprod_visual_beat, 0, 1)
-    rtsprod_visual_interval = np.swapaxes(rtsprod_visual_interval, 0, 1)
-
-    rtsprod_audio_beat = np.reshape(
-        rtsprod_audio_beat,
-        (rtsprod_audio_beat.shape[0],
-         rtsprod_audio_beat.shape[1]*rtsprod_audio_beat.shape[2]))
-
-    rtsprod_audio_interval = np.reshape(
-        rtsprod_audio_interval,
-        (rtsprod_audio_interval.shape[0],
-         rtsprod_audio_interval.shape[1]*rtsprod_audio_interval.shape[2]))
-
-    rtsprod_visual_beat = np.reshape(
-        rtsprod_visual_beat,
-        (rtsprod_visual_beat.shape[0],
-         rtsprod_visual_beat.shape[1]*rtsprod_visual_beat.shape[2]))
-
-    rtsprod_visual_interval = np.reshape(
-        rtsprod_visual_interval,
-        (rtsprod_visual_interval.shape[0],
-         rtsprod_visual_interval.shape[1]*rtsprod_visual_interval.shape[2]))
+    rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
+            rtsprod_audio_beat, rtsprod_audio_interval,
+            rtsprod_visual_beat, rtsprod_visual_interval)
 
     # Compute paired-sample t-test for production Response Time
-    trtprod_audio, prtprod_audio = stats.ttest_rel(
-        rtsprod_audio_beat, rtsprod_audio_interval, axis=1,
-        alternative='two-sided')
+    _, prtprod_audio = stats.ttest_rel(
+        rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+        axis=1, alternative='two-sided')
 
-    rtsprod_audio = [np.append(rtsprod_audio_beat[j],
-                               rtsprod_audio_interval[j]).tolist()
-                     for j in np.arange(len(rtsprod_audio_beat))]
-
-    print('trtprod_audio: ', trtprod_audio)
-
-    trtprod_visual, prtprod_visual = stats.ttest_rel(
-        rtsprod_visual_beat, rtsprod_visual_interval, axis=1,
-        alternative='two-sided')
-
-    rtsprod_visual = [np.append(rtsprod_visual_beat[j],
-                                rtsprod_visual_interval[j]).tolist()
-                      for j in np.arange(len(rtsprod_visual_beat))]
-
-    print('trtprod_visual: ', trtprod_visual)
+    _, prtprod_visual = stats.ttest_rel(
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+        axis=1, alternative='two-sided')
 
     ####### For each ISI
     rtprod_title = 'Group Mean of Response Time for the Production tasks'
     rtprod_f = 'paired-ttest_rt_production'
-    plot_pairedttest(rtsprod_audio, rtsprod_visual, prtprod_audio,
-                     prtprod_visual, standards, 'RT (ms)', 0., 900., -100.,
-                     rtprod_title, MAIN_DIR, rtprod_f)
+    plot_pttest(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+                rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+                prtprod_audio, prtprod_visual,
+                standards, 'RT (ms)', 0., 900., -100.,
+                rtprod_title, MAIN_DIR, rtprod_f)
 
     # # ################### PERCEPTION ###################################
 
