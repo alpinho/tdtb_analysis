@@ -300,11 +300,11 @@ def individual_production_isi_sync(
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 36))
+                fig = plt.figure(figsize=(8, 40))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .88 - s*.07, .3, .05])
+            ax = plt.axes([.235 + t*.42, .91 - s*.0625, .3, .045])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -375,25 +375,13 @@ def individual_production_isi_sync(
                     patch1.set_facecolor(colors2[0])
                     patch2.set_facecolor(colors2[1])
 
-            # if s == len(subjects) - 1:
-            #     ax.set_xticks(x, x_labels)
-            # else:
-            #     # ax.set_xticks([x[0] + .4, x[1] - .4], '')
-            #     ax.tick_params(bottom=False)
-            #     ax.spines['bottom'].set_visible(False)
+            # x-label at the bottom
             if s == len(subjects) - 1:
-                fig.text(.5, .02, ' ISIs (ms)', size=18)
+                fig.text(.5, .014, ' ISIs (ms)', size=18)
 
+            # x-tick labels with the standards
             ax.set_xticks(x*2., x_labels)
 
-            # if sync_type == 'signed':
-            #     y_ticks = np.arange(-1., 4., .5)
-            # else:
-            #     assert sync_type == 'absolute'
-            #     y_ticks = np.arange(0., 4., .5)
-            # y_labels = np.array([str(y_tick) if (y % 2) != 0 else ''
-            #                      for y, y_tick in enumerate(y_ticks)])
-            # ax.set_yticks(y_ticks, y_labels)
             if sync_type == 'signed':
                 plt.ylim([-3., 3.])
                 if (t % 2) == 0:
@@ -405,17 +393,17 @@ def individual_production_isi_sync(
                     ax.set_ylabel('Log10(Asynchrony)')
 
             if s == 0:
-                ax.set_title(task, pad=60, weight='bold')
+                ax.set_title(task, pad=30, weight='bold')
                 if t == 0:
-                    ax.legend(frameon=False, loc = 'upper right',
+                    ax.legend(frameon=False, loc = 'best',
                               prop={'size': 8})
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right', prop={'size': 8})
-                    fig.text(.27, 0.925, '*', color='white',
+                    fig.text(.27, 0.95, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.285, 0.925, ' Mean', color='black',
+                    fig.text(.285, 0.95, ' Mean', color='black',
                              weight='roman', size='x-small')
 
             # Hide the right and top spines
@@ -437,8 +425,19 @@ def individual_production_isi_sync(
                 allsub_beat_visual.append(as_isi_beat)
                 allsub_interval_visual.append(as_isi_interval)
 
-        fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .93 - s * .0625, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
+
+    # Title
+    if sync_type == 'signed':
+        plt.suptitle(
+            'Individual Mean of Signed Asynchrony for the Production tasks',
+            x=.5, y=.99, size=14, linespacing=.75)
+    else:
+        assert sync_type == 'absolute'
+        plt.suptitle(
+            'Individual Mean of Absolute Asynchrony for the Production tasks',
+            x=.5, y=.99, size=14, linespacing=.75)
 
     # plt.show()
     # Save figure
@@ -519,11 +518,11 @@ def individual_production_isi_rts(
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 36))
+                fig = plt.figure(figsize=(8, 40))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .88 - s*.07, .3, .05])
+            ax = plt.axes([.235 + t*.42, .91 - s*.0625, .3, .045])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -571,7 +570,7 @@ def individual_production_isi_rts(
             #     ax.tick_params(bottom=False)
             #     ax.spines['bottom'].set_visible(False)
             if s == len(subjects) - 1:
-                fig.text(.5, .02, ' ISIs (ms)', size=18)
+                fig.text(.5, .014, ' ISIs (ms)', size=18)
 
             ax.set_xticks(x*2., x_labels)
             plt.ylim([2., 3.35])
@@ -580,17 +579,17 @@ def individual_production_isi_rts(
                 ax.set_ylabel('Log10(Response Time)')
 
             if s == 0:
-                ax.set_title(task, pad=60, weight='bold')
+                ax.set_title(task, pad=30, weight='bold')
                 if t == 0:
-                    ax.legend(frameon=False, loc = 'upper left',
+                    ax.legend(frameon=False, loc = 'best',
                               prop={'size': 12})
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right')
-                    fig.text(.27, 0.923, '*', color='white',
+                    fig.text(.27, 0.95, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.285, 0.9225, ' Mean', color='black',
+                    fig.text(.285, 0.95, ' Mean', color='black',
                              weight='roman', size='x-small')
 
             # Hide the right and top spines
@@ -606,12 +605,18 @@ def individual_production_isi_rts(
                 allsub_beat_visual.append(rt_isi1_grouped_beat)
                 allsub_interval_visual.append(rt_isi1_grouped_interval)
 
-        fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .93 - s * .0625, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
+
+    # Title
+    plt.suptitle(
+        'Individual Mean of Response Time for the Production tasks',
+        x=.5, y=.99, size=14, linespacing=.75)
 
     # plt.show()
     # Save figure
-    plt.savefig(os.path.join(this_dir, 'production_individual_isi_rts.pdf'))
+    plt.savefig(os.path.join(this_dir,
+                             'production_individual_isi_resptime.pdf'))
 
     # Flatten the data arrays
     if flatten:
@@ -1190,7 +1195,7 @@ def plot_pttest(audio_beat, audio_interval, visual_beat, visual_interval,
         for p in ax[m].patches:
             ax[m].text(p.get_x() + p.get_width()/2.,
                        p.get_height() + np.sign(p.get_height())*yshift,
-                       '{:.2e}'.format(p.get_height()), fontsize=3,
+                       '{:.2e}'.format(p.get_height()), fontsize=2.5,
                        fontweight='bold', color='black', ha='center',
                        va='bottom')
 
@@ -1213,7 +1218,7 @@ def plot_pttest(audio_beat, audio_interval, visual_beat, visual_interval,
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19]
 # SUBJECTS = [16]
 
 # TASKS = ['Auditory Production',
@@ -1294,7 +1299,7 @@ if __name__ == "__main__":
     plot_pttest(rs_ssync_audio_beat, rs_ssync_audio_interval,
                 rs_ssync_visual_beat, rs_ssync_visual_interval,
                 pssync_audio, pssync_visual,
-                standards, 'Signed Asynchrony', -.1, .26, -.039,
+                standards, 'Signed Asynchrony', -.125, .275, -.039,
                 ssync_title, MAIN_DIR, ssync_f)
 
     # # #######
@@ -1313,7 +1318,7 @@ if __name__ == "__main__":
     plot_pttest(rs_async_audio_beat, rs_async_audio_interval,
                 rs_async_visual_beat, rs_async_visual_interval,
                 pasync_audio, pasync_visual,
-                standards, 'Absolute Asynchrony', -0., .26, -.04,
+                standards, 'Absolute Asynchrony', -0., .275, -.04,
                 async_title, MAIN_DIR, async_f)
 
     # # ############## PRODUCTION RESPONSE TIME ########################
@@ -1354,7 +1359,7 @@ if __name__ == "__main__":
     plot_pttest(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
                 rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
                 prtprod_audio, prtprod_visual,
-                standards, 'RT (ms)', 0., 900., -100.,
+                standards, 'Response Time (ms)', 0., 900., -100.,
                 rtprod_title, MAIN_DIR, rtprod_f)
 
     # # ################### PERCEPTION ###################################
