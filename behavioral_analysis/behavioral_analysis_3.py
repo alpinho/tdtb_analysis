@@ -210,7 +210,7 @@ def perception_frequencies(isi_diff_condition, condition_trials):
 
 
 def individual_production_isi_sync(
-        subjects, this_dir, sesstype, n_sess, sync_type,
+        subjects, this_dir, sesstype, n_sess, sync_type, flatten=True,
         tasks = ['Auditory Production', 'Visual Production']):
 
     allsub_beat_audio = []
@@ -435,13 +435,14 @@ def individual_production_isi_sync(
         this_dir, 'production_individual_isi_' + sync_type + '_asynch.pdf'))
 
     # Flatten the data arrays
-    allsub_beat_audio = np.ravel(allsub_beat_audio)
-    allsub_interval_audio = np.ravel(allsub_interval_audio)
-    allsub_beat_visual = np.ravel(allsub_beat_visual)
-    allsub_interval_visual = np.ravel(allsub_interval_visual)
+    if flatten:
+        allsub_beat_audio = np.ravel(allsub_beat_audio)
+        allsub_interval_audio = np.ravel(allsub_interval_audio)
+        allsub_beat_visual = np.ravel(allsub_beat_visual)
+        allsub_interval_visual = np.ravel(allsub_interval_visual)
 
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
-            allsub_interval_visual)
+            allsub_interval_visual, isi1s)
 
 
 def individual_production_isi_rts(
@@ -1051,7 +1052,7 @@ def plot_pttest(audio_beat, audio_interval, visual_beat, visual_interval,
     # top    # the top of the subplots of the figure
     # wspace # the amount of width reserved for blank space between subplots
     # hspace # the amount of height reserved for white space between subplots
-    plt.subplots_adjust(left=.105, right=.99, bottom=.15, wspace=.075)
+    plt.subplots_adjust(left=.12, right=.99, bottom=.15, wspace=.075)
 
     # Define subplot of bar charts and its position in the fig
     # plt.axes([left, bottom, width, height])
@@ -1114,24 +1115,23 @@ def plot_pttest(audio_beat, audio_interval, visual_beat, visual_interval,
         # Remove frame of legend
         ax[m].legend(frameon=False)
 
+        # For the second (right) plot, ...
         if m ==1:
-            # Remove labels and ticks
+            # ... remove labels and ticks
             ax[m].axes.get_yaxis().set_visible(False)
-            # Remove y frame
+            # ... remove y frame
             ax[m].spines['left'].set_visible(False)
-            # Remove legend from second plot
+            # ... remove legend
             ax[m].legend([],[], frameon=False)
-        # else:
-        #     assert m == 0
 
         # Change x label
-        ax[m].set_xlabel(x_label, fontweight='semibold',
-                         labelpad=15)
+        ax[m].set_xlabel(x_label, fontweight='semibold', labelpad=15)
 
         # Display means rounded to two decimals on the top
         # ax.bar_label(ax.containers[0], padding=-50)
         for p in ax[m].patches:
-            ax[m].text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
+            ax[m].text(p.get_x() + p.get_width()/2.,
+                       p.get_height() + np.sign(p.get_height())*yshift,
                        '{:.2e}'.format(p.get_height()), fontsize=3,
                        fontweight='bold', color='black', ha='center',
                        va='bottom')
@@ -1180,13 +1180,14 @@ if __name__ == "__main__":
 
     # # ############### PRODUCTION SYNCHRONIES ###########################
 
-    # ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
-    #     ssync_visual_interval = individual_production_isi_sync(
-    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed')
+    ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
+        ssync_visual_interval, standards = individual_production_isi_sync(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed', flatten=False)
 
-    # async_audio_beat, async_audio_interval, async_visual_beat, \
-    #     async_visual_interval = individual_production_isi_sync(
-    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'absolute')
+    async_audio_beat, async_audio_interval, async_visual_beat, \
+        async_visual_interval, standards = individual_production_isi_sync(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'absolute',
+            flatten=False)
 
     # # ###############
 
@@ -1210,45 +1211,53 @@ if __name__ == "__main__":
 
     # # ###############
 
-    # # Compute and plot paired-sample t-test for production asynchronies
+    # Reshape
+    rs_ssync_audio_beat, rs_ssync_audio_interval, \
+        rs_ssync_visual_beat, rs_ssync_visual_interval = ginput_reshape(
+            ssync_audio_beat, ssync_audio_interval,
+            ssync_visual_beat, ssync_visual_interval)
 
-    # tssync_audio, pssync_audio = stats.ttest_rel(
-    #     ssync_audio_beat, ssync_audio_interval, alternative='two-sided')
-    # ssync_audio = ssync_audio_beat.tolist() + ssync_audio_interval.tolist()
+    # Compute and plot paired-sample t-test for production asynchronies
+    _, pssync_audio = stats.ttest_rel(
+        rs_ssync_audio_beat, rs_ssync_audio_interval,
+        axis=1, alternative='two-sided')
 
-    # print('tssync_audio: ', tssync_audio)
+    _, pssync_visual = stats.ttest_rel(
+        rs_ssync_visual_beat, rs_ssync_visual_interval,
+        axis=1, alternative='two-sided')
 
-    # tssync_visual, pssync_visual = stats.ttest_rel(
-    #     ssync_visual_beat, ssync_visual_interval, alternative='two-sided')
-    # ssync_visual = ssync_visual_beat.tolist() + ssync_visual_interval.tolist()
-
-    # print('tssync_visual: ', tssync_visual)
-
-    # ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
-    # ssync_f = 'paired-ttest_signed_asynch'
-    # plot_pairedttest(ssync_audio, ssync_visual, pssync_audio, pssync_visual,
-    #                  'Signed Asynchrony', -.03, .14, -.02, ssync_title,
-    #                  MAIN_DIR, ssync_f)
+    ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
+    ssync_f = 'paired-ttest_signed_asynch'
+    plot_pttest(rs_ssync_audio_beat, rs_ssync_audio_interval,
+                rs_ssync_visual_beat, rs_ssync_visual_interval,
+                pssync_audio, pssync_visual,
+                standards, 'Signed Asynchrony', -.1, .26, -.039,
+                ssync_title, MAIN_DIR, ssync_f)
 
     # # #######
 
-    # tasync_audio, pasync_audio = stats.ttest_rel(
-    #     async_audio_beat, async_audio_interval, alternative='two-sided')
-    # async_audio = async_audio_beat.tolist() + async_audio_interval.tolist()
+    # Reshape
+    rs_async_audio_beat, rs_async_audio_interval, \
+        rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
+            async_audio_beat, async_audio_interval,
+            async_visual_beat, async_visual_interval)
 
-    # print('tasync_audio: ', tasync_audio)
+    # Compute and plot paired-sample t-test for production asynchronies
+    _, pasync_audio = stats.ttest_rel(
+        rs_async_audio_beat, rs_async_audio_interval,
+        axis=1, alternative='two-sided')
 
-    # tasync_visual, pasync_visual = stats.ttest_rel(
-    #     async_visual_beat, async_visual_interval, alternative='two-sided')
-    # async_visual = async_visual_beat.tolist() + async_visual_interval.tolist()
+    _, pasync_visual = stats.ttest_rel(
+        rs_async_visual_beat, rs_async_visual_interval,
+        axis=1, alternative='two-sided')
 
-    # print('tasync_visual: ', tasync_visual)
-
-    # async_title = 'Group Mean of Absolute Asynchrony for the Production tasks'
-    # async_f = 'paired-ttest_absolute_asynch'
-    # plot_pairedttest(async_audio, async_visual, pasync_audio, pasync_visual,
-    #                  'Absolute Asynchrony', 0., .2, -.02, async_title,
-    #                  MAIN_DIR, async_f)
+    async_title = 'Group Mean of Absolute Asynchrony for the Production tasks'
+    async_f = 'paired-ttest_absolute_asynch'
+    plot_pttest(rs_async_audio_beat, rs_async_audio_interval,
+                rs_async_visual_beat, rs_async_visual_interval,
+                pasync_audio, pasync_visual,
+                standards, 'Absolute Asynchrony', -0., .26, -.04,
+                async_title, MAIN_DIR, async_f)
 
     # # ############## PRODUCTION RESPONSE TIME ########################
 
@@ -1284,7 +1293,7 @@ if __name__ == "__main__":
 
     ####### For each ISI
     rtprod_title = 'Group Mean of Response Time for the Production tasks'
-    rtprod_f = 'paired-ttest_rt_production'
+    rtprod_f = 'paired-ttest_resptime_production'
     plot_pttest(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
                 rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
                 prtprod_audio, prtprod_visual,
