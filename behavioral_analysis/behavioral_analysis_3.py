@@ -976,7 +976,7 @@ def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
 def plot_violin(audio_beat, audio_interval,
                 visual_beat, visual_interval,
                 isi1s, ylim_b, ylim_t, y_label,
-                title, this_dir, fname, loc):
+                title, this_dir, fname):
 
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
 
@@ -1072,7 +1072,7 @@ def plot_violin(audio_beat, audio_interval,
     ax1.set_ylim(bottom=ylim_b, top=ylim_t)
     ax2.set_ylim(bottom=ylim_b, top=ylim_t)
     # Set y label
-    ax1.set_ylabel(y_label, labelpad=5)
+    ax1.set_ylabel(y_label, labelpad=.5)
     # Remove y frame, labels and spines of second plot
     ax2.spines['left'].set_visible(False)
     ax2.axes.get_yaxis().set_visible(False)
@@ -1084,7 +1084,7 @@ def plot_violin(audio_beat, audio_interval,
                   y=-.175)
 
     # Add legend
-    ax1.legend(*zip(*labels), loc=loc, frameon=False)
+    ax1.legend(*zip(*labels), loc='best', frameon=False)
     fig.text(.75, 0.84, 'white circle: median', size=8)
     fig.text(.75, 0.8, 'hline: mean', size=8)
 
@@ -1243,6 +1243,7 @@ if __name__ == "__main__":
 
     # # ############### PRODUCTION SYNCHRONIES ###########################
 
+    # ### Individual analysis per standard --- box plots
     ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
         ssync_visual_interval, standards = individual_production_isi_sync(
             SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed', flatten=False)
@@ -1252,40 +1253,43 @@ if __name__ == "__main__":
             SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'absolute',
             flatten=False)
 
-    # Reshape
+    # ## Reshape
+
+    # Signed asynchronies
     rs_ssync_audio_beat, rs_ssync_audio_interval, \
         rs_ssync_visual_beat, rs_ssync_visual_interval = ginput_reshape(
             ssync_audio_beat, ssync_audio_interval,
             ssync_visual_beat, ssync_visual_interval)
 
+    # Absolute asynchronies
     rs_async_audio_beat, rs_async_audio_interval, \
         rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
             async_audio_beat, async_audio_interval,
             async_visual_beat, async_visual_interval)
 
-    # # ###############
+    # ### Group Analyses per standard --- violin plots
 
+    # Signed asynchronies
     plot_violin(
         rs_ssync_audio_beat, rs_ssync_audio_interval,
         rs_ssync_visual_beat, rs_ssync_visual_interval,
         standards, -1., 4., 'Asynchrony',
         'Group Signed-Asynchrony for the Production Tasks',
         MAIN_DIR,
-        'production_groupviolin_signed_asynch',
-        'upper left')
+        'production_groupviolin_signed_asynch')
 
+    # Absolute asynchronies
     plot_violin(
         rs_async_audio_beat, rs_async_audio_interval,
         rs_async_visual_beat, rs_async_visual_interval,
         standards, -.05, 4., 'Asynchrony',
         'Group Absolute-Asynchrony for the Production Tasks',
         MAIN_DIR,
-        'production_groupviolin_absolute_asynch',
-        'upper left')
+        'production_groupviolin_absolute_asynch')
 
-    # # ###############
+    # ### Group Analyses per standard --- bar plots + paired t-test
 
-    # Compute and plot paired-sample t-test for production asynchronies
+    # Signed asynchronies
     _, pssync_audio = stats.ttest_rel(
         rs_ssync_audio_beat, rs_ssync_audio_interval,
         axis=1, alternative='two-sided')
@@ -1302,9 +1306,7 @@ if __name__ == "__main__":
                 standards, 'Signed Asynchrony', -.125, .275, -.039,
                 ssync_title, MAIN_DIR, ssync_f)
 
-    # # #######
-
-    # Compute and plot paired-sample t-test for production asynchronies
+    # Absolute asynchronies
     _, pasync_audio = stats.ttest_rel(
         rs_async_audio_beat, rs_async_audio_interval,
         axis=1, alternative='two-sided')
@@ -1323,28 +1325,27 @@ if __name__ == "__main__":
 
     # # ############## PRODUCTION RESPONSE TIME ########################
 
+    # ### Individual analysis per standard --- box plots
     rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
         rtsprod_visual_interval, standards = individual_production_isi_rts(
             SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # plot_violin(
-    #     rtsprod_audio_beat, rtsprod_audio_interval,
-    #     rtsprod_visual_beat, rtsprod_visual_interval,
-    #     'Group Mean of Response Time for the Production Tasks',
-    #     'Response Time (ms)',
-    #     MAIN_DIR,
-    #     'production_groupviolin_rts',
-    #     'upper center')
-
-    # # ###############
-
-    # Reshape
+    # ## Reshape
     rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
         rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
             rtsprod_audio_beat, rtsprod_audio_interval,
             rtsprod_visual_beat, rtsprod_visual_interval)
 
-    # Compute paired-sample t-test for production Response Time
+    # ### Group Analyses per standard --- violin plots
+    plot_violin(
+        rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+        standards, 0., 2250., 'Response Time (ms)',
+        'Group Mean of Response Time for the Production Tasks',
+        MAIN_DIR,
+        'production_groupviolin_resptime')
+
+    # ### Group Analyses per standard --- bar plots + paired t-test
     _, prtprod_audio = stats.ttest_rel(
         rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
         axis=1, alternative='two-sided')
@@ -1353,7 +1354,6 @@ if __name__ == "__main__":
         rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
         axis=1, alternative='two-sided')
 
-    ####### For each ISI
     rtprod_title = 'Group Mean of Response Time for the Production tasks'
     rtprod_f = 'paired-ttest_resptime_production'
     plot_pttest(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
