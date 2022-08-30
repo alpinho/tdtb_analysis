@@ -30,12 +30,23 @@ from statannotations.Annotator import Annotator
 
 
 def adjacent_values(vals, q1, q3):
+    vals.sort()
     upper_adjacent_value = q3 + (q3 - q1) * 1.5
     upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
 
     lower_adjacent_value = q1 - (q3 - q1) * 1.5
     lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
+
     return lower_adjacent_value, upper_adjacent_value
+
+
+def customize_vplot(datum, ax, pos):
+    q1, median, q3 = np.percentile(datum, [25, 50, 75])
+    whiskers = np.array([adjacent_values(datum, q1, q3)])
+    whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
+    ax.scatter(pos, median, marker='o', color='white', s=6, zorder=3)
+    ax.vlines(pos, q1, q3, color='k', linestyle='-', lw=5)
+    ax.vlines(pos, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
 
 
 def set_axis_style(ax, labels):
@@ -957,76 +968,123 @@ def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
     return rs_audio_beat, rs_audio_interval, rs_visual_beat, rs_visual_interval
 
 
-def plot_violin(allaudio_beat, allaudio_interval,
-                allvisual_beat, allvisual_interval,
-                title, y_label, this_dir, fname, loc):
+def plot_violin(audio_beat, audio_interval,
+                visual_beat, visual_interval,
+                isi1s, ylim_b, ylim_t, y_label,
+                title, this_dir, fname, loc):
 
-    data = [allaudio_beat, allaudio_interval,
-            allvisual_beat, allvisual_interval]
-    pos = np.array([1.15, 1.85, 3.15, 3.85])
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
 
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 4),
-                           sharey=True)
-    ax.set_title(title, size=10)
-    parts = ax.violinplot(data, pos, showmeans=True, showmedians=False,
-                          showextrema=True)
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.1, right=.98, bottom=.15, wspace=.075)
 
-    labels = []
-    for pc in parts['bodies'][:2]:
-        pc.set_facecolor('#D43F3A')
-        pc.set_edgecolor('black')
-        pc.set_alpha(1)
-        color = parts["bodies"][0].get_facecolor().flatten()
-        labels.append((mpatches.Patch(color=color), 'Auditory'))
+    for i, (isi_audio_beat, isi_audio_interval) in enumerate(
+            zip(audio_beat, audio_interval)):
+        pos_ab = [i*2 - .4]
+        pos_ai = [i*2 + .4]
+        v1_ab = ax1.violinplot(isi_audio_beat, pos_ab, showmeans=True,
+                               showmedians=False, showextrema=True, widths=.75)
+        v1_ai = ax1.violinplot(isi_audio_interval, pos_ai, showmeans=True,
+                               showmedians=False, showextrema=True, widths=.75)
+        customize_vplot(isi_audio_beat, ax1, pos_ab)
+        customize_vplot(isi_audio_interval, ax1, pos_ai)
 
-    for pc in parts['bodies'][2:]:
-        pc.set_facecolor('#dede00')
-        pc.set_edgecolor('black')
-        pc.set_alpha(1)
-        color = parts["bodies"][2].get_facecolor().flatten()
-        labels.append((mpatches.Patch(color=color), 'Visual'))
+        for vab in v1_ab['bodies']:
+            vab.set_facecolor('tab:blue')
+            vab.set_edgecolor('black')
+            vab.set_alpha(1)
 
-    quartile1 = []
-    medians = []
-    quartile3 = []
-    for datum in data:
-        q1, median, q3 = np.percentile(datum, [25, 50, 75])
-        quartile1.append(q1)
-        medians.append(median)
-        quartile3.append(q3)
-    quartile1 = np.array(quartile1)
-    medians = np.array(medians)
-    quartile3 = np.array(quartile3)
+        for vai in v1_ai['bodies']:
+            vai.set_facecolor('tab:orange')
+            vai.set_edgecolor('black')
+            vai.set_alpha(1)
 
-    whiskers = np.array([
-        adjacent_values(sorted_array, q1, q3)
-        for sorted_array, q1, q3 in zip(data, quartile1, quartile3)])
-    whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
+        labels = []
+        cb = vab.get_facecolor()
+        ci = vai.get_facecolor()
+        labels.append((mpatches.Patch(color=cb), 'Beat'))
+        labels.append((mpatches.Patch(color=ci), 'Interval'))
 
-    # inds = np.arange(1, len(medians) + 1)
-    ax.scatter(pos, medians, marker='o', color='white', s=6, zorder=3)
-    ax.vlines(pos, quartile1, quartile3, color='k', linestyle='-', lw=5)
-    ax.vlines(pos, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
+        v1_ab['cmaxes'].set_color('black')
+        v1_ab['cmins'].set_color('black')
+        v1_ab['cbars'].set_color('black')
+        v1_ab['cmeans'].set_color('black')
 
-    # set style for the axes
-    x_labels = ['Beat', 'Interval', 'Beat', 'Interval']
-    ax.set_xticks(pos, x_labels)
-    plt.ylabel(y_label)
+        v1_ai['cmaxes'].set_color('black')
+        v1_ai['cmins'].set_color('black')
+        v1_ai['cbars'].set_color('black')
+        v1_ai['cmeans'].set_color('black')
 
-    plt.subplots_adjust(left=.2, bottom=0.1, top=.85, wspace=0.05)
+    for j, (isi_visual_beat, isi_visual_interval) in enumerate(
+            zip(visual_beat, visual_interval)):
+        pos_vb = [j*2 - .4]
+        pos_vi = [j*2 + .4]
+        v2_ab = ax2.violinplot(isi_visual_beat, pos_vb, showmeans=True,
+                               showmedians=False, showextrema=True, widths=.75)
+        v2_ai = ax2.violinplot(isi_visual_interval, pos_vi, showmeans=True,
+                               showmedians=False, showextrema=True, widths=.75)
+        customize_vplot(isi_visual_beat, ax2, pos_vb)
+        customize_vplot(isi_visual_interval, ax2, pos_vi)
+
+        for vab in v2_ab['bodies']:
+            vab.set_facecolor('tab:blue')
+            vab.set_edgecolor('black')
+            vab.set_alpha(1)
+
+        for vai in v2_ai['bodies']:
+            vai.set_facecolor('tab:orange')
+            vai.set_edgecolor('black')
+            vai.set_alpha(1)
+
+        v2_ab['cmaxes'].set_color('black')
+        v2_ab['cmins'].set_color('black')
+        v2_ab['cbars'].set_color('black')
+        v2_ab['cmeans'].set_color('black')
+
+        v2_ai['cmaxes'].set_color('black')
+        v2_ai['cmins'].set_color('black')
+        v2_ai['cbars'].set_color('black')
+        v2_ai['cmeans'].set_color('black')
 
     # Hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+
+    # Label x-axis
+    x_labels = [str(standard) for standard in standards]
+    pos = np.arange(len(standards))*2
+    ax1.set_xticks(pos, x_labels)
+    ax2.set_xticks(pos, x_labels)
+
+    # Set limits of y-axis
+    ax1.set_ylim(bottom=ylim_b, top=ylim_t)
+    ax2.set_ylim(bottom=ylim_b, top=ylim_t)
+    # Set y label
+    ax1.set_ylabel(y_label, labelpad=5)
+    # Remove y frame, labels and spines of second plot
+    ax2.spines['left'].set_visible(False)
+    ax2.axes.get_yaxis().set_visible(False)
+
+    # Title of each plot
+    ax1.set_title('Auditory Conditions', fontweight='semibold', size=10,
+                  y=-.175)
+    ax2.set_title('Visual Conditions', fontweight='semibold', size=10,
+                  y=-.175)
 
     # Add legend
-    labels.remove(labels[1])
-    labels.remove(labels[-1])
-    plt.legend(*zip(*labels), loc=loc)
-    fig.text(.01, 0.96, 'white circle: median', size=8)
-    fig.text(.01, 0.92, 'hline: mean', size=8)
+    ax1.legend(*zip(*labels), loc=loc, frameon=False)
+    fig.text(.75, 0.84, 'white circle: median', size=8)
+    fig.text(.75, 0.8, 'hline: mean', size=8)
 
-    # plt.show()
+    # Title
+    plt.suptitle(title, size=10, linespacing=.75)
 
     # Save figure
     plt.savefig(os.path.join(this_dir, fname + '.pdf'))
@@ -1189,33 +1247,38 @@ if __name__ == "__main__":
             SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'absolute',
             flatten=False)
 
-    # # ###############
-
-    # plot_violin(
-    #     ssync_audio_beat, ssync_audio_interval,
-    #     ssync_visual_beat, ssync_visual_interval,
-    #     'Group Signed-Asynchrony for Production Tasks',
-    #     'Asynchrony',
-    #     MAIN_DIR,
-    #     'production_groupviolin_signed_asynch',
-    #     'upper left')
-
-    # plot_violin(
-    #     async_audio_beat, async_audio_interval,
-    #     async_visual_beat, async_visual_interval,
-    #     'Group Absolute-Asynchrony for Production Tasks',
-    #     'Asynchrony',
-    #     MAIN_DIR,
-    #     'production_groupviolin_absolute_asynch',
-    #     'upper left')
-
-    # # ###############
-
     # Reshape
     rs_ssync_audio_beat, rs_ssync_audio_interval, \
         rs_ssync_visual_beat, rs_ssync_visual_interval = ginput_reshape(
             ssync_audio_beat, ssync_audio_interval,
             ssync_visual_beat, ssync_visual_interval)
+
+    rs_async_audio_beat, rs_async_audio_interval, \
+        rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
+            async_audio_beat, async_audio_interval,
+            async_visual_beat, async_visual_interval)
+
+    # # ###############
+
+    plot_violin(
+        rs_ssync_audio_beat, rs_ssync_audio_interval,
+        rs_ssync_visual_beat, rs_ssync_visual_interval,
+        standards, -1., 4., 'Asynchrony',
+        'Group Signed-Asynchrony for the Production Tasks',
+        MAIN_DIR,
+        'production_groupviolin_signed_asynch',
+        'upper left')
+
+    plot_violin(
+        rs_async_audio_beat, rs_async_audio_interval,
+        rs_async_visual_beat, rs_async_visual_interval,
+        standards, -.05, 4., 'Asynchrony',
+        'Group Absolute-Asynchrony for the Production Tasks',
+        MAIN_DIR,
+        'production_groupviolin_absolute_asynch',
+        'upper left')
+
+    # # ###############
 
     # Compute and plot paired-sample t-test for production asynchronies
     _, pssync_audio = stats.ttest_rel(
@@ -1235,12 +1298,6 @@ if __name__ == "__main__":
                 ssync_title, MAIN_DIR, ssync_f)
 
     # # #######
-
-    # Reshape
-    rs_async_audio_beat, rs_async_audio_interval, \
-        rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
-            async_audio_beat, async_audio_interval,
-            async_visual_beat, async_visual_interval)
 
     # Compute and plot paired-sample t-test for production asynchronies
     _, pasync_audio = stats.ttest_rel(
