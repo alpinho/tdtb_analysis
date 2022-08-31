@@ -304,7 +304,7 @@ def individual_production_isi_sync(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .91 - s*.0625, .3, .045])
+            ax = plt.axes([.235 + t*.42, .9175 - s*.055, .3, .045])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -400,10 +400,10 @@ def individual_production_isi_sync(
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right', prop={'size': 8})
-                    fig.text(.27, 0.95, '*', color='white',
+                    fig.text(.27, 0.958, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.285, 0.95, ' Mean', color='black',
+                    fig.text(.285, 0.958, ' Mean', color='black',
                              weight='roman', size='x-small')
 
             # Hide the right and top spines
@@ -425,7 +425,7 @@ def individual_production_isi_sync(
                 allsub_beat_visual.append(as_isi_beat)
                 allsub_interval_visual.append(as_isi_interval)
 
-        fig.text(.07, .93 - s * .0625, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .94 - s * .055, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
@@ -522,7 +522,7 @@ def individual_production_isi_rts(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .91 - s*.0625, .3, .045])
+            ax = plt.axes([.235 + t*.42, .9175 - s*.055, .3, .045])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -580,10 +580,10 @@ def individual_production_isi_rts(
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right')
-                    fig.text(.27, 0.95, '*', color='white',
+                    fig.text(.27, 0.958, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.285, 0.95, ' Mean', color='black',
+                    fig.text(.285, 0.958, ' Mean', color='black',
                              weight='roman', size='x-small')
 
             # Hide the right and top spines
@@ -599,13 +599,13 @@ def individual_production_isi_rts(
                 allsub_beat_visual.append(rt_isi1_grouped_beat)
                 allsub_interval_visual.append(rt_isi1_grouped_interval)
 
-        fig.text(.07, .93 - s * .0625, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .94 - s * .055, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
     plt.suptitle(
-        'Individual Response Time for the Production tasks',
-        x=.5, y=.99, size=14, linespacing=.75)
+        'Individual Response Time for the Production tasks', x=.5, y=.99,
+        size=14, linespacing=.75)
 
     # plt.show()
     # Save figure
@@ -745,11 +745,11 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess, flatten=True,
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 9))
+                fig = plt.figure(figsize=(8, 15))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .625 - s*.275, .3, .2])
+            ax = plt.axes([.235 + t*.42, .75 - s*.175, .3, .125])
 
             labels = ['beat', 'interval', 'random']
             x = [.2, .4, .6]  # the label locations
@@ -768,12 +768,12 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess, flatten=True,
             ax.bar_label(ntfd_plt, label_type='center')
             ax.set_xticks(x, labels)
             plt.xlim([0., .8])
-            plt.ylim([0., 900.])
+            plt.ylim([0., 850.])
 
             if s == 0:
                 if t == 0:
                     ax.set_title('Auditory NTFD', weight='bold', pad=30)
-                    fig.text(.25, .81, 'Error bars: SD', fontsize=12)
+                    fig.text(.25, .866, 'Error bars: SD', fontsize=12)
                 else:
                     assert t ==1
                     ax.set_title('Visual NTFD', weight='bold', pad=30)
@@ -793,14 +793,14 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess, flatten=True,
                 allsub_interval_visual.append(interval_trials.tolist())
                 allsub_random_visual.append(random_trials.tolist())
 
-        fig.text(.07, .7 - s*.275, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .81 - s*.175, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
-    fig.text(.155, .35, 'Reaction Time (ms)', ha='center',
-             fontsize=12, rotation = 90)
+    fig.text(.1675, .41, 'Reaction Time (ms)', ha='center', fontsize=12,
+             rotation = 90)
 
     # Title
     plt.suptitle('Individual Mean and Standard Deviation of Reaction Time ' + \
-                 'for the NTFD tasks', x=.5, y=.95, size=14, linespacing=.75)
+                 'for the NTFD tasks', x=.5, y=.96, size=14, linespacing=.75)
     # plt.show()
 
     # Save figure
@@ -882,7 +882,7 @@ def individual_ntfd_isi_rts(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .91 - s*.0625, .3, .045])
+            ax = plt.axes([.235 + t*.42, .9175 - s*.055, .3, .045])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -940,10 +940,10 @@ def individual_ntfd_isi_rts(
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right')
-                    fig.text(.27, 0.95, '*', color='white',
+                    fig.text(.27, 0.958, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.285, 0.95, ' Mean', color='black',
+                    fig.text(.285, 0.958, ' Mean', color='black',
                              weight='roman', size='x-small')
                 else:
                     assert t == 1
@@ -972,7 +972,7 @@ def individual_ntfd_isi_rts(
                 allsub_beat_visual.append(rt_isi1_grouped_beat)
                 allsub_interval_visual.append(rt_isi1_grouped_interval)
 
-        fig.text(.07, .93 - s * .0625, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .94 - s * .055, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
@@ -1362,7 +1362,8 @@ def plot_pttest(data_audio, data_visual,
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+RAND_SUBJECTS = [16, 17, 18, 19, 20]
 # SUBJECTS = [16]
 
 # TASKS = ['Auditory Production',
@@ -1516,7 +1517,7 @@ if __name__ == "__main__":
     m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
         m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
         m_rtsntfd_visual_random = individual_ntfd_rts(
-            [16, 18, 19], MAIN_DIR, SESSTYPE, N_SESSIONS)
+            RAND_SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     m_rtsntfd_audio = m_rtsntfd_audio_beat + m_rtsntfd_audio_interval + \
         m_rtsntfd_audio_random
@@ -1589,5 +1590,5 @@ if __name__ == "__main__":
     plot_pttest_isi(rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
                     rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
                     prtntfd_audio, prtntfd_visual,
-                    standards, 'Response Time (ms)', 0., 650., -100.,
+                    standards, 'Reaction Time (ms)', 0., 650., -100.,
                     rtntfd_title, MAIN_DIR, rtntfd_f)
