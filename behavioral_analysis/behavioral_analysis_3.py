@@ -610,7 +610,7 @@ def individual_production_isi_rts(
     # plt.show()
     # Save figure
     plt.savefig(os.path.join(this_dir,
-                             'production_individual_isi_resptime.pdf'))
+                             'production_individual_isi_responsetime.pdf'))
 
     # Flatten the data arrays
     if flatten:
@@ -878,11 +878,11 @@ def individual_ntfd_isi_rts(
 
             # ################## Plotting set 1 ########################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 36))
+                fig = plt.figure(figsize=(8, 40))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .88 - s*.07, .3, .05])
+            ax = plt.axes([.235 + t*.42, .91 - s*.0625, .3, .045])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -924,30 +924,30 @@ def individual_ntfd_isi_rts(
                 patch2.set_facecolor(colors[1])
 
             if s == len(subjects) - 1:
-                fig.text(.5, .02, ' ISIs (ms)', size=18)
+                fig.text(.5, .014, ' ISIs (ms)', size=18)
 
             ax.set_xticks(x*2., x_labels)
             plt.ylim([2., 3.35])
 
             if (t % 2) == 0:
-                ax.set_ylabel('Log10(RT)')
+                ax.set_ylabel('Log10(Reaction Time)')
 
             if s == 0:
                 if t == 0:
-                    ax.set_title('Auditory NTFD', pad=60, weight='bold')
+                    ax.set_title('Auditory NTFD', pad=30, weight='bold')
                     ax.legend(frameon=False, loc = 'upper left',
                               prop={'size': 12})
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right')
-                    fig.text(.27, 0.923, '*', color='white',
+                    fig.text(.27, 0.95, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.285, 0.9225, ' Mean', color='black',
+                    fig.text(.285, 0.95, ' Mean', color='black',
                              weight='roman', size='x-small')
                 else:
                     assert t == 1
-                    ax.set_title('Visual NTFD', pad=60, weight='bold')
+                    ax.set_title('Visual NTFD', pad=30, weight='bold')
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
@@ -965,8 +965,13 @@ def individual_ntfd_isi_rts(
                 allsub_beat_visual.extend(rt_isi1_grouped_beat)
                 allsub_interval_visual.extend(rt_isi1_grouped_interval)
 
-        fig.text(.07, .905 - s * .07, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .93 - s * .0625, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
+
+    # Title
+    plt.suptitle(
+        'Individual Reaction Time for the NTFD tasks',
+        x=.5, y=.99, size=14, linespacing=.75)
 
     # plt.show()
     # Save figure
@@ -1468,7 +1473,7 @@ if __name__ == "__main__":
         standards, 0., 2250., 'Response Time (ms)',
         'Group Mean of Response Time for the Production Tasks',
         MAIN_DIR,
-        'production_groupviolin_resptime')
+        'production_groupviolin_responsetime')
 
     # ### Group Analyses per standard --- bar plots + paired t-test
     _, prtprod_audio = stats.ttest_rel(
@@ -1480,7 +1485,7 @@ if __name__ == "__main__":
         axis=1, alternative='two-sided')
 
     rtprod_title = 'Group Mean of Response Time for the Production tasks'
-    rtprod_f = 'paired-ttest_resptime_production'
+    rtprod_f = 'paired-ttest_responsetime_production'
     plot_pttest_isi(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
                     rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
                     prtprod_audio, prtprod_visual,
@@ -1536,9 +1541,11 @@ if __name__ == "__main__":
                 'Reaction Time (ms)', 0., 750., -100.,
                 ntfd_title, MAIN_DIR, ntfd_f)
 
-    # rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
-    #     rtsntfd_visual_interval = individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR,
-    #                                                       SESSTYPE, N_SESSIONS)
+    # ### Individual analysis per standards --- box plots
+
+    rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
+        rtsntfd_visual_interval = individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR,
+                                                          SESSTYPE, N_SESSIONS)
 
     # plot_violin(
     #     rtsntfd_audio_beat, rtsntfd_audio_interval,
