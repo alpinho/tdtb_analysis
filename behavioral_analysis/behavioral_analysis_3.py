@@ -698,10 +698,16 @@ def individual_perception(
     plt.savefig(os.path.join(this_dir, 'perception_responses.pdf'))
 
 
-def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
+def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess, flatten=True,
                         tasks = ['Auditory No-Temporal Feature Discrimination',
                                  'Visual No-Temporal Feature Discrimination']):
 
+    allsub_beat_audio = []
+    allsub_interval_audio = []
+    allsub_random_audio = []
+    allsub_beat_visual = []
+    allsub_interval_visual = []
+    allsub_random_visual =[]
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory No-Temporal Feature Discrimination',
@@ -716,9 +722,10 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
             beat_trials, interval_trials, random_trials = \
                 filter_trialtype(trials, 'ntfd')
 
-            beat_trials = np.array(beat_trials).ravel()
-            interval_trials = np.array(interval_trials).ravel()
-            random_trials = np.array(random_trials).ravel()
+            # ############## Extract RT's ######################
+            beat_trials = np.array([bt[1] for bt in beat_trials])
+            interval_trials = np.array([it[1] for it in interval_trials])
+            random_trials = np.array([rt[1] for rt in random_trials])
 
             # Replace missing values (nan's) by median of the all sample
             if np.any(np.isnan(beat_trials)):
@@ -751,17 +758,17 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
                               [round(beat_trials.mean(0), 2),
                                round(interval_trials.mean(0), 2),
                                round(random_trials.mean(0), 2)],
-                              width=width,
-                              color=['b', 'y', 'm'],
+                              width=width, alpha=.5,
+                              color=['tab:blue', 'tab:orange', 'green'],
                               yerr=[round(beat_trials.std(0), 2),
                                     round(interval_trials.std(0), 2),
                                     round(random_trials.std(0), 2)],
                               error_kw=dict(capsize=2), label=labels)
             # Add means values on the top of the bar
-            ax.bar_label(ntfd_plt, label_type='center', padding=-20)
+            ax.bar_label(ntfd_plt, label_type='center')
             ax.set_xticks(x, labels)
             plt.xlim([0., .8])
-            plt.ylim([0., 1250.])
+            plt.ylim([0., 900.])
 
             if s == 0:
                 if t == 0:
@@ -775,6 +782,17 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
+            # Aggregate data to compute the paired sample t-test
+            if task == 'Auditory No-Temporal Feature Discrimination':
+                allsub_beat_audio.append(beat_trials.tolist())
+                allsub_interval_audio.append(interval_trials.tolist())
+                allsub_random_audio.append(random_trials.tolist())
+            else:
+                assert task == 'Visual No-Temporal Feature Discrimination'
+                allsub_beat_visual.append(beat_trials.tolist())
+                allsub_interval_visual.append(interval_trials.tolist())
+                allsub_random_visual.append(random_trials.tolist())
+
         fig.text(.07, .7 - s*.275, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
     fig.text(.155, .35, 'Reaction Time (ms)', ha='center',
@@ -787,6 +805,18 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
 
     # Save figure
     plt.savefig(os.path.join(this_dir, 'ntfd_individual_rt.pdf'))
+
+    # Flatten the data arrays
+    if flatten:
+        allsub_beat_audio = np.ravel(allsub_beat_audio).tolist()
+        allsub_interval_audio = np.ravel(allsub_interval_audio).tolist()
+        allsub_random_audio = np.ravel(allsub_random_audio).tolist()
+        allsub_beat_visual = np.ravel(allsub_beat_visual).tolist()
+        allsub_interval_visual = np.ravel(allsub_interval_visual).tolist()
+        allsub_random_visual = np.ravel(allsub_random_visual).tolist()
+
+    return (allsub_beat_audio, allsub_interval_audio, allsub_random_audio,
+            allsub_beat_visual, allsub_interval_visual, allsub_random_visual)
 
 
 def individual_ntfd_isi_rts(
@@ -1214,6 +1244,102 @@ def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
     plt.savefig(os.path.join(this_dir, fname + '.pdf'))
 
 
+def plot_pttest(data_audio, data_visual,
+                pval_audio_bi, pval_audio_br, pval_audio_ir,
+                pval_visual_bi, pval_visual_br, pval_visual_ir,
+                y, ylim_b, ylim_t, yshift, title, this_dir, fname):
+
+    modalities = ['audio', 'visual']
+    fig, ax = plt.subplots(1, len(modalities))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25)
+
+    # Define subplot of bar charts and its position in the fig
+    # plt.axes([left, bottom, width, height])
+    # ax = plt.axes([.225, .145, .65, .65])
+
+    # Prepare the data
+    x = 'Conditions'
+    pval_audio = [pval_audio_bi, pval_audio_br, pval_audio_ir]
+    pval_visual = [pval_visual_bi, pval_visual_br, pval_visual_ir]
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            data_list = data_audio
+            pvalue = pval_audio
+            x_label = 'Auditory Conditions'
+        else:
+            assert modality == 'visual'
+            data_list = data_visual
+            pvalue = pval_visual
+            x_label = 'Visual Conditions'
+        conditions = np.repeat('Beat', len(data_list) / 3).tolist() + \
+            np.repeat('Interval', len(data_list) / 3).tolist() + \
+            np.repeat('Random', len(data_list) / 3).tolist()
+        d = {x: conditions, y: data_list}
+        df = pd.DataFrame(data=d)
+
+        # Create bar plot
+        sns.barplot(ax=ax[m],
+            x=x,
+            y=y,
+            data=df,
+            estimator=np.mean,
+            ci=95, # 1.96 * standard error (95% confidence interval)
+            errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+
+        # Annotate
+        pairs = [('Beat', 'Interval'), ('Beat', 'Random'), ('Interval', 'Random')]
+        annotator = Annotator(ax[m], pairs, data=df, x=x, y=y)
+        annotator.configure(test=None, text_format="simple",
+                            test_short_name="pttest", fontsize=7.)
+        annotator.set_pvalues(pvalue)
+        annotator.annotate()
+
+        # Set limits of y-axis
+        ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
+
+        if m ==1:
+            # Remove labels and ticks
+            ax[m].axes.get_yaxis().set_visible(False)
+            # Remove y frame
+            ax[m].spines['left'].set_visible(False)
+            # Change x label
+            ax[m].set_xlabel('Visual Conditions', fontweight='semibold',
+                             labelpad=15)
+        else:
+            assert m == 0
+            ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
+                             labelpad=15)
+
+        # Display means rounded to two decimals on the top
+        # ax.bar_label(ax.containers[0], padding=-50)
+        for p in ax[m].patches:
+            ax[m].text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
+                       '{:.2e}'.format(p.get_height()), fontsize=7.,
+                       color='black', ha='center', va='bottom')
+
+        # Change width of seaborn barplots
+        change_width(ax[m], .7)
+
+        # Hide the right and top spines
+        ax[m].spines['right'].set_visible(False)
+        ax[m].spines['top'].set_visible(False)
+
+    # Title
+    plt.suptitle(title, size=10, linespacing=.75)
+    plt.title('95% CI for the Mean', size=8, x=-.15)
+
+    # plt.show()
+    # Save figure
+    plt.savefig(os.path.join(this_dir, fname + '.pdf'))
+
+
 # %%
 # =========================== INPUTS ===================================
 
@@ -1240,7 +1366,7 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == "__main__":
 
-    # # ############### PRODUCTION SYNCHRONIES ###########################
+    # ############### PRODUCTION SYNCHRONIES ###########################
 
     # ### Individual analysis per standard --- box plots
     ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
@@ -1368,7 +1494,47 @@ if __name__ == "__main__":
     # # ################### NTFD RT'S ####################################
 
     # ### Individual analysis merging all standards --- bar plots
-    individual_ntfd_rts([16, 18, 19], MAIN_DIR, SESSTYPE, N_SESSIONS)
+    m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
+        m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
+        m_rtsntfd_visual_random = individual_ntfd_rts(
+            [16, 18, 19], MAIN_DIR, SESSTYPE, N_SESSIONS)
+
+    m_rtsntfd_audio = m_rtsntfd_audio_beat + m_rtsntfd_audio_interval + \
+        m_rtsntfd_audio_random
+    m_rtsntfd_visual = m_rtsntfd_visual_beat + m_rtsntfd_visual_interval + \
+        m_rtsntfd_visual_random
+
+    _, pntfd_audio_bi = stats.ttest_rel(
+        m_rtsntfd_audio_beat, m_rtsntfd_audio_interval,
+        axis=0, alternative='two-sided')
+
+    _, pntfd_audio_br = stats.ttest_rel(
+        m_rtsntfd_audio_beat, m_rtsntfd_audio_random,
+        axis=0, alternative='two-sided')
+
+    _, pntfd_audio_ir = stats.ttest_rel(
+        m_rtsntfd_audio_interval, m_rtsntfd_audio_random,
+        axis=0, alternative='two-sided')
+
+    _, pntfd_visual_bi = stats.ttest_rel(
+        m_rtsntfd_visual_beat, m_rtsntfd_visual_interval,
+        axis=0, alternative='two-sided')
+
+    _, pntfd_visual_br = stats.ttest_rel(
+        m_rtsntfd_visual_beat, m_rtsntfd_visual_random,
+        axis=0, alternative='two-sided')
+
+    _, pntfd_visual_ir = stats.ttest_rel(
+        m_rtsntfd_visual_interval, m_rtsntfd_visual_random,
+        axis=0, alternative='two-sided')
+
+    ntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
+    ntfd_f = 'paired-ttest_merged-rt_ntfd'
+    plot_pttest(m_rtsntfd_audio, m_rtsntfd_visual,
+                pntfd_audio_bi, pntfd_audio_br, pntfd_audio_ir,
+                pntfd_visual_bi, pntfd_visual_br, pntfd_visual_ir,
+                'Reaction Time (ms)', 0., 750., -100.,
+                ntfd_title, MAIN_DIR, ntfd_f)
 
     # rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
     #     rtsntfd_visual_interval = individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR,
