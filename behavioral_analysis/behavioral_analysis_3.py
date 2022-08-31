@@ -820,7 +820,7 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess, flatten=True,
 
 
 def individual_ntfd_isi_rts(
-        subjects, this_dir, sesstype, n_sess,
+        subjects, this_dir, sesstype, n_sess, flatten=True,
         tasks = ['Auditory No-Temporal Feature Discrimination',
                  'Visual No-Temporal Feature Discrimination']):
 
@@ -953,17 +953,24 @@ def individual_ntfd_isi_rts(
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            # Aggregate data to compute the paired sample t-test
-            rt_isi1_grouped_beat = np.ravel(rt_isi1_grouped_beat).tolist()
-            rt_isi1_grouped_interval = np.ravel(
-                rt_isi1_grouped_interval).tolist()
+            # Aggregate data
+            diff = 36 - np.array(rt_isi1_grouped_interval).shape[1]
+            if diff != 0:
+                # Add missing data for subjects who have less data because of
+                # the introduction of the random condition
+                rt_isi1_grouped_beat = [
+                    np.append(rb, np.repeat(np.median(rb), diff)).tolist()
+                    for rb in rt_isi1_grouped_beat]
+                rt_isi1_grouped_interval = [
+                    np.append(ri, np.repeat(np.median(ri), diff)).tolist()
+                    for ri in rt_isi1_grouped_interval]
             if task == 'Auditory No-Temporal Feature Discrimination':
-                allsub_beat_audio.extend(rt_isi1_grouped_beat)
-                allsub_interval_audio.extend(rt_isi1_grouped_interval)
+                allsub_beat_audio.append(rt_isi1_grouped_beat)
+                allsub_interval_audio.append(rt_isi1_grouped_interval)
             else:
                 assert task == 'Visual No-Temporal Feature Discrimination'
-                allsub_beat_visual.extend(rt_isi1_grouped_beat)
-                allsub_interval_visual.extend(rt_isi1_grouped_interval)
+                allsub_beat_visual.append(rt_isi1_grouped_beat)
+                allsub_interval_visual.append(rt_isi1_grouped_interval)
 
         fig.text(.07, .93 - s * .0625, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
@@ -977,8 +984,15 @@ def individual_ntfd_isi_rts(
     # Save figure
     plt.savefig(os.path.join(this_dir, 'ntfd_individual_isi_rts.pdf'))
 
+    # Flatten the data arrays
+    if flatten:
+        allsub_beat_audio = np.ravel(allsub_beat_audio).tolist()
+        allsub_interval_audio = np.ravel(allsub_interval_audio).tolist()
+        allsub_beat_visual = np.ravel(allsub_beat_visual).tolist()
+        allsub_interval_visual = np.ravel(allsub_interval_visual).tolist()
+
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
-            allsub_interval_visual)
+            allsub_interval_visual, isi1s)
 
 
 def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
@@ -1404,7 +1418,7 @@ if __name__ == "__main__":
         rs_ssync_audio_beat, rs_ssync_audio_interval,
         rs_ssync_visual_beat, rs_ssync_visual_interval,
         standards, -1., 4., 'Asynchrony',
-        'Group Signed-Asynchrony for the Production Tasks',
+        'Group Distribution of Signed-Asynchrony for the Production Tasks',
         MAIN_DIR,
         'production_groupviolin_signed_asynch')
 
@@ -1413,7 +1427,7 @@ if __name__ == "__main__":
         rs_async_audio_beat, rs_async_audio_interval,
         rs_async_visual_beat, rs_async_visual_interval,
         standards, -.05, 4., 'Asynchrony',
-        'Group Absolute-Asynchrony for the Production Tasks',
+        'Group Distribution of Absolute-Asynchrony for the Production Tasks',
         MAIN_DIR,
         'production_groupviolin_absolute_asynch')
 
@@ -1471,7 +1485,7 @@ if __name__ == "__main__":
         rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
         rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
         standards, 0., 2250., 'Response Time (ms)',
-        'Group Mean of Response Time for the Production Tasks',
+        'Group Distribution of Response Time for the Production Tasks',
         MAIN_DIR,
         'production_groupviolin_responsetime')
 
@@ -1542,19 +1556,24 @@ if __name__ == "__main__":
                 ntfd_title, MAIN_DIR, ntfd_f)
 
     # ### Individual analysis per standards --- box plots
-
     rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
-        rtsntfd_visual_interval = individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR,
-                                                          SESSTYPE, N_SESSIONS)
+        rtsntfd_visual_interval, standards = individual_ntfd_isi_rts(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # plot_violin(
-    #     rtsntfd_audio_beat, rtsntfd_audio_interval,
-    #     rtsntfd_visual_beat, rtsntfd_visual_interval,
-    #     'Group RTs for NTFD Tasks',
-    #     'RTs (ms)',
-    #     MAIN_DIR,
-    #     'ntfd_groupviolin_rts',
-    #     'upper center')
+    # ## Reshape
+    rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval, \
+        rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval = ginput_reshape(
+            rtsntfd_audio_beat, rtsntfd_audio_interval,
+            rtsntfd_visual_beat, rtsntfd_visual_interval)
+
+    # ### Group Analyses per standard --- violin plots
+    plot_violin(
+        rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
+        rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
+        standards, 0., 2250., 'Reaction Time (ms)',
+        'Group Distribution of Reaction Time for the NTFD Tasks',
+        MAIN_DIR,
+        'ntfd_groupviolin_rts')
 
     # # ###############
 
