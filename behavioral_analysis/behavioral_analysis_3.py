@@ -285,7 +285,7 @@ def individual_production_isi_sync(
                             asi = np.nan
                         ss_interval.append(ssi)
                         as_interval.append(asi)
-                # Replace missing values (nan's) by median of the sample
+                # Replace missing values (nan's) by median of the isi sample
                 if np.any(np.isnan(ss_interval)):
                     miss_sival = np.nanmedian(ss_interval)
                     ss_interval = np.where(np.isnan(ss_interval), miss_sival,
@@ -431,12 +431,12 @@ def individual_production_isi_sync(
     # Title
     if sync_type == 'signed':
         plt.suptitle(
-            'Individual Mean of Signed Asynchrony for the Production tasks',
+            'Individual Signed Asynchrony for the Production tasks',
             x=.5, y=.99, size=14, linespacing=.75)
     else:
         assert sync_type == 'absolute'
         plt.suptitle(
-            'Individual Mean of Absolute Asynchrony for the Production tasks',
+            'Individual Absolute Asynchrony for the Production tasks',
             x=.5, y=.99, size=14, linespacing=.75)
 
     # plt.show()
@@ -508,7 +508,7 @@ def individual_production_isi_rts(
                             rts_interval.append(interval_trial[1])
                         else:
                             rts_interval.append(np.nan)
-                # Replace missing values (nan's) by median of the sample
+                # Replace missing values (nan's) by median of the isi sample
                 if np.any(np.isnan(rts_interval)):
                     miss_ival = np.nanmedian(rts_interval)
                     rts_interval = np.where(np.isnan(rts_interval), miss_ival,
@@ -563,12 +563,6 @@ def individual_production_isi_rts(
                 patch1.set_facecolor(colors[0])
                 patch2.set_facecolor(colors[1])
 
-            # if s == len(subjects) - 1:
-            #     ax.set_xticks(x, x_labels)
-            # else:
-            #     # ax.set_xticks([x[0] + .4, x[1] - .4], '')
-            #     ax.tick_params(bottom=False)
-            #     ax.spines['bottom'].set_visible(False)
             if s == len(subjects) - 1:
                 fig.text(.5, .014, ' ISIs (ms)', size=18)
 
@@ -610,7 +604,7 @@ def individual_production_isi_rts(
 
     # Title
     plt.suptitle(
-        'Individual Mean of Response Time for the Production tasks',
+        'Individual Response Time for the Production tasks',
         x=.5, y=.99, size=14, linespacing=.75)
 
     # plt.show()
@@ -669,10 +663,6 @@ def individual_perception(
             # X axis
             x_labels = np.arange(len(x_vals))
             plt.xticks(x_labels)
-            # if s != len(subjects) - 1:
-            #     plt.xticks([])
-            #     ax.tick_params(bottom=False)
-            #     ax.spines['bottom'].set_visible(False)
 
             # Y axis
             y_vals = np.arange(0, 1.5, .5) * 100
@@ -730,13 +720,29 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
             interval_trials = np.array(interval_trials).ravel()
             random_trials = np.array(random_trials).ravel()
 
+            # Replace missing values (nan's) by median of the all sample
+            if np.any(np.isnan(beat_trials)):
+                miss_bval = np.nanmedian(beat_trials)
+                beat_trials = np.where(np.isnan(beat_trials),
+                                       miss_bval, beat_trials)
+
+            if np.any(np.isnan(interval_trials)):
+                miss_ival = np.nanmedian(interval_trials)
+                interval_trials = np.where(np.isnan(interval_trials),
+                                           miss_ival, interval_trials)
+
+            if np.any(np.isnan(random_trials)):
+                miss_rval = np.nanmedian(random_trials)
+                random_trials = np.where(np.isnan(random_trials),
+                                         miss_rval, random_trials)
+
             # ################## Plotting ###############################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 4))
+                fig = plt.figure(figsize=(8, 9))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .15, .3, .5])
+            ax = plt.axes([.235 + t*.42, .625 - s*.275, .3, .2])
 
             labels = ['beat', 'interval', 'random']
             x = [.2, .4, .6]  # the label locations
@@ -751,32 +757,36 @@ def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess,
                                     round(interval_trials.std(0), 2),
                                     round(random_trials.std(0), 2)],
                               error_kw=dict(capsize=2), label=labels)
-            ax.bar_label(ntfd_plt, padding=3)
+            # Add means values on the top of the bar
+            ax.bar_label(ntfd_plt, label_type='center', padding=-20)
             ax.set_xticks(x, labels)
             plt.xlim([0., .8])
-            plt.ylim([0., 1500.])
+            plt.ylim([0., 1250.])
 
             if s == 0:
                 if t == 0:
-                    ax.set_title('Auditory NTFD', weight='bold', pad=40)
-                    fig.text(.25, .625, 'Error bars: SD', fontsize=12)
+                    ax.set_title('Auditory NTFD', weight='bold', pad=30)
+                    fig.text(.25, .81, 'Error bars: SD', fontsize=12)
                 else:
                     assert t ==1
-                    ax.set_title('Visual NTFD', weight='bold', pad=40)
+                    ax.set_title('Visual NTFD', weight='bold', pad=30)
 
             # Hide the right and top spines
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-        fig.text(.07, .4, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .7 - s*.275, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
-    fig.text(.155, .25, 'Mean of RT (ms)', ha='center',
+    fig.text(.155, .35, 'Reaction Time (ms)', ha='center',
              fontsize=12, rotation = 90)
 
+    # Title
+    plt.suptitle('Individual Mean and Standard Deviation of Reaction Time ' + \
+                 'for the NTFD tasks', x=.5, y=.95, size=14, linespacing=.75)
     # plt.show()
 
     # Save figure
-    plt.savefig(os.path.join(this_dir, 'ntfd_individual_rts_sub-16.pdf'))
+    plt.savefig(os.path.join(this_dir, 'ntfd_individual_rt.pdf'))
 
 
 def individual_ntfd_isi_rts(
@@ -813,7 +823,7 @@ def individual_ntfd_isi_rts(
                             rts_beat.append(beat_trial[1])
                         else:
                             rts_beat.append(np.nan)
-                # Replace missing values (nan's) by median of the sample
+                # Replace missing values (nan's) by median of the isi sample
                 if np.any(np.isnan(rts_beat)):
                     miss_bval = np.nanmedian(rts_beat)
                     rts_beat = np.where(np.isnan(rts_beat), miss_bval,
@@ -883,12 +893,6 @@ def individual_ntfd_isi_rts(
                 patch1.set_facecolor(colors[0])
                 patch2.set_facecolor(colors[1])
 
-            # if s == len(subjects) - 1:
-            #     ax.set_xticks(x, x_labels)
-            # else:
-            #     # ax.set_xticks([x[0] + .4, x[1] - .4], '')
-            #     ax.tick_params(bottom=False)
-            #     ax.spines['bottom'].set_visible(False)
             if s == len(subjects) - 1:
                 fig.text(.5, .02, ' ISIs (ms)', size=18)
 
@@ -1368,7 +1372,8 @@ if __name__ == "__main__":
 
     # # ################### NTFD RT'S ####################################
 
-    # individual_ntfd_rts([16], MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # ### Individual analysis merging all standards --- bar plots
+    individual_ntfd_rts([16, 18, 19], MAIN_DIR, SESSTYPE, N_SESSIONS)
 
     # rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
     #     rtsntfd_visual_interval = individual_ntfd_isi_rts(SUBJECTS, MAIN_DIR,
