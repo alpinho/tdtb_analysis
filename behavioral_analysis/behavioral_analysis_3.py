@@ -1099,10 +1099,10 @@ def plot_violin(audio_beat, audio_interval,
     plt.savefig(os.path.join(this_dir, fname + '.pdf'))
 
 
-def plot_pttest(audio_beat, audio_interval, visual_beat, visual_interval,
-                pval_audio, pval_visual,
-                isi1s, y, ylim_b, ylim_t, yshift,
-                title, this_dir, fname):
+def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
+                    pval_audio, pval_visual,
+                    isi1s, y, ylim_b, ylim_t, yshift,
+                    title, this_dir, fname):
 
     # Concatenate data
     data_audio = [np.append(audio_beat[j], audio_interval[j]).tolist()
@@ -1120,10 +1120,6 @@ def plot_pttest(audio_beat, audio_interval, visual_beat, visual_interval,
     # wspace # the amount of width reserved for blank space between subplots
     # hspace # the amount of height reserved for white space between subplots
     plt.subplots_adjust(left=.12, right=.99, bottom=.15, wspace=.075)
-
-    # Define subplot of bar charts and its position in the fig
-    # plt.axes([left, bottom, width, height])
-    # ax = plt.axes([.225, .145, .65, .65])
 
     # Prepare the data
     x = 'Standard'
@@ -1195,10 +1191,9 @@ def plot_pttest(audio_beat, audio_interval, visual_beat, visual_interval,
         ax[m].set_xlabel(x_label, fontweight='semibold', labelpad=15)
 
         # Display means rounded to two decimals on the top
-        # ax.bar_label(ax.containers[0], padding=-50)
         for p in ax[m].patches:
             ax[m].text(p.get_x() + p.get_width()/2.,
-                       p.get_height() + np.sign(p.get_height())*yshift,
+                       p.get_height() + np.sign(p.get_height()) * yshift,
                        '{:.2e}'.format(p.get_height()), fontsize=2.5,
                        fontweight='bold', color='black', ha='center',
                        va='bottom')
@@ -1304,11 +1299,11 @@ if __name__ == "__main__":
 
     ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
     ssync_f = 'paired-ttest_signed_asynch'
-    plot_pttest(rs_ssync_audio_beat, rs_ssync_audio_interval,
-                rs_ssync_visual_beat, rs_ssync_visual_interval,
-                pssync_audio, pssync_visual,
-                standards, 'Signed Asynchrony', -.125, .275, -.039,
-                ssync_title, MAIN_DIR, ssync_f)
+    plot_pttest_isi(rs_ssync_audio_beat, rs_ssync_audio_interval,
+                    rs_ssync_visual_beat, rs_ssync_visual_interval,
+                    pssync_audio, pssync_visual,
+                    standards, 'Signed Asynchrony', -.125, .275, -.039,
+                    ssync_title, MAIN_DIR, ssync_f)
 
     # Absolute asynchronies
     _, pasync_audio = stats.ttest_rel(
@@ -1321,11 +1316,11 @@ if __name__ == "__main__":
 
     async_title = 'Group Mean of Absolute Asynchrony for the Production tasks'
     async_f = 'paired-ttest_absolute_asynch'
-    plot_pttest(rs_async_audio_beat, rs_async_audio_interval,
-                rs_async_visual_beat, rs_async_visual_interval,
-                pasync_audio, pasync_visual,
-                standards, 'Absolute Asynchrony', -0., .275, -.04,
-                async_title, MAIN_DIR, async_f)
+    plot_pttest_isi(rs_async_audio_beat, rs_async_audio_interval,
+                    rs_async_visual_beat, rs_async_visual_interval,
+                    pasync_audio, pasync_visual,
+                    standards, 'Absolute Asynchrony', -0., .275, -.04,
+                    async_title, MAIN_DIR, async_f)
 
     # # ############## PRODUCTION RESPONSE TIME ########################
 
@@ -1360,11 +1355,11 @@ if __name__ == "__main__":
 
     rtprod_title = 'Group Mean of Response Time for the Production tasks'
     rtprod_f = 'paired-ttest_resptime_production'
-    plot_pttest(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
-                rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
-                prtprod_audio, prtprod_visual,
-                standards, 'Response Time (ms)', 0., 900., -100.,
-                rtprod_title, MAIN_DIR, rtprod_f)
+    plot_pttest_isi(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+                    rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+                    prtprod_audio, prtprod_visual,
+                    standards, 'Response Time (ms)', 0., 900., -100.,
+                    rtprod_title, MAIN_DIR, rtprod_f)
 
     # # ################### PERCEPTION ###################################
 
