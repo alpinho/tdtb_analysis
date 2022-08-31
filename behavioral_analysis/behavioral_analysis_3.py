@@ -982,7 +982,7 @@ def individual_ntfd_isi_rts(
 
     # plt.show()
     # Save figure
-    plt.savefig(os.path.join(this_dir, 'ntfd_individual_isi_rts.pdf'))
+    plt.savefig(os.path.join(this_dir, 'ntfd_individual_isi_rt.pdf'))
 
     # Flatten the data arrays
     if flatten:
@@ -1573,25 +1573,21 @@ if __name__ == "__main__":
         standards, 0., 2250., 'Reaction Time (ms)',
         'Group Distribution of Reaction Time for the NTFD Tasks',
         MAIN_DIR,
-        'ntfd_groupviolin_rts')
+        'ntfd_groupviolin_rt')
 
-    # # ###############
+    # ### Group Analyses per standard --- bar plots + paired t-test
+    _, prtntfd_audio = stats.ttest_rel(
+        rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
+        axis=1, alternative='two-sided')
 
-    # # Compute paired-sample t-test for NTFD tasks
-    # trtntfd_audio, prtntfd_audio = stats.ttest_rel(
-    #     rtsntfd_audio_beat, rtsntfd_audio_interval, alternative='two-sided')
-    # rtsntfd_audio = rtsntfd_audio_beat + rtsntfd_audio_interval
+    _, prtntfd_visual = stats.ttest_rel(
+        rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
+        axis=1, alternative='two-sided')
 
-    # print('trtntfd_audio: ', trtntfd_audio)
-
-    # trtntfd_visual, prtntfd_visual = stats.ttest_rel(
-    #     rtsntfd_visual_beat, rtsntfd_visual_interval, alternative='two-sided')
-    # rtsntfd_visual = rtsntfd_visual_beat + rtsntfd_visual_interval
-
-    # print('trtntfd_visual: ', trtntfd_visual)
-
-    # rtntfd_title = 'Group Mean of RTs for the NTFD tasks'
-    # rtntfd_f = 'paired-ttest_rt_ntfd'
-    # plot_pairedttest(rtsntfd_audio, rtsntfd_visual, prtntfd_audio,
-    #                  prtntfd_visual, 'RT (ms)', 0., 900., -100., rtntfd_title,
-    #                  MAIN_DIR, rtntfd_f)
+    rtntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
+    rtntfd_f = 'paired-ttest_rt_ntfd'
+    plot_pttest_isi(rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
+                    rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
+                    prtntfd_audio, prtntfd_visual,
+                    standards, 'Response Time (ms)', 0., 650., -100.,
+                    rtntfd_title, MAIN_DIR, rtntfd_f)
