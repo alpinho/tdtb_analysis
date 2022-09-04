@@ -16,7 +16,7 @@ import csv
 
 import numpy as np
 import pandas as pd
-from scipy import stats
+from scipy import stats, optimize
 
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
@@ -247,12 +247,40 @@ def perception_frequencies(beat_trials, interval_trials):
             n2_comp_beat.append(len(comparisons_beat_longer))
             n1_comp_interval.append(len(comparisons_interval_shorter))
             n2_comp_interval.append(len(comparisons_interval_longer))
+            del comparisons_beat_shorter
+            del comparisons_beat_longer
+            del comparisons_interval_shorter
+            del comparisons_interval_longer
         n1_beat.append(n1_comp_beat)
         n2_beat.append(n2_comp_beat)
         n1_interval.append(n1_comp_interval)
         n2_interval.append(n2_comp_interval)
 
-    return n1_beat, n2_beat, n1_interval, n2_interval
+    return standards, comparisons, n1_beat, n2_beat, n1_interval, n2_interval
+
+
+def log_lik(par_vec, y, n2, n1):
+    """
+    This function minimizes the negative log-likelihood function,
+    which is equivalent to maximizing the log-likelihood function.
+    """
+    # If the standard deviation prameter is negative, return a large value:
+    if par_vec[1] < 0:
+        return(1e8)
+    # The likelihood function values:
+    lik = stats.norm.cdf(y, 
+                         loc = par_vec[0],
+                         scale = par_vec[1])
+    # This is similar to calculating the likelihood for Y - XB
+    # res = y - par_vec[0] - par_vec[1] * x
+    # lik = norm.cdf(res, loc = 0, sd = par_vec[2])
+
+    # If all logarithms are zero, return a large value
+    if all(v == 0 for v in lik):
+        return(1e8)
+    # Logarithm of zero = -Inf
+    return(-sum(np.multiply(n2, np.log(lik[np.nonzero(lik)])))
+           -sum(np.multiply(n1, np.log(1-lik[np.nonzero(lik)]))))
 
 
 def individual_production_isi_sync(
@@ -671,57 +699,79 @@ def individual_perception(
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'perception')
 
-            # Calculate relative frequencies of comparisons per standard
-            nb_r1, nb_r2, ni_r1, ni_r2 = perception_frequencies(
-                beat_trials, interval_trials)
+            # Calculate frequencies of comparisons per standard
+            standards, comparisons, n1_beat, n2_beat, n1_interval, \
+                n2_interval = perception_frequencies(beat_trials,
+                                                     interval_trials)
+
+            rf1 = [[n1/8 for n1 in n1b] for n1b in n1_beat]
+            rf2 = [[n2/8 for n2 in n2b] for n2b in n2_beat]
+            colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
+                      'tab:purple']
+
+            # Plot all fits in the same image
+            fig = plt.figure(figsize=(16, 8))
+            ax = fig.add_subplot(111)
+            for i, (s, c) in enumerate(zip(standards, comparisons)):
+                # Fit the model with a MLE estimator
+                # fun: MLE estimator
+                # x0: 1st arg of log_lik
+                # args: 2nd and 3rd args of log_lik
+                opt_res = optimize.minimize(
+                    fun = log_lik,
+                    x0 = [np.mean(comparisons), 1.],
+                    args = (comparisons, rf2[i], rf1[i]))
+
+                # Estimates
+                pse = opt_res.x[0]
+                dl = opt_res.x[1] * stats.norm.ppf(0.75)
+                # Standard Errors estimated from Fisher information
+                se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
+                se_dl = np.sqrt(
+                    np.diag(opt_res.hess_inv))[1] * stats.norm.ppf(0.75)
+                # Correlation between mu (pse) and sigma (opt_res.x[1])
+                # r = opt_res.hess_inv[0][1] / \
+                #     np.sqrt(np.prod(np.diag(opt_res.hess_inv)))
+                # 95%CIs
+                ci95_pse = se_pse * 1.96
+                ci95_dl = se_dl * 1.96
+
+                # Plot
+                # Plot each fit in one image
+                # fig, ax = plt.subplots(1, 1)
+                x = np.linspace(np.amin(comparisons), np.amax(comparisons),
+                                100)
+                # Plot data
+                # ax.plot(comparisons, rf2[i], 'bo', color=colors[i],
+                #         markersize=3)
+                # Plot fit
+                ax.plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
+                        color=colors[i], label='Standard = ' + str(s) + 'ms')
+                # Hide the right and top spines
+                ax.spines['right'].set_visible(False)
+                ax.spines['top'].set_visible(False)
+                # Set x axis
+                x_values = np.insert(comparisons, 3, 0)
+                x_labels = [str(int(xl*100)) + '%' for xl in x_values]
+                ax.set_xticks(x_values, x_labels)
+                # Add estimates info
+                fig.text(.15, .85, 'For 95% CI,', fontsize=12)
+                fig.text(.15, .8 - i*.05,
+                         'PSE=%.02f' % (pse*100) +
+                         '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
+                         'DL=%.02f' % (dl*100) +
+                         '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=12,
+                         color=colors[i])
+
+            # Add legend
+            ax.legend(loc='lower right', frameon=False)
+            # Name of x-axis
+            fig.text(.4625, .02, 'Comparisons (%)', fontsize=14)
+            # Name of y-axis
+            fig.text(.075, .275, 'Relative Frequency of "longer" responses',
+                     fontsize=14, rotation=90)
+            plt.show()
             0/0
-            # ################## Plotting ###############################
-            if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 40))
-
-            # Define subplot of bar charts and its position in the fig
-            # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .9175 - s*.0525, .3, .0425])
-
-            ax.plot(x_vals, y_beat_vals, marker='o', markersize=5,
-                    color='b', label='Beat', linewidth=3)
-            ax.plot(x_vals, y_interval_val, marker='o', markersize=5,
-                    color='y', label='Interval', linewidth=3)
-
-            # X axis
-            x_labels = np.arange(len(x_vals))
-            plt.xticks(x_labels)
-
-            # Y axis
-            y_vals = np.arange(0, 1.5, .5) * 100
-            y_vals = y_vals.astype('int')
-            y_labels = ['%d' % yv + '%' for yv in y_vals]
-            # y_labels = ['shorter', 'equal', 'longer']
-            if t == 0:
-                ax.set_yticks(y_vals, y_labels)
-            else:
-                ax.set_yticks(y_vals, '')
-
-            # Title per column with Task name and legend
-            if s == 0:
-                ax.set_title(task, pad=50, weight='bold')
-                if t == 0:
-                    ax.legend(frameon=False, loc = 'lower right',
-                              prop={'size': 10})
-
-            # Hide the right and top spines
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-
-        fig.text(.07, .94 - s * .0525, 'Subject %d' % subject, ha='center',
-                 fontsize=10, weight='bold')
-
-    fig.text(.3, .02, 'Proportion of time difference between RTs and ISI1 (%)',
-             fontsize=12)
-    fig.text(.14, .4, '% of "longer" responses', fontsize=12, rotation=90)
-
-    # plt.show()
-
     # Save figure
     plt.savefig(os.path.join(this_dir, 'perception_responses.pdf'))
 
