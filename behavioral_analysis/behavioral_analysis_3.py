@@ -306,7 +306,7 @@ def loglik_expit(par_vec, y, n2, n1):
         minus_lik = np.where(minus_lik==0., -1e-8, minus_lik)
 
     return(-sum(np.multiply(n2, np.log(lik[np.nonzero(lik)])))
-           -sum(np.multiply(n1, np.log(minus_lik[np.nonzero(lik)]))))
+           -sum(np.multiply(n1, np.log(minus_lik[np.nonzero(minus_lik)]))))
 
 
 def individual_production_isi_sync(
