@@ -713,7 +713,7 @@ def individual_production_isi_rts(
 
 
 def individual_perception(
-        subjects, this_dir, sesstype, n_sess, estimator='mle_cdf',
+        subjects, this_dir, sesstype, n_sess, condition, estimator='mle_cdf',
         tasks = ['Auditory Perception', 'Visual Perception']):
 
     all_rf1_audio = []
@@ -730,13 +730,20 @@ def individual_perception(
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'perception')
 
+            if condition == 'beat':
             # Calculate frequencies of comparisons per standard
-            standards, comparisons, n1_beat, n2_beat, n1_interval, \
-                n2_interval = perception_frequencies(beat_trials,
-                                                     interval_trials)
+                standards, comparisons, n1_beat, n2_beat, _, _ = \
+                    perception_frequencies(beat_trials, interval_trials)
 
-            rf1 = [[n1/8 for n1 in n1b] for n1b in n1_beat]
-            rf2 = [[n2/8 for n2 in n2b] for n2b in n2_beat]
+                rf1 = [[n1/8 for n1 in n1b] for n1b in n1_beat]
+                rf2 = [[n2/8 for n2 in n2b] for n2b in n2_beat]
+            else:
+                assert condition == 'interval'
+                standards, comparisons, _, _, n1_interval, n2_interval = \
+                    perception_frequencies(beat_trials, interval_trials)
+
+                rf1 = [[n1/8 for n1 in n1b] for n1b in n1_interval]
+                rf2 = [[n2/8 for n2 in n2b] for n2b in n2_interval]
 
             # Aggregate data
             if task == 'Auditory Perception':
@@ -774,6 +781,9 @@ def individual_perception(
                     fun = func,
                     x0 = [np.mean(comparisons), .1],
                     args = (comparisons, rf2[i], rf1[i]))
+                print(condition)
+                print(estimator)
+                print(opt_res)
 
                 # Estimates
                 pse = opt_res.x[0]
@@ -845,15 +855,19 @@ def individual_perception(
     else:
         assert estimator == 'mle_expit'
         suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
-    plt.suptitle('Individual Relative Frequencies for the Perception Tasks ' +
-                 suffix, x=.5, y=.991, size=18, linespacing=.75) 
+    plt.suptitle('Individual Relative Frequencies for the ' +
+                 condition.capitalize() +
+                 ' condition of the Perception Tasks ' + suffix, x=.5, y=.991,
+                 size=18, linespacing=.75)
     # plt.show()
 
     # Save figure
     plt.savefig(os.path.join(
-        this_dir, 'individual_perception_responses_' + estimator + '.pdf'))
+        this_dir,
+        'individual_perception_' + condition + '_' + estimator + '.pdf'))
 
-    return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
+    return (all_rf1_audio, all_rf2_audio,
+            all_rf1_visual, all_rf2_visual,
             standards, comparisons)
 
 
@@ -1520,7 +1534,7 @@ def plot_pttest(data_audio, data_visual,
 
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
-                     standards, comparisons, estimator = 'mle_cdf'):
+                     standards, comparisons, condition, estimator = 'mle_cdf'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
     group_rf2_audio = np.mean(all_rf2_audio, axis=0)
@@ -1635,12 +1649,14 @@ def group_perception(all_rf1_audio, all_rf2_audio,
         assert estimator == 'mle_expit'
         suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
     plt.suptitle(
-        'Group Mean of Relative Frequencies for the Perception Tasks ' +
+        'Group Mean of Relative Frequencies for the ' +
+        condition.capitalize() + ' condition of the Perception Tasks ' +
         suffix, x=.5, y=.97, size=18, linespacing=.75)
     # plt.show()
 
     # Save figure
-    plt.savefig(os.path.join('group_perception_responses_' + estimator + '.pdf'))
+    plt.savefig(os.path.join(
+        'group_perception_' + condition + '_' + estimator + '.pdf'))
 
     return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
             standards, comparisons)
@@ -1797,19 +1813,21 @@ if __name__ == "__main__":
     # # ################### PERCEPTION ###################################
 
     for estimator in ['mle_cdf', 'mle_expit']:
-        rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, comp = \
-            individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
-                                  estimator=estimator)
+        for cond in ['beat', 'interval']:
+            rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
+                comp = individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
+                                             N_SESSIONS, cond,
+                                             estimator=estimator)
 
-        group_perception(rfone_audio, rftwo_audio, rfone_visual, rftwo_visual,
-                         stand, comp, estimator=estimator)
+            group_perception(rfone_audio, rftwo_audio, rfone_visual,
+                             rftwo_visual, stand, comp, cond, estimator=estimator)
 
-        del rfone_audio
-        del rftwo_audio
-        del rfone_visual
-        del rftwo_visual
-        del stand
-        del comp
+            del rfone_audio
+            del rftwo_audio
+            del rfone_visual
+            del rftwo_visual
+            del stand
+            del comp
 
     # # # ################### NTFD RT'S ####################################
 
