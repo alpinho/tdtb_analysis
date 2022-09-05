@@ -758,7 +758,7 @@ def individual_perception(
             ax = plt.axes([.1 + t*.46, .92 - s*.0525, .425, .0325])
 
             for i, st in enumerate(standards):
-                # Chose estimator
+                # Choose estimator
                 if estimator == 'mle_cdf':
                     func = loglik_cdf
                     constant = stats.norm.ppf(0.75)
