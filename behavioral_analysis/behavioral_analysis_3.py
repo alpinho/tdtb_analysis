@@ -709,9 +709,14 @@ def individual_perception(
             colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
                       'tab:purple']
 
-            # Plot all fits in the same image
-            fig = plt.figure(figsize=(16, 8))
-            ax = fig.add_subplot(111)
+            # ################## Plotting ###############################
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(16, 40))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.1 + t*.46, .92 - s*.0525, .425, .0325])
+
             for i, st in enumerate(standards):
                 # Fit the model with a MLE estimator
                 # fun: MLE estimator
@@ -755,25 +760,41 @@ def individual_perception(
                 x_labels = [str(int(xl*100)) + '%' for xl in x_values]
                 ax.set_xticks(x_values, x_labels)
                 # Add estimates info
-                fig.text(.15, .85, 'For 95% CI,', fontsize=12)
-                fig.text(.15, .8 - i*.05,
-                         'PSE=%.02f' % (pse*100) +
-                         '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
-                         'DL=%.02f' % (dl*100) +
-                         '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=12,
-                         color=colors[i])
+                ax.text(-.21, 1.35, 'For 95% CI,', fontsize=7.5)
+                ax.text(-.21, 1.23 - i*.105,
+                        'PSE=%.02f' % (pse*100) +
+                        '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
+                        'DL=%.02f' % (dl*100) +
+                        '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=7.5,
+                        color=colors[i])
 
             # Add legend
-            ax.legend(loc='lower right', frameon=False)
+            if s == 0:
+                if t == 0:
+                    ax.legend(loc='lower right', frameon=False, prop={'size': 6})
+                    ax.set_title('Auditory Perception', weight='bold', pad=50, fontsize=16)
+                else:
+                    assert t ==1
+                    ax.set_title('Visual Perception', weight='bold', pad=50, fontsize=16)
+
             # Name of x-axis
-            fig.text(.4625, .02, 'Comparisons (%)', fontsize=14)
+            fig.text(.495, .009, 'Comparisons (%)', fontsize=14)
             # Name of y-axis
-            fig.text(.075, .275, 'Relative Frequency of "longer" responses',
+            fig.text(.062, .44, 'Relative Frequency of "longer" responses',
                      fontsize=14, rotation=90)
-            plt.show()
+            # Set limits of y-axis
+            plt.ylim([-.1, 1.1])
+
+        fig.text(.03, .935 - s*.0525, 'Subject %d' % subject, ha='center',
+                 fontsize=10, weight='bold')
+
+    # Title
+    plt.suptitle('Individual Relative Frequencies for the Perception Tasks',
+                 x=.5, y=.991, size=18, linespacing=.75)
+    # plt.show()
 
     # Save figure
-    plt.savefig(os.path.join(this_dir, 'perception_responses.pdf'))
+    plt.savefig(os.path.join(this_dir, 'individual_perception_responses.pdf'))
 
 
 def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess, flatten=True,
