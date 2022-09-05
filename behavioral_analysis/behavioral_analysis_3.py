@@ -16,7 +16,7 @@ import csv
 
 import numpy as np
 import pandas as pd
-from scipy import stats, optimize
+from scipy import stats, optimize, special
 
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
@@ -255,11 +255,15 @@ def perception_frequencies(beat_trials, interval_trials):
         n2_beat.append(n2_comp_beat)
         n1_interval.append(n1_comp_interval)
         n2_interval.append(n2_comp_interval)
+        del diff_standard_beat_shorter
+        del diff_standard_beat_longer
+        del diff_standard_interval_shorter
+        del diff_standard_interval_longer
 
     return standards, comparisons, n1_beat, n2_beat, n1_interval, n2_interval
 
 
-def log_lik(par_vec, y, n2, n1):
+def loglik_cdf(par_vec, y, n2, n1):
     """
     This function minimizes the negative log-likelihood function,
     which is equivalent to maximizing the log-likelihood function.
@@ -278,9 +282,31 @@ def log_lik(par_vec, y, n2, n1):
     # If all logarithms are zero, return a large value
     if any(v == 0 for v in lik):
         lik = np.where(lik==0., -1e-8, lik)
-    # Logarithm of zero = -Inf
+
     return(-sum(np.multiply(n2, np.log(lik[np.nonzero(lik)])))
            -sum(np.multiply(n1, np.log(1-lik[np.nonzero(lik)]))))
+
+
+def loglik_expit(par_vec, y, n2, n1):
+    """
+    This function minimizes the negative log-likelihood function,
+    which is equivalent to maximizing the log-likelihood function.
+    """
+    # If the standard deviation parameter is negative, return a large value:
+    if par_vec[1] < 0:
+        return(1e8)
+    # The likelihood function values:
+    lik = special.expit((y - par_vec[0]) / par_vec[1])
+    minus_lik = special.expit(-(y - par_vec[0]) / par_vec[1])
+
+    # If all logarithms are zero, return a large value
+    if any(v == 0 for v in lik):
+        lik = np.where(lik==0., -1e-8, lik)
+    if any(w == 0 for w in minus_lik):
+        minus_lik = np.where(minus_lik==0., -1e-8, minus_lik)
+
+    return(-sum(np.multiply(n2, np.log(lik[np.nonzero(lik)])))
+           -sum(np.multiply(n1, np.log(minus_lik[np.nonzero(lik)]))))
 
 
 def individual_production_isi_sync(
@@ -687,7 +713,7 @@ def individual_production_isi_rts(
 
 
 def individual_perception(
-        subjects, this_dir, sesstype, n_sess,
+        subjects, this_dir, sesstype, n_sess, estimator='mle_cdf',
         tasks = ['Auditory Perception', 'Visual Perception']):
 
     all_rf1_audio = []
@@ -732,22 +758,30 @@ def individual_perception(
             ax = plt.axes([.1 + t*.46, .92 - s*.0525, .425, .0325])
 
             for i, st in enumerate(standards):
+                # Chose estimator
+                if estimator == 'mle_cdf':
+                    func = loglik_cdf
+                    constant = stats.norm.ppf(0.75)
+                else:
+                    assert estimator == 'mle_expit'
+                    func = loglik_expit
+                    constant = np.log(3)
                 # Fit the model with a MLE estimator
                 # fun: MLE estimator
                 # x0: 1st arg of log_lik
-                # args: 2nd and 3rd args of log_lik
+                # args: 2nd and 3rd args of func
                 opt_res = optimize.minimize(
-                    fun = log_lik,
-                    x0 = [np.mean(comparisons), 1.],
+                    fun = func,
+                    x0 = [np.mean(comparisons), .1],
                     args = (comparisons, rf2[i], rf1[i]))
 
                 # Estimates
                 pse = opt_res.x[0]
-                dl = opt_res.x[1] * stats.norm.ppf(0.75)
+                dl = opt_res.x[1] * constant
                 # Standard Errors estimated from Fisher information
                 se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
                 se_dl = np.sqrt(
-                    np.diag(opt_res.hess_inv))[1] * stats.norm.ppf(0.75)
+                    np.diag(opt_res.hess_inv))[1] * constant
                 # Correlation between mu (pse) and sigma (opt_res.x[1])
                 # r = opt_res.hess_inv[0][1] / \
                 #     np.sqrt(np.prod(np.diag(opt_res.hess_inv)))
@@ -774,8 +808,8 @@ def individual_perception(
                 x_labels = [str(int(xl*100)) + '%' for xl in x_values]
                 ax.set_xticks(x_values, x_labels)
                 # Add estimates info
-                ax.text(-.21, 1.35, 'For 95% CI,', fontsize=7.5)
-                ax.text(-.21, 1.23 - i*.105,
+                ax.text(-.21, 1.45, 'For 95% CI,', fontsize=7.5)
+                ax.text(-.21, 1.33 - i*.098,
                         'PSE=%.02f' % (pse*100) +
                         '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
                         'DL=%.02f' % (dl*100) +
@@ -806,12 +840,18 @@ def individual_perception(
                  fontsize=10, weight='bold')
 
     # Title
-    plt.suptitle('Individual Relative Frequencies for the Perception Tasks',
-                 x=.5, y=.991, size=18, linespacing=.75)
+    if estimator == 'mle_cdf':
+        suffix = '(Estimator: MLE of Norm CDF)'
+    else:
+        assert estimator == 'mle_expit'
+        suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
+    plt.suptitle('Individual Relative Frequencies for the Perception Tasks ' +
+                 suffix, x=.5, y=.991, size=18, linespacing=.75) 
     # plt.show()
 
     # Save figure
-    plt.savefig(os.path.join(this_dir, 'individual_perception_responses.pdf'))
+    plt.savefig(os.path.join(
+        this_dir, 'individual_perception_responses_' + estimator + '.pdf'))
 
     return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
             standards, comparisons)
@@ -1480,7 +1520,7 @@ def plot_pttest(data_audio, data_visual,
 
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
-                     standards, comparisons):
+                     standards, comparisons, estimator = 'mle_cdf'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
     group_rf2_audio = np.mean(all_rf2_audio, axis=0)
@@ -1512,22 +1552,30 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             rf1 = group_rf1_visual
             rf2 = group_rf2_visual
         for i, st in enumerate(standards):
+            # Chose estimator
+            if estimator == 'mle_cdf':
+                func = loglik_cdf
+                constant = stats.norm.ppf(0.75)
+            else:
+                assert estimator == 'mle_expit'
+                func = loglik_expit
+                constant = np.log(3)
             # Fit the model with a MLE estimator
             # fun: MLE estimator
             # x0: 1st arg of log_lik
-            # args: 2nd and 3rd args of log_lik
+            # args: 2nd and 3rd args of func
             opt_res = optimize.minimize(
-                fun = log_lik,
+                fun = func,
                 x0 = [np.mean(comparisons), 1.],
                 args = (comparisons, rf2[i], rf1[i]))
 
             # Estimates
             pse = opt_res.x[0]
-            dl = opt_res.x[1] * stats.norm.ppf(0.75)
+            dl = opt_res.x[1] * constant
             # Standard Errors estimated from Fisher information
             se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
             se_dl = np.sqrt(
-                np.diag(opt_res.hess_inv))[1] * stats.norm.ppf(0.75)
+                np.diag(opt_res.hess_inv))[1] * constant
             # Correlation between mu (pse) and sigma (opt_res.x[1])
             # r = opt_res.hess_inv[0][1] / \
             #     np.sqrt(np.prod(np.diag(opt_res.hess_inv)))
@@ -1581,12 +1629,18 @@ def group_perception(all_rf1_audio, all_rf2_audio,
         ax[m].set_ylim([-.1, 1.1])
 
     # Title
-    plt.suptitle('Group Mean of Relative Frequencies for the Perception Tasks',
-                 x=.5, y=.97, size=18, linespacing=.75)
+    if estimator == 'mle_cdf':
+        suffix = '(Estimator: MLE of Norm CDF)'
+    else:
+        assert estimator == 'mle_expit'
+        suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
+    plt.suptitle(
+        'Group Mean of Relative Frequencies for the Perception Tasks ' +
+        suffix, x=.5, y=.97, size=18, linespacing=.75)
     # plt.show()
 
     # Save figure
-    plt.savefig(os.path.join('group_perception_responses.pdf'))
+    plt.savefig(os.path.join('group_perception_responses_' + estimator + '.pdf'))
 
     return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
             standards, comparisons)
@@ -1742,11 +1796,20 @@ if __name__ == "__main__":
 
     # # ################### PERCEPTION ###################################
 
-    rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, comp = \
-        individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    for estimator in ['mle_cdf', 'mle_expit']:
+        rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, comp = \
+            individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS,
+                                  estimator=estimator)
 
-    group_perception(rfone_audio, rftwo_audio, rfone_visual, rftwo_visual,
-                     stand, comp)
+        group_perception(rfone_audio, rftwo_audio, rfone_visual, rftwo_visual,
+                         stand, comp, estimator=estimator)
+
+        del rfone_audio
+        del rftwo_audio
+        del rfone_visual
+        del rftwo_visual
+        del stand
+        del comp
 
     # # # ################### NTFD RT'S ####################################
 
