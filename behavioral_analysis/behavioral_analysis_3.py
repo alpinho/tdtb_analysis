@@ -264,7 +264,7 @@ def log_lik(par_vec, y, n2, n1):
     This function minimizes the negative log-likelihood function,
     which is equivalent to maximizing the log-likelihood function.
     """
-    # If the standard deviation prameter is negative, return a large value:
+    # If the standard deviation parameter is negative, return a large value:
     if par_vec[1] < 0:
         return(1e8)
     # The likelihood function values:
@@ -276,8 +276,8 @@ def log_lik(par_vec, y, n2, n1):
     # lik = norm.cdf(res, loc = 0, sd = par_vec[2])
 
     # If all logarithms are zero, return a large value
-    if all(v == 0 for v in lik):
-        return(1e8)
+    if any(v == 0 for v in lik):
+        lik = np.where(lik==0., -1e-8, lik)
     # Logarithm of zero = -Inf
     return(-sum(np.multiply(n2, np.log(lik[np.nonzero(lik)])))
            -sum(np.multiply(n1, np.log(1-lik[np.nonzero(lik)]))))
@@ -712,7 +712,7 @@ def individual_perception(
             # Plot all fits in the same image
             fig = plt.figure(figsize=(16, 8))
             ax = fig.add_subplot(111)
-            for i, (s, c) in enumerate(zip(standards, comparisons)):
+            for i, st in enumerate(standards):
                 # Fit the model with a MLE estimator
                 # fun: MLE estimator
                 # x0: 1st arg of log_lik
@@ -746,7 +746,7 @@ def individual_perception(
                 #         markersize=3)
                 # Plot fit
                 ax.plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
-                        color=colors[i], label='Standard = ' + str(s) + 'ms')
+                        color=colors[i], label='Standard = ' + str(st) + 'ms')
                 # Hide the right and top spines
                 ax.spines['right'].set_visible(False)
                 ax.spines['top'].set_visible(False)
@@ -771,7 +771,7 @@ def individual_perception(
             fig.text(.075, .275, 'Relative Frequency of "longer" responses',
                      fontsize=14, rotation=90)
             plt.show()
-            0/0
+
     # Save figure
     plt.savefig(os.path.join(this_dir, 'perception_responses.pdf'))
 
