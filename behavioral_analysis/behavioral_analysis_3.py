@@ -689,6 +689,11 @@ def individual_production_isi_rts(
 def individual_perception(
         subjects, this_dir, sesstype, n_sess,
         tasks = ['Auditory Perception', 'Visual Perception']):
+
+    all_rf1_audio = []
+    all_rf2_audio = []
+    all_rf1_visual = []
+    all_rf2_visual = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Perception', 'Visual Perception']:
@@ -706,10 +711,19 @@ def individual_perception(
 
             rf1 = [[n1/8 for n1 in n1b] for n1b in n1_beat]
             rf2 = [[n2/8 for n2 in n2b] for n2b in n2_beat]
-            colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
-                      'tab:purple']
+
+            # Aggregate data
+            if task == 'Auditory Perception':
+                all_rf1_audio.append(rf1)
+                all_rf2_audio.append(rf2)
+            else:
+                assert task == 'Visual Perception'
+                all_rf1_visual.append(rf1)
+                all_rf2_visual.append(rf2)
 
             # ################## Plotting ###############################
+            colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
+                      'tab:purple']
             if s == 0 and t == 0:
                 fig = plt.figure(figsize=(16, 40))
 
@@ -767,23 +781,26 @@ def individual_perception(
                         'DL=%.02f' % (dl*100) +
                         '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=7.5,
                         color=colors[i])
+                # Set limits of y-axis
+                ax.set_ylim([-.1, 1.1])
 
             # Add legend
             if s == 0:
                 if t == 0:
-                    ax.legend(loc='lower right', frameon=False, prop={'size': 6})
-                    ax.set_title('Auditory Perception', weight='bold', pad=50, fontsize=16)
+                    ax.legend(loc='lower right', frameon=False,
+                              prop={'size': 6})
+                    ax.set_title('Auditory Perception', weight='bold', pad=50,
+                                 fontsize=16)
                 else:
                     assert t ==1
-                    ax.set_title('Visual Perception', weight='bold', pad=50, fontsize=16)
+                    ax.set_title('Visual Perception', weight='bold', pad=50,
+                                 fontsize=16)
 
             # Name of x-axis
             fig.text(.495, .009, 'Comparisons (%)', fontsize=14)
             # Name of y-axis
             fig.text(.062, .44, 'Relative Frequency of "longer" responses',
                      fontsize=14, rotation=90)
-            # Set limits of y-axis
-            plt.ylim([-.1, 1.1])
 
         fig.text(.03, .935 - s*.0525, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
@@ -795,6 +812,9 @@ def individual_perception(
 
     # Save figure
     plt.savefig(os.path.join(this_dir, 'individual_perception_responses.pdf'))
+
+    return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
+            standards, comparisons)
 
 
 def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess, flatten=True,
@@ -1458,6 +1478,120 @@ def plot_pttest(data_audio, data_visual,
     plt.savefig(os.path.join(this_dir, fname + '.pdf'))
 
 
+def group_perception(all_rf1_audio, all_rf2_audio,
+                     all_rf1_visual, all_rf2_visual,
+                     standards, comparisons):
+
+    group_rf1_audio = np.mean(all_rf1_audio, axis=0)
+    group_rf2_audio = np.mean(all_rf2_audio, axis=0)
+    group_rf1_visual = np.mean(all_rf1_visual, axis=0)
+    group_rf2_visual = np.mean(all_rf2_visual, axis=0)
+
+    # ################## Plotting ###############################
+
+    modalities = ['audio', 'visual']
+    fig, ax = plt.subplots(1, len(modalities), figsize=(16, 8))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.085, bottom=.1, right=.975, wspace=.15)
+
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
+              'tab:purple']
+
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            rf1 = group_rf1_audio
+            rf2 = group_rf2_audio
+        else:
+            assert modality == 'visual'
+            rf1 = group_rf1_visual
+            rf2 = group_rf2_visual
+        for i, st in enumerate(standards):
+            # Fit the model with a MLE estimator
+            # fun: MLE estimator
+            # x0: 1st arg of log_lik
+            # args: 2nd and 3rd args of log_lik
+            opt_res = optimize.minimize(
+                fun = log_lik,
+                x0 = [np.mean(comparisons), 1.],
+                args = (comparisons, rf2[i], rf1[i]))
+
+            # Estimates
+            pse = opt_res.x[0]
+            dl = opt_res.x[1] * stats.norm.ppf(0.75)
+            # Standard Errors estimated from Fisher information
+            se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
+            se_dl = np.sqrt(
+                np.diag(opt_res.hess_inv))[1] * stats.norm.ppf(0.75)
+            # Correlation between mu (pse) and sigma (opt_res.x[1])
+            # r = opt_res.hess_inv[0][1] / \
+            #     np.sqrt(np.prod(np.diag(opt_res.hess_inv)))
+            # 95%CIs
+            ci95_pse = se_pse * 1.96
+            ci95_dl = se_dl * 1.96
+
+            # Plot each fit in one image
+            # fig, ax = plt.subplots(1, 1)
+            x = np.linspace(np.amin(comparisons), np.amax(comparisons),
+                            100)
+            # Plot data
+            # ax.plot(comparisons, rf2[i], 'bo', color=colors[i],
+            #         markersize=3)
+            # Plot fit
+            ax[m].plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
+                       color=colors[i], label='Standard = ' + str(st) + 'ms')
+            # Hide the right and top spines
+            ax[m].spines['right'].set_visible(False)
+            ax[m].spines['top'].set_visible(False)
+            # Set x axis
+            x_values = np.insert(comparisons, 3, 0)
+            x_labels = [str(int(xl*100)) + '%' for xl in x_values]
+            ax[m].set_xticks(x_values, x_labels)
+            # Add estimates info
+            ax[m].text(-.21, 1.03, 'For 95% CI,', fontsize=10)
+            ax[m].text(-.21, .98 - i*.05,
+                       'PSE=%.02f' % (pse*100) +
+                       '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
+                       'DL=%.02f' % (dl*100) +
+                       '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=10,
+                       color=colors[i])
+
+        # Add legend
+        if m == 0:
+                ax[m].legend(loc='lower right', frameon=False,
+                             prop={'size': 10})
+                ax[m].set_title('Auditory Perception', weight='bold', pad=5,
+                                fontsize=16)
+        else:
+            assert m == 1
+            ax[m].set_title('Visual Perception', weight='bold', pad=5,
+                            fontsize=16)
+
+        # Name of x-axis
+        fig.text(.485, .0275, 'Comparisons (%)', fontsize=14)
+        # Name of y-axis
+        fig.text(.035, .19, 'Mean of Relative Frequency for "longer" responses',
+                 fontsize=14, rotation=90)
+        # Set limits of y-axis
+        ax[m].set_ylim([-.1, 1.1])
+
+    # Title
+    plt.suptitle('Group Mean of Relative Frequencies for the Perception Tasks',
+                 x=.5, y=.97, size=18, linespacing=.75)
+    # plt.show()
+
+    # Save figure
+    plt.savefig(os.path.join('group_perception_responses.pdf'))
+
+    return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
+            standards, comparisons)
+
+
 # %%
 # =========================== INPUTS ===================================
 
@@ -1608,7 +1742,11 @@ if __name__ == "__main__":
 
     # # ################### PERCEPTION ###################################
 
-    individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, comp = \
+        individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+
+    group_perception(rfone_audio, rftwo_audio, rfone_visual, rftwo_visual,
+                     stand, comp)
 
     # # # ################### NTFD RT'S ####################################
 
