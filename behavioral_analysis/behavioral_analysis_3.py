@@ -14,6 +14,10 @@ import os
 import glob
 import csv
 
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
 import numpy as np
 import pandas as pd
 from scipy import stats, optimize, special
@@ -307,6 +311,11 @@ def loglik_expit(par_vec, y, n2, n1):
 
     return(-sum(np.multiply(n2, np.log(lik[np.nonzero(lik)])))
            -sum(np.multiply(n1, np.log(minus_lik[np.nonzero(minus_lik)]))))
+
+
+def errFit(hess_inv, resVariance):
+    """Error of the fit parameters"""
+    return np.sqrt(np.diag(hess_inv * resVariance))
 
 
 def individual_production_isi_sync(
@@ -781,9 +790,6 @@ def individual_perception(
                     fun = func,
                     x0 = [np.mean(comparisons), .1],
                     args = (comparisons, rf2[i], rf1[i]))
-                print(condition)
-                print(estimator)
-                print(opt_res)
 
                 # Estimates
                 pse = opt_res.x[0]
@@ -1597,16 +1603,33 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             ci95_pse = se_pse * 1.96
             ci95_dl = se_dl * 1.96
 
+            # Estimate the goodness of the fit
+            dFit = errFit(opt_res.hess_inv,
+                          opt_res.fun/(len(rf2[i]) - \
+                                       len([np.mean(comparisons), 1.])))
+
+            print(modality, '-', condition)
+            print('estimator:', estimator)
+            print('standard:', st)
+            print('minimize:\n\tx: ' , opt_res.x, '\n\tdx: ', dFit)
+
             # Plot each fit in one image
             # fig, ax = plt.subplots(1, 1)
             x = np.linspace(np.amin(comparisons), np.amax(comparisons),
                             100)
             # Plot data
-            # ax.plot(comparisons, rf2[i], 'bo', color=colors[i],
-            #         markersize=3)
+            ax[m].plot(comparisons, rf2[i], 'bo', color=colors[i],
+                       markersize=3)
             # Plot fit
-            ax[m].plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
-                       color=colors[i], label='Standard = ' + str(st) + 'ms')
+            if estimator == 'mle_cdf':
+                ax[m].plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
+                           color=colors[i],
+                           label='Standard = ' + str(st) + 'ms')
+            else:
+                assert estimator == 'mle_expit'
+                ax[m].plot(x, special.expit((x - opt_res.x[0]) / opt_res.x[1]),
+                           color=colors[i],
+                           label='Standard = ' + str(st) + 'ms')
             # Hide the right and top spines
             ax[m].spines['right'].set_visible(False)
             ax[m].spines['top'].set_visible(False)
@@ -1651,7 +1674,7 @@ def group_perception(all_rf1_audio, all_rf2_audio,
     plt.suptitle(
         'Group Mean of Relative Frequencies for the ' +
         condition.capitalize() + ' condition of the Perception Tasks ' +
-        suffix, x=.5, y=.97, size=18, linespacing=.75)
+        suffix, x=.5, y=.97, size=16, linespacing=.75)
     # plt.show()
 
     # Save figure
