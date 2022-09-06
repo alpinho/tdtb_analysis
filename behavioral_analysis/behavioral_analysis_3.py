@@ -1587,7 +1587,8 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             opt_res = optimize.minimize(
                 fun = func,
                 x0 = [np.mean(comparisons), 1.],
-                args = (comparisons, rf2[i], rf1[i]))
+                args = (comparisons, rf2[i], rf1[i]),
+                method='BFGS')
 
             # Estimates
             pse = opt_res.x[0]
