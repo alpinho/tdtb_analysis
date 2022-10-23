@@ -5,9 +5,9 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: August 2022
-Last update: September 2022
+Last update: October 2022
 
-Compatibility: Python 3.7.11
+Compatibility: Python 3.10.4
 
 """
 import os
@@ -26,7 +26,7 @@ import pingouin as pg
 
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
-
+from matplotlib.lines import Line2D
 import seaborn as sns
 from statannotations.Annotator import Annotator
 
@@ -731,11 +731,11 @@ def individual_perception(
     all_rf2_audio = []
     all_rf1_visual = []
     all_rf2_visual = []
-    all_pse = []
-    all_dl = []
+    all_pse_audio = []
+    all_dl_audio = []
+    all_pse_visual = []
+    all_dl_visual = []
     for s, subject in enumerate(subjects):
-        mod_pse = []
-        mod_dl = []
         for t, task in enumerate(tasks):
             if task not in ['Auditory Perception', 'Visual Perception']:
                 raise NameError('Task not valid!')
@@ -779,8 +779,10 @@ def individual_perception(
             # plt.axes([left, bottom, width, height])
             ax = plt.axes([.1 + t*.46, .9475 - s*.0389, .428, .023])
 
-            std_pse = []
-            std_dl = []
+            std_pse_audio = []
+            std_dl_audio = []
+            std_pse_visual = []
+            std_dl_visual = []
             for i, st in enumerate(standards):
                 # Choose estimator
                 if estimator == 'mle_cdf':
@@ -814,8 +816,13 @@ def individual_perception(
                 ci95_dl = se_dl * 1.96
 
                 # Append
-                std_pse.append(pse)
-                std_dl.append(dl)
+                if task == 'Auditory Perception':
+                    std_pse_audio.append(pse)
+                    std_dl_audio.append(dl)
+                else:
+                    assert task == 'Visual Perception'
+                    std_pse_visual.append(pse)
+                    std_dl_visual.append(dl)
 
                 # Plot
                 # Plot each fit in one image
@@ -848,10 +855,6 @@ def individual_perception(
                 # Set limits of y-axis
                 ax.set_ylim([-.1, 1.1])
 
-            # Append
-            mod_pse.append(std_pse)
-            mod_dl.append(std_dl)
-
             # Add legend
             if s == 0:
                 if t == 0:
@@ -870,12 +873,17 @@ def individual_perception(
             fig.text(.062, .46, 'Relative Frequency of "longer" responses',
                      fontsize=14, rotation=90)
 
+            # Append
+            if task == 'Auditory Perception':
+                all_pse_audio.append(std_pse_audio)
+                all_dl_audio.append(std_dl_audio)
+            else:
+                assert task == 'Visual Perception'
+                all_pse_visual.append(std_pse_visual)
+                all_dl_visual.append(std_dl_visual)
+
         fig.text(.03, .96 - s*.039, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
-
-        # Append
-        all_pse.append(mod_pse)
-        all_dl.append(mod_dl)
 
     # Title
     if estimator == 'mle_cdf':
@@ -895,7 +903,8 @@ def individual_perception(
         'individual_perception_' + condition + '_' + estimator + '.pdf'))
 
     return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
-            standards, comparisons, all_pse, all_dl)
+            standards, comparisons, all_pse_audio, all_dl_audio,
+            all_pse_visual, all_dl_visual)
 
 
 def individual_ntfd_rts(subjects, this_dir, sesstype, n_sess, flatten=True,
@@ -1709,6 +1718,176 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             standards, comparisons)
 
 
+def perception_performance(estim_pse, estim_dl):
+    # Stack multidimensional numpy array to produce a dataframe
+    estim_pse = np.array(estim_pse)
+    estim_dl = np.array(estim_dl)
+    pse_flatten = np.ravel(estim_pse)
+    dl_flatten = np.ravel(estim_dl)
+
+    # ## Standards column
+    standards = np.tile(
+        stand,
+        estim_pse.shape[3] * estim_pse.shape[2] * estim_pse.shape[1] * \
+        estim_pse.shape[0])
+    # ## Individual column
+    itag = ['sub-%02d' % s for s in SUBJECTS]
+    stand_individuals = np.repeat(itag, len(stand))
+    individuals = np.tile(
+        stand_individuals,
+        estim_pse.shape[2] * estim_pse.shape[1] * estim_pse.shape[0])
+    # ## Modality column
+    stand_modalities = np.repeat(['audio', 'visual'], len(stand_individuals))
+    modalities = np.tile(
+        stand_modalities,
+        estim_pse.shape[1] * estim_pse.shape[0])
+    # ## Conditions column
+    crossind_conditions = np.repeat(['beat', 'interval'],
+                                    len(stand_modalities))
+    conditions = np.tile(crossind_conditions, estim_pse.shape[0])
+    # ## Estimator column
+    estimators = np.repeat(['mle_cdf', 'mle_expit'],
+                           len(crossind_conditions))
+
+    # ## Build tables and dataframes
+    table = np.vstack((dl_flatten, standards, modalities, individuals,
+                       conditions, estimators)).T
+
+    df = pd.DataFrame(table, columns=['DL', 'Standard', 'Modality',
+                                      'Subject', 'Condition', 'Estimator'])
+    df['DL'] = df['DL'].apply(pd.to_numeric)
+    df = df[df.Estimator == 'mle_expit']
+
+    # Replace outliers by median
+    dl1 = np.median(df[df.Standard == str(510)][df.Modality == 'visual'][
+        df.Condition == 'beat'].DL.values)
+    dl2 = np.median(df[df.Standard == str(510)][df.Modality == 'visual'][
+        df.Condition == 'interval'].DL.values)
+    df.loc[701, 'DL'] = dl1
+    df.loc[971, 'DL'] = dl2
+
+    for s, st in enumerate(stand):
+        # Compute a two-way repeated-measures ANOVA
+        aov = pg.rm_anova(
+            data=df[df.Standard == str(st)],
+            dv='DL',
+            within=['Modality', 'Condition'],
+            subject='Subject',
+            detailed=True)
+        aov.to_csv(os.path.join(MAIN_DIR,
+                                'anovas', 'anova_DL_' + str(st) + '.csv'))
+
+        print('Normality for Modality' + str(st) + ': ',
+              pg.normality(df[df.Standard == str(st)], group='Modality',
+                           dv='DL', method='normaltest'))
+
+        print('Normality for Condition' + str(st) + ': ',
+              pg.normality(df[df.Standard == str(st)], group='Condition',
+                           dv='DL', method='normaltest'))
+
+        spher, W, chisq, dof, pval = pg.sphericity(
+            df[df.Standard == str(st)], dv='DL', subject='Subject',
+            within='Modality')
+        print('Sphericity for Modality: ', spher, round(W, 3),
+              round(chisq, 3), dof, round(pval, 3))
+
+        spher, W, chisq, dof, pval = pg.sphericity(
+            df[df.Standard == str(st)], dv='DL', subject='Subject',
+            within='Condition')
+        print('Sphericity for Condition: ', spher, round(W, 3),
+              round(chisq, 3), dof, round(pval, 3))
+
+        # Holm-corrected pairwise T-tests
+        pairwise_tt = pg.pairwise_tests(
+            data=df[df.Standard == str(st)],
+            dv='DL',
+            within=['Modality', 'Condition'],
+            subject='Subject',
+            alternative='two-sided',
+            return_desc=True, padjust='holm', interaction=True)
+        pairwise_tt.to_csv(os.path.join(
+            MAIN_DIR, 'anovas', 'pairwise_ttest_DL_' + str(st) + '.csv'))
+
+        if s == 0:
+            fig = plt.figure(figsize=(25, 5))
+
+        # Define subplot of bar charts and its position in the fig
+        # plt.axes([left, bottom, width, height])
+        ax = plt.axes([.0345 + s*.198, .17, .165, .7])
+
+        if s == 3:
+            ax = sns.pointplot(
+                data=df[df.Standard == str(st)],
+                x='Condition',
+                y='DL',
+                hue='Modality',
+                dodge=True,
+                capsize=.1,
+                ci='sd',
+                linestyles=["-", "--"])
+        else:
+            ax = sns.pointplot(
+                data=df[df.Standard == str(st)],
+                x='Condition',
+                y='DL',
+                hue='Modality',
+                dodge=True,
+                capsize=.1,
+                ci='sd')
+        sns.despine(fig=fig, top=True, right=True, left=False, bottom=False)
+        plt.ylim(-.3, .85)
+        _ = plt.title('Standard = ' + str(st), x=.5, y=1.05, fontsize=20)
+        ax.legend(frameon=False, loc = 'lower right', fontsize=16)
+        ax.set_xlabel("Condition", fontsize = 18)
+        ax.set_ylabel("DL", fontsize = 18)
+        ax.yaxis.labelpad = -4
+        ax.tick_params(axis='x', labelsize=16)
+        ax.tick_params(axis='y', labelsize=16)
+        # Annotate
+        if s == 0:
+            ymin = .075
+            ymax = .2
+            fig.text(.115, .48, '*', fontsize=18)
+            fig.text(.0725, .75, 'Error bar: SD', fontsize=18)
+        elif s == 1:
+            ymin = .084
+            ymax = .15
+            fig.text(.31, .45, '**', fontsize=18)
+        elif s == 2:
+            ymin = .08
+            ymax = .13
+            fig.text(.508, .44, '**', fontsize=18)
+        elif s == 3:
+            ymin - .08
+            ymax = .13
+            fig.text(.704, .45, '***', fontsize=18)
+            pair = [('audio', 'visual')]
+            annotator = Annotator(
+                ax, pair, data=df[df.Standard == str(st)],
+                x='Modality', y='DL')
+            annotator.configure(
+                test=None, text_format="star",
+                test_short_name="pttest", fontsize=16.)
+            annotator.set_pvalues([pairwise_tt['p-unc'][1]])
+            annotator.annotate()
+            # Add second legend
+            fig.text(.64, .81, 'Dashed: significant interaction',
+                     fontsize=14)
+            fig.text(.64, .76, 'Continuous: non-significant interaction',
+                     fontsize=14)
+        else:
+            assert s == 4
+            ymin = .093
+            fig.text(.903, .433, '**', fontsize=18)
+            ymax = .13
+
+        plt.vlines(.5, ymin, ymax, color='black')
+        # Save figure
+        if s == len(stand) - 1:
+            plt.savefig(os.path.join(
+                MAIN_DIR, 'anovas', 'anovaplot_DL.png'))
+
+
 # %%
 # =========================== INPUTS ===================================
 
@@ -1868,9 +2047,12 @@ if __name__ == "__main__":
         cond_ce = []
         for cond in ['beat', 'interval']:
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
-                comp, ipse, idl = individual_perception(
-                    SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, cond,
-                    estimator=estimator)
+                comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
+                    individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
+                                          N_SESSIONS, cond,
+                                          estimator=estimator)
+            ipse = np.concatenate(([ipse_audio], [ipse_visual]), axis = 0)
+            idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0)
 
             cond_pse.append(ipse)
             cond_dl.append(idl)
@@ -1894,75 +2076,8 @@ if __name__ == "__main__":
         estim_pse.append(cond_pse)
         estim_dl.append(cond_dl)
 
-    # Stack multidimensional numpy array to produce a dataframe
-    estim_pse = np.array(estim_pse)
-    estim_dl = np.array(estim_dl)
-    pse_flatten = np.ravel(estim_pse)
-    dl_flatten = np.ravel(estim_dl)
-    # ## Standards column
-    modality_standards = np.tile(stand, estim_pse.shape[3])
-    individual_standards = np.tile(modality_standards, estim_pse.shape[2])
-    condition_standards = np.tile(individual_standards, estim_pse.shape[1])
-    estimator_standards = np.tile(condition_standards, estim_pse.shape[0])
-    # ## Modality column
-    modality = np.repeat(['audio', 'visual'], len(stand))
-    individual_modality = np.tile(modality, estim_pse.shape[2])
-    condition_modality = np.tile(individual_modality, estim_pse.shape[1])
-    estimator_modality = np.tile(condition_modality, estim_pse.shape[0])
-    # ## Individual column
-    itag = ['sub-%02d' % s for s in SUBJECTS]
-    individuals = np.repeat(itag, len(modality))
-    condition_individuals = np.tile(individuals, estim_pse.shape[1])
-    estimator_individuals = np.tile(condition_individuals, estim_pse.shape[0])
-    # ## Conditions column
-    conditions = np.repeat(['beat', 'interval'], len(individuals))
-    estimator_conditions = np.tile(conditions, estim_pse.shape[0])
-    # ## Estimator column
-    estimators = np.repeat(['mle_cdf', 'mle_expit'], len(conditions))
-    # ## Build tables and dataframes
-    table1 = np.vstack((pse_flatten, estimator_standards, estimator_modality,
-                        estimator_individuals, estimator_conditions)).T
-    table2 = np.vstack((dl_flatten, estimator_standards, estimator_modality,
-                        estimator_individuals, estimator_conditions)).T
-
-    df1 = pd.DataFrame(
-        table1, columns=['PSE', 'Standards', 'Modality', 'Subject', 'Condition'])
-    df1['PSE'] = df1['PSE'].apply(pd.to_numeric)
-
-
-    df2 = pd.DataFrame(
-        table2, columns=['DL', 'Standards', 'Modality', 'Subject', 'Condition'])
-    df2['DL'] = df2['DL'].apply(pd.to_numeric)
-
-    # Compute a Two-way repeated-measures ANOVA
-    aov_pse = pg.rm_anova(dv='PSE', within=['Modality', 'Condition'],
-                          subject='Subject', data=df1, detailed=True)
-    aov_dl = pg.rm_anova(dv='DL', within=['Modality', 'Condition'],
-                         subject='Subject', data=df2, detailed=True)
-
-    aov_pse.to_csv('anova_pse.csv')
-    aov_dl.to_csv('anova_dl.csv')
-
-    # Holm-corrected pairwise T-tests
-    pse_pairwise = pg.pairwise_tests(
-        data=df1, dv='PSE', within=['Modality', 'Condition'], subject='Subject',
-        return_desc=True, padjust='holm', interaction=False)
-    dl_pairwise = pg.pairwise_tests(
-        data=df2, dv='DL', within=['Modality', 'Condition'], subject='Subject',
-        return_desc=True, padjust='holm', interaction=False)
-
-    pse_pairwise.to_csv('pse_pairwise.csv')
-    dl_pairwise.to_csv('dl_pairwise.csv')
-
-    # from statsmodels.stats.anova import AnovaRM
-
-    # aov = AnovaRM(
-    #     df1,
-    #     depvar='PSE',
-    #     subject='Subject',
-    #     within=['Condition'],
-    #     aggregate_func='mean'
-    # ).fit()
+    # Compute Anovas
+    perception_performance(estim_pse, estim_dl)
 
     # # # # ################### NTFD RT'S ####################################
 
