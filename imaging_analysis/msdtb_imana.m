@@ -61,6 +61,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n  = [3, 4, 7, 8]
 subj_n  = [3, 4, 8]
+% subj_n  = [3]
 
 for s=1:length(subj_n)
     subj_str{s} = ['sub-' num2str(subj_n(s), '%02d')];
@@ -85,10 +86,9 @@ session_names = {'sess-1', 'sess-2'};
 
 % AC coordinates
 loc_AC = {
-          [3.4 35.4 -9.5],...       %sub-03
-          [3.3 29.0 6.5],...        %sub-04
-          [-3.2 22.2 9.9],...       %sub-07
-          [-1.6 25.7 13.6],...      %sub-08
+          [1.0 23.6 -49.3],...      %sub-03
+          [0.5 29.2 -22.6],...      %sub-04
+          [0.0 27.5 -43.6],...      %sub-08
           };
 
 % sess = {'training', 'test'}; % training runs are considered to be ses-01 and testing runs are ses-02
@@ -132,26 +132,28 @@ switch what
             deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s});
             subj_anatraw_dir = fullfile(raw_subj_dir, anat_dir);
-            subj_anatderiv_dir = fullfile(deriv_subj_dir, anat_dir);
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
             % Create subject derivatives anat folders, if they don't exist
             if not(isfolder(subj_anatderiv_dir))
                 mkdir(subj_anatderiv_dir);
             end
             
             % Get the name of the anatomical image
-            anat_name = sprintf('%s_ses-1_acq-MPRAGE_run-01_T1w', ...
+            anatr_name = sprintf('%s_ses-1_acq-MPRAGE_run-01_T1w', ...
+                subj_str{s});
+            anatd_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w', ...
                 subj_str{s});
             
             % Reslice anatomical image to set it 
             % within LPI co-ordinate frames
             gz_source  = fullfile(...
-                subj_anatraw_dir, sprintf('%s.nii.gz', anat_name));
+                subj_anatraw_dir, sprintf('%s.nii.gz', anatr_name));
             % gunzip source file in localscratch
             gunzip(gz_source, '/localscratch');
             gunz_source = fullfile(...
-                '/localscratch', sprintf('%s.nii', anat_name));
+                '/localscratch', sprintf('%s.nii', anatr_name));
             dest = fullfile(subj_anatderiv_dir, ...
-                sprintf('%s.nii', anat_name));
+                sprintf('%s.nii', anatd_name));
             spmj_reslice_LPI(gunz_source, 'name', dest);
             
             % In the resliced image, set translation to zero
@@ -178,18 +180,20 @@ switch what
             fprintf('- Centre AC for %s\n', subj_str{s});
             
             % Get the directory of subjects anatomical
-            raw_subj_dir = fullfile(base_dir, raw_dir, subj_str{s});
-            subj_anat_dir = fullfile(raw_subj_dir, anat_dir);
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
             
             % Get the name of the anatomical image
-            anat_name = sprintf('%s_T1w.nii', subj_str{s});
+            anat_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
+                subj_str{s});
             
-            img             = fullfile(subj_anat_dir, anat_name);
+            img             = fullfile(subj_anatderiv_dir, anat_name);
             V               = spm_vol(img);
             dat             = spm_read_vols(V);
             oldOrig         = V.mat(1:3,4);
             V.mat(1:3,4)    = oldOrig-loc_AC{s}.';
-            % V.mat(1:3,4)    = loc_AC{s}.';
+            % V.mat(1:3,4)    = -loc_AC{s}.';
             spm_write_vol(V,dat);
         end % s (subjects)
 
