@@ -6,14 +6,16 @@ function [ output_args ] = ibc_imana( what, varargin )
 % Add dependencies to path
 if isdir('/srv/diedrichsen/data')
     workdir='/srv/diedrichsen/data';
+    homedir = '/home/ROBARTS/agrilopi';
     addpath(sprintf('%s/../matlab/spm12', workdir));
-    addpath(sprintf('%s/../matlab/spm12/toolbox/suit/', workdir));
+    addpath(sprintf('%s/../matlab/spm12/toolbox/suit', workdir));
     addpath(sprintf('%s/../matlab/dataframe', workdir));
-    addpath(sprintf('%s/../matlab/imaging/tools/', workdir));
+    addpath(sprintf('%s/../matlab/imaging/tools', workdir));
+    addpath(sprintf('%s/spm12', homedir));
+    addpath(sprintf('%s/suit', homedir));
+    addpath(sprintf('%s/freesurfer', homedir));
 elseif isdir('/home/analu/diedrichsen_data/data')
     workdir='/home/analu/diedrichsen_data/data';
-elseif isdir('/Volumes/diedrichsen_data$/data/')
-    workdir = '/Volumes/diedrichsen_data$/data/';
 else
     fprintf(...
         'Workdir not found. Mount or connect to server and try again.');
@@ -54,21 +56,23 @@ raw_dir = 'raw';
 derivatives_dir = 'derivatives';
 func_dir = 'func';
 anat_dir = 'ses-1/anat';
+fmap_dir = 'fmap';
 est_dir  = 'estimates';
 fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n  = [3, 4, 7, 8]
-subj_n  = [3, 4, 8]
-% subj_n  = [3]
+% subj_n  = [3, 4, 7, 8];
+subj_n  = [3, 8];
+% subj_n  = [3];
 
 for s=1:length(subj_n)
     subj_str{s} = ['sub-' num2str(subj_n(s), '%02d')];
 end
 subj_id = 1:length(subj_n);
 
-session_names = {'sess-1', 'sess-2'};
+session_names = {'ses-1', 'ses-2'};
+ses_id = 1:length(session_names);
 
 % sessmap = RenameField(SM, fields, {'session', 'sub01', 'sub02', ...
 %     'sub04', 'sub05', 'sub06', 'sub07', 'sub08', 'sub09', 'sub11', ... 
@@ -91,7 +95,6 @@ loc_AC = {
           [0.0 27.5 -43.6],...      %sub-08
           };
 
-% sess = {'training', 'test'}; % training runs are considered to be ses-01 and testing runs are ses-02
 % numTRs = sesstruct.nrep;
 % =========================================================================
 numDummys = 0; % we need to make sure that this is correct
@@ -102,19 +105,6 @@ numDummys = 0; % we need to make sure that this is correct
 % dummies in the beginning, the onsets become negative, no dummies are
 % removed for now, as we think the times reported in the tsv files are
 % including the dummies
-% =========================================================================
-
-% =========================================================================
-% SUMMARY of the task design from the paper
-% Each task has 12 instances: 8 (training) + 4 (testing)
-% 3 days, 6 runs per day: 12 training runs + 6 test runs
-% each run contains 77-83 trials lasting for 6-12 seconds
-% Task order is pseudorandomized in the training runs! 
-%("some tasks depended on each other and were therefore presented close to each other in time")
-% In the test runs, 103 tasks were presented four times in the same order across all six runs
-% Task order is fixed in the testing runs.
-% Looking at the tsv files, the order during training runs is the same
-% across all participants.
 % =========================================================================
 
 switch what
@@ -276,6 +266,104 @@ switch what
             % bias correct mean image for grey/white signal intensities
             P{1}    = dest;
             spmj_bias_correct(P);
+        end % s (sn)
+        
+    case 'PREP:make_fieldmap' % Make fieldmap
+        sn = subj_id;
+        tasks = {'prod', 'percep', 'ntfd'};
+        magnumber=1;
+        vararginoptions(varargin,{'sn', 'ses', 'task'});
+        prefix = '';
+        for s = sn
+            for ses = ses_id
+                func_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
+                    ['ses-' num2str(ses, '%d/')], func_dir)
+                fmap_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
+                    ['ses-' num2str(ses, '%d/')], fmap_dir)
+                mag_file = sprintf(...
+                    '%s_ses-%d_magnitude1.nii.gz', subj_str{s}, ses);
+                phase_file = sprintf(...
+                    '%s_ses-%d_phasediff.nii.gz', subj_str{s}, ses);
+                magnitude = fullfile(fmap_folder, mag_file);
+                phasediff = fullfile(fmap_folder, phase_file);
+                gunzip(magnitude, '/localscratch');
+                gunzip(phasediff, '/localscratch');
+                tag = sprintf('%s_ses-%d', subj_str{s}, ses);
+                run = {};
+                run_tags = {};
+                for tk=1:length(tasks)
+                    if ses == 2 && strcmp(tasks{tk}, 'ntfd')
+                        n_run = 4;
+                    else
+                        n_run = 2;
+                    end
+                    for r=1:n_run
+                        func_files = sprintf(...
+                            '%s_ses-%d_task-%s_run-%s_bold.nii.gz', ...
+                            subj_str{s}, ses, tasks{tk}, ...
+                            num2str(r, '%02d'));
+                        func_data = fullfile(func_folder, func_files);
+                        gunzip(func_data, '/localscratch');
+                        run_tags{tk}{r} = [...
+                            'task-' tasks{tk} '_run-' num2str(r, '%02d')];
+                    end
+                end
+                run = horzcat(run_tags{:});
+                spmja_makefieldmap('/localscratch', tag, run, ...
+                    'prefix', prefix, 'rawdataDir', '/localscratch');
+                
+                % Create if does not exist the derivatives folder
+                fmap_deriv = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, ['ses-' num2str(ses, '%02d')], fmap_dir);
+                if not(isfolder(fmap_deriv))
+                    mkdir(fmap_deriv);
+                % If derivatives folder already exists,
+                else
+                    % and it is not empty,
+                    if numel(fmap_deriv) > 2                        
+                        % delete all its content
+                        content = dir(fmap_deriv);
+                        for iContent = 3 : numel(content)
+                            if ~content(iContent).isdir
+                                % remove files of folder
+                                delete(sprintf('%s/%s', fmap_deriv, ...
+                                    content(iContent).name));
+                            end
+                        end
+                    end
+                end
+                % Move files from "/localscratch" to derivatives folder
+                movefile(['/localscratch/bmask' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_magnitude' ...
+                    num2str(magnumber, '%d') '.nii'], fmap_deriv)
+                movefile(['/localscratch/fpm_sc' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_phasediff.nii'], fmap_deriv)
+                movefile(['/localscratch/m' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_magnitude' num2str(magnumber, ...
+                    '%d') '.nii'], fmap_deriv)
+                movefile(['/localscratch/sc' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_phasediff.nii'], fmap_deriv)
+                movefile(['/localscratch/u' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_task-*_run-*_bold.nii'], ...
+                    fmap_deriv)
+                movefile(['/localscratch/vdm5_sc' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_phasediff.nii'], ...
+                    fmap_deriv)
+                for rn=1:length(run)
+                    movefile(['/localscratch/vdm5_sc' subj_str{s} ...
+                        '_ses-' num2str(ses, '%d') '_phasediff_run' ...
+                        num2str(rn, '%d') '.nii'], fullfile(fmap_deriv, ...
+                        ['vdm5_sc' subj_str{s} '_ses-' ...
+                        num2str(ses, '%d') '_phasediff_' run{rn} '.nii']));
+                end
+                movefile(['/localscratch/wfmag_' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_task-*_run-*_bold.nii'], ...
+                    fmap_deriv)
+                % Delete unziped raw files from localscratch
+                if any(size(dir('/localscratch/*.nii'), 1))
+                    delete('/localscratch/*.nii')
+                end
+            end % ses (sessions)
         end % s (sn)
 
     case 'FUNC:realign'          % realign functional images
