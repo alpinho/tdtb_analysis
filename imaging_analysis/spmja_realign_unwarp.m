@@ -69,18 +69,17 @@ for j=1:numel(run)
         imageNumber=startTR:V.dat.dim(4);
     else 
         imageNumber= startTR:endTR;
-    end;
+    end
     scans = {};
     for i= 1:numel(imageNumber)
         if use3D
-            scans{i, 1} = char(fullfile(rawdataDir, [prefix, subj_name, '_', ...
-                run{j}, '_', num2str(imageNumber(i)), '_bold.nii']));
+            scans{i, 1} = fullfile(rawdataDir, [prefix, subj_name, '_', ...
+                run{j}, '_', num2str(imageNumber(i)), '_bold.nii']);
         else
-            scans{i, 1} = char(fullfile(rawdataDir, [prefix, subj_name, '_', ...
-                run{j}, '_bold.nii', num2str(imageNumber(i))]));
-        end;           
+            scans{i, 1} = fullfile(rawdataDir, [prefix, subj_name, '_', ...
+                run{j}, '_bold.nii,', num2str(imageNumber(i))]);
+        end           
     end
-    scans = scans(:);
     J.data(j).scans = scans;
     J.data(j).pmscan = {fullfile(dataDir, subfolderFieldmap, ...
         ['vdm5_sc', subj_name, '_phasediff_', run{j}, '.nii, 1'])};
