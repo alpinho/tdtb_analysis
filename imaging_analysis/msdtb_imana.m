@@ -270,12 +270,13 @@ switch what
         
     case 'PREP:make_fieldmap' % Make fieldmap
         sn = subj_id;
+        ssn = ses_id; % list of sessions
         tasks = {'prod', 'percep', 'ntfd'};
         magnumber=1;
-        vararginoptions(varargin,{'sn', 'ses', 'task'});
         prefix = '';
+        vararginoptions(varargin,{'sn', 'ssn'});
         for s = sn
-            for ses = ses_id
+            for ses = ssn
                 func_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
                     ['ses-' num2str(ses, '%d/')], func_dir)
                 fmap_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
@@ -366,7 +367,7 @@ switch what
             end % ses (sessions)
         end % s (sn)
 
-    case 'FUNC:realign'          % realign functional images
+    case 'FUNC:realign_unwarp' % realign functional images
         % SPM realigns all volumes to the first volume of first run
         % example usage: ibc_imana('FUNC:realign', 'sn', 1)
         % Updated upstream
@@ -374,92 +375,51 @@ switch what
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         sn   = subj_id; % list of subjects
-        vararginoptions(varargin, {'sn', 'ses', 'runs'});
+        ssn = ses_id; % list of sessions
+        tasks = {'prod', 'percep', 'ntfd'};
+        prefix = '';
+        vararginoptions(varargin,{'sn', 'ssn'});
                 
         for s = sn        
-            funcraw_subjses_dir = fullfile(base_dir, raw_dir, ...
-                subj_str{s}, func_dir)          
-            funcderiv_subjses_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, func_dir)
-            sbj_number = str2double((extractAfter(subj_str{s},'sub-')))
-            subsess = cellstr(...
-                sessmap.(['sub' num2str(sbj_number, '%02d')]));
-            for smap = session_names
-                % initialize data cell array which will contain file names 
-                % for runs/TR images
-                data = {}; 
-                sesstag = sessnum{find(contains(subsess,smap))};
-                ses = sscanf(sesstag,'ses-%d');
-                % cd to the folder with raw functional data
-                cd(fullfile(funcraw_subjses_dir, ...
-                    ['ses-' num2str(ses, '%02d')]))
-                spm_jobman('initcfg')
-                indexes = find(contains(sessid,smap))';
-                runs = double.empty;
-                trs = double.empty;
-                for j=1:length(indexes)
-                    runs(j)=sessrun(indexes(j));
-                    trs(j)=numTRs(indexes(j));
-                end
-                for r = 1:length(runs)
-                    rname = sprintf('%s_ses-%02d_run-%02d_bold.nii.gz', ...
-                        subj_str{s}, ses, runs(r));
-                    gunzip(rname, '/localscratch');
-                    for j = 1:trs(r)-numDummys
-                        data{r}{j,1} = sprintf(...
-                            append('/localscratch/', ...
-                            '%s_ses-%02d_run-%02d_bold.nii,%d'), ...
-                            subj_str{s},ses, runs(r), j);
-                    end % j (TRs/images)
-                end % r (runs)
-                % Skip resting-state runs in mtt sessions
-                if strcmp(smap,'mtt1') || strcmp(smap,'mtt2')
-                    data(1:2)=[];
-                end
-                % Print first and last input
-                data{1}{1,1}
-                data{length(runs)}{trs(r)-numDummys,1}
-                % Load batch and run spm
-                spmj_realign(data);
-                fprintf('- runs realigned for %s  ses %02d\n', ...
-                    subj_str{s}, ses);
-                % Create if does not exist the derivatives folder
-                sessderiv_dir = fullfile(funcderiv_subjses_dir, ...
-                    ['ses-' num2str(ses, '%02d')]);
-                if not(isfolder(sessderiv_dir))
-                    mkdir(sessderiv_dir);
-                % If derivatives folder already exists,
-                else
-                    % and it is not empty,
-                    if numel(sessderiv_dir) > 2                        
-                        % delete all its content
-                        content = dir(sessderiv_dir);
-                        for iContent = 3 : numel(content)
-                            if ~content(iContent).isdir
-                                % remove files of folder
-                                delete(sprintf('%s/%s', sessderiv_dir, ...
-                                    content(iContent).name));
-                            end
-                        end
+            raw_subjdir = fullfile(base_dir, raw_dir, subj_str{s})          
+            deriv_subjdir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s})
+            run = {};
+            for ses = ssn
+                funcraw_folder = fullfile(raw_subjdir, ...
+                    ['ses-' num2str(ses, '%d/')], func_dir);
+                funcderiv_folder = fullfile(deriv_subjdir, ...
+                    ['ses-' num2str(ses, '%02d/')], func_dir);
+                fmapderiv_folder = fullfile(deriv_subjdir, ...
+                    ['ses-' num2str(ses, '%02d')], fmap_dir); 
+                for tk=1:length(tasks)
+                    if ses == 2 && strcmp(tasks{tk}, 'ntfd')
+                        n_run = 4;
+                    else
+                        n_run = 2;
                     end
-                end
-                % Move files from "/localscratch" to derivatives folder
-                movefile(['/localscratch/mean' subj_str{s} '_ses-' ...
-                    num2str(ses, '%02d') '_run-*_bold.nii'], sessderiv_dir)
-                movefile(['/localscratch/rp_' subj_str{s} '_ses-' ...
-                    num2str(ses, '%02d') '_run-*_bold.txt'], sessderiv_dir)
-                movefile(['/localscratch/r' subj_str{s} '_ses-' ...
-                    num2str(ses, '%02d') '_run-*_bold.nii'], sessderiv_dir)
-                movefile(['/localscratch/' subj_str{s} '_ses-' ...
-                    num2str(ses, '%02d') '_run-*_bold.mat'], sessderiv_dir)
-                movefile([fullfile(funcraw_subjses_dir, ...
-                    ['ses-' num2str(ses, '%02d')]) '/spm_*.ps'], ...
-                    sessderiv_dir)
-                % Delete unziped raw files from localscratch
-                if any(size(dir('/localscratch/*.nii'), 1))
-                    delete('/localscratch/*.nii')
-                end
-            end % smap (session_names)
+                    for r=1:n_run
+                        func_file = sprintf(...
+                            '%s_ses-%d_task-%s_run-%s_bold.nii.gz', ...
+                            subj_str{s}, ses, tasks{tk}, ...
+                            num2str(r, '%02d'));
+                        func_data = fullfile(funcraw_folder, func_file)
+                        gunzip(func_data, '/localscratch');
+                        fmap_fname = sprintf(...
+                            'vdm5_sc%s_ses-%d_phasediff_task-%s_run-%02d.nii', ...
+                            subj_str{s}, ses, tasks{tk}, r);
+                        fmap_file = fullfile(fmapderiv_folder, fmap_fname)
+                        copyfile(fmap_file, '/localscratch');
+                        run{ses}{tk}{r} = ['ses-' num2str(ses, '%d') ...
+                            '_task-' tasks{tk} '_run-' num2str(r, '%02d')];
+                    end % r (n_run)
+                end  % tk (tasks)
+            end % ses (ses_id)
+            run = horzcat(run{:});
+            run = horzcat(run{:});
+            % Load batch and run spm
+            spmja_realign_unwarp('/localscratch', subj_str{s}, run, 1, Inf, ...
+                'prefix', prefix, 'rawdataDir', '/localscratch');
         end % s (sn)
 
     case 'FUNC:meanepi_bcorrect' % bias correction for the mean image before coreg (optional)
