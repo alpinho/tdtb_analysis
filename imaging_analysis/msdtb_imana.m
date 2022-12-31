@@ -274,7 +274,7 @@ switch what
         tasks = {'prod', 'percep', 'ntfd'};
         magnumber=1;
         prefix = '';
-        vararginoptions(varargin,{'sn', 'ssn'});
+        vararginoptions(varargin,{'sn', 'ssn', 'tasks'});
         for s = sn
             for ses = ssn
                 func_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
@@ -378,7 +378,7 @@ switch what
         ssn = ses_id; % list of sessions
         tasks = {'prod', 'percep', 'ntfd'};
         prefix = '';
-        vararginoptions(varargin,{'sn', 'ssn'});
+        vararginoptions(varargin,{'sn', 'ssn', 'tasks'});
                 
         for s = sn        
             raw_subjdir = fullfile(base_dir, raw_dir, subj_str{s})          
