@@ -278,9 +278,9 @@ switch what
         for s = sn
             for ses = ssn
                 func_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                    ['ses-' num2str(ses, '%d/')], func_dir)
+                    ['ses-' num2str(ses, '%d')], func_dir)
                 fmap_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                    ['ses-' num2str(ses, '%d/')], fmap_dir)
+                    ['ses-' num2str(ses, '%d')], fmap_dir)
                 mag_file = sprintf(...
                     '%s_ses-%d_magnitude1.nii.gz', subj_str{s}, ses);
                 phase_file = sprintf(...
@@ -387,9 +387,9 @@ switch what
             run = {};
             for ses = ssn
                 funcraw_folder = fullfile(raw_subjdir, ...
-                    ['ses-' num2str(ses, '%d/')], func_dir);
+                    ['ses-' num2str(ses, '%d')], func_dir);
                 funcderiv_folder = fullfile(deriv_subjdir, ...
-                    ['ses-' num2str(ses, '%02d/')], func_dir);
+                    ['ses-' num2str(ses, '%02d')], func_dir);
                 fmapderiv_folder = fullfile(deriv_subjdir, ...
                     ['ses-' num2str(ses, '%02d')], fmap_dir); 
                 for tk=1:length(tasks)
@@ -418,8 +418,35 @@ switch what
             run = horzcat(run{:});
             run = horzcat(run{:});
             % Load batch and run spm
-            spmja_realign_unwarp('/localscratch', subj_str{s}, run, 1, Inf, ...
-                'prefix', prefix, 'rawdataDir', '/localscratch');
+            spmja_realign_unwarp('/localscratch', subj_str{s}, run, 1, ...
+                Inf, 'prefix', prefix, 'rawdataDir', '/localscratch');
+             
+            for ses = ssn
+                % Create if does not exist the derivatives folder
+                func_deriv = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, ['ses-' num2str(ses, '%02d')], func_dir);
+                % Create/update destination folder
+                folder(func_deriv)
+                % Move files from "/localscratch" to destination folder
+                if ses == 1
+                    movefile(['/localscratch/meanu' subj_str{s} ...
+                        '_ses-' num2str(ses, '%d') ...
+                        '_task-prod_run-01_bold.nii'], func_deriv)
+                    movefile('spm_*.ps', func_deriv)
+                end
+                movefile(['/localscratch/rp_' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_task-*_run-*_bold.txt'], ...
+                    func_deriv)
+                movefile(['/localscratch/' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv)
+                movefile(['/localscratch/u' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv)
+            end % ses (ses_id)
+            
+            % Delete unziped raw files from localscratch
+            if any(size(dir('/localscratch/*.nii'), 1))
+                delete('/localscratch/*.nii')
+            end
         end % s (sn)
 
     case 'FUNC:meanepi_bcorrect' % bias correction for the mean image before coreg (optional)
