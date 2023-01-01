@@ -344,6 +344,9 @@ switch what
                 movefile(['/localscratch/wfmag_' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_task-*_run-*_bold.nii'], ...
                     fmap_deriv);
+                if ses == 1
+                    movefile('spm_*.ps', fmap_deriv);
+                end
                 % Delete unziped raw files from localscratch
                 if any(size(dir('/localscratch/*.nii'), 1))
                     delete('/localscratch/*.nii');
