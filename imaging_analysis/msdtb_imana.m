@@ -300,9 +300,8 @@ switch what
                     end
                     for r=1:n_run
                         func_files = sprintf(...
-                            '%s_ses-%d_task-%s_run-%s_bold.nii.gz', ...
-                            subj_str{s}, ses, tasks{tk}, ...
-                            num2str(r, '%02d'));
+                            '%s_task-%s_run-%s_bold.nii.gz', tag, ...
+                            tasks{tk}, num2str(r, '%02d'));
                         func_data = fullfile(func_folder, func_files);
                         gunzip(func_data, '/localscratch');
                         run_tags{tk}{r} = [...
@@ -316,40 +315,25 @@ switch what
                 % Create if does not exist the derivatives folder
                 fmap_deriv = fullfile(base_dir, derivatives_dir, ...
                     subj_str{s}, ['ses-' num2str(ses, '%02d')], fmap_dir);
-                if not(isfolder(fmap_deriv))
-                    mkdir(fmap_deriv);
-                % If derivatives folder already exists,
-                else
-                    % and it is not empty,
-                    if numel(fmap_deriv) > 2                        
-                        % delete all its content
-                        content = dir(fmap_deriv);
-                        for iContent = 3 : numel(content)
-                            if ~content(iContent).isdir
-                                % remove files of folder
-                                delete(sprintf('%s/%s', fmap_deriv, ...
-                                    content(iContent).name));
-                            end
-                        end
-                    end
-                end
+                % Create/update destination folder
+                folder(fmap_deriv);
                 % Move files from "/localscratch" to derivatives folder
                 movefile(['/localscratch/bmask' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_magnitude' ...
-                    num2str(magnumber, '%d') '.nii'], fmap_deriv)
+                    num2str(magnumber, '%d') '.nii'], fmap_deriv);
                 movefile(['/localscratch/fpm_sc' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_phasediff.nii'], fmap_deriv)
+                    num2str(ses, '%d') '_phasediff.nii'], fmap_deriv);
                 movefile(['/localscratch/m' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_magnitude' num2str(magnumber, ...
-                    '%d') '.nii'], fmap_deriv)
+                    '%d') '.nii'], fmap_deriv);
                 movefile(['/localscratch/sc' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_phasediff.nii'], fmap_deriv)
+                    num2str(ses, '%d') '_phasediff.nii'], fmap_deriv);
                 movefile(['/localscratch/u' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_task-*_run-*_bold.nii'], ...
-                    fmap_deriv)
+                    fmap_deriv);
                 movefile(['/localscratch/vdm5_sc' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_phasediff.nii'], ...
-                    fmap_deriv)
+                    fmap_deriv);
                 for rn=1:length(run)
                     movefile(['/localscratch/vdm5_sc' subj_str{s} ...
                         '_ses-' num2str(ses, '%d') '_phasediff_run' ...
@@ -359,10 +343,10 @@ switch what
                 end
                 movefile(['/localscratch/wfmag_' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_task-*_run-*_bold.nii'], ...
-                    fmap_deriv)
+                    fmap_deriv);
                 % Delete unziped raw files from localscratch
                 if any(size(dir('/localscratch/*.nii'), 1))
-                    delete('/localscratch/*.nii')
+                    delete('/localscratch/*.nii');
                 end
             end % ses (sessions)
         end % s (sn)
@@ -381,9 +365,9 @@ switch what
         vararginoptions(varargin,{'sn', 'ssn', 'tasks'});
                 
         for s = sn        
-            raw_subjdir = fullfile(base_dir, raw_dir, subj_str{s})          
+            raw_subjdir = fullfile(base_dir, raw_dir, subj_str{s});          
             deriv_subjdir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s})
+                subj_str{s});
             run = {};
             for ses = ssn
                 funcraw_folder = fullfile(raw_subjdir, ...
@@ -403,7 +387,7 @@ switch what
                             '%s_ses-%d_task-%s_run-%s_bold.nii.gz', ...
                             subj_str{s}, ses, tasks{tk}, ...
                             num2str(r, '%02d'));
-                        func_data = fullfile(funcraw_folder, func_file)
+                        func_data = fullfile(funcraw_folder, func_file);
                         gunzip(func_data, '/localscratch');
                         fmap_fname = sprintf(...
                             'vdm5_sc%s_ses-%d_phasediff_task-%s_run-%02d.nii', ...
@@ -426,26 +410,26 @@ switch what
                 func_deriv = fullfile(base_dir, derivatives_dir, ...
                     subj_str{s}, ['ses-' num2str(ses, '%02d')], func_dir);
                 % Create/update destination folder
-                folder(func_deriv)
+                folder(func_deriv);
                 % Move files from "/localscratch" to destination folder
                 if ses == 1
                     movefile(['/localscratch/meanu' subj_str{s} ...
                         '_ses-' num2str(ses, '%d') ...
-                        '_task-prod_run-01_bold.nii'], func_deriv)
-                    movefile('spm_*.ps', func_deriv)
+                        '_task-prod_run-01_bold.nii'], func_deriv);
+                    movefile('spm_*.ps', func_deriv);
                 end
                 movefile(['/localscratch/rp_' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_task-*_run-*_bold.txt'], ...
-                    func_deriv)
+                    func_deriv);
                 movefile(['/localscratch/' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv)
+                    num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv);
                 movefile(['/localscratch/u' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv)
+                    num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv);
             end % ses (ses_id)
             
             % Delete unziped raw files from localscratch
             if any(size(dir('/localscratch/*.nii'), 1))
-                delete('/localscratch/*.nii')
+                delete('/localscratch/*.nii');
             end
         end % s (sn)
 
