@@ -1,0 +1,18 @@
+function spmja_makefieldmap(new_folder)
+if not(isfolder(new_folder))
+    mkdir(new_folder);
+% If derivatives folder already exists,
+else
+    % and it is not empty,
+    if numel(new_folder) > 2                        
+        % delete all its content
+        content = dir(new_folder);
+        for iContent = 3 : numel(content)
+            if ~content(iContent).isdir
+                % remove files of folder
+                delete(sprintf('%s/%s', new_folder, ...
+                    content(iContent).name));
+            end
+        end
+    end
+end
