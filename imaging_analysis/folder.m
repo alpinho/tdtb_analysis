@@ -1,4 +1,4 @@
-function spmja_makefieldmap(new_folder)
+function folder(new_folder)
 if not(isfolder(new_folder))
     mkdir(new_folder);
 % If derivatives folder already exists,
