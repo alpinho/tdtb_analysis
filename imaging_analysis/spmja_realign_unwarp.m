@@ -35,7 +35,7 @@ disp(['Using 3D: ' num2str(use3D)]);
 J.eoptions.quality = 0.9;
 J.eoptions.sep = 2;%4;                                                                                   
 J.eoptions.fwhm = 5;                                                                                  
-J.eoptions.rtm = 1; %why zero and not one                                                                                  
+J.eoptions.rtm = 0; %why zero and not one                                                                                  
 J.eoptions.einterp = 2;                                                                               
 J.eoptions.ewrap = [0 1 0];     %  wrap-around in the [x y z] direction during the estimation (ewrap)  wrap of the front of the head to the back of the head                                                                       
 J.eoptions.weight = {''};                                                                             

@@ -110,9 +110,7 @@ numDummys = 0; % we need to make sure that this is correct
 switch what
     case 'ANAT:reslice_lpi'  % reslice anatomical to LPI
         % Example usage:ibc_imana('ANAT:reslice_lpi')
-        sn = subj_id;
-        
-        
+        sn = subj_id;       
         vararginoptions(varargin, {'sn'});
         for s = sn
             fprintf('- Reslicing %s anatomical to LPI\n', subj_str{s});
@@ -345,7 +343,13 @@ switch what
                     num2str(ses, '%d') '_task-*_run-*_bold.nii'], ...
                     fmap_deriv);
                 if ses == 1
-                    movefile('spm_*.ps', fmap_deriv);
+                    % Rename and move postscript file
+                    old_psfile = dir('*.ps').name;
+                    old_psname = old_psfile(1:end-3);
+                    psfile = strcat(old_psname, '_fieldmap.ps');
+                    movefile(old_psfile, fmap_deriv);
+                    movefile(fullfile(fmap_deriv, old_psfile), ...
+                    fullfile(fmap_deriv, psfile));
                 end
                 % Delete unziped raw files from localscratch
                 if any(size(dir('/localscratch/*.nii'), 1))
@@ -419,13 +423,21 @@ switch what
                     movefile(['/localscratch/meanu' subj_str{s} ...
                         '_ses-' num2str(ses, '%d') ...
                         '_task-prod_run-01_bold.nii'], func_deriv);
-                    movefile('spm_*.ps', func_deriv);
+                    % Rename and move postscript file
+                    old_psfile = dir('*.ps').name;
+                    old_psname = old_psfile(1:end-3);
+                    psfile = strcat(old_psname, '_realignunwarp.ps');
+                    movefile(old_psfile, func_deriv);
+                    movefile(fullfile(func_deriv, old_psfile), ...
+                    fullfile(func_deriv, psfile));
                 end
                 movefile(['/localscratch/rp_' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_task-*_run-*_bold.txt'], ...
                     func_deriv);
-                movefile(['/localscratch/' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv);
+                % Move functional files w/ param estimation in their
+                % headers, but not resliced
+%                 movefile(['/localscratch/' subj_str{s} '_ses-' ...
+%                     num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv);
                 movefile(['/localscratch/u' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv);
             end % ses (ses_id)
@@ -464,73 +476,65 @@ switch what
         %   ("r" will be added as a prefix)
         % Example usage: 
         % ibc_imana('FUNC:coreg', 'sn', [1], 'prefix', 'r')ses-03
-        sn     = subj_id;   % list of subjects        
+        sn     = subj_id;   % list of subjects
         step   = 'manual';  % first 'manual' then 'auto'
         prefix = 'r'; % to use the bias corrected version, set it to 'rb'
+        
         % ===================
         % After the manual registration, the mean functional image will be
         % saved with r as the prefix which will then be used in the
         % automatic registration
         vararginoptions(varargin, {'sn', 'step', 'prefix'});
         spm_jobman('initcfg')
-        for s = sn
+        for s = sn   
             % Get the directory of subjects anatomical and functional
-            raw_subj_dir = fullfile(base_dir, raw_dir, subj_str{s});
-            subj_anat_dir = fullfile(raw_subj_dir, anat_dir);
-            derivatives_subj_dir = fullfile(base_dir, derivatives_dir, ...
+            deriv_folder = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s});
-            sbj_number = str2double((extractAfter(subj_str{s}, 'sub-')));
-            subsess = cellstr(sessmap.(['sub' num2str(sbj_number, ...
-                '%02d')]));
-            for smap = session_names
-                sesstag = sessnum{find(contains(subsess,smap))};
-                ses = sscanf(sesstag,'ses-%d');
-%                 subj_func_dir = fullfile(derivatives_subj_dir, ...
-%                     func_dir, ['ses-' num2str(ses, '%02d')]);
-                smapstr = replace(smap{1}, '-', '')
-                subj_func_dir = fullfile(derivatives_subj_dir, ...
-                    func_dir, ['ses-' smapstr]);
+            anat_deriv = fullfile(deriv_folder, 'ses-01/anat');
+            func_deriv = fullfile(deriv_folder, 'ses-01', func_dir);
             
-                % goes to subjects anatomical dir so that coreg tool ...
-                % starts from that directory (just for convenience)
-                cd(subj_anat_dir); 
+            switch step
+                case 'manual'
+                    coregtool;
+                    keyboard;
+                case 'auto'
+                    % do nothing
+            end % switch step
+
+            % (2) Automatically co-register functional and ...
+            % anatomical images
+            J.ref = {fullfile(anat_deriv, sprintf(...
+                '%s_ses-01_acq-MPRAGE_run-01_T1w.nii', subj_str{s}))};
+            J.source = {fullfile(func_deriv, ...
+                sprintf('%smeanu%s_ses-1_task-prod_run-01_bold.nii', ...
+                prefix, subj_str{s}))};
+
+            J.other             = {''};
+            J.eoptions.cost_fun = 'nmi';
+            J.eoptions.sep      = [4 2];
+            J.eoptions.tol      = [0.02 0.02 0.02 0.001 0.001 0.001 ...
+                0.01 0.01 0.01 0.001 0.001 0.001];
+            J.eoptions.fwhm     = [7 7];
+            matlabbatch{1}.spm.spatial.coreg.estimate=J;
+            spm_jobman('run', matlabbatch);
             
-                switch step
-                    case 'manual'
-                        coregtool;
-                        keyboard;
-                    case 'auto'
-                        % do nothing
-                end % switch step
-                            
-                % (2) Automatically co-register functional and ...
-                % anatomical images
-                J.ref = {fullfile(subj_anat_dir, sprintf('%s_T1w.nii', ...
-                    subj_str{s}))}; % just one anatomical or more than one?
- 
-                if strcmp(smap,'mtt1') || strcmp(smap,'mtt2')
-                    J.source = {fullfile(subj_func_dir, ...
-                        sprintf('%smean%s_ses-%s_run-03_bold.nii', ...
-                        prefix, subj_str{s}, smapstr))};
-                else
-                    J.source = {fullfile(subj_func_dir, ...
-                        sprintf('%smean%s_ses-%s_run-01_bold.nii', ...
-                        prefix, subj_str{s}, smapstr))};
-                end
+            % Delete former postscript file
+            if any(size(dir(fullfile(anat_deriv, 'spm_*.ps')), 1))
+                delete(fullfile(anat_deriv, 'spm_*.ps'));
+            end
             
-                J.other             = {''};
-                J.eoptions.cost_fun = 'nmi';
-                J.eoptions.sep      = [4 2];
-                J.eoptions.tol      = [0.02 0.02 0.02 0.001 0.001 0.001 ...
-                    0.01 0.01 0.01 0.001 0.001 0.001];
-                J.eoptions.fwhm     = [7 7];
-                matlabbatch{1}.spm.spatial.coreg.estimate=J;
-                spm_jobman('run', matlabbatch);
-            
-                % (3) Manually check again
+            % Rename and move postscript file
+            old_psfile = dir('*.ps').name;
+            old_psname = old_psfile(1:end-3);
+            psfile = strcat(old_psname, '_coregestimate.ps');
+            movefile(old_psfile, anat_deriv);
+            movefile(fullfile(anat_deriv, old_psfile), ...
+                fullfile(anat_deriv, psfile));
+
+            % (3) Manually check again
 %               coregtool;
 %               keyboard();
-                % checking the affine matrix
+            % checking the affine matrix
 %                 T1_vol = spm_vol(J.ref);
 %                 T1_vol = T1_vol{1};
 %                 T2_vol = spm_vol(J.source);
@@ -538,15 +542,14 @@ switch what
 %                 x = spm_coreg(T2_vol, T1_vol);
 %                 M = spm_matrix(x);
 %                 display(M)
-            
-                % NOTE:
-                % Overwrites meanepi, unless you update in step one, 
-                % which saves it as rmeanepi.
-                % Each time you click "update" in coregtool, it saves 
-                % current alignment by appending the prefix 'r' to the 
-                % current file. So if you continually update rmeanepi, 
-                % you'll end up with a file called r...rrrmeanepi.
-            end
+
+            % NOTE:
+            % Overwrites meanepi, unless you update in step one, 
+            % which saves it as rmeanepi.
+            % Each time you click "update" in coregtool, it saves 
+            % current alignment by appending the prefix 'r' to the 
+            % current file. So if you continually update rmeanepi, 
+            % you'll end up with a file called r...rrrmeanepi.
         end % s (sn)
 
     case 'FUNC:coregreslice'
