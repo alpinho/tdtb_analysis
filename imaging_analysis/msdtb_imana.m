@@ -200,13 +200,15 @@ switch what
         for s = sn
             fprintf('- Anatomical segmentation for %s\n', subj_str{s});
             % Get the directory of subjects anatomical
-            raw_subj_dir = fullfile(base_dir, raw_dir, subj_str{s});
-            subj_anat_dir = fullfile(raw_subj_dir, anat_dir);
-
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
+            
             % Get the name of the anatomical image
-            anat_name = sprintf('%s_T1w.nii', subj_str{s});
-            J.channel.vols     = {fullfile(subj_anat_dir, ...
-                sprintf('%s,1', anat_name))};
+            anat_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
+                subj_str{s});
+            
+            J.channel.vols     = {fullfile(subj_anatderiv_dir, anat_name)};
             J.channel.biasreg  = 0.001;
             J.channel.biasfwhm = 60;
             J.channel.write    = [1 0];
