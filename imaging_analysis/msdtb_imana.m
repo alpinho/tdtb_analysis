@@ -267,6 +267,9 @@ switch what
         end % s (sn)
         
     case 'PREP:make_fieldmap' % Make fieldmap
+        
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
         sn = subj_id;
         ssn = ses_id; % list of sessions
         tasks = {'prod', 'percep', 'ntfd'};
@@ -420,6 +423,7 @@ switch what
                 folder(func_deriv);
                 % Move files from "/localscratch" to destination folder
                 if ses == 1
+                    % Move mean-unwarped EPI file
                     movefile(['/localscratch/meanu' subj_str{s} ...
                         '_ses-' num2str(ses, '%d') ...
                         '_task-prod_run-01_bold.nii'], func_deriv);
@@ -431,13 +435,18 @@ switch what
                     movefile(fullfile(func_deriv, old_psfile), ...
                     fullfile(func_deriv, psfile));
                 end
+                % Move motion-param .txt files
                 movefile(['/localscratch/rp_' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_task-*_run-*_bold.txt'], ...
                     func_deriv);
+                
                 % Move functional files w/ param estimation in their
-                % headers, but not resliced
-%                 movefile(['/localscratch/' subj_str{s} '_ses-' ...
-%                     num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv);
+                % headers, but not resliced, as well as all .mat files
+                % (i.e. those about realign and those about the unwarp
+                movefile(['/localscratch/' subj_str{s} '_ses-' ...
+                    num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv);
+
+                % Move unwarped images
                 movefile(['/localscratch/u' subj_str{s} '_ses-' ...
                     num2str(ses, '%d') '_task-*_run-*_bold*'], func_deriv);
             end % ses (ses_id)
@@ -476,6 +485,9 @@ switch what
         %   ("r" will be added as a prefix)
         % Example usage: 
         % ibc_imana('FUNC:coreg', 'sn', [1], 'prefix', 'r')ses-03
+        
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
         sn     = subj_id;   % list of subjects
         step   = 'manual';  % first 'manual' then 'auto'
         prefix = 'r'; % to use the bias corrected version, set it to 'rb'
@@ -631,66 +643,54 @@ switch what
         % ibc_imana('FUNC:make_samealign', 'prefix', 'r', 'sn', [1])
         
         sn     = subj_id;  % subject list
+        ssn = ses_id; % list of sessions
+        tasks = {'prod', 'percep', 'ntfd'};
         prefix = 'r'; % prefix for the meanepi: r or rbb if bias corrected
         
         vararginoptions(varargin, {'sn', 'prefix'});
                 
         for s = sn
             % Get the directory of subjects functional
-            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s})
-            subj_func_dir = fullfile(deriv_subj_dir, func_dir);
-            sbj_number = str2double((extractAfter(subj_str{s}, ...
-                'sub-')))
-            subsess = cellstr(sessmap.(['sub' num2str(sbj_number, ...
-                '%02d')]));
-            for smap = session_names
-                sesstag = sessnum{find(contains(subsess,smap))};
-                ses = sscanf(sesstag,'ses-%d');
-                smapstr = replace(smap{1}, '-', '');
-                % cd to the folder with realigned-to-sess1 functional data
-                cd(fullfile(subj_func_dir, ['ses-' smapstr]))
-                indexes = find(contains(sessid, smap))';
-                runs = double.empty;
-                trs = double.empty;
-                % get the list of runs for the session
-                for j=1:length(indexes)
-                    runs(j)=sessrun(indexes(j));
-                    trs(j)=numTRs(indexes(j));
-                end
+            deriv_folder = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            funcmean_deriv = fullfile(deriv_folder, 'ses-01', func_dir);
+            for ses = ssn
+                func_deriv = fullfile(deriv_folder, ...
+                    ['ses-' num2str(ses, '%02d')], func_dir);
                 fprintf('- make_samealign  %s \n', subj_str{s})
-                
                 % Select image for reference 
                 %%% note that functional images are aligned with the first
                 %%% run from first session hence, the ref is always 
                 %%% rmean<subj>_ses-01_run-01
-                if strcmp(smap,'mtt1') || strcmp(smap,'mtt2')
-                    P{1} = fullfile(subj_func_dir, ['ses-' smapstr], ...
-                        sprintf('%smean%s_ses-%s_run-03_bold.nii', ...
-                        prefix, subj_str{s}, smapstr));
-                    runs(1:2)=[]
-                else
-                    P{1} = fullfile(subj_func_dir, ['ses-' smapstr], ...
-                        sprintf('%smean%s_ses-%s_run-01_bold.nii', ...
-                        prefix, subj_str{s}, smapstr));
-                end
+                P{1} = fullfile(funcmean_deriv, sprintf(...
+                    '%smeanu%s_ses-1_task-prod_run-01_bold.nii', ...
+                    prefix, subj_str{s}));
                 % Select images to be realigned
                 Q = {};
-                for r = runs
-                    for i = 1:trs(r)-numDummys
-                        % for 'auto' mode in coregistration, remove prefix 
-                        % and explicitly add 'r' prefix in the same place
-%                         Q{end+1} = fullfile(subj_func_dir, ...
-%                             sprintf('%s%s_ses-%02d_run-%02d.nii,%d', ...
-%                             prefix, subj_str{s}, ses, r, i)); 
-                        Q{end+1} = fullfile(subj_func_dir, ...
-                            ['ses-' smapstr], sprintf(...
-                            'r%s_ses-%s_run-%02d_bold.nii,%d', ...
-                            subj_str{s}, smapstr, r, i));
+                for tk=1:length(tasks)
+                    if ses == 2 && strcmp(tasks{tk}, 'ntfd')
+                        n_run = 4;
+                    else
+                        n_run = 2;
                     end
-                end % r(runs)                
-                spmj_makesamealign_nifti(char(P),char(Q));
+                    for r=1:n_run
+                        fpath = fullfile(func_deriv, sprintf(...
+                            'u%s_ses-%d_task-%s_run-%02d_bold.nii', ...
+                            subj_str{s}, ses, tasks{tk}, r));
+                        V = nifti(fpath);
+                        imageNumber=1:V.dat.dim(4);
+                        for i= 1:numel(imageNumber)
+                            % for 'auto' mode in coregistration, remove prefix 
+                            % and explicitly add 'r' prefix in the same place
+    %                         Q{end+1} = fullfile(subj_func_dir, ...
+    %                             sprintf('%s%s_ses-%02d_run-%02d.nii,%d', ...
+    %                             prefix, subj_str{s}, ses, r, i)); 
+                            Q{end+1} = [fpath ',' num2str(i, '%d')];
+                        end % i (imageNumber)
+                    end % r(runs)
+                end % tk (tasks)
             end % ss (sess)
+            spmj_makesamealign_nifti(char(P),char(Q));
         end % s (sn)
 
     case 'FUNC:make_maskImage' % make mask images (noskull and grey_only)
