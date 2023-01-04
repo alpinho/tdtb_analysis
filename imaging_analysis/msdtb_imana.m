@@ -1612,12 +1612,20 @@ switch what
         % set freesurfer directory
         subj_fs_dir = fullfile(base_dir, fs_dir);
         
-        % Parent dir of anatomical imagesibc      
+        % Parent dir of anatomical images    
         for s = sn
             fprintf('- recon-all %s\n', subj_str{s});
-            subj_dir = fullfile(base_dir, raw_dir, subj_str{s}, anat_dir)
+                        % Get the directory of subjects anatomical
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
+            
+            % Get the name of the anatomical image
+            anat_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
+                subj_str{s});
+            
             freesurfer_reconall(subj_fs_dir, subj_str{s}, ...
-                fullfile(subj_dir, sprintf('%s_T1w.nii', subj_str{s})));
+                fullfile(subj_anatderiv_dir, anat_name));
         end % s (sn)
 
     case 'SURF:xhemireg'       % Cross-register surfaces left / right hem
