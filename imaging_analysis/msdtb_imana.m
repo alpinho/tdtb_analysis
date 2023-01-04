@@ -1,4 +1,4 @@
-function [ output_args ] = ibc_imana( what, varargin )
+function [ output_args ] = msdtb_imana( what, varargin )
 
 % %========================================================================================================================
 % PATH DEFINITIONS
@@ -88,7 +88,7 @@ ses_id = 1:length(session_names);
 %%% run_list{1} for session 1 and run_list{2} for session 2
 % run_list = {[1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6]};
 
-% AC coordinates
+% AC coordinates (non-symmetric ones)
 loc_AC = {
           [1.0 23.6 -49.3],...      %sub-03
           [0.5 29.2 -22.6],...      %sub-04
@@ -109,7 +109,7 @@ numDummys = 0; % we need to make sure that this is correct
 
 switch what
     case 'ANAT:reslice_lpi'  % reslice anatomical to LPI
-        % Example usage:ibc_imana('ANAT:reslice_lpi')
+        % Example usage: msdtb_imana('ANAT:reslice_lpi')
         sn = subj_id;       
         vararginoptions(varargin, {'sn'});
         for s = sn
@@ -157,7 +157,7 @@ switch what
         end % sn (subjects)
 
     case 'ANAT:center_ac' % recenter to AC (manually retrieve coordinates)
-        % Example usage: ibc_imana('ANAT:center_ac')
+        % Example usage: msdtb_imana('ANAT:center_ac')
         % run spm display to get the AC coordinates
         fprintf('MANUALLY RETRIEVE AC COORDINATES')
         sn = subj_id;
@@ -189,7 +189,7 @@ switch what
         % also saves the bias field estimated in SPM
         % ********IF YOU WANT TO APPLY SPM BIAS CORRECTION TO, USE
         % ANAT:T1w_bcorrect CASE***********************
-        % Example usage: ibc_imana('ANAT:segment')
+        % Example usage: msdtb_imana('ANAT:segment')
         % check results when done
         sn = subj_id;
 
@@ -365,7 +365,7 @@ switch what
 
     case 'FUNC:realign_unwarp' % realign functional images
         % SPM realigns all volumes to the first volume of first run
-        % example usage: ibc_imana('FUNC:realign', 'sn', 1)
+        % example usage: msdtb_imana('FUNC:realign', 'sn', 1)
         % Updated upstream
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
@@ -486,7 +486,7 @@ switch what
         % - Manually adjust mean functional image and save the results 
         %   ("r" will be added as a prefix)
         % Example usage: 
-        % ibc_imana('FUNC:coreg', 'sn', [1], 'prefix', 'r')ses-03
+        % msdtb_imana('FUNC:coreg', 'sn', [1], 'prefix', 'r')ses-03
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -642,7 +642,7 @@ switch what
     case 'FUNC:make_samealign' % align all the functionals
         % Aligns all functional images to rmean functional image
         % Example usage: 
-        % ibc_imana('FUNC:make_samealign', 'prefix', 'r', 'sn', [1])
+        % msdtb_imana('FUNC:make_samealign', 'prefix', 'r', 'sn', [1])
         
         sn     = subj_id;  % subject list
         ssn = ses_id; % list of sessions
@@ -698,7 +698,7 @@ switch what
     case 'FUNC:make_maskImage' % make mask images (noskull and grey_only)
         % Make maskImage in functional space
         % Example usage: 
-        % ibc_imana('FUNC:make_maskImage', 'prefix', 'r', 'sn', 1)
+        % msdtb_imana('FUNC:make_maskImage', 'prefix', 'r', 'sn', 1)
         
         sn     = subj_id; % list of subjects
         prefix = 'r'; % prefix for the meanepi: r or rbb if bias corrected
@@ -1604,7 +1604,7 @@ switch what
     case 'SURF:reconall' % Freesurfer reconall routine
         % Calls recon-all, which performs, all of the
         % FreeSurfer cortical reconstruction process
-        % Example usage: ibc_imana('SURF:reconall', 'sn', 1)
+        % Example usage: msdtb_imana('SURF:reconall', 'sn', 1)
         
         sn   = subj_id; % subject list
         
@@ -1630,7 +1630,7 @@ switch what
 
     case 'SURF:xhemireg'       % Cross-register surfaces left / right hem
         % surface-based interhemispheric registration
-        % example: ibc_imana('SURF:xhemireg', 'sn', [1, 2, 3, 4, 5])
+        % example: msdtb_imana('SURF:xhemireg', 'sn', [1, 2, 3, 4, 5])
         
         sn   = subj_id; % list of subjects
 
@@ -1641,7 +1641,8 @@ switch what
         
         for s = sn
             fprintf('- xhemiregl %s\n', subj_str{s});
-            freesurfer_registerXhem(subj_str(s), fs_dir,'hemisphere', [1 2]); % For debug... [1 2] orig
+            freesurfer_registerXhem(subj_str(s), fs_dir,'hemisphere', ...
+                [1 2]); % For debug... [1 2] orig
         end % s (sn)
         
     case 'SURF:map_ico' % Align to the new atlas surface (map icosahedron)
@@ -1653,7 +1654,7 @@ switch what
         % Uses function mri_surf2surf
         % mri_surf2surf: resamples one cortical surface onto another
         % Example usage: 
-        % ibc_imana('SURF:map_ico', 'sn', [1, 2, 3, 4, 5, 6])
+        % msdtb_imana('SURF:map_ico', 'sn', [1, 2, 3, 4, 5, 6])
         
         sn = subj_id; % list of subjects
         
@@ -1683,18 +1684,17 @@ switch what
         
         for s = sn 
             fprintf('- fs2wb %s\n', subj_str{s});
-            fs_subj_dir = fullfile(fs_dir, subj_str{s});
             surf_resliceFS2WB(subj_str{s}, fs_dir, ...
                 wb_subj_dir, 'hemisphere', hemi, 'resolution', ...
                 sprintf('%dk', res))
         end % s (sn)
 
     case 'SURF:run_all'
-        % Example usage: nishimoto_imana('SURF:run_all')
-        nishimoto_imana('SURF:reconall')
-        nishimoto_imana('SURF:xhemireg')
-        nishimoto_imana('SURF:map_ico')
-        nishimoto_imana('SURF:fs2wb')        
+        % Example usage: msdtb_imana('SURF:run_all')
+        msdtb_imana('SURF:reconall')
+        msdtb_imana('SURF:xhemireg')
+        msdtb_imana('SURF:map_ico')
+        msdtb_imana('SURF:fs2wb')        
         
     case 'SUIT:isolate_segment'  
         % Segment cerebellum into grey and white matter
