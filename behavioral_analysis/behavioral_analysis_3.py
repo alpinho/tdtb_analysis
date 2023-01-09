@@ -5,30 +5,35 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: August 2022
-Last update: October 2022
+Last update: January 2023
 
 Compatibility: Python 3.10.4
 
 """
-import os
-import glob
-import csv
 
-import warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
+import sys
+import os
 
 import numpy as np
 import pandas as pd
 
-from scipy import stats, optimize, special
 import pingouin as pg
+import seaborn as sns
 
+import warnings
+
+from scipy import stats, optimize, special
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
-from matplotlib.lines import Line2D
-import seaborn as sns
 from statannotations.Annotator import Annotator
+
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# setting path
+sys.path.append('../')
+# importing
+from utils import parse_logfile
 
 
 # %%
@@ -77,54 +82,6 @@ def change_width(ax, new_value) :
 
 # %%
 # ======================== MAIN FUNCTIONS ==============================
-
-
-def parse_logfile(parent_dir, subject_no, sesstype, n_sess, task_name,
-                  ttl=False, concatenate=True):
-
-    sessions = ['sess-%02d' %s for s in np.arange(1, n_sess + 1)]
-    allsessions = []
-    for session in sessions:
-        logpath = os.path.join(parent_dir, 'sub-%02d' % subject_no, session)
-        logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
-        logfiles.sort()
-        inputs_lists = [[line for line in csv.reader(open(logfile),
-                                                     delimiter=',')]
-                        for logfile in logfiles]
-        # Pick log files of selected task
-        allruns = []
-        for i, inputs_list in enumerate(inputs_lists, 1):
-            ttag = task_name + ' - ' + sesstype
-            if ttag in inputs_list[8][0][9:]:
-                liste = inputs_list
-                # Extract trial information from log file
-                for r, row in enumerate(liste):
-                    if row[0] == str(subject_no):
-                        break
-                    else:
-                        continue
-                if not ttl:
-                    trials_info = liste[r+1:]
-                    trials_info = [line
-                                   for line in trials_info if line[2] != 2]
-                else:
-                    trials_info = liste[r:]
-                if concatenate:
-                    allruns.extend(trials_info)
-                else:
-                    allruns.append(trials_info)
-                if i == len(inputs_lists):
-                    break
-
-            if i == len(inputs_lists) and not allruns:
-                raise NameError('Log file for selected task does not exist!')
-
-        if concatenate:
-            allsessions.extend(allruns)
-        else:
-            allsessions.append(allruns)
-
-    return allsessions
 
 
 def production_data(data):
@@ -1911,7 +1868,7 @@ N_SESSIONS = 3
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# %%^
+# %%
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
@@ -2039,124 +1996,124 @@ if __name__ == "__main__":
 
     # # ################### PERCEPTION ###################################
 
-    estim_pse = []
-    estim_dl = []
-    for estimator in ['mle_cdf', 'mle_expit']:
-        cond_pse = []
-        cond_dl = []
-        cond_ce = []
-        for cond in ['beat', 'interval']:
-            rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
-                comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
-                    individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
-                                          N_SESSIONS, cond,
-                                          estimator=estimator)
-            ipse = np.concatenate(([ipse_audio], [ipse_visual]), axis = 0)
-            idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0)
+    # estim_pse = []
+    # estim_dl = []
+    # for estimator in ['mle_cdf', 'mle_expit']:
+    #     cond_pse = []
+    #     cond_dl = []
+    #     cond_ce = []
+    #     for cond in ['beat', 'interval']:
+    #         rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
+    #             comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
+    #                 individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
+    #                                       N_SESSIONS, cond,
+    #                                       estimator=estimator)
+    #         ipse = np.concatenate(([ipse_audio], [ipse_visual]), axis = 0)
+    #         idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0)
 
-            cond_pse.append(ipse)
-            cond_dl.append(idl)
+    #         cond_pse.append(ipse)
+    #         cond_dl.append(idl)
 
-            # group_perception(rfone_audio, rftwo_audio, rfone_visual,
-            #                  rftwo_visual, stand, comp, cond,
-            #                  estimator=estimator)
+    #         # group_perception(rfone_audio, rftwo_audio, rfone_visual,
+    #         #                  rftwo_visual, stand, comp, cond,
+    #         #                  estimator=estimator)
 
-            if cond == 'interval' and estimator == 'mle_expit':
-                pass
-            else:
-                del rfone_audio
-                del rftwo_audio
-                del rfone_visual
-                del rftwo_visual
-                del stand
-                del comp
-                del ipse
-                del idl
+    #         if cond == 'interval' and estimator == 'mle_expit':
+    #             pass
+    #         else:
+    #             del rfone_audio
+    #             del rftwo_audio
+    #             del rfone_visual
+    #             del rftwo_visual
+    #             del stand
+    #             del comp
+    #             del ipse
+    #             del idl
 
-        estim_pse.append(cond_pse)
-        estim_dl.append(cond_dl)
+    #     estim_pse.append(cond_pse)
+    #     estim_dl.append(cond_dl)
 
-    # Compute Anovas
-    perception_performance(estim_pse, estim_dl)
+    # # Compute Anovas
+    # perception_performance(estim_pse, estim_dl)
 
     # # # # ################### NTFD RT'S ####################################
 
-    # # ### Individual analysis merging all standards --- bar plots
-    # m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
-    #     m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
-    #     m_rtsntfd_visual_random = individual_ntfd_rts(
-    #         RAND_SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
+    # ### Individual analysis merging all standards --- bar plots
+    m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
+        m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
+        m_rtsntfd_visual_random = individual_ntfd_rts(
+            RAND_SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS)
 
-    # m_rtsntfd_audio = m_rtsntfd_audio_beat + m_rtsntfd_audio_interval + \
-    #     m_rtsntfd_audio_random
-    # m_rtsntfd_visual = m_rtsntfd_visual_beat + m_rtsntfd_visual_interval + \
-    #     m_rtsntfd_visual_random
+    m_rtsntfd_audio = m_rtsntfd_audio_beat + m_rtsntfd_audio_interval + \
+        m_rtsntfd_audio_random
+    m_rtsntfd_visual = m_rtsntfd_visual_beat + m_rtsntfd_visual_interval + \
+        m_rtsntfd_visual_random
 
-    # _, pntfd_audio_bi = stats.ttest_rel(
-    #     m_rtsntfd_audio_beat, m_rtsntfd_audio_interval,
-    #     axis=0, alternative='two-sided')
+    _, pntfd_audio_bi = stats.ttest_rel(
+        m_rtsntfd_audio_beat, m_rtsntfd_audio_interval,
+        axis=0, alternative='two-sided')
 
-    # _, pntfd_audio_br = stats.ttest_rel(
-    #     m_rtsntfd_audio_beat, m_rtsntfd_audio_random,
-    #     axis=0, alternative='two-sided')
+    _, pntfd_audio_br = stats.ttest_rel(
+        m_rtsntfd_audio_beat, m_rtsntfd_audio_random,
+        axis=0, alternative='two-sided')
 
-    # _, pntfd_audio_ir = stats.ttest_rel(
-    #     m_rtsntfd_audio_interval, m_rtsntfd_audio_random,
-    #     axis=0, alternative='two-sided')
+    _, pntfd_audio_ir = stats.ttest_rel(
+        m_rtsntfd_audio_interval, m_rtsntfd_audio_random,
+        axis=0, alternative='two-sided')
 
-    # _, pntfd_visual_bi = stats.ttest_rel(
-    #     m_rtsntfd_visual_beat, m_rtsntfd_visual_interval,
-    #     axis=0, alternative='two-sided')
+    _, pntfd_visual_bi = stats.ttest_rel(
+        m_rtsntfd_visual_beat, m_rtsntfd_visual_interval,
+        axis=0, alternative='two-sided')
 
-    # _, pntfd_visual_br = stats.ttest_rel(
-    #     m_rtsntfd_visual_beat, m_rtsntfd_visual_random,
-    #     axis=0, alternative='two-sided')
+    _, pntfd_visual_br = stats.ttest_rel(
+        m_rtsntfd_visual_beat, m_rtsntfd_visual_random,
+        axis=0, alternative='two-sided')
 
-    # _, pntfd_visual_ir = stats.ttest_rel(
-    #     m_rtsntfd_visual_interval, m_rtsntfd_visual_random,
-    #     axis=0, alternative='two-sided')
+    _, pntfd_visual_ir = stats.ttest_rel(
+        m_rtsntfd_visual_interval, m_rtsntfd_visual_random,
+        axis=0, alternative='two-sided')
 
-    # ntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
-    # ntfd_f = 'paired-ttest_merged-rt_ntfd'
-    # plot_pttest(m_rtsntfd_audio, m_rtsntfd_visual,
-    #             pntfd_audio_bi, pntfd_audio_br, pntfd_audio_ir,
-    #             pntfd_visual_bi, pntfd_visual_br, pntfd_visual_ir,
-    #             'Reaction Time (ms)', 0., 750., -100.,
-    #             ntfd_title, MAIN_DIR, ntfd_f)
+    ntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
+    ntfd_f = 'paired-ttest_merged-rt_ntfd'
+    plot_pttest(m_rtsntfd_audio, m_rtsntfd_visual,
+                pntfd_audio_bi, pntfd_audio_br, pntfd_audio_ir,
+                pntfd_visual_bi, pntfd_visual_br, pntfd_visual_ir,
+                'Reaction Time (ms)', 0., 750., -100.,
+                ntfd_title, MAIN_DIR, ntfd_f)
 
-    # # ### Individual analysis per standards --- box plots
-    # rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
-    #     rtsntfd_visual_interval, standards = individual_ntfd_isi_rts(
-    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
+    # ### Individual analysis per standards --- box plots
+    rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
+        rtsntfd_visual_interval, standards = individual_ntfd_isi_rts(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # # ## Reshape
-    # rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval, \
-    #     rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval = ginput_reshape(
-    #         rtsntfd_audio_beat, rtsntfd_audio_interval,
-    #         rtsntfd_visual_beat, rtsntfd_visual_interval)
+    # ## Reshape
+    rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval, \
+        rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval = ginput_reshape(
+            rtsntfd_audio_beat, rtsntfd_audio_interval,
+            rtsntfd_visual_beat, rtsntfd_visual_interval)
 
-    # # ### Group Analyses per standard --- violin plots
-    # plot_violin(
-    #     rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
-    #     rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
-    #     standards, 0., 2250., 'Reaction Time (ms)',
-    #     'Group Distribution of Reaction Time for the NTFD Tasks',
-    #     MAIN_DIR,
-    #     'ntfd_groupviolin_rt')
+    # ### Group Analyses per standard --- violin plots
+    plot_violin(
+        rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
+        rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
+        standards, 0., 2250., 'Reaction Time (ms)',
+        'Group Distribution of Reaction Time for the NTFD Tasks',
+        MAIN_DIR,
+        'ntfd_groupviolin_rt')
 
-    # # ### Group Analyses per standard --- bar plots + paired t-test
-    # _, prtntfd_audio = stats.ttest_rel(
-    #     rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
-    #     axis=1, alternative='two-sided')
+    # ### Group Analyses per standard --- bar plots + paired t-test
+    _, prtntfd_audio = stats.ttest_rel(
+        rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
+        axis=1, alternative='two-sided')
 
-    # _, prtntfd_visual = stats.ttest_rel(
-    #     rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
-    #     axis=1, alternative='two-sided')
+    _, prtntfd_visual = stats.ttest_rel(
+        rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
+        axis=1, alternative='two-sided')
 
-    # rtntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
-    # rtntfd_f = 'paired-ttest_rt_ntfd'
-    # plot_pttest_isi(rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
-    #                 rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
-    #                 prtntfd_audio, prtntfd_visual,
-    #                 standards, 'Reaction Time (ms)', 0., 650., -100.,
-    #                 rtntfd_title, MAIN_DIR, rtntfd_f)
+    rtntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
+    rtntfd_f = 'paired-ttest_rt_ntfd'
+    plot_pttest_isi(rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
+                    rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
+                    prtntfd_audio, prtntfd_visual,
+                    standards, 'Reaction Time (ms)', 0., 650., -100.,
+                    rtntfd_title, MAIN_DIR, rtntfd_f)
