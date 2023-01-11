@@ -29,22 +29,77 @@ from utils import parse_logfile
 # ========================== FUNCTIONS =================================
 
 
-def production(data):
-    trials = []
-    for dt, datum in enumerate(data):
-    #     if datum[5] == 'interval_1':
-    #         condition = datum[4]
-    #         theoretical_isi1 = int(datum[8])
-    #         real_isi1 = int(datum[9])
-    #         if data[dt+8][5] == 'feedback' and data[dt+8][11] == 'o':
-    #             rt = int(data[dt+7][7]) + int(data[dt+8][10])
-    #         elif data[dt+8][5] == 'feedback' and data[dt+8][10] == 'None':
-    #             rt = np.nan
-    #         else:
-    #             raise ValueError('No feedback entry!')
-    #         trials.append([condition, theoretical_isi1, real_isi1, rt])
+def production(data, header, events_dir, ttl = True):
+    for ses_datum in data:
+        for run_datum in ses_datum:
+            onset = []
+            duration = []
+            trial_type = []
+            if ttl:
+                assert run_datum[0][4] == 'ttl'
+                onset.append(run_datum[0][6])
+                duration.append(run_datum[0][7])
+                trial_type.append('rest')
+                run_datum = run_datum[1:]
+            subject_number = int(run_datum[0][0])
+            session_number = int(run_datum[0][1])
+            run_number = int(run_datum[0][2])
+            for rw, row in enumerate(run_datum):
+                if rw == 0 or ((run_datum[rw-1][4] == 'fixcross' or \
+                                run_datum[rw-1][4] == 'baseline') and \
+                               row[4] not in 'final_baseline'):
+                    # Onset and duration for evaluation
+                    onset.append(row[6])
+                    duration_eval = int(run_datum[rw+8][6]) - int(row[6])
+                    duration.append(str(duration_eval))
+                    # Onset and duration for judgment
+                    onset.append(run_datum[rw+8][6])
+                    duration.append(run_datum[rw+8][7])
+                    # Onset and duration for response
+                    onset.append(run_datum[rw+9][6])
+                    duration.append(run_datum[rw+9][7])
+                    if row[4][:4] == 'beat' and row[5][:4] == 'beep':
+                        trial_type.append('auditory_beat_evaluation')
+                        trial_type.append('auditory_beat_judgment')
+                        trial_type.append('auditory_beat_response')
+                    elif row[4][:4] == 'beat' and row[5][:4] == 'rect':
+                        trial_type.append('visual_beat_evaluation')
+                        trial_type.append('visual_beat_judgment')
+                        trial_type.append('visual_beat_response')
+                    elif row[4][:4] == 'inte' and row[5][:4] == 'beep':
+                        trial_type.append('auditory_interval_evaluation')
+                        trial_type.append('auditory_interval_judgment')
+                        trial_type.append('auditory_interval_response')
+                    elif row[4][:4] == 'inte' and row[5][:4] == 'rect':
+                        trial_type.append('visual_interval_evaluation')
+                        trial_type.append('visual_interval_judgment')
+                        trial_type.append('visual_interval_response')
+                    else:
+                        pass
+                elif row[4] in ['fixcross', 'baseline', 'final_baseline']:
+                    onset.append(row[6])
+                    duration.append(row[7])
+                    trial_type.append('rest')
+                else:
+                    pass
 
-    # return trials
+            liste = np.empty((0, len(header)))
+            liste = np.vstack((header,
+                               np.vstack((onset, duration, trial_type)).T))
+
+            subject_dir = os.path.join(events_dir, 'sub-%02d' % subject_number)
+            if not os.path.exists(subject_dir):
+                os.makedirs(subject_dir)
+
+            fname = 'sub-%02d' % subject_number + \
+                '_ses-%02d' % session_number + \
+                '_task-production_run-%02d' % run_number + '_events.tsv'
+            output_path = os.path.join(subject_dir, fname)
+
+            # Save liste in the output file
+            with open(output_path, 'w') as fp:
+                a = csv.writer(fp, delimiter='\t')
+                a.writerows(liste)
 
 # %%
 # =========================== INPUTS ===================================
@@ -62,20 +117,26 @@ TASKS = ['Auditory Production',
 SESSTYPE = 'imaging session'
 N_SESSIONS = 2
 LOGFOLDER = 'logfiles'
+EVENTSFOLDER = 'events'
+HEADER = ['onset', 'duration', 'trial_type']
 
 # %%
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 logpath = os.path.join(MAIN_DIR, LOGFOLDER)
+eventspath = os.path.join(MAIN_DIR, EVENTSFOLDER)
 
 # %%
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    data = parse_logfile(logpath, SUBJECTS[0], SESSTYPE, N_SESSIONS, TASKS[2],
-                         concatenate=False)
-    
+    behavioral_data = parse_logfile(logpath, SUBJECTS[0], SESSTYPE, N_SESSIONS,
+                                    [TASKS[0], TASKS[3]], ttl = True,
+                                    concatenate=False)
+
+    production(behavioral_data, HEADER, eventspath)
+
 # logpath = os.path.join(MAIN_DIR, 'logfiles', 'sub-03', 'sess-01')
 # logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
 # logfiles.sort()
