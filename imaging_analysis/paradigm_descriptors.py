@@ -104,15 +104,16 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
             liste = np.vstack((header,
                                np.vstack((onset, duration, trial_type)).T))
 
-            subject_dir = os.path.join(events_dir, 'sub-%02d' % subject_number)
+            subjsess_dir = os.path.join(events_dir,
+                                        'sub-%02d' % subject_number,
+                                        'ses-%02d' % session_number)
 
-            if not flag:
-                if not os.path.exists(subject_dir):
-                    os.makedirs(subject_dir)
-                else:
-                    for f in glob.glob(subject_dir + '/*_events.tsv'):
+            if not os.path.exists(subjsess_dir):
+                os.makedirs(subjsess_dir)
+            else:
+                if flag == 0 and run_number == 1:
+                    for f in glob.glob(subjsess_dir + '/*_events.tsv'):
                         os.remove(f)
-                flag = 1
 
             if cat == 'No-Temporal Feature Discrimination':
                 fname = 'sub-%02d' % subject_number + \
@@ -124,7 +125,7 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                     '_ses-%02d' % session_number + \
                     '_task-' + cat.lower() + '_run-%02d' % run_number + \
                     '_events.tsv'
-            output_path = os.path.join(subject_dir, fname)
+            output_path = os.path.join(subjsess_dir, fname)
 
             # Save liste in the output file
             with open(output_path, 'w') as fp:
