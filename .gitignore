@@ -1,5 +1,6 @@
 *.pdf
 behavioral_analysis/anovas/
+imaging_analysis/events
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
