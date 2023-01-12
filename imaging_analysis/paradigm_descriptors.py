@@ -83,9 +83,9 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                         trial_type.append('visual_interval_judgment')
                         trial_type.append('visual_interval_response')
                     elif row[4][:4] == 'rand' and row[5][:4] == 'beep':
-                        trial_type.append('visual_random_evaluation')
-                        trial_type.append('visual_random_judgment')
-                        trial_type.append('visual_random_response')
+                        trial_type.append('auditory_random_evaluation')
+                        trial_type.append('auditory_random_judgment')
+                        trial_type.append('auditory_random_response')
                     elif row[4][:4] == 'rand' and row[5][:4] == 'rect':
                         trial_type.append('visual_random_evaluation')
                         trial_type.append('visual_random_judgment')
@@ -98,7 +98,7 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                     duration.append(row[7])
                     trial_type.append('rest')
                 else:
-                    raise NameError('Condition does not exist for this trial!')
+                    pass
 
             liste = np.empty((0, len(header)))
             liste = np.vstack((header,
