@@ -830,12 +830,13 @@ switch what
         % models each condition as a separate regressors
         % For conditions with multiple repetitions, one regressor
         % represents all the instances
-        % ibc_imana('GLM:design', 'sn', [1])
+        % msdtb_imana('GLM:design', 'sn', [1])
         
         sn = subj_id;
-        ses = session_names; % which session?
+        ssn = ses_id; % list of sessions
+        tasks = {'prod', 'percep', 'ntfd'};
         hrf_cutoff = Inf;
-        prefix = 'r'; % prefix of the preprocessed epi we want to use
+        prefix = 'u'; % prefix of the preprocessed epi we want to use
         vararginoptions(varargin, {'sn', 'hrf_cutoff', 'ses'});
         
         
@@ -844,482 +845,143 @@ switch what
         
         % loop over subjects
         for s = sn
-            funcraw_subj_dir = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                func_dir);
-            funcderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, func_dir);
-            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, est_dir);
-            
-%             sbj_number = str2double((extractAfter(subj_str{s},'sub-')));
-%             subsess = cellstr(sessmap.(['sub' num2str(sbj_number, ...
-%                 '%02d')]));
-            
-            % loop over sessions
-            for smap = ses
-                % sesstag = sessnum{find(contains(subsess,smap))};
-                smapstr = replace(smap{1}, '-', '');
-                
-                raw_sess_dir = fullfile(funcraw_subj_dir, ...
-                    ['ses-' smapstr]);
-                deriv_sess_dir = fullfile(funcderiv_subj_dir, ...
-                    ['ses-' smapstr]);
-                est_sess_dir = fullfile(estderiv_subj_dir, ...
-                    ['ses-' smapstr]);
-                
-                % Delete any existing .nii and .nii.gz files from previous
-                % computations
-                if any(size(dir(fullfile(est_sess_dir, '*.nii.gz')), 1))
-                    delete(fullfile(est_sess_dir, '*.nii.gz'))
+            deriv_subjdir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            % loop over tasks
+            for tk=1:length(tasks)
+                estimates_folder = fullfile(deriv_subjdir, est_dir);
+                if strcmp(tasks{tk}, 'prod')
+                    ttag = 'production';
+                elseif strcmp(tasks{tk}, 'percep')
+                    ttag = 'perception';
+                elseif strcmp(tasks{tk}, 'ntfd')
+                    ttag = 'ntfd';
+                else
+                    % do nothing
                 end
-                if any(size(dir(fullfile(est_sess_dir, '*.nii')), 1))
-                    delete(fullfile(est_sess_dir, '*.nii'))
-                end
-                % Delete any existing design-maatrix .mat file
-                if any(size(dir(fullfile(est_sess_dir, 'SPM.mat')), 1))
-                    delete(fullfile(est_sess_dir, 'SPM.mat'))
-                end
+                taskest_folder = fullfile(estimates_folder, ttag);
+                % Create/update destination folders
+                folder(taskest_folder);
                 
                 J = []; % structure with SPM fields to make the design
 
                 J.timing.units   = 'secs';
-                J.timing.RT      = 2.0;
+                J.timing.RT      = 1.2;
                 J.timing.fmri_t  = 16;
                 J.timing.fmri_t0 = 1;
-                
+
                 J.fact             = struct('name', {}, 'levels', {});
                 J.bases.hrf.derivs = [0 0];
                 J.bases.hrf.params = [4.5 11]; % set to [] if running wls
                 J.volt             = 1;
                 J.global           = 'None';
-                J.mask             = {char(fullfile(deriv_sess_dir, ...
-                    'rmask_noskull.nii'))};
+                J.mask             = {char(fullfile(deriv_subjdir, ...
+                    'ses-01', func_dir, 'rmask_noskull.nii'))};
                 J.mthresh          = 0.05;
-                J.cvi_mask         = {char(fullfile(deriv_sess_dir, ...
-                    'rmask_gray.nii'))};
+                J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
+                    'ses-01', func_dir,'rmask_gray.nii'))};
                 J.cvi              = 'fast';
-                
-                % get the list of runs for the current session
-                listing2 = dir(deriv_sess_dir);
-                runs = {listing2.name};
-                runs = runs(startsWith(runs, 'rsub-'));
-                
-                if  strcmp(smapstr, 'spatialnavigation')
-                    runs(1)= []
-                end
-  
-%                 if strcmp(task,'Self')
-%                     Regressors = {};
-%                 end
-                
-                % loop over runs
-                for rn = 1:length(runs)
-                    run = str2num(extractBefore(extractAfter(runs{rn}, ...
-                        'run-'), [3]));
-                    if ~exist(fullfile(est_sess_dir, ...
-                            sprintf('run-%02d', run)), 'dir')
-                        mkdir(fullfile(est_sess_dir, ...
-                            sprintf('run-%02d', run)))
-                    else
-                        if any(size(dir(fullfile(est_sess_dir, ...
-                                sprintf('run-%02d', run), 'SPM.mat')), 1))
-                            delete(fullfile(est_sess_dir, ...
-                                sprintf('run-%02d', run), 'SPM.mat'))
-                        end
-                    end
-                    J.dir = {fullfile(est_sess_dir, ...
-                        sprintf('run-%02d', run))};
-                    
-                    % Load the scans
-                    fname = fullfile(deriv_sess_dir, ...
-                        sprintf('%s%s_ses-%s_run-%02d_bold.nii', ...
-                        prefix, subj_str{s}, smapstr, run));
-                    V = niftiinfo(fname);
-                    numTRs = V.ImageSize(4);
-                    % fill in nifti image names for the current run
-                    N = cell(numTRs - numDummys, 1); % preallocating!
-                    for i = 1:(numTRs-numDummys)
-                        N{i} = fullfile(deriv_sess_dir, sprintf(...
-                            '%s%s_ses-%s_run-%02d_bold.nii, %d', ...
-                            prefix, subj_str{s}, smapstr, run, i));
-                    end % i (image numbers)
-                    J.sess.scans = N; % scans in the current runs
-                    
-                    J.sess.cond = struct('name', {}, 'onset', {}, ...
-                        'duration', {}, 'tmod', {}, 'pmod', {}, ...
-                        'orth', {});
-                    
-                    % get the path to the tsv file
-                    tsv_file = fullfile(raw_sess_dir, sprintf(...
-                        '%s_ses-%s_run-%02d_events.tsv', ...
-                        subj_str{s}, smapstr, run))
-                    % get the tsvfile for the current run
-                    D = struct([]); 
-                    D = tdfread(tsv_file,'\t');
-                    
-                    trial_names = {};
-                    trial_onsets = {};
-                    trial_durations = {};
-                    trial_names = cellstr(D.trial_type);
-                    trial_onsets = num2cell(D.onset);
-                    trial_durations = num2cell(D.duration);
-                    
-                    % Get the task id
-                    tasks = task_name(find(contains(sessid, smap)));
-                    task = replace(tasks{rn}, ' ', '');
-                    idxs = [];
-                    idxs1 = [];
-                    idxs2 = [];
-                    idxs3 = [];
-                    idxs4 = [];
-                    idxs5 = [];
-                    
-                    % Extract the scores to build the parametric ...
-                    % modulators for Preference Tasks
-                    if strcmp(task,'PreferenceFood') || ...
-                            strcmp(task,'PreferencePaintings') || ...
-                            strcmp(task,'PreferenceFaces') || ...
-                            strcmp(task,'PreferenceHouses')
-                        
-                        trial_mods = {};
-                        if isa(D.score, 'double')
-                            trial_mods = num2cell(D.score);
-                        else
-                            for t = 1:length(D.score)
-                                if strcmp(D.score(t, 1:3), 'n/a')
-                                    trial_mods{t, 1} = NaN;
-                                else
-                                    trial_mods{t, 1} = ...
-                                        str2num(D.score(t, 1:3)); 
-                                end
-                            end
-                        end
-                    end
-                    % Adjustments in some design matrices
-                    if strcmp(task, 'ArchiSocial')
-                        idxs = find(~contains(trial_names, 'pourquoi'));
-                        trial_names = trial_names(idxs);
-                        trial_onsets = trial_onsets(idxs);
-                        trial_durations = trial_durations(idxs);
-                    elseif strcmp(task, 'HcpLanguage')
-                        idxs = find(~contains(trial_names, 'dummy'));
-                        trial_names = trial_names(idxs);
-                        trial_onsets = trial_onsets(idxs);
-                        trial_durations = trial_durations(idxs);
-                    elseif strcmp(task, 'HcpMotor')
-                        idxs = find(contains(trial_names, 'cue'));
-                        trial_names(idxs) = {'cue'};
-                    elseif strcmp(task, 'RSVPLanguage')
-                        idxs1 = find(contains(trial_names, ...
-                            'complex_sentence'));
-                        trial_names(idxs1) = {'complex_sentence'};
-                        idxs2 = find(contains(trial_names, ...
-                            'simple_sentence'));
-                        trial_names(idxs2) = {'simple_sentence'};
-                    elseif strcmp(task,'PreferenceFood') || ...
-                            strcmp(task,'PreferencePaintings') || ...
-                            strcmp(task,'PreferenceFaces') || ...
-                            strcmp(task,'PreferenceHouses')
-                        idxs = find(~contains(trial_names, '_too-slow'));
-                        trial_names = trial_names(idxs);
-                        trial_onsets = trial_onsets(idxs);
-                        trial_durations = trial_durations(idxs);
-                    elseif strcmp(task, 'VSTM') || ...
-                            strcmp(task, 'Enumeration')
-                        idxs = find(contains(trial_names, 'memorization'));
-                        for i = 1:length(idxs)
-                            trial_names(idxs(i)) = strrep(...
-                                trial_names(idxs(i)), 'memorization', ...
-                                'response');
-                        end
-                        for k = 1:length(trial_names)
-                            if strcmp(task, 'VSTM')
-                                trial_names(k) = strcat('vstm_', ...
-                                    trial_names(k));
-                            else
-                                trial_names(k) = strcat('enumeration_', ...
-                                    trial_names(k));
-                            end
-                        end
-                    elseif strcmp(task,'Self')
-                        idxs1 = find(contains(trial_names, ...
-                            'self_relevance_with_response'));
-                        trial_names(idxs1) = {'encode_self'};                        
-                        idxs2 = find(contains(trial_names, ...
-                            'other_relevance_with_response'));
-                        trial_names(idxs2) = {'encode_other'};                      
-                        idxs3 = find(contains(trial_names, ...
-                            'self_relevance_no_response'));
-                        trial_names(idxs3) = {'encode_self_no_response'};                        
-                        idxs4 = find(contains(trial_names, ...
-                            'other_relevance_no_response'));
-                        trial_names(idxs4) = {'encode_other_no_response'};                        
-                        idxs5 = find(contains(trial_names, ...
-                            'old_self_hit'));
-                        trial_names(idxs5) = {'recognition_self_hit'};                       
-                        idxs6 = find(contains(trial_names, ...
-                            'old_self_miss'));
-                        trial_names(idxs6) = {'recognition_self_miss'};                       
-                        idxs7 = find(contains(trial_names, ...
-                            'old_other_hit'));
-                        trial_names(idxs7) = {'recognition_other_hit'};                       
-                        idxs8 = find(contains(trial_names, ...
-                            'old_other_miss'));
-                        trial_names(idxs8) = {'recognition_other_miss'};                       
-                        idxs9 = find(contains(trial_names, 'new_fa'));
-                        trial_names(idxs9) = {'false_alarm'};                        
-                        idxs10 = find(contains(trial_names, 'new_cr'));
-                        trial_names(idxs10) = {'correct_rejection'};                        
-                        idxs11 = find(contains(trial_names, ...
-                            'old_self_no_response'));
-                        trial_names(idxs11) = {...
-                            'recognition_self_no_response'};                        
-                        idxs12 = find(contains(trial_names, ...
-                            'old_other_no_response'));
-                        trial_names(idxs12) = {...
-                            'recognition_other_no_response'};
-                    elseif strcmp(task, 'Moto')
-                        idxs = find(~contains(trial_names, 'Bfix'));
-                        trial_names = trial_names(idxs);
-                        trial_onsets = trial_onsets(idxs);
-                        trial_durations = trial_durations(idxs);
-                        
-                        idxs1 = find(contains(trial_names, ...
-                            'Ins_'));
-                        trial_names(idxs1) = {'instructions'};
-                        idxs2 = find(contains(trial_names, ...
-                            'sacaade_right'));
-                        trial_names(idxs2) = {'saccade_right'};
-                        idxs3 = find(contains(trial_names, ...
-                            'sacaade_left'));
-                        trial_names(idxs3) = {'saccade_left'};
-                    elseif strcmp(task, 'MCSE')
-                        idxs = find(~contains(trial_names, 'Bfix'));
-                        trial_names = trial_names(idxs);
-                        trial_onsets = trial_onsets(idxs);
-                        trial_durations = trial_durations(idxs);
-                        
-                        idxs1 = find(contains(trial_names, ...
-                            'hi_salience_left'));
-                        trial_names(idxs1) = {'high_salience_left'};
-                        idxs2 = find(contains(trial_names, ...
-                            'hi_salience_right'));
-                        trial_names(idxs2) = {'high_salience_right'};
-                    elseif strcmp(task, 'MVEB')
-                        idxs1 = find(~contains(trial_names, 'cross'));
-                        trial_names = trial_names(idxs1);
-                        trial_onsets = trial_onsets(idxs1);
-                        trial_durations = trial_durations(idxs1);
-                        idxs2 = find(~contains(trial_names, 'blank2'));
-                        trial_names = trial_names(idxs2);
-                        trial_onsets = trial_onsets(idxs2);
-                        trial_durations = trial_durations(idxs2);
-                    elseif strcmp(task, 'MVIS')
-                        idxs1 = find(~contains(trial_names, 'grid'));
-                        trial_names = trial_names(idxs1);
-                        trial_onsets = trial_onsets(idxs1);
-                        trial_durations = trial_durations(idxs1);
-                        idxs2 = find(~contains(trial_names, 'Bfix'));
-                        trial_names = trial_names(idxs2);
-                        trial_onsets = trial_onsets(idxs2);
-                        trial_durations = trial_durations(idxs2);
-                        idxs3 = find(~contains(trial_names, ...
-                            'maintenance'));
-                        trial_names = trial_names(idxs3);
-                        trial_onsets = trial_onsets(idxs3);
-                        trial_durations = trial_durations(idxs3);
-                    elseif strcmp(task, 'Lec1')
-                        idxs1 = find(~contains(trial_names, 'Bfix'));
-                        trial_names = trial_names(idxs1);
-                        trial_onsets = trial_onsets(idxs1);
-                        trial_durations = trial_durations(idxs1);
-                        idxs2 = find(~contains(trial_names, ...
-                            'start_random_string'));
-                        trial_names = trial_names(idxs2);
-                        trial_onsets = trial_onsets(idxs2);
-                        trial_durations = trial_durations(idxs2);
-                        idxs3 = find(~contains(trial_names, ...
-                            'start_pseudoword'));
-                        trial_names = trial_names(idxs3);
-                        trial_onsets = trial_onsets(idxs3);
-                        trial_durations = trial_durations(idxs3);
-                        idxs4 = find(~contains(trial_names, ...
-                            'start_word'));
-                        trial_names = trial_names(idxs4);
-                        trial_onsets = trial_onsets(idxs4);
-                        trial_durations = trial_durations(idxs4);
-                    elseif strcmp(task, 'Lec2')
-                        idxs1 = find(~contains(trial_names, 'Bfix'));
-                        trial_names = trial_names(idxs1);
-                        trial_onsets = trial_onsets(idxs1);
-                        trial_durations = trial_durations(idxs1);
-                        idxs2 = find(~contains(trial_names, 'Suite'));
-                        trial_names = trial_names(idxs2);
-                        trial_onsets = trial_onsets(idxs2);
-                        trial_durations = trial_durations(idxs2);
-                    elseif strcmp(task, 'Audi')
-                        idxs1 = find(~contains(trial_names, 'Bfix'));
-                        trial_names = trial_names(idxs1);
-                        trial_onsets = trial_onsets(idxs1);
-                        trial_durations = trial_durations(idxs1);
-                        idxs2 = find(~contains(trial_names, ...
-                            'start_sound'));
-                        trial_names = trial_names(idxs2);
-                        trial_onsets = trial_onsets(idxs2);
-                        trial_durations = trial_durations(idxs2);
-                        idxs3 = find(~contains(trial_names, 'cut'));
-                        trial_names = trial_names(idxs3);
-                        trial_onsets = trial_onsets(idxs3);
-                        trial_durations = trial_durations(idxs3);
-                        idxs4 = find(~contains(trial_names, '1'));
-                        trial_names = trial_names(idxs4);
-                        trial_onsets = trial_onsets(idxs4);
-                        trial_durations = trial_durations(idxs4);
-                        
-                        idxs5 = find(contains(trial_names, 'envir'));
-                        trial_names(idxs5) = {'environment'};
-                    elseif strcmp(task, 'Visu')
-                        idxs1 = find(~contains(trial_names, 'Bfix'));
-                        trial_names = trial_names(idxs1);
-                        trial_onsets = trial_onsets(idxs1);
-                        trial_durations = trial_durations(idxs1);
-                        
-                        idxs2 = find(contains(trial_names, 'visage'));
-                        trial_names(idxs2) = {'face'};
-                    elseif strcmp(task, 'MathLanguage1') || ...
-                            strcmp(task,'MathLanguage2')
-                        idxs1 = find(~contains(trial_names, 'TTL'));
-                        trial_names = trial_names(idxs1);
-                        trial_onsets = trial_onsets(idxs1);
-                        trial_durations = trial_durations(idxs1);
-                        idxs2 = find(~contains(trial_names, 'bip'));
-                        trial_names = trial_names(idxs2);
-                        trial_onsets = trial_onsets(idxs2);
-                        trial_durations = trial_durations(idxs2);
-                        idxs3 = find(~contains(trial_names, 'blank'));
-                        trial_names = trial_names(idxs3);
-                        trial_onsets = trial_onsets(idxs3);
-                        trial_durations = trial_durations(idxs3);
-                        idxs4 = find(~contains(trial_names, 'empty'));
-                        trial_names = trial_names(idxs4);
-                        trial_onsets = trial_onsets(idxs4);
-                        trial_durations = trial_durations(idxs4);
-                        idxs5 = find(~contains(trial_names, 'keypressed'));
-                        trial_names = trial_names(idxs5);
-                        trial_onsets = trial_onsets(idxs5);
-                        trial_durations = trial_durations(idxs5);
-                    elseif strcmp(task, 'SpatialNavigation')
-                        idxs1 = find(~contains(trial_names, 'fixation'));
-                        trial_names = trial_names(idxs1);
-                        trial_onsets = trial_onsets(idxs1);
-                        trial_durations = trial_durations(idxs1);
-                        idxs2 = find(~contains(trial_names, 'encoding_'));
-                        trial_names = trial_names(idxs2);
-                        trial_onsets = trial_onsets(idxs2);
-                        trial_durations = trial_durations(idxs2);
-                        
-                        idxs3 = find(contains(trial_names, ...
-                            'intersection_'));
-                        trial_names(idxs3) = {'intersection'};
-                    end
-                    
-                    % Prepare .mat file containing the paradigm descriptors
-                    names = {};
-                    onsets = {};
-                    durations = {};
-                    names = unique(trial_names).';
-                    for u = 1:length(names)
-                        indexes = [];
-                        indexes = find(strcmp(trial_names, names{u}));
-                        for idx = 1:length(indexes)
-                            onsets{u}(idx) = trial_onsets{indexes(idx)};
-                            durations{u}(idx) = ...
-                                trial_durations{indexes(idx)};
-                        end
-                    end
-                    
-                    if strcmp(smapstr, 'preference')
-                        
-                        % Remove NaNs from cell
-                        trial_mods(cellfun(@(trial_mods) any(isnan(...
-                            trial_mods)), trial_mods)) = [];
-                        % linear = repnan(cell2mat(trial_mods));
-                        % Mean center the modulator of the amplitude
-                        % In the present case, these are the scores
-                        trial_mods = cell2mat(trial_mods);
-                        mean_linear = mean(trial_mods);
-                        linear = trial_mods - mean_linear;
 
-                        % Define parametric modulators                       
-                        pmod = struct('name', {''}, 'param', {}, ...
-                            'poly', {});
-                        pmod(1).name{1} = 'linear';
-                        pmod(1).param{1} = linear;
-                        pmod(1).poly{1} = 2; % this will create both the linear and the quadratic terms of the condition #1
+                J.dir = {taskest_folder};
+                
+                % loop over sessions
+                count = 0;
+                for ses = ssn
+                    funcderiv_folder = fullfile(deriv_subjdir, ...
+                        ['ses-' num2str(ses, '%02d')], func_dir);                   
+                    % loop over runs
+                    if ses == 2 && strcmp(tasks{tk}, 'ntfd')
+                        n_run = 4;
+                    else
+                        n_run = 2;
+                    end
+                    for r=1:n_run
+                        count = count + 1;
+                        fpath = fullfile(funcderiv_folder, ...
+                            sprintf(...
+                            '%s%s_ses-%d_task-%s_run-%02d_bold.nii', ...
+                            prefix, subj_str{s}, ses, tasks{tk}, r));
+                        V = niftiinfo(fpath);
+                        numTRs = V.ImageSize(4);
+                        % fill in nifti image names for the current run
+                        N = cell(numTRs - numDummys, 1); % preallocating!
+                        for i = 1:(numTRs-numDummys)
+                            N{i} = fullfile(funcderiv_folder, ...
+                                sprintf(...
+                                '%s%s_ses-%d_task-%s_run-%02d_bold.nii, %d', ...
+                                prefix, subj_str{s}, ses, tasks{tk}, r, ...
+                                i));
+                        end % i (image numbers)
+                    
+                        % Load the scans
+                        J.sess(count).scans = N; % scans in the current runs
+                    
+                        J.sess(count).cond = struct('name', {}, 'onset', ...
+                            {}, 'duration', {}, 'tmod', {}, 'pmod', {}, ...
+                            'orth', {});
+                    
+                        % Event Files
+                        % get the path to the tsv file
+                        tsv_file = fullfile(funcderiv_folder, sprintf(...
+                            '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
+                            subj_str{s}, ses, tasks{tk}, r));
                         
-                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                        
-%                         % This snippet of code computes explicitly the
-%                         % second order of the polynomial modulator 
-%                         % (i.e. the quadratic term)
-%                         
-%                         quadratic = linear.^2;
-%                         mean_quadratic = mean(quadratic);
-%                         quadratic = quadratic - mean_quadratic;
-%                         quadratic = quadratic - (...
-%                             linear * dot(quadratic, linear))/dot(...
-%                             linear, linear);
-%                         
-%                         % using this, we have then to create the modulator
-%                         % and set poly to 1
-%                         
-%                         pmod(1).name{2} = 'quadratic';
-%                         pmod(1).param{2} = quadratic;
-%                         pmod(1).poly{2} = 1;
-                        
-                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                        % get the tsvfile for the current run
+                        D = struct([]); 
+                        D = tdfread(tsv_file,'\t');
+                    
+                        trial_names = {};
+                        trial_onsets = {};
+                        trial_durations = {};
+                        trial_names = cellstr(D.trial_type);
+                        trial_onsets = num2cell(D.onset);
+                        trial_durations = num2cell(D.duration);
+                    
+                        % Prepare .mat file containing the paradigm ...
+                        % descriptors
+                        names = {};
+                        onsets = {};
+                        durations = {};
+                        names = unique(trial_names).';
+                        % Remove Rest, since it will be modelled implicitly
+                        names(ismember(names, 'rest')) = [];
+                        % Create onsets and duration cells
+                        for u = 1:length(names)
+                            indexes = [];
+                            indexes = find(strcmp(trial_names, names{u}));
+                            for idx = 1:length(indexes)
+                                onsets{u}(idx) = trial_onsets{...
+                                    indexes(idx)};
+                                durations{u}(idx) = ...
+                                    trial_durations{indexes(idx)};
+                            end
+                        end
 
                         save(...
                             sprintf(...
-                            '/localscratch/%s_ses-%s_run-%02d_events.mat', ...
-                            subj_str{s}, smapstr, run), ...
-                            'names', 'onsets', 'durations', 'pmod');
-                    else
-                        save(...
-                            sprintf(...
-                            '/localscratch/%s_ses-%s_run-%02d_events.mat', ...
-                            subj_str{s}, smapstr, run), ...
+                            '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
+                            subj_str{s}, ses, tasks{tk}, r), ...
                             'names', 'onsets', 'durations'); 
-                    end
                                        
-                    J.sess.multi = {sprintf(...
-                        '/localscratch/%s_ses-%s_run-%02d_events.mat', ...
-                        subj_str{s}, smapstr, run)};
+                        J.sess(count).multi = {sprintf(...
+                            '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
+                            subj_str{s}, ses, tasks{tk}, r)};
                     
-                    J.sess.regress   = struct('name', {}, 'val', {});
-                    J.sess.multi_reg = {''};
-                    J.sess.hpf       = hrf_cutoff; % set to 0'inf' if using J.cvi = 'FAST'. SPM HPF not applied
+                        J.sess(count).regress   = struct('name', {}, 'val', {});
+                        J.sess(count).multi_reg = {''};
+                        J.sess(count).hpf       = hrf_cutoff; % set to 0'inf' if using J.cvi = 'FAST'. SPM HPF not applied
 
-%                     if strcmp(task,'Self')
-%                         Regressors{end+1} = names;
-%                     end
-
-                    spm_rwls_run_fmri_spec(J);
+                    end % r (n_run)
+                end % ses (ssn)
+                
+                % FFX across sessiona for a given task and participant
+                spm_rwls_run_fmri_spec(J);
                     
-                    % Remove *events.mat file from /localscratch
-                    if any(size(dir('/localscratch/*_events.mat'), 1))
-                        delete('/localscratch/*_events.mat')
-                    end
-
-                end % run (runs of current session)                
-            end % ss (session)
-
-%         if strcmp(task,'Self')
-%             T = cell2table(Regressors)
-%             % Write the table to a TSV file
-%             writetable(T, 'newfile.csv', 'Delimiter', '\t');
-%         end
-        
+                % Remove *events.mat file from /localscratch
+                if any(size(dir('/localscratch/*_events.mat'), 1))
+                    delete('/localscratch/*_events.mat');
+                end
+            end % tk (tasks)
         end % sn (subject)
 
     case 'GLM:check_design' % checking the design matrix
