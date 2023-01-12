@@ -29,7 +29,7 @@ from utils import parse_logfile
 # ========================== FUNCTIONS =================================
 
 
-def production(data, header, events_dir, ttl = True):
+def extraction(data, cat, header, events_dir, ttl = True, flag=0):
     for ses_datum in data:
         for run_datum in ses_datum:
             onset = []
@@ -54,10 +54,18 @@ def production(data, header, events_dir, ttl = True):
                     duration.append(str(duration_eval))
                     # Onset and duration for judgment
                     onset.append(run_datum[rw+8][6])
-                    duration.append(run_datum[rw+8][7])
+                    if cat == 'Production':
+                        duration.append(run_datum[rw+8][7])
+                    else:
+                        assert cat in ['Perception',
+                                       'No-Temporal Feature Discrimination']
+                        duration_judg = int(run_datum[rw+11][6]) - \
+                            int(run_datum[rw+8][6])
+                        duration.append(str(duration_judg)) 
                     # Onset and duration for response
                     onset.append(run_datum[rw+9][6])
                     duration.append(run_datum[rw+9][7])
+                    # Trial types for all conditions
                     if row[4][:4] == 'beat' and row[5][:4] == 'beep':
                         trial_type.append('auditory_beat_evaluation')
                         trial_type.append('auditory_beat_judgment')
@@ -74,8 +82,17 @@ def production(data, header, events_dir, ttl = True):
                         trial_type.append('visual_interval_evaluation')
                         trial_type.append('visual_interval_judgment')
                         trial_type.append('visual_interval_response')
+                    elif row[4][:4] == 'rand' and row[5][:4] == 'beep':
+                        trial_type.append('visual_random_evaluation')
+                        trial_type.append('visual_random_judgment')
+                        trial_type.append('visual_random_response')
+                    elif row[4][:4] == 'rand' and row[5][:4] == 'rect':
+                        trial_type.append('visual_random_evaluation')
+                        trial_type.append('visual_random_judgment')
+                        trial_type.append('visual_random_response')
                     else:
-                        pass
+                        raise NameError(
+                            'Condition does not exist for this trial!')
                 elif row[4] in ['fixcross', 'baseline', 'final_baseline']:
                     onset.append(row[6])
                     duration.append(row[7])
@@ -88,12 +105,25 @@ def production(data, header, events_dir, ttl = True):
                                np.vstack((onset, duration, trial_type)).T))
 
             subject_dir = os.path.join(events_dir, 'sub-%02d' % subject_number)
-            if not os.path.exists(subject_dir):
-                os.makedirs(subject_dir)
 
-            fname = 'sub-%02d' % subject_number + \
-                '_ses-%02d' % session_number + \
-                '_task-production_run-%02d' % run_number + '_events.tsv'
+            if not flag:
+                if not os.path.exists(subject_dir):
+                    os.makedirs(subject_dir)
+                else:
+                    for f in glob.glob(subject_dir + '/*_events.tsv'):
+                        os.remove(f)
+                flag = 1
+
+            if cat == 'No-Temporal Feature Discrimination':
+                fname = 'sub-%02d' % subject_number + \
+                    '_ses-%02d' % session_number + \
+                    '_task-ntfd_run-%02d' % run_number + \
+                    '_events.tsv'
+            else:
+                fname = 'sub-%02d' % subject_number + \
+                    '_ses-%02d' % session_number + \
+                    '_task-' + cat.lower() + '_run-%02d' % run_number + \
+                    '_events.tsv'
             output_path = os.path.join(subject_dir, fname)
 
             # Save liste in the output file
@@ -104,16 +134,11 @@ def production(data, header, events_dir, ttl = True):
 # %%
 # =========================== INPUTS ===================================
 
-# SUBJECTS = [3, 8]
-SUBJECTS = [3]
+SUBJECTS = [3, 4, 7, 8]
+# SUBJECTS = [3]
 
-TASKS = ['Auditory Production',
-         'Auditory Perception',
-         'Auditory No-Temporal Feature Discrimination',
-         'Visual Production',
-         'Visual Perception',
-         'Visual No-Temporal Feature Discrimination']
-
+CATEGORIES = ['Production', 'Perception', 'No-Temporal Feature Discrimination']
+MODALITIES = ['Auditory', 'Visual']
 SESSTYPE = 'imaging session'
 N_SESSIONS = 2
 LOGFOLDER = 'logfiles'
@@ -123,34 +148,24 @@ HEADER = ['onset', 'duration', 'trial_type']
 # %%
 # ========================= PARAMETERS =================================
 
-MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
-logpath = os.path.join(MAIN_DIR, LOGFOLDER)
-eventspath = os.path.join(MAIN_DIR, EVENTSFOLDER)
+all_tasks = np.ravel([[m + ' ' + c for c in CATEGORIES]
+                      for m in MODALITIES]).tolist()
+main_dir = os.path.dirname(os.path.abspath(__file__))
+logpath = os.path.join(main_dir, LOGFOLDER)
+eventspath = os.path.join(main_dir, EVENTSFOLDER)
 
 # %%
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    behavioral_data = parse_logfile(logpath, SUBJECTS[0], SESSTYPE, N_SESSIONS,
-                                    [TASKS[0], TASKS[3]], ttl = True,
-                                    concatenate=False)
-
-    production(behavioral_data, HEADER, eventspath)
-
-# logpath = os.path.join(MAIN_DIR, 'logfiles', 'sub-03', 'sess-01')
-# logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
-# logfiles.sort()
-# inputs_lists = [list(csv.reader(open(logfile), delimiter=','))
-#                 for logfile in logfiles]
-
-# for inputs_list in inputs_lists:
-#     for r, row in enumerate(inputs_list):
-#         if row[0][9:][:-18] in TASKS:
-#             task_name = row[0][9:][:-18]
-#             if task_name[:4] == 'Audi':
-#                 modality = 'audio'
-#             else:
-#                 modality = 'visual'
-#         if row[0] == 'subject_id':
-#             liste = inputs_list[r+1:]
-#             0/0
+    for subject in SUBJECTS:
+        for c, category in enumerate(CATEGORIES):
+            tasks = [task for task in all_tasks if category in task]
+            behavioral_data = parse_logfile(logpath, subject, SESSTYPE,
+                                            N_SESSIONS, tasks, ttl=True,
+                                            concatenate=False)
+            if c == 0:
+                extraction(behavioral_data, category, HEADER, eventspath)
+            else:
+                extraction(behavioral_data, category, HEADER, eventspath,
+                           flag=1)
