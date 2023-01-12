@@ -1,4 +1,5 @@
 *.pdf
+*.asv
 behavioral_analysis/anovas/
 imaging_analysis/events
 
