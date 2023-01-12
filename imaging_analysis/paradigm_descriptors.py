@@ -29,6 +29,12 @@ from utils import parse_logfile
 # ========================== FUNCTIONS =================================
 
 
+def convert(strnum):
+    converted_num = round(float(strnum)/1e3, 3)
+
+    return converted_num
+
+
 def extraction(data, cat, header, events_dir, ttl = True, flag=0):
     for ses_datum in data:
         for run_datum in ses_datum:
@@ -37,8 +43,10 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
             trial_type = []
             if ttl:
                 assert run_datum[0][4] == 'ttl'
-                onset.append(run_datum[0][6])
-                duration.append(run_datum[0][7])
+                offset = convert(run_datum[0][6])
+                onset.append(str(float(0)))
+                initial_rest = convert(run_datum[0][7])
+                duration.append(str(initial_rest))
                 trial_type.append('rest')
                 run_datum = run_datum[1:]
             subject_number = int(run_datum[0][0])
@@ -49,22 +57,28 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                                 run_datum[rw-1][4] == 'baseline') and \
                                row[4] not in 'final_baseline'):
                     # Onset and duration for evaluation
-                    onset.append(row[6])
-                    duration_eval = int(run_datum[rw+8][6]) - int(row[6])
+                    onset_eval = round(convert(row[6]) - offset, 3)
+                    onset.append(str(onset_eval))
+                    duration_eval = round(convert(run_datum[rw+8][6]) - \
+                                          convert(row[6]), 3)
                     duration.append(str(duration_eval))
                     # Onset and duration for judgment
-                    onset.append(run_datum[rw+8][6])
+                    onset_judg = round(convert(run_datum[rw+8][6]) - offset, 3)
+                    onset.append(str(onset_judg))
                     if cat == 'Production':
-                        duration.append(run_datum[rw+8][7])
+                        duration_judg = convert(run_datum[rw+8][7])
+                        duration.append(str(duration_judg))
                     else:
                         assert cat in ['Perception',
                                        'No-Temporal Feature Discrimination']
-                        duration_judg = int(run_datum[rw+11][6]) - \
-                            int(run_datum[rw+8][6])
+                        duration_judg = round(convert(run_datum[rw+11][6]) - \
+                                              convert(run_datum[rw+8][6]), 3)
                         duration.append(str(duration_judg)) 
                     # Onset and duration for response
-                    onset.append(run_datum[rw+9][6])
-                    duration.append(run_datum[rw+9][7])
+                    onset_resp = round(convert(run_datum[rw+9][6]) - offset, 3)
+                    onset.append(str(onset_resp))
+                    duration_resp = convert(run_datum[rw+9][7])
+                    duration.append(str(duration_resp))
                     # Trial types for all conditions
                     if row[4][:4] == 'beat' and row[5][:4] == 'beep':
                         trial_type.append('auditory_beat_evaluation')
@@ -94,8 +108,10 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                         raise NameError(
                             'Trial type does not exist for this trial!')
                 elif row[4] in ['fixcross', 'baseline', 'final_baseline']:
-                    onset.append(row[6])
-                    duration.append(row[7])
+                    onset_rest = round(convert(row[6]) - offset, 3)
+                    onset.append(str(onset_rest))
+                    duration_rest = convert(row[7])
+                    duration.append(str(duration_rest))
                     trial_type.append('rest')
                 else:
                     pass
@@ -115,16 +131,18 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                     for f in glob.glob(subjsess_dir + '/*_events.tsv'):
                         os.remove(f)
 
-            if cat == 'No-Temporal Feature Discrimination':
-                fname = 'sub-%02d' % subject_number + \
-                    '_ses-%02d' % session_number + \
-                    '_task-ntfd_run-%02d' % run_number + \
-                    '_events.tsv'
+            if cat == 'Production':
+                cattag = 'prod'
+            elif cat == 'Perception':
+                cattag = 'percep'
             else:
-                fname = 'sub-%02d' % subject_number + \
-                    '_ses-%02d' % session_number + \
-                    '_task-' + cat.lower() + '_run-%02d' % run_number + \
-                    '_events.tsv'
+                assert cat == 'No-Temporal Feature Discrimination'
+                cattag = 'ntfd'
+
+            fname = 'sub-%02d' % subject_number + \
+                '_ses-%02d' % session_number + '_task-' + cattag + \
+                '_run-%02d' % run_number + '_events.tsv'
+
             output_path = os.path.join(subjsess_dir, fname)
 
             # Save liste in the output file
