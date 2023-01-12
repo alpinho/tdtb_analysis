@@ -92,13 +92,13 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                         trial_type.append('visual_random_response')
                     else:
                         raise NameError(
-                            'Condition does not exist for this trial!')
+                            'Trial type does not exist for this trial!')
                 elif row[4] in ['fixcross', 'baseline', 'final_baseline']:
                     onset.append(row[6])
                     duration.append(row[7])
                     trial_type.append('rest')
                 else:
-                    pass
+                    raise NameError('Condition does not exist for this trial!')
 
             liste = np.empty((0, len(header)))
             liste = np.vstack((header,
