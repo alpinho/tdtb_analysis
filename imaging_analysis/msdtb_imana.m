@@ -656,6 +656,7 @@ switch what
             deriv_folder = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s});
             funcmean_deriv = fullfile(deriv_folder, 'ses-01', func_dir);
+            Q = {};
             for ses = ssn
                 func_deriv = fullfile(deriv_folder, ...
                     ['ses-' num2str(ses, '%02d')], func_dir);
@@ -668,7 +669,6 @@ switch what
                     '%smeanu%s_ses-1_task-prod_run-01_bold.nii', ...
                     prefix, subj_str{s}));
                 % Select images to be realigned
-                Q = {};
                 for tk=1:length(tasks)
                     if ses == 2 && strcmp(tasks{tk}, 'ntfd')
                         n_run = 4;
