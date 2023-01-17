@@ -877,7 +877,7 @@ switch what
                 J.global           = 'None';
                 J.mask             = {char(fullfile(deriv_subjdir, ...
                     'ses-01', func_dir, 'rmask_noskull.nii'))};
-                J.mthresh          = 0.05;
+                J.mthresh          = 1.;
                 J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
                     'ses-01', func_dir,'rmask_gray.nii'))};
                 J.cvi              = 'fast';
