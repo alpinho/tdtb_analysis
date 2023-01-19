@@ -63,13 +63,13 @@ wb_dir   = 'surfaceWB';
 
 % list of subjects
 % subj_n  = [3, 4, 7, 8];
-subj_n  = [3, 8];
-% subj_n  = [3];
+% subj_n  = [3, 8];
+subj_n  = [3];
 
-for s=1:length(subj_n)
+subj_id = 1:length(subj_n);
+for s=subj_id
     subj_str{s} = ['sub-' num2str(subj_n(s), '%02d')];
 end
-subj_id = 1:length(subj_n);
 
 session_names = {'ses-1', 'ses-2'};
 ses_id = 1:length(session_names);
@@ -91,8 +91,8 @@ ses_id = 1:length(session_names);
 % AC coordinates (non-symmetric ones)
 loc_AC = {
           [1.0 23.6 -49.3],...      %sub-03
-          [0.5 29.2 -22.6],...      %sub-04
-          [0.0 27.5 -43.6],...      %sub-08
+          %[0.5 29.2 -22.6],...      %sub-04
+          %[0.0 27.5 -43.6],...      %sub-08
           };
 
 % numTRs = sesstruct.nrep;
@@ -127,8 +127,16 @@ switch what
             end
             
             % Get the name of the anatomical image
-            anatr_name = sprintf('%s_ses-1_acq-MPRAGE_run-01_T1w', ...
-                subj_str{s});
+            if strcmp(subj_str{s}, 'sub-03') || ...
+                    strcmp(subj_str{s}, 'sub-04') || ...
+                    strcmp(subj_str{s}, 'sub-07') || ...
+                    strcmp(subj_str{s}, 'sub-08')                
+                anatr_name = sprintf('%s_ses-1_acq-MPRAGE_run-01_T1w', ...
+                    subj_str{s});
+            else
+                anatr_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w', ...
+                    subj_str{s});
+            end
             anatd_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w', ...
                 subj_str{s});
             
@@ -280,19 +288,43 @@ switch what
         vararginoptions(varargin,{'sn', 'ssn', 'tasks'});
         for s = sn
             for ses = ssn
+                if strcmp(subj_str{s}, 'sub-03') || ...
+                    strcmp(subj_str{s}, 'sub-04') || ...
+                    strcmp(subj_str{s}, 'sub-07') || ...
+                    strcmp(subj_str{s}, 'sub-08')  
+                    rawses_str = ['ses-' num2str(ses, '%d')];
+                    derivses_str = ['ses-' num2str(ses, '%02d')];
+                else
+                    rawses_str = ['ses-' num2str(ses, '%02d')];
+                    derivses_str = rawses_str
+                end
                 func_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                    ['ses-' num2str(ses, '%d')], func_dir)
+                    rawses_str, func_dir);
                 fmap_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                    ['ses-' num2str(ses, '%d')], fmap_dir)
+                    rawses_str, fmap_dir);
                 mag_file = sprintf(...
-                    '%s_ses-%d_magnitude1.nii.gz', subj_str{s}, ses);
+                    '%s_%s_magnitude1.nii', subj_str{s}, rawses_str);
                 phase_file = sprintf(...
-                    '%s_ses-%d_phasediff.nii.gz', subj_str{s}, ses);
-                magnitude = fullfile(fmap_folder, mag_file);
-                phasediff = fullfile(fmap_folder, phase_file);
+                    '%s_%s_phasediff.nii', subj_str{s}, rawses_str);
+                magnitude = fullfile(fmap_folder, [mag_file '.gz']);
+                phasediff = fullfile(fmap_folder, [phase_file '.gz']);
                 gunzip(magnitude, '/localscratch');
                 gunzip(phasediff, '/localscratch');
-                tag = sprintf('%s_ses-%d', subj_str{s}, ses);
+                if strcmp(subj_str{s}, 'sub-03') || ...
+                    strcmp(subj_str{s}, 'sub-04') || ...
+                    strcmp(subj_str{s}, 'sub-07') || ...
+                    strcmp(subj_str{s}, 'sub-08')
+                    movefile(fullfile('/localscratch', mag_file), ...
+                        fullfile('/localscratch', ...
+                        sprintf('%s_ses-%02d_magnitude1.nii', ...
+                        subj_str{s}, ses)));
+                    movefile(fullfile('/localscratch', phase_file), ...
+                        fullfile('/localscratch', ...
+                        sprintf('%s_ses-%02d_phasediff.nii', ...
+                        subj_str{s}, ses)));
+                end
+                rawtag = sprintf('%s_%s', subj_str{s}, rawses_str);
+                derivtag = sprintf('%s_%s', subj_str{s}, derivses_str);
                 run = {};
                 run_tags = {};
                 for tk=1:length(tasks)
@@ -303,16 +335,26 @@ switch what
                     end
                     for r=1:n_run
                         func_files = sprintf(...
-                            '%s_task-%s_run-%s_bold.nii.gz', tag, ...
+                            '%s_task-%s_run-%s_bold.nii', rawtag, ...
                             tasks{tk}, num2str(r, '%02d'));
-                        func_data = fullfile(func_folder, func_files);
+                        func_data = fullfile(func_folder, ...
+                            [func_files '.gz']);
                         gunzip(func_data, '/localscratch');
+                        if strcmp(subj_str{s}, 'sub-03') || ...
+                            strcmp(subj_str{s}, 'sub-04') || ...
+                            strcmp(subj_str{s}, 'sub-07') || ...
+                            strcmp(subj_str{s}, 'sub-08')
+                            movefile(fullfile('/localscratch', ...
+                                func_files), fullfile('/localscratch', ...
+                                sprintf('%s_task-%s_run-%s_bold.nii', ...
+                                derivtag, tasks{tk}, num2str(r, '%02d'))))
+                        end
                         run_tags{tk}{r} = [...
                             'task-' tasks{tk} '_run-' num2str(r, '%02d')];
                     end
                 end
                 run = horzcat(run_tags{:});
-                spmja_makefieldmap('/localscratch', tag, run, ...
+                spmja_makefieldmap('/localscratch', derivtag, run, ...
                     'prefix', prefix, 'rawdataDir', '/localscratch');
                 
                 % Create if does not exist the derivatives folder
@@ -322,40 +364,39 @@ switch what
                 folder(fmap_deriv);
                 % Move files from "/localscratch" to derivatives folder
                 movefile(['/localscratch/bmask' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_magnitude' ...
+                    num2str(ses, '%02d') '_magnitude' ...
                     num2str(magnumber, '%d') '.nii'], fmap_deriv);
                 movefile(['/localscratch/fpm_sc' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_phasediff.nii'], fmap_deriv);
+                    num2str(ses, '%02d') '_phasediff.nii'], fmap_deriv);
                 movefile(['/localscratch/m' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_magnitude' num2str(magnumber, ...
-                    '%d') '.nii'], fmap_deriv);
+                    num2str(ses, '%02d') '_magnitude' ...
+                    num2str(magnumber, '%d') '.nii'], fmap_deriv);
                 movefile(['/localscratch/sc' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_phasediff.nii'], fmap_deriv);
+                    num2str(ses, '%02d') '_phasediff.nii'], fmap_deriv);
                 movefile(['/localscratch/u' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_task-*_run-*_bold.nii'], ...
+                    num2str(ses, '%02d') '_task-*_run-*_bold.nii'], ...
                     fmap_deriv);
                 movefile(['/localscratch/vdm5_sc' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_phasediff.nii'], ...
+                    num2str(ses, '%02d') '_phasediff.nii'], ...
                     fmap_deriv);
                 for rn=1:length(run)
                     movefile(['/localscratch/vdm5_sc' subj_str{s} ...
-                        '_ses-' num2str(ses, '%d') '_phasediff_run' ...
-                        num2str(rn, '%d') '.nii'], fullfile(fmap_deriv, ...
-                        ['vdm5_sc' subj_str{s} '_ses-' ...
-                        num2str(ses, '%d') '_phasediff_' run{rn} '.nii']));
+                        '_ses-' num2str(ses, '%02d') '_phasediff_run' ...
+                        num2str(rn, '%d') '.nii'], ...
+                        fullfile(fmap_deriv, ['vdm5_sc' subj_str{s} ...
+                        '_ses-' num2str(ses, '%02d') '_phasediff_' ...
+                        run{rn} '.nii']));
                 end
                 movefile(['/localscratch/wfmag_' subj_str{s} '_ses-' ...
-                    num2str(ses, '%d') '_task-*_run-*_bold.nii'], ...
+                    num2str(ses, '%02d') '_task-*_run-*_bold.nii'], ...
                     fmap_deriv);
-                if ses == 1
-                    % Rename and move postscript file
-                    old_psfile = dir('*.ps').name;
-                    old_psname = old_psfile(1:end-3);
-                    psfile = strcat(old_psname, '_fieldmap.ps');
-                    movefile(old_psfile, fmap_deriv);
-                    movefile(fullfile(fmap_deriv, old_psfile), ...
-                    fullfile(fmap_deriv, psfile));
-                end
+                % Rename and move postscript file
+                old_psfile = dir('*.ps').name;
+                old_psname = old_psfile(1:end-3);
+                psfile = strcat(old_psname, '_fieldmap.ps');
+                movefile(old_psfile, fmap_deriv);
+                movefile(fullfile(fmap_deriv, old_psfile), ...
+                fullfile(fmap_deriv, psfile));
                 % Delete unziped raw files from localscratch
                 if any(size(dir('/localscratch/*.nii'), 1))
                     delete('/localscratch/*.nii');
@@ -1067,38 +1108,32 @@ switch what
         
 
     case 'GLM:estimate'     % estimate beta values
-        % Example usage: ibc_imana('GLM:estimate', 'sn', [1], 'ses', {'archi'})
+        % Example usage: msdtb_imana('GLM:estimate', 'sn', [1], 'ses', {'archi'})
         
         sn       = subj_id; % subject list
-        ses = session_names; 
+        ssn = ses_id; % list of sessions
+        tasks = {'prod', 'percep', 'ntfd'};
         vararginoptions(varargin, {'sn', 'ses'})
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, est_dir);
-            
-            sbj_number = str2double((extractAfter(subj_str{s},'sub-')));
-            subsess = cellstr(sessmap.(['sub' num2str(sbj_number, ...
-                '%02d')]));
-            
+                subj_str{s}, est_dir);            
             % loop over sessions
-            for smap = ses
-                % sesstag = sessnum{find(contains(subsess, smap))};
-                smapstr = replace(smap{1}, '-', '');
-                est_sess_dir = fullfile(estderiv_subj_dir, ...
-                    ['ses-' smapstr]);
-                
-                % get the list of runs for the current session
-                listing = dir(est_sess_dir);
-                listitems = {listing.name};
-                runtags = listitems(startsWith(listitems, 'run-'));
-                
-                for rn = 1:length(runtags)
-                    estimates_dir = fullfile(est_sess_dir, ...
-                        char(runtags(rn)));
-                    load(fullfile(estimates_dir, 'SPM.mat'));
-
-                    SPM.swd = estimates_dir;           
+            for ses = ssn
+                % loop over tasks
+                for tk=1:length(tasks)
+                    if strcmp(tasks{tk}, 'prod')
+                        ttag = 'production';
+                    elseif strcmp(tasks{tk}, 'percep')
+                        ttag = 'perception';
+                    elseif strcmp(tasks{tk}, 'ntfd')
+                        ttag = 'ntfd';
+                    else
+                        continue
+                    end
+                    esttask_folder = fullfile(estderiv_subj_dir, ttag);
+                    load(fullfile(esttask_folder, 'SPM.mat'));
+                    SPM.swd = esttask_folder;           
                     spm_rwls_spm(SPM);
                 end % rn (runtags)
             end % ss (sessions)
