@@ -56,54 +56,64 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                 if rw == 0 or ((run_datum[rw-1][4] == 'fixcross' or \
                                 run_datum[rw-1][4] == 'baseline') and \
                                row[4] not in 'final_baseline'):
-                    # Onset and duration for evaluation
-                    onset_eval = round(convert(row[6]) - offset, 3)
-                    onset.append(str(onset_eval))
-                    duration_eval = round(convert(run_datum[rw+8][6]) - \
-                                          convert(row[6]), 3)
-                    duration.append(str(duration_eval))
-                    # Onset and duration for judgment
-                    onset_judg = round(convert(run_datum[rw+8][6]) - offset, 3)
-                    onset.append(str(onset_judg))
+
+                    # Onset and duration for the encoding
+                    onset_encod = round(convert(row[6]) - offset, 3)
+
                     if cat == 'Production':
-                        duration_judg = convert(run_datum[rw+8][7])
-                        duration.append(str(duration_judg))
+                        if run_datum[rw+9][10] == 'None':
+                            duration_encod = round(
+                                convert(run_datum[rw+9][6]) - \
+                                convert(row[6]), 3)
+                            onset_decis = round(
+                                convert(run_datum[rw+9][6]) - offset, 3)
+                            duration_decis = round(
+                                convert(run_datum[rw+9][7]), 3)
+                        else:
+                            duration_encod = round(
+                                convert(run_datum[rw+9][6]) + \
+                                convert(run_datum[rw+9][10]) - \
+                                convert(row[6]), 3)
+                            onset_decis = round(
+                                convert(run_datum[rw+9][6]) + \
+                                convert(run_datum[rw+9][10]) - offset, 3)
+                            duration_decis = round(
+                                convert(run_datum[rw+10][6]) - \
+                                convert(run_datum[rw+9][6]) - \
+                                convert(run_datum[rw+9][10]), 3)
                     else:
                         assert cat in ['Perception',
                                        'No-Temporal Feature Discrimination']
-                        duration_judg = round(convert(run_datum[rw+11][6]) - \
-                                              convert(run_datum[rw+8][6]), 3)
-                        duration.append(str(duration_judg)) 
-                    # Onset and duration for response
-                    onset_resp = round(convert(run_datum[rw+9][6]) - offset, 3)
-                    onset.append(str(onset_resp))
-                    duration_resp = convert(run_datum[rw+9][7])
-                    duration.append(str(duration_resp))
+                        duration_encod = round(
+                            convert(run_datum[rw+11][6]) - convert(row[6]), 3)
+                        onset_decis = round(
+                            convert(run_datum[rw+11][6]) - offset, 3)
+                        duration_decis = round(convert(run_datum[rw+11][7]), 3)
+
+                    onset.append(str(onset_encod))
+                    duration.append(str(duration_encod))
+                    onset.append(str(onset_decis))
+                    duration.append(str(duration_decis))
+
                     # Trial types for all conditions
                     if row[4][:4] == 'beat' and row[5][:4] == 'beep':
-                        trial_type.append('auditory_beat_evaluation')
-                        trial_type.append('auditory_beat_judgment')
-                        trial_type.append('auditory_beat_response')
+                        trial_type.append('auditory_beat_encoding')
+                        trial_type.append('auditory_beat_decision')
                     elif row[4][:4] == 'beat' and row[5][:4] == 'rect':
-                        trial_type.append('visual_beat_evaluation')
-                        trial_type.append('visual_beat_judgment')
-                        trial_type.append('visual_beat_response')
+                        trial_type.append('visual_beat_encoding')
+                        trial_type.append('visual_beat_decision')
                     elif row[4][:4] == 'inte' and row[5][:4] == 'beep':
-                        trial_type.append('auditory_interval_evaluation')
-                        trial_type.append('auditory_interval_judgment')
-                        trial_type.append('auditory_interval_response')
+                        trial_type.append('auditory_interval_encoding')
+                        trial_type.append('auditory_interval_decision')
                     elif row[4][:4] == 'inte' and row[5][:4] == 'rect':
-                        trial_type.append('visual_interval_evaluation')
-                        trial_type.append('visual_interval_judgment')
-                        trial_type.append('visual_interval_response')
+                        trial_type.append('visual_interval_encoding')
+                        trial_type.append('visual_interval_decision')
                     elif row[4][:4] == 'rand' and row[5][:4] == 'beep':
-                        trial_type.append('auditory_random_evaluation')
-                        trial_type.append('auditory_random_judgment')
-                        trial_type.append('auditory_random_response')
+                        trial_type.append('auditory_random_encoding')
+                        trial_type.append('auditory_random_decision')
                     elif row[4][:4] == 'rand' and row[5][:4] == 'rect':
-                        trial_type.append('visual_random_evaluation')
-                        trial_type.append('visual_random_judgment')
-                        trial_type.append('visual_random_response')
+                        trial_type.append('visual_random_encoding')
+                        trial_type.append('visual_random_decision')
                     else:
                         raise NameError(
                             'Trial type does not exist for this trial!')

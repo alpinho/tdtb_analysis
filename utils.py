@@ -8,7 +8,7 @@ import numpy as np
 def parse_logfile(parent_dir, subject_no, sesstype, n_sess, tasks,
                   ttl=False, concatenate=True):
 
-    sessions = ['sess-%02d' %s for s in np.arange(1, n_sess + 1)]
+    sessions = ['ses-%02d' %s for s in np.arange(1, n_sess + 1)]
     allsessions = []
     for session in sessions:
         logpath = os.path.join(parent_dir, 'sub-%02d' % subject_no, session)
