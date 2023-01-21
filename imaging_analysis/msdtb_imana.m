@@ -954,7 +954,7 @@ switch what
                         count = count + 1;
                         fpath = fullfile(funcderiv_folder, ...
                             sprintf(...
-                            '%s%s_ses-%d_task-%s_run-%02d_bold.nii', ...
+                            '%s%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
                             prefix, subj_str{s}, ses, tasks{tk}, r));
                         V = niftiinfo(fpath);
                         numTRs = V.ImageSize(4);
@@ -963,7 +963,7 @@ switch what
                         for i = 1:(numTRs-numDummys)
                             N{i} = fullfile(funcderiv_folder, ...
                                 sprintf(...
-                                '%s%s_ses-%d_task-%s_run-%02d_bold.nii, %d', ...
+                                '%s%s_ses-%02d_task-%s_run-%02d_bold.nii, %d', ...
                                 prefix, subj_str{s}, ses, tasks{tk}, r, ...
                                 i));
                         end % i (image numbers)
@@ -1146,8 +1146,15 @@ switch what
                         continue
                     end
                     esttask_folder = fullfile(estderiv_subj_dir, ttag);
+                    % Delete previous estimates, if they exist
+                    if any(size(dir([esttask_folder '/*.nii']), 1))
+                        delete([esttask_folder '/*.nii']);
+                    end
+                    % Load SPM.mat file with design and add path to store
+                    % the new estimates
                     load(fullfile(esttask_folder, 'SPM.mat'));
-                    SPM.swd = esttask_folder;           
+                    SPM.swd = esttask_folder;
+                    % Add as input SPM.mat file to the rwls GLM 
                     spm_rwls_spm(SPM);
                 end % rn (runtags)
             end % ss (sessions)
