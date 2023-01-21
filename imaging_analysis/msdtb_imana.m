@@ -892,7 +892,8 @@ switch what
         tasks = {'prod', 'percep', 'ntfd'};
         hrf_cutoff = Inf;
         prefix = 'u'; % prefix of the preprocessed epi we want to use
-        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'ses'});
+        random = 0;
+        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'random'});
         
         
         % get the info file that specifies the order of the tasks
@@ -945,12 +946,14 @@ switch what
                     funcderiv_folder = fullfile(deriv_subjdir, ...
                         ['ses-' num2str(ses, '%02d')], func_dir);                   
                     % loop over runs
-                    if ses == 2 && strcmp(tasks{tk}, 'ntfd')
+                    if ses == 2 && strcmp(tasks{tk}, 'ntfd') && random == 1
+                        start = 3;
                         n_run = 4;
                     else
+                        start = 1;
                         n_run = 2;
                     end
-                    for r=1:n_run
+                    for r=start:n_run
                         count = count + 1;
                         fpath = fullfile(funcderiv_folder, ...
                             sprintf(...
@@ -1125,40 +1128,90 @@ switch what
         % Example usage: msdtb_imana('GLM:estimate', 'sn', [1], 'ses', {'archi'})
         
         sn       = subj_id; % subject list
-        ssn = ses_id; % list of sessions
         tasks = {'prod', 'percep', 'ntfd'};
-        vararginoptions(varargin, {'sn', 'ses'})
+        vararginoptions(varargin, {'sn'})
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);            
-            % loop over sessions
-            for ses = ssn
-                % loop over tasks
-                for tk=1:length(tasks)
-                    if strcmp(tasks{tk}, 'prod')
-                        ttag = 'production';
-                    elseif strcmp(tasks{tk}, 'percep')
-                        ttag = 'perception';
-                    elseif strcmp(tasks{tk}, 'ntfd')
-                        ttag = 'ntfd';
-                    else
-                        continue
-                    end
-                    esttask_folder = fullfile(estderiv_subj_dir, ttag);
-                    % Delete previous estimates, if they exist
-                    if any(size(dir([esttask_folder '/*.nii']), 1))
-                        delete([esttask_folder '/*.nii']);
-                    end
-                    % Load SPM.mat file with design and add path to store
-                    % the new estimates
-                    load(fullfile(esttask_folder, 'SPM.mat'));
-                    SPM.swd = esttask_folder;
-                    % Add as input SPM.mat file to the rwls GLM 
-                    spm_rwls_spm(SPM);
-                end % rn (runtags)
-            end % ss (sessions)
+            % loop over tasks
+            for tk=1:length(tasks)
+                if strcmp(tasks{tk}, 'prod')
+                    ttag = 'production';
+                elseif strcmp(tasks{tk}, 'percep')
+                    ttag = 'perception';
+                elseif strcmp(tasks{tk}, 'ntfd')
+                    ttag = 'ntfd';
+                else
+                    continue
+                end
+                esttask_folder = fullfile(estderiv_subj_dir, ttag);
+                % Delete previous estimates, if they exist
+                if any(size(dir([esttask_folder '/*.nii']), 1))
+                    delete([esttask_folder '/*.nii']);
+                end
+                % Load SPM.mat file with design and add path to store
+                % the new estimates
+                load(fullfile(esttask_folder, 'SPM.mat'));
+                SPM.swd = esttask_folder;
+                % Add as input SPM.mat file to the rwls GLM 
+                spm_rwls_spm(SPM);
+            end % tk (tasks)
         end % s (sn)
+        
+    case 'CON: individual_ffx_t'
+        % Estimate ffx individual tmaps across runs and sessions
+        
+        sn       = subj_id; % subject list
+        tasks = {'prod', 'percep', 'ntfd'};
+        vararginoptions(varargin, {'sn'})
+        
+        contrasts = {'Enconding', [0 1 0 1 0 1 0 1]; ...
+                     'Auditory Encoding', [0 1 0 1]; ...
+                     'Visual Encoding', [0 0 0 0 0 1 0 1]; ...
+                     'Auditory vs Visual Encoding', [0 1 0 1 0 -1 0 -1]; ...
+                     'Visual vs Auditory Encoding', [0 -1 0 -1 0 1 0 1]; ...
+                     'Beat vs Interval', [0 1 0 -1 0 1 0 -1]; ...
+                     'Auditory Beat vs Auditory Interval', [0 1 0 -1]; ...
+                     'Visual Beat vs Visual Interval', [0 0 0 0 0 1 0 -1]; ...
+                     'Interval vs Beat', [0 -1 0 1 0 -1 0 1]; ...
+                     'Auditory Interval vs Auditory Beat', [0 -1 0 1]; ...
+                     'Visual Interval vs Visual Beat', [0 0 0 0 0 -1 0 1]; ...
+                     'Decision', [1 0 1 0 1 0 1 0]; ...
+                     };
+        
+        for s = sn
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir);            
+            % loop over tasks
+            for tk=1:length(tasks)
+                if strcmp(tasks{tk}, 'prod')
+                    ttag = 'production';
+                elseif strcmp(tasks{tk}, 'percep')
+                    ttag = 'perception';
+                elseif strcmp(tasks{tk}, 'ntfd')
+                    ttag = 'ntfd';
+                else
+                    continue
+                end
+                esttask_folder = fullfile(estderiv_subj_dir, ttag);
+                
+                A = []; % structure with SPM fields to build the t-contrasts
+                
+                A.spmmat = {[esttask_folder '/SPM.mat']};
+                
+                for c=1:length(contrasts)
+                    A.consess{c}.tcon.name = contrasts{c,1};
+                    A.consess{c}.tcon.weights = contrasts{c,2};
+                    A.consess{c}.tcon.sessrep = 'replsc';
+                end
+                % Delete existing contrasts
+                A.delete = 1; % 1 yes, 0 no
+                
+                matlabbatch{1}.spm.stats.con=A;
+                spm_jobman('run',matlabbatch);
+            end % tk (tasks)
+        end % s (subject)
 
     case 'GLM:T_contrast'   % make T contrasts for each condition
         %%% Calculating contrast images.
