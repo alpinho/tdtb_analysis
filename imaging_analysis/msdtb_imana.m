@@ -55,23 +55,23 @@ setenv('PATH', path1);
 raw_dir = 'raw';
 derivatives_dir = 'derivatives';
 func_dir = 'func';
-anat_dir = 'ses-1/anat';
+anat_dir = 'ses-01/anat';
 fmap_dir = 'fmap';
 est_dir  = 'estimates';
 fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n  = [3, 4, 7, 8];
-% subj_n  = [3, 8];
-subj_n  = [3];
+% subj_n  = [3, 4, 7, 8, 10];
+subj_n  = [4, 7, 10];
+% subj_n  = [8];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
     subj_str{s} = ['sub-' num2str(subj_n(s), '%02d')];
 end
 
-session_names = {'ses-1', 'ses-2'};
+session_names = {'ses-01', 'ses-02'};
 ses_id = 1:length(session_names);
 
 % sessmap = RenameField(SM, fields, {'session', 'sub01', 'sub02', ...
@@ -89,10 +89,18 @@ ses_id = 1:length(session_names);
 % run_list = {[1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6]};
 
 % AC coordinates (non-symmetric ones)
+% loc_AC = {
+%           [1.0 23.6 -49.3], ...       %sub-03
+%           [1.1 28.6 -21.1], ...       %sub-04
+%           [-3.3 27.3 -54.7], ...      %sub-07
+%           [1.8 28.8 -45.5], ...       %sub-08
+%           [1.5 31.6 -51.10], ...      %sub-10
+%           };
+      
 loc_AC = {
-          [1.0 23.6 -49.3],...      %sub-03
-          %[0.5 29.2 -22.6],...      %sub-04
-          %[0.0 27.5 -43.6],...      %sub-08
+          [1.1 28.6 -21.1], ...       %sub-04
+          [-3.3 27.3 -54.7], ...      %sub-07
+          [1.5 31.6 -51.10], ...      %sub-10
           };
 
 % numTRs = sesstruct.nrep;
@@ -108,6 +116,7 @@ numDummys = 0; % we need to make sure that this is correct
 % =========================================================================
 
 switch what
+    
     case 'ANAT:reslice_lpi'  % reslice anatomical to LPI
         % Example usage: msdtb_imana('ANAT:reslice_lpi')
         sn = subj_id;       
@@ -119,8 +128,16 @@ switch what
             raw_subj_dir = fullfile(base_dir, raw_dir, subj_str{s});
             deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s});
-            subj_anatraw_dir = fullfile(raw_subj_dir, anat_dir);
-            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
+            % Get the name of the anatomical image
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, anat_dir);
+            if strcmp(subj_str{s}, 'sub-03') || ...
+                    strcmp(subj_str{s}, 'sub-04') || ...
+                    strcmp(subj_str{s}, 'sub-07') || ...
+                    strcmp(subj_str{s}, 'sub-08')
+                subj_anatraw_dir = fullfile(raw_subj_dir, 'ses-1/anat');
+            else
+                subj_anatraw_dir = fullfile(raw_subj_dir, anat_dir);
+            end
             % Create subject derivatives anat folders, if they don't exist
             if not(isfolder(subj_anatderiv_dir))
                 mkdir(subj_anatderiv_dir);
@@ -1358,19 +1375,19 @@ switch what
             end % r (runs)
         end % s (sn)
 
-    case 'GLM:run'          % add glm routines you want to run as pipeline
-        % Example usage: ibc_imana('GLM:run', 'sn', [3, 4, 5, 6], 'ses', {'archi'})
-        
-        sn  = subj_id; % subject id
-        ses = session_names; % which session?
-        
-        vararginoptions(varargin, {'sn', 'ses', 'glm'});
-        
-        ibc_imana('GLM:design', 'sn', sn, 'ses', ses);
-        ibc_imana('GLM:estimate', 'sn', sn, 'ses', ses);
-        % ibc_imana('GLM:F_contrast', 'sn', sn, 'glm', glm, 'ses', ses)
-%         ibc_imana('GLM:T_contrast', 'sn', sn, 'glm', glm, 'ses', ses, ...
-%             'baseline', 'rest')
+    case 'VOL:run_all'
+        % Example usage: msdtb_imana('SURF:run_all')
+
+        % msdtb_imana('ANAT:reslice_lpi')
+        % msdtb_imana('ANAT:center_ac')
+%         msdtb_imana('PREP:make_fieldmap')
+%         msdtb_imana('FUNC:realign_unwarp')
+%         msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
+%         msdtb_imana('FUNC:make_samealign', 'prefix', '')
+%         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
+        msdtb_imana('GLM:design')
+        msdtb_imana('GLM:estimate')
+        msdtb_imana('CON: individual_ffx_t')  
          
     case 'SURF:reconall' % Freesurfer reconall routine
         % Calls recon-all, which performs, all of the
