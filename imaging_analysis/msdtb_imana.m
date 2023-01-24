@@ -827,6 +827,17 @@ switch what
             spm_imcalc(nam, graymatter_mask, 'i1>0 & i2>0.1');
 
         end % s (sn)
+        
+    case 'VOL:run_allpreproc'
+        % Example usage: msdtb_imana('VOL:run_allpreproc')
+
+        % msdtb_imana('ANAT:reslice_lpi')
+        % msdtb_imana('ANAT:center_ac')
+        msdtb_imana('PREP:make_fieldmap')
+        msdtb_imana('FUNC:realign_unwarp')
+        msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
+        msdtb_imana('FUNC:make_samealign', 'prefix', '')
+        msdtb_imana('FUNC:make_maskImage', 'prefix', '')
 
     case 'FUNC:check_coreg'      % prints out the transformation matrix for coreg
         % Run this case to get the transformation matrix and then use it
@@ -849,54 +860,7 @@ switch what
         x = spm_coreg(T2_vol, T1_vol);
         M = spm_matrix(x);
         
-        spm_get_space(T2, M * T2_vol.mat);
-        
-
-    case 'FUNC:run'              % add functional pipelines here
-        % Example usage: nishimoto_imana('FUNC:run', 'sn', [2, 3, 4, 5, 6])
-        
-        sn  = subj_id;        
-        vararginoptions(varargin, {'sn'});
-        
-        nishimoto_imana('FUNC:rename', 'sn', sn)
-        nishimoto_imana('FUNC:realign', 'sn', sn);
-%         nishimoto_imana('FUNC:coreg_fsl', 'sn', sn, 'prefix', 'r')
-%         nishimoto_imana('FUNC:make_samealign', 'prefix', 'r', 'sn', sn);
-%         nishimoto_imana('FUNC:make_maskImage', 'prefix', 'r', 'sn', sn);            
-        
-    case 'GLM:task_info' % creates a text file and assign numbers to the tasks/conditions
-        % Example usage: nishimoto_imana('GLM:task_info')
-        
-        info_dir = fullfile(base_dir, 'sub-02', func_dir);
-        
-        % loop over sessions/runs and load the info tsv file for each run
-        TN_cell = {};
-        info_struct = [];
-        
-        for r = run_list{1}
-            % load the tsv file
-            tsv_file = fullfile(info_dir, ...
-                sprintf('sub-02_ses-01_run-%02d_events.tsv', r));
-            T = dload(tsv_file);
-
-            % get task names:
-            TN_cell = [TN_cell; T.trial_type];
-        end % r (runs)
-
-        % get the unique task names
-        task_name = unique(TN_cell)';
-
-        % assign numbers to each task
-        task = 1:length(task_name);
-
-        % create a structure with the info you want
-        info_tmp.task_name = task_name';
-        info_tmp.task = task';
-
-        info_struct = addstruct(info_struct, info_tmp);
-        
-        % save as a tsv file 
-        dsave(fullfile(base_dir, 'tasks_info.tsv'), info_struct);
+        spm_get_space(T2, M * T2_vol.mat);        
     
     case 'GLM:design'  % make the design matrix for the glm
         % models each condition as a separate regressors
@@ -1138,8 +1102,7 @@ switch what
 
                 end % rn (runtags)
             end % ss (sessions)
-        end % s (sn)
-        
+        end % s (sn)       
 
     case 'GLM:estimate'     % estimate beta values
         % Example usage: msdtb_imana('GLM:estimate', 'sn', [1], 'ses', {'archi'})
@@ -1375,16 +1338,11 @@ switch what
             end % r (runs)
         end % s (sn)
 
-    case 'VOL:run_all'
-        % Example usage: msdtb_imana('SURF:run_all')
+    case 'VOL:run_allpostproc'
+        % Example usage: msdtb_imana('VOL:run_allpostproc')
+        
+        % Note: Do not forget to copy tsv files to the server
 
-        % msdtb_imana('ANAT:reslice_lpi')
-        % msdtb_imana('ANAT:center_ac')
-%         msdtb_imana('PREP:make_fieldmap')
-%         msdtb_imana('FUNC:realign_unwarp')
-%         msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
-%         msdtb_imana('FUNC:make_samealign', 'prefix', '')
-%         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
         msdtb_imana('GLM:design')
         msdtb_imana('GLM:estimate')
         msdtb_imana('CON: individual_ffx_t')  
