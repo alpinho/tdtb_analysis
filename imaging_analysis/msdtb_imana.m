@@ -1,6 +1,6 @@
 function [ output_args ] = msdtb_imana( what, varargin )
 
-% %========================================================================================================================
+% %============================================================================
 % PATH DEFINITIONS
 
 % Add dependencies to path
@@ -32,8 +32,7 @@ if isempty(which('suit_isolate_seg')) % this function is only visible while SPM 
 end
 suit_defaults;
 
-
-%========================================================================================================================
+%==============================================================================
 global base_dir
 
 base_dir = sprintf('%s/Cerebellum/music-sdtb', workdir);
@@ -62,9 +61,9 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n  = [3, 4, 7, 8, 10];
-subj_n  = [4, 7, 10];
-% subj_n  = [10];
+subj_n  = [3, 4, 7, 8, 10];
+% subj_n  = [4, 7, 10];
+% subj_n  = [3];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -74,51 +73,29 @@ end
 session_names = {'ses-01', 'ses-02'};
 ses_id = 1:length(session_names);
 
-% sessmap = RenameField(SM, fields, {'session', 'sub01', 'sub02', ...
-%     'sub04', 'sub05', 'sub06', 'sub07', 'sub08', 'sub09', 'sub11', ... 
-%     'sub12', 'sub13', 'sub14', 'sub15'});
-% sessnum = cellstr(sessmap.session);
-
-% sesstruct = tdfread('ibc_sessions_structure.tsv','\t');
-% sessid = cellstr(sesstruct.session);
-% sessrun = sesstruct.srun;
-% task_name = cellstr(sesstruct.task);
-
-% list of runs within each session
-%%% run_list{1} for session 1 and run_list{2} for session 2
-% run_list = {[1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6]};
-
 % AC coordinates (non-symmetric ones)
-% loc_AC = {
-%           [1.0 23.6 -49.3], ...       %sub-03
-%           [1.1 28.6 -21.1], ...       %sub-04
-%           [-3.3 27.3 -54.7], ...      %sub-07
-%           [1.8 28.8 -45.5], ...       %sub-08
-%           [1.5 31.6 -51.10], ...      %sub-10
-%           };
-      
 loc_AC = {
+          [1.0 23.6 -49.3], ...       %sub-03
           [1.1 28.6 -21.1], ...       %sub-04
           [-3.3 27.3 -54.7], ...      %sub-07
+          [1.8 28.8 -45.5], ...       %sub-08
           [1.5 31.6 -51.10], ...      %sub-10
-          };
+          };     
+% loc_AC = {
+%           [1.1 28.6 -21.1], ...       %sub-04
+%           [-3.3 27.3 -54.7], ...      %sub-07
+%           [1.5 31.6 -51.10], ...      %sub-10
+%           };
 
-% numTRs = sesstruct.nrep;
-% =========================================================================
-numDummys = 0; % we need to make sure that this is correct
-% based on comments here there should be 6 dummies: https://openneuro.org/datasets/ds002306/versions/1.1.0 
-% based on the paper, there are 6 dummies: 3 dummies in the beginning of
-% the run and 3 dummies at the end (281 - 6 = 275, the paper says 275 time points)
-% BUT, using the times recorded in the tsv files, if we subtract the 3
-% dummies in the beginning, the onsets become negative, no dummies are
-% removed for now, as we think the times reported in the tsv files are
-% including the dummies
-% =========================================================================
+numDummys = 0;
+%==============================================================================
 
 switch what
     
-    case 'ANAT:reslice_lpi'  % reslice anatomical to LPI
+    case 'ANAT:reslice_lpi' 
+        % Reslice anatomical image to set it within LPI-coordinate frames
         % Example usage: msdtb_imana('ANAT:reslice_lpi')
+        
         sn = subj_id;       
         vararginoptions(varargin, {'sn'});
         for s = sn
@@ -128,8 +105,8 @@ switch what
             raw_subj_dir = fullfile(base_dir, raw_dir, subj_str{s});
             deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s});
-            % Get the name of the anatomical image
-            subj_anatderiv_dir = fullfile(deriv_subj_dir, anat_dir);
+            
+            % Get the anat folder
             if strcmp(subj_str{s}, 'sub-03') || ...
                     strcmp(subj_str{s}, 'sub-04') || ...
                     strcmp(subj_str{s}, 'sub-07') || ...
@@ -138,12 +115,17 @@ switch what
             else
                 subj_anatraw_dir = fullfile(raw_subj_dir, anat_dir);
             end
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, anat_dir);
+            
             % Create subject derivatives anat folders, if they don't exist
             if not(isfolder(subj_anatderiv_dir))
                 mkdir(subj_anatderiv_dir);
+            % Otherwise delete pre-existing nifti files
+            else
+                delete([subj_anatderiv_dir '/*.nii']);
             end
             
-            % Get the name of the anatomical image
+            % Name of the anatomical image
             if strcmp(subj_str{s}, 'sub-03') || ...
                     strcmp(subj_str{s}, 'sub-04') || ...
                     strcmp(subj_str{s}, 'sub-07') || ...
@@ -154,14 +136,11 @@ switch what
                 anatr_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w', ...
                     subj_str{s});
             end
-            anatd_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w', ...
-                subj_str{s});
+            anatd_name = sprintf('%s_T1w', subj_str{s});
             
-            % Reslice anatomical image to set it 
-            % within LPI co-ordinate frames
+            % Gunzip source file in localscratch
             gz_source  = fullfile(...
                 subj_anatraw_dir, sprintf('%s.nii.gz', anatr_name));
-            % gunzip source file in localscratch
             gunzip(gz_source, '/localscratch');
             gunz_source = fullfile(...
                 '/localscratch', sprintf('%s.nii', anatr_name));
@@ -198,8 +177,7 @@ switch what
             subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
             
             % Get the name of the anatomical image
-            anat_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
-                subj_str{s});
+            anat_name = sprintf('%s_T1w.nii', subj_str{s});
             
             img             = fullfile(subj_anatderiv_dir, anat_name);
             V               = spm_vol(img);
@@ -210,7 +188,7 @@ switch what
             spm_write_vol(V,dat);
         end % s (subjects)
 
-    case 'ANAT:segment'      % segment the anatomical image
+    case 'ANAT:segment' % segment the anatomical image
         % also saves the bias field estimated in SPM
         % ********IF YOU WANT TO APPLY SPM BIAS CORRECTION TO, USE
         % ANAT:T1w_bcorrect CASE***********************
@@ -229,9 +207,28 @@ switch what
                 subj_str{s});
             subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
             
+            % Delete previous files produced during this step, if they exist
+            if any(size(dir([subj_anatderiv_dir '/BiasField*']), 1))
+                delete([subj_anatderiv_dir '/BiasField*']);
+            end
+            if any(size(dir([subj_anatderiv_dir '/c*']), 1))
+                delete([subj_anatderiv_dir '/c*']);
+            end
+            if any(size(dir([subj_anatderiv_dir '/iy*']), 1))
+                delete([subj_anatderiv_dir '/iy*']);
+            end
+            if any(size(dir([subj_anatderiv_dir '/y*']), 1))
+                delete([subj_anatderiv_dir '/y*']);
+            end
+            if any(size(dir([subj_anatderiv_dir '/*.mat']), 1))
+                delete([subj_anatderiv_dir '/*.mat']);
+            end
+            if any(size(dir([subj_anatderiv_dir '/*.ps']), 1))
+                delete([subj_anatderiv_dir '/*.ps']);
+            end
+            
             % Get the name of the anatomical image
-            anat_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
-                subj_str{s});
+            anat_name = sprintf('%s_T1w.nii', subj_str{s});
             
             J.channel.vols     = {fullfile(subj_anatderiv_dir, anat_name)};
             J.channel.biasreg  = 0.001;
@@ -272,6 +269,13 @@ switch what
             matlabbatch{1}.spm.spatial.preproc=J;
             spm_jobman('run',matlabbatch);
         end % s (subject)
+        
+    case 'ANAT:run_all'
+        % Example usage: msdtb_imana('ANAT:run_all')
+        
+        msdtb_imana('ANAT:reslice_lpi')
+        msdtb_imana('ANAT:center_ac')
+        msdtb_imana('ANAT:segment')        
 
     case 'ANAT:T1w_bcorrect' % bias correction for anatomical T1w (optional)
         % nishimoto_imana('ANAT:T1w_bcorrect')
@@ -293,7 +297,7 @@ switch what
             spmj_bias_correct(P);
         end % s (sn)
         
-    case 'PREP:make_fieldmap' % Make fieldmap
+    case 'FUNC:make_fieldmap' % Make fieldmap
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -549,26 +553,6 @@ switch what
             end
         end % s (sn)
 
-    case 'FUNC:meanepi_bcorrect' % bias correction for the mean image before coreg (optional)
-        % uses the bias field estimated in SPM segmenttion
-        % Example usage: nishimoto_imana('FUNC:meanepi_bcorrect')
-        sn = subj_id;
-        vararginoptions(varargin, {'sn'});
-        
-        for s = sn
-            fprintf('- Bias correcting mean epi for %s\n', subj_str{s});
-            % Get the directory of subjects anatomical and functional
-            subj_func_dir = fullfile(base_dir, subj_str{s}, func_dir);
-            % make copy of original mean epi, and work on that
-            source  = fullfile(subj_func_dir, sprintf('mean%s_ses-01_run-01.nii', subj_str{s}));
-            dest    = fullfile(subj_func_dir, sprintf('bmean%s_ses-01_run-01.nii', subj_str{s}));
-            copyfile(source, dest);
-            
-            % bias correct mean image for grey/white signal intensities
-            P{1}    = dest;
-            spmj_bias_correct(P);
-        end % s (sn)
-
     case 'FUNC:coreg' % coregistration with the anatomicals
         % (1) Manually seed the functional/anatomical registration
         % - Do "coregtool" on the matlab command window
@@ -654,79 +638,6 @@ switch what
             % current alignment by appending the prefix 'r' to the 
             % current file. So if you continually update rmeanepi, 
             % you'll end up with a file called r...rrrmeanepi.
-        end % s (sn)
-
-    case 'FUNC:coregreslice'
-        sn     = subj_id;   % list of subjects        
-        step   = 'manual';  % first 'manual' then 'auto'
-        prefix = 'r'; % to use the bias corrected version, set it to 'rb'
-
-        vararginoptions(varargin, {'sn', 'step', 'prefix'});
-        spm_jobman('initcfg')
-        for s = sn
-            % Get the directory of subjects anatomical and functional
-            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s})
-            subj_anat_dir = fullfile(deriv_subj_dir, anat_dir);
-            sbj_number = str2double((extractAfter(subj_str{s}, ...
-                'sub-')))
-            subsess = cellstr(sessmap.(['sub' num2str(sbj_number, ...
-                '%02d')]));
-            for smap = session_names
-                sesstag = sessnum{find(contains(subsess,smap))};
-                ses = sscanf(sesstag,'ses-%d');
-                subj_func_dir = fullfile(deriv_subj_dir, func_dir, ...
-                    ['ses-' num2str(ses, '%02d')]);
-            
-                % goes to subjects anatomical dir so that coreg tool ...
-                % starts from that directory (just for convenience)
-                cd(subj_anat_dir); 
-            
-                switch step
-                    case 'manual'
-                        coregtool;
-                        keyboard;
-                    case 'auto'
-                        % do nothing
-                end % switch step
-                
-                gunzip(sprintf(...
-                    '%s_space-native_desc-resampled_T1w.nii.gz', ...
-                    subj_str{s}));
-                
-                % Create copy of meanepi to be resliced
-                if strcmp(smap,'mtt1') || strcmp(smap,'mtt2')
-                    meanepi_file = fullfile(subj_func_dir, ...
-                        sprintf('%smean%s_ses-%02d_run-03_bold.nii', ...
-                        prefix, subj_str{s}, ses))
-                    resliced_meanepi = fullfile(subj_func_dir, ...
-                        sprintf(...
-                        'resliced_%smean%s_ses-%02d_run-03_bold.nii', ...
-                        prefix, subj_str{s}, ses))
-                else
-                    meanepi_file = fullfile(subj_func_dir, ...
-                        sprintf('%smean%s_ses-%02d_run-01_bold.nii', ...
-                        prefix, subj_str{s}, ses))
-                    resliced_meanepi = fullfile(subj_func_dir, ...
-                        sprintf(...
-                        'resliced_%smean%s_ses-%02d_run-01_bold.nii', ...
-                        prefix, subj_str{s}, ses))
-                end
-                copyfile(meanepi_file, resliced_meanepi)
-                            
-                J.ref = {fullfile(subj_anat_dir, sprintf(...
-                    '%s_space-native_desc-resampled_T1w.nii', ...
-                    subj_str{s}))};
-                J.source = {resliced_meanepi};
-                J.other             = {''};
-                J.eoptions.cost_fun = 'nmi';
-                J.eoptions.sep      = [4 2];
-                J.eoptions.tol      = [0.02 0.02 0.02 0.001 0.001 0.001 ...
-                    0.01 0.01 0.01 0.001 0.001 0.001];
-                J.eoptions.fwhm     = [7 7];
-                matlabbatch{1}.spm.spatial.coreg.estwrite=J;
-                spm_jobman('run',matlabbatch);
-            end
         end % s (sn)
 
     case 'FUNC:make_samealign' % align all the functionals
@@ -846,20 +757,109 @@ switch what
 
         end % s (sn)
         
-    case 'VOL:run_allpreproc'
-        % Example usage: msdtb_imana('VOL:run_allpreproc')
-
-        % msdtb_imana('ANAT:reslice_lpi')
-        % msdtb_imana('ANAT:center_ac')
+    case 'FUNC:run_all'
+        % Example usage: msdtb_imana('FUNC:run_all')
         
-        msdtb_imana('PREP:make_fieldmap')
+        msdtb_imana('FUNC:make_fieldmap')
         msdtb_imana('FUNC:realign_unwarp')
         msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
         msdtb_imana('FUNC:make_samealign', 'prefix', '')
-        msdtb_imana('ANAT:segment')
         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
+        
+    case 'FUNC:meanepi_bcorrect' % bias correction for the mean image before coreg (optional)
+        % uses the bias field estimated in SPM segmenttion
+        % Example usage: nishimoto_imana('FUNC:meanepi_bcorrect')
+        sn = subj_id;
+        vararginoptions(varargin, {'sn'});
+        
+        for s = sn
+            fprintf('- Bias correcting mean epi for %s\n', subj_str{s});
+            % Get the directory of subjects anatomical and functional
+            subj_func_dir = fullfile(base_dir, subj_str{s}, func_dir);
+            % make copy of original mean epi, and work on that
+            source  = fullfile(subj_func_dir, sprintf('mean%s_ses-01_run-01.nii', subj_str{s}));
+            dest    = fullfile(subj_func_dir, sprintf('bmean%s_ses-01_run-01.nii', subj_str{s}));
+            copyfile(source, dest);
+            
+            % bias correct mean image for grey/white signal intensities
+            P{1}    = dest;
+            spmj_bias_correct(P);
+        end % s (sn)
+        
+    case 'FUNC:coregreslice'
+        sn     = subj_id;   % list of subjects        
+        step   = 'manual';  % first 'manual' then 'auto'
+        prefix = 'r'; % to use the bias corrected version, set it to 'rb'
 
-    case 'FUNC:check_coreg'      % prints out the transformation matrix for coreg
+        vararginoptions(varargin, {'sn', 'step', 'prefix'});
+        spm_jobman('initcfg')
+        for s = sn
+            % Get the directory of subjects anatomical and functional
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s})
+            subj_anat_dir = fullfile(deriv_subj_dir, anat_dir);
+            sbj_number = str2double((extractAfter(subj_str{s}, ...
+                'sub-')))
+            subsess = cellstr(sessmap.(['sub' num2str(sbj_number, ...
+                '%02d')]));
+            for smap = session_names
+                sesstag = sessnum{find(contains(subsess,smap))};
+                ses = sscanf(sesstag,'ses-%d');
+                subj_func_dir = fullfile(deriv_subj_dir, func_dir, ...
+                    ['ses-' num2str(ses, '%02d')]);
+            
+                % goes to subjects anatomical dir so that coreg tool ...
+                % starts from that directory (just for convenience)
+                cd(subj_anat_dir); 
+            
+                switch step
+                    case 'manual'
+                        coregtool;
+                        keyboard;
+                    case 'auto'
+                        % do nothing
+                end % switch step
+                
+                gunzip(sprintf(...
+                    '%s_space-native_desc-resampled_T1w.nii.gz', ...
+                    subj_str{s}));
+                
+                % Create copy of meanepi to be resliced
+                if strcmp(smap,'mtt1') || strcmp(smap,'mtt2')
+                    meanepi_file = fullfile(subj_func_dir, ...
+                        sprintf('%smean%s_ses-%02d_run-03_bold.nii', ...
+                        prefix, subj_str{s}, ses))
+                    resliced_meanepi = fullfile(subj_func_dir, ...
+                        sprintf(...
+                        'resliced_%smean%s_ses-%02d_run-03_bold.nii', ...
+                        prefix, subj_str{s}, ses))
+                else
+                    meanepi_file = fullfile(subj_func_dir, ...
+                        sprintf('%smean%s_ses-%02d_run-01_bold.nii', ...
+                        prefix, subj_str{s}, ses))
+                    resliced_meanepi = fullfile(subj_func_dir, ...
+                        sprintf(...
+                        'resliced_%smean%s_ses-%02d_run-01_bold.nii', ...
+                        prefix, subj_str{s}, ses))
+                end
+                copyfile(meanepi_file, resliced_meanepi)
+                            
+                J.ref = {fullfile(subj_anat_dir, sprintf(...
+                    '%s_space-native_desc-resampled_T1w.nii', ...
+                    subj_str{s}))};
+                J.source = {resliced_meanepi};
+                J.other             = {''};
+                J.eoptions.cost_fun = 'nmi';
+                J.eoptions.sep      = [4 2];
+                J.eoptions.tol      = [0.02 0.02 0.02 0.001 0.001 0.001 ...
+                    0.01 0.01 0.01 0.001 0.001 0.001];
+                J.eoptions.fwhm     = [7 7];
+                matlabbatch{1}.spm.spatial.coreg.estwrite=J;
+                spm_jobman('run',matlabbatch);
+            end
+        end % s (sn)
+
+    case 'FUNC:check_coreg' % prints out the transformation matrix for coreg
         % Run this case to get the transformation matrix and then use it
         % for translation/rotation to check the coreg.
         % the coreg case just estimates the transformation matrix, it
@@ -881,8 +881,8 @@ switch what
         M = spm_matrix(x);
         
         spm_get_space(T2, M * T2_vol.mat);        
-    
-    case 'GLM:design'  % make the design matrix for the glm
+        
+    case 'GLM:grand_design' % make the design matrix for the glm
         % models each condition as a separate regressors
         % For conditions with multiple repetitions, one regressor
         % represents all the instances
@@ -896,56 +896,51 @@ switch what
         random = 0;
         vararginoptions(varargin, {'sn', 'hrf_cutoff', 'random'});
         
-        
-        % get the info file that specifies the order of the tasks
-        % Dd = dload(fullfile(base_dir, 'tasks_info.tsv'));
-        
         % loop over subjects
         for s = sn
             deriv_subjdir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s});
-            % loop over tasks
-            for tk=1:length(tasks)
-                estimates_folder = fullfile(deriv_subjdir, est_dir);
-                if strcmp(tasks{tk}, 'prod')
-                    ttag = 'production';
-                elseif strcmp(tasks{tk}, 'percep')
-                    ttag = 'perception';
-                elseif strcmp(tasks{tk}, 'ntfd')
-                    ttag = 'ntfd';
-                else
-                    % do nothing
-                end
-                taskest_folder = fullfile(estimates_folder, ttag);
-                % Create/update destination folders
-                folder(taskest_folder);
+                subj_str{s});            
+            estimates_folder = fullfile(deriv_subjdir, est_dir);
                 
-                J = []; % structure with SPM fields to make the design
+            J = []; % structure with SPM fields to make the design
 
-                J.timing.units   = 'secs';
-                J.timing.RT      = 1.2;
-                J.timing.fmri_t  = 16;
-                J.timing.fmri_t0 = 1;
+            J.timing.units   = 'secs';
+            J.timing.RT      = 1.2;
+            J.timing.fmri_t  = 16;
+            J.timing.fmri_t0 = 1;
 
-                J.fact             = struct('name', {}, 'levels', {});
-                J.bases.hrf.derivs = [0 0];
-                J.bases.hrf.params = [4.5 11]; % set to [] if running wls
-                J.volt             = 1;
-                J.global           = 'None';
-                J.mask             = {char(fullfile(deriv_subjdir, ...
-                    'ses-01', func_dir, 'rmask_noskull.nii'))};
-                J.mthresh          = 1.;
-                J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
-                    'ses-01', func_dir,'rmask_gray.nii'))};
-                J.cvi              = 'fast';
+            J.fact             = struct('name', {}, 'levels', {});
+            J.bases.hrf.derivs = [0 0];
+            J.bases.hrf.params = [4.5 11]; % set to [] if running wls
+            J.volt             = 1;
+            J.global           = 'None';
+            J.mask             = {char(fullfile(deriv_subjdir, ...
+                'ses-01', func_dir, 'rmask_noskull.nii'))};
+            J.mthresh          = 1.;
+            J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
+                'ses-01', func_dir,'rmask_gray.nii'))};
+            J.cvi              = 'fast';
 
-                J.dir = {taskest_folder};
+            J.dir = {estimates_folder};
+
+            % loop over sessions
+            count = 0;
+            for ses = ssn
+                funcderiv_folder = fullfile(deriv_subjdir, ...
+                    ['ses-' num2str(ses, '%02d')], func_dir);
                 
-                % loop over sessions
-                count = 0;
-                for ses = ssn
-                    funcderiv_folder = fullfile(deriv_subjdir, ...
-                        ['ses-' num2str(ses, '%02d')], func_dir);                   
+                % loop over tasks
+                for tk=1:length(tasks)
+                    if strcmp(tasks{tk}, 'prod')
+                        ttag = 'production';
+                    elseif strcmp(tasks{tk}, 'percep')
+                        ttag = 'perception';
+                    elseif strcmp(tasks{tk}, 'ntfd')
+                        ttag = 'ntfd';
+                    else
+                        % do nothing
+                    end                
+                
                     % loop over runs
                     if ses == 2 && strcmp(tasks{tk}, 'ntfd') && random == 1
                         start = 3;
@@ -968,16 +963,15 @@ switch what
                             N{i} = fullfile(funcderiv_folder, ...
                                 sprintf(...
                                 '%s%s_ses-%02d_task-%s_run-%02d_bold.nii, %d', ...
-                                prefix, subj_str{s}, ses, tasks{tk}, r, ...
-                                i));
+                                prefix, subj_str{s}, ses, tasks{tk}, r, i));
                         end % i (image numbers)
                     
                         % Load the scans
                         J.sess(count).scans = N; % scans in the current runs
                     
-                        J.sess(count).cond = struct('name', {}, 'onset', ...
-                            {}, 'duration', {}, 'tmod', {}, 'pmod', {}, ...
-                            'orth', {});
+                        J.sess(count).cond = struct('name', {}, ...
+                            'onset', {}, 'duration', {}, 'tmod', {}, ...
+                            'pmod', {}, 'orth', {});
                     
                         % Event Files
                         % get the path to the tsv file
@@ -994,23 +988,25 @@ switch what
                         trial_durations = {};
                         trial_names = cellstr(D.trial_type);
                         trial_onsets = num2cell(D.onset);
-                        trial_durations = num2cell(D.duration);
-                    
-                        % Prepare .mat file containing the paradigm ...
-                        % descriptors
+                        trial_durations = num2cell(D.duration);                    
+
+                        unique_names = {};
+                        unique_names = unique(trial_names).';
+                        % Remove Rest, since it will be modelled implicitly
+                        unique_names(ismember(unique_names, 'rest')) = [];
+                        % Define paradigm descriptors
                         names = {};
                         onsets = {};
                         durations = {};
-                        names = unique(trial_names).';
-                        % Remove Rest, since it will be modelled implicitly
-                        names(ismember(names, 'rest')) = [];
+                        % Encoding condition goes first
+                        names(2:2:length(unique_names))= unique_names(1:2:end);
+                        names(1:2:length(unique_names))= unique_names(2:2:end);
                         % Create onsets and duration cells
                         for u = 1:length(names)
                             indexes = [];
                             indexes = find(strcmp(trial_names, names{u}));
                             for idx = 1:length(indexes)
-                                onsets{u}(idx) = trial_onsets{...
-                                    indexes(idx)};
+                                onsets{u}(idx) = trial_onsets{indexes(idx)};
                                 durations{u}(idx) = ...
                                     trial_durations{indexes(idx)};
                             end
@@ -1026,62 +1022,125 @@ switch what
                             '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
                             subj_str{s}, ses, tasks{tk}, r)};
                     
-                        J.sess(count).regress   = struct('name', {}, 'val', {});
+                        J.sess(count).regress   = struct('name', {}, ...
+                            'val', {});
                         J.sess(count).multi_reg = {''};
                         J.sess(count).hpf       = hrf_cutoff; % set to 0'inf' if using J.cvi = 'FAST'. SPM HPF not applied
 
                     end % r (n_run)
-                end % ses (ssn)
-                
-                % FFX across sessiona for a given task and participant
-                spm_rwls_run_fmri_spec(J);
-                    
-                % Remove *events.mat file from /localscratch
-                if any(size(dir('/localscratch/*_events.mat'), 1))
-                    delete('/localscratch/*_events.mat');
+                end % tk (tasks)         
+            end % ses (ssn)
+
+            % FFX across all sessions for all tasks per participant
+            spm_rwls_run_fmri_spec(J);
+
+            % Remove *events.mat file from /localscratch
+            if any(size(dir('/localscratch/*_events.mat'), 1))
+                delete('/localscratch/*_events.mat');
+            end
+        end % sn (subject)     
+
+    case 'GLM:estimate' % estimate beta values
+        % Example usage: msdtb_imana('GLM:estimate', 'sn', [1], 'ses', {'archi'})
+        
+        sn       = subj_id; % subject list
+        tasks = {'prod', 'percep', 'ntfd'};
+        vararginoptions(varargin, {'sn'})
+        
+        for s = sn
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir);            
+            % loop over tasks
+            for tk=1:length(tasks)
+                if strcmp(tasks{tk}, 'prod')
+                    ttag = 'production';
+                elseif strcmp(tasks{tk}, 'percep')
+                    ttag = 'perception';
+                elseif strcmp(tasks{tk}, 'ntfd')
+                    ttag = 'ntfd';
+                else
+                    continue
                 end
+                esttask_folder = fullfile(estderiv_subj_dir, ttag);
+                % Delete previous estimates, if they exist
+                if any(size(dir([esttask_folder '/*.nii']), 1))
+                    delete([esttask_folder '/*.nii']);
+                end
+                % Load SPM.mat file with design and add path to store
+                % the new estimates
+                load(fullfile(esttask_folder, 'SPM.mat'));
+                SPM.swd = esttask_folder;
+                % Add as input SPM.mat file to the rwls GLM 
+                spm_rwls_spm(SPM);
             end % tk (tasks)
-        end % sn (subject)
+        end % s (sn)    
 
-    case 'GLM:check_design' % checking the design matrix
-        % run GLM:make_design, GLM:estimate, and GLM:contrast before this step
-        % Example usage:nishimoto_imana('GLM:check_design', 'sn', 1, 'ses', 1, 'glm', 1)
+    case 'GLM:individual_ffx_t'
+        % Estimate ffx individual tmaps across runs and sessions
         
-        sn       = subj_id; % list of subjects you want to inspect
-        ses = 1;
-        glm      = 1;           % glm number
-        runs     = 1:12;         % list of runs you want to inspect
+        % Go to the folder of scriptfileparts(mfilename('fullpath'))
+        cd(fileparts(mfilename('fullpath')))
         
-        vararginoptions(varargin, {'sn', 'ses', 'glm', 'runs'});
+        sn       = subj_id; % subject list
+        tasks = {'prod', 'percep', 'ntfd'};
+        vararginoptions(varargin, {'sn'})
+        
+        contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...
+                     'Auditory Encoding', [1 0 1 0]; ...
+                     'Visual Encoding', [0 0 0 0 1 0 1 0]; ...
+                     'Auditory vs Visual Encoding', [1 0 1 0 -1 0 -1 0]; ...
+                     'Visual vs Auditory Encoding', [-1 0 -1 0 1 0 1 0]; ...
+                     'Beat vs Interval', [1 0 -1 0 1 0 -1 0]; ...
+                     'Auditory Beat vs Auditory Interval', [1 0 -1 0]; ...
+                     'Visual Beat vs Visual Interval', [0 0 0 0 1 0 -1 0]; ...
+                     'Interval vs Beat', [-1 0 1 0 -1 0 1 0]; ...
+                     'Auditory Interval vs Auditory Beat', [-1 0 1 0]; ...
+                     'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0]; ...
+                     'Decision', [0 1 0 1 0 1 0 1]; ...
+                     };
+        
+        for s = sn
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir);            
+            % loop over tasks
+            for tk=1:length(tasks)
+                if strcmp(tasks{tk}, 'prod')
+                    ttag = 'production';
+                elseif strcmp(tasks{tk}, 'percep')
+                    ttag = 'perception';
+                elseif strcmp(tasks{tk}, 'ntfd')
+                    ttag = 'ntfd';
+                else
+                    continue
+                end
+                esttask_folder = fullfile(estderiv_subj_dir, ttag);
+                
+                A = []; % structure with SPM fields to build the t-contrasts
+                
+                A.spmmat = {[esttask_folder '/SPM.mat']};
+                
+                for c=1:length(contrasts)
+                    A.consess{c}.tcon.name = contrasts{c,1};
+                    A.consess{c}.tcon.weights = contrasts{c,2};
+                    A.consess{c}.tcon.sessrep = 'replsc';
+                end
+                % Delete existing contrasts
+                A.delete = 1; % 1 yes, 0 no
+                
+                matlabbatch{1}.spm.stats.con=A;
+                spm_jobman('run',matlabbatch);
+            end % tk (tasks)
+        end % s (subject)
+        
+    case 'GLM:run_all'
+        % Example usage: msdtb_imana('GLM:run_all')
 
-        for s = sn 
-            
-            % glm subject directory
-            glm_dir = fullfile(base_dir, subj_str{s}, est_dir, sprintf('glm%02d', glm), ses_str{ses});
-            % load SPM.mat file
-            load(fullfile(glm_dir, 'SPM.mat'));
-            
-            for r = runs
-                % get the design matrix for run r
-                X = SPM.xX.X(SPM.Sess(r).row, SPM.Sess(r).col);
-                
-                % get the variance of beta estimates
-                indx = SPM.Sess(r).col;
-                Bcov = SPM.xX.Bcov(indx, indx);
-                
-                % create visualizations
-                h = figure('Name', sprintf('%s run %02d', subj_str{s}, r));
-                subplot(1, 2, 1)
-                imagesc(X); colorbar;
-                title(sprintf('Design Matrix for run %02d GLM %02d', r, glm));
-                subplot(1, 2, 2)
-                imagesc(Bcov); axis square; colorbar;
-                title(sprintf('Variance of Beta estimates %s for run %02d GLM %02d', r, glm));
-                
-                
-            end % r (runs)
-        end % s (sn)
+        % Note: Do not forget to copy tsv files to the server
 
+        msdtb_imana('GLM:grand_design')
+        msdtb_imana('GLM:estimate')
+        msdtb_imana('GLM: individual_ffx_t') 
+        
     case 'GLM:dmtx_unf' 
         % Saves a copy of SPM.mat prepared to be loaded in python       
         
@@ -1122,165 +1181,9 @@ switch what
 
                 end % rn (runtags)
             end % ss (sessions)
-        end % s (sn)       
+        end % s (sn)  
 
-    case 'GLM:estimate'     % estimate beta values
-        % Example usage: msdtb_imana('GLM:estimate', 'sn', [1], 'ses', {'archi'})
-        
-        sn       = subj_id; % subject list
-        tasks = {'prod', 'percep', 'ntfd'};
-        vararginoptions(varargin, {'sn'})
-        
-        for s = sn
-            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, est_dir);            
-            % loop over tasks
-            for tk=1:length(tasks)
-                if strcmp(tasks{tk}, 'prod')
-                    ttag = 'production';
-                elseif strcmp(tasks{tk}, 'percep')
-                    ttag = 'perception';
-                elseif strcmp(tasks{tk}, 'ntfd')
-                    ttag = 'ntfd';
-                else
-                    continue
-                end
-                esttask_folder = fullfile(estderiv_subj_dir, ttag);
-                % Delete previous estimates, if they exist
-                if any(size(dir([esttask_folder '/*.nii']), 1))
-                    delete([esttask_folder '/*.nii']);
-                end
-                % Load SPM.mat file with design and add path to store
-                % the new estimates
-                load(fullfile(esttask_folder, 'SPM.mat'));
-                SPM.swd = esttask_folder;
-                % Add as input SPM.mat file to the rwls GLM 
-                spm_rwls_spm(SPM);
-            end % tk (tasks)
-        end % s (sn)
-        
-    case 'CON: individual_ffx_t'
-        % Estimate ffx individual tmaps across runs and sessions
-        
-        sn       = subj_id; % subject list
-        tasks = {'prod', 'percep', 'ntfd'};
-        vararginoptions(varargin, {'sn'})
-        
-        contrasts = {'Enconding', [0 1 0 1 0 1 0 1]; ...
-                     'Auditory Encoding', [0 1 0 1]; ...
-                     'Visual Encoding', [0 0 0 0 0 1 0 1]; ...
-                     'Auditory vs Visual Encoding', [0 1 0 1 0 -1 0 -1]; ...
-                     'Visual vs Auditory Encoding', [0 -1 0 -1 0 1 0 1]; ...
-                     'Beat vs Interval', [0 1 0 -1 0 1 0 -1]; ...
-                     'Auditory Beat vs Auditory Interval', [0 1 0 -1]; ...
-                     'Visual Beat vs Visual Interval', [0 0 0 0 0 1 0 -1]; ...
-                     'Interval vs Beat', [0 -1 0 1 0 -1 0 1]; ...
-                     'Auditory Interval vs Auditory Beat', [0 -1 0 1]; ...
-                     'Visual Interval vs Visual Beat', [0 0 0 0 0 -1 0 1]; ...
-                     'Decision', [1 0 1 0 1 0 1 0]; ...
-                     };
-        
-        for s = sn
-            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, est_dir);            
-            % loop over tasks
-            for tk=1:length(tasks)
-                if strcmp(tasks{tk}, 'prod')
-                    ttag = 'production';
-                elseif strcmp(tasks{tk}, 'percep')
-                    ttag = 'perception';
-                elseif strcmp(tasks{tk}, 'ntfd')
-                    ttag = 'ntfd';
-                else
-                    continue
-                end
-                esttask_folder = fullfile(estderiv_subj_dir, ttag);
-                
-                A = []; % structure with SPM fields to build the t-contrasts
-                
-                A.spmmat = {[esttask_folder '/SPM.mat']};
-                
-                for c=1:length(contrasts)
-                    A.consess{c}.tcon.name = contrasts{c,1};
-                    A.consess{c}.tcon.weights = contrasts{c,2};
-                    A.consess{c}.tcon.sessrep = 'replsc';
-                end
-                % Delete existing contrasts
-                A.delete = 1; % 1 yes, 0 no
-                
-                matlabbatch{1}.spm.stats.con=A;
-                spm_jobman('run',matlabbatch);
-            end % tk (tasks)
-        end % s (subject)
-
-    case 'GLM:T_contrast'   % make T contrasts for each condition
-        %%% Calculating contrast images.
-        % Example usage: nishimoto_imana('GLM:T_contrast', 'sn', 2, 'glm', 1, 'ses', 1, 'baseline', 'rest')
-        
-        sn             = subj_id;    % subjects list
-        ses            = 1;              % task number
-        glm            = 1;              % glm number
-        baseline       = 'rest';         % contrast will be calculated against base (available options: 'rest')
-        
-        vararginoptions(varargin, {'sn', 'glm', 'ses', 'baseline'})
-        
-        for s = sn
-            
-            % get the subject id folder name
-            fprintf('Contrasts for session %02d %s\n', ses, subj_str{s})
-            glm_dir = fullfile(base_dir, subj_str{s}, est_dir, sprintf('glm%02d', glm), ses_str{ses}); 
-            
-            cd(glm_dir);
-            
-            % load the SPM.mat file
-            load(fullfile(glm_dir, 'SPM.mat'))
-            
-            SPM  = rmfield(SPM,'xCon');
-            T    = dload(fullfile(glm_dir, sprintf('%s_%s_reginfo.tsv', subj_str{s}, ses_str{ses})));
-            
-            % t contrast for each condition type
-            utask = unique(T.task)';
-            idx = 1;
-            for ic = utask
-                switch baseline
-                    case 'myBase' % contrast vs future baseline :)))
-                        % put your new contrasts here!
-                    case 'rest' % contrast against rest
-                        con                          = zeros(1,size(SPM.xX.X,2));
-                        con(:,logical((T.task == ic)& (T.n_rep>0))) = 1;
-%                         n_rep = length(T.run(T.task == ic));
-%                         n_rep_t = T.n_rep(T.task == ic);
-%                         name = unique(T.task_name(T.task == ic));
-%                         fprintf('- task is %s: \n', name{1});
-%                         fprintf('number of reps in all runs = %d\n', n_rep);
-%                         fprintf('numberof reps recorded in tsv = %d\n', n_rep_t);
-                        con                          = con/abs(sum(con));            
-                end % switch base
-
-                % set the name of the contrast
-                contrast_name = sprintf('%s-%s', char(unique(T.task_name(T.task == ic))), baseline);
-                SPM.xCon(idx) = spm_FcUtil('Set', contrast_name, 'T', 'c', con', SPM.xX.xKXs);
-                
-                idx = idx + 1;
-            end % ic (conditions)
-            
-            SPM = spm_contrasts(SPM,1:length(SPM.xCon));
-            save('SPM.mat', 'SPM','-v7.3');
-            SPM = rmfield(SPM,'xVi'); % 'xVi' take up a lot of space and slows down code!
-            save(fullfile(glm_dir, 'SPM_light.mat'), 'SPM')
-
-            % rename contrast images and spmT images
-            conName = {'con','spmT'};
-            for i = 1:length(SPM.xCon)
-                for n = 1:numel(conName)
-                    oldName = fullfile(glm_dir, sprintf('%s_%2.4d.nii',conName{n},i));
-                    newName = fullfile(glm_dir, sprintf('%s_%s.nii',conName{n},SPM.xCon(i).name));
-                    movefile(oldName, newName);
-                end % conditions (n, conName: con and spmT)
-            end % i (contrasts)
-        end % sn
-
-    case 'GLM:F_contrast'   % make F contrast
+    case 'GLM:F_contrast' % make F contrast
         %%% Calculating contrast images.
         % 'SPM_light' is created in this step (xVi is removed as it slows
         % down code for FAST GLM).
@@ -1316,56 +1219,7 @@ switch what
             SPM = rmfield(SPM,'xVi'); % 'xVi' take up a lot of space and slows down code!
             save(fullfile(glmDir, subj_name, 'SPM_light.mat'), 'SPM');
 
-        end % sn
-
-    case 'GLM:check'        % visually inspect design matrix
-        % run GLM:make_design, GLM:estimate, and GLM:contrast before this step
-        % Example usage:nishimoto_imana('GLM:check', 'sn', 1, 'ses', 1, 'glm', 1)
-        
-        sn       = subj_id; % list of subjects you want to inspect
-        ses      = 1;       % session number
-        glm      = 1;       % glm number
-        runs     = 1:5;     % list of runs you want to inspect or the number of the run you want to expect
-        
-        vararginoptions(varargin, {'sn', 'ses', 'glm', 'runs'});
-
-        for s = sn 
-            % glm subject directory
-            glm_dir = fullfile(base_dir,subj_str{s}, est_dir, sprintf('glm%02d', glm), ses_str{ses});
-            
-            % load SPM.mat file
-            load(fullfile(glm_dir, 'SPM.mat'));
-            
-            for r = runs
-                % get the design matrix for run r
-                X = SPM.xX.X(SPM.Sess(r).row, SPM.Sess(r).col);
-                
-                % get the variance of beta estimates
-                indx = SPM.Sess(r).col;
-                Bcov = SPM.xX.Bcov(indx, indx);
-                
-                % create visualizations
-                h = figure('Name', sprintf('%s run %02d', subj_str{s}, r));
-                subplot(1, 2, 1)
-                imagesc(X); colorbar;
-                title(sprintf('Design Matrix session %02d for run %02d GLM %02d', ses, r, glm));
-                subplot(1, 2, 2)
-                imagesc(Bcov); axis square; colorbar;
-                title(sprintf('Variance of Beta estimates session %02d for run %02d GLM %02d', ses, r, glm));
-                
-                keyboard;
-                
-            end % r (runs)
-        end % s (sn)
-
-    case 'VOL:run_allpostproc'
-        % Example usage: msdtb_imana('VOL:run_allpostproc')
-        
-        % Note: Do not forget to copy tsv files to the server
-
-        msdtb_imana('GLM:design')
-        msdtb_imana('GLM:estimate')
-        msdtb_imana('CON: individual_ffx_t')  
+        end % sn 
          
     case 'SURF:reconall' % Freesurfer reconall routine
         % Calls recon-all, which performs, all of the
@@ -1394,7 +1248,7 @@ switch what
                 fullfile(subj_anatderiv_dir, anat_name));
         end % s (sn)
 
-    case 'SURF:xhemireg'       % Cross-register surfaces left / right hem
+    case 'SURF:xhemireg' % Cross-register surfaces left / right hem
         % surface-based interhemispheric registration
         % example: msdtb_imana('SURF:xhemireg', 'sn', [1, 2, 3, 4, 5])
         
@@ -1457,6 +1311,7 @@ switch what
 
     case 'SURF:run_all'
         % Example usage: msdtb_imana('SURF:run_all')
+
         msdtb_imana('SURF:reconall')
         msdtb_imana('SURF:xhemireg')
         msdtb_imana('SURF:map_ico')
@@ -1497,7 +1352,7 @@ switch what
             suit_isolate_seg({dest}, 'keeptempfiles', 1);
         end % s (sn)
 
-    case 'SUIT:normalise_dartel'   % SUIT normalization using dartel
+    case 'SUIT:normalise_dartel' % SUIT normalization using dartel
         % LAUNCH SPM FMRI BEFORE RUNNING!!!!!
         % example usage: ibc_imana('SUIT:normalise_dartel')
         sn = subj_id; %subjNum
@@ -1553,7 +1408,7 @@ switch what
             spm_imcalc(masks, final_mask, 'i2>0.1 & i3>0.1');
         end
 
-    case 'SUIT:reslice'            % Reslice stuff into suit space 
+    case 'SUIT:reslice' % Reslice stuff into suit space 
         % run the case with 'anatomical' to check the suit normalization
         % Example usage: nishimoto_imana('SUIT:reslice','type','ResMS', 'mask', 'pcereb_corr')
         % make sure that you reslice into 2mm^3 resolution
@@ -1604,7 +1459,7 @@ switch what
             fprintf('- Resliced %s %s to SUIT\n', subj_str{s}, type);
         end % s (subject)
         
-    case 'SUIT:map2flat'           % Creates flatmaps
+    case 'SUIT:map2flat' % Creates flatmaps
     % this case also creates group average for each task
     % First RUN nishimoto_iman
     sn    = subj_id;
@@ -1669,7 +1524,6 @@ switch what
 end
 
 end
-
 
 % Checking for directories and creating if not exist
 function dircheck(dir)
