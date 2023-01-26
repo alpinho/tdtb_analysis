@@ -61,8 +61,8 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-subj_n  = [3, 4, 7, 8, 10];
-% subj_n  = [4, 7, 10];
+% subj_n  = [3, 4, 7, 8, 10];
+subj_n  = [4, 7, 8, 10];
 % subj_n  = [3];
 
 subj_id = 1:length(subj_n);
@@ -454,8 +454,6 @@ switch what
                     funcraw_folder = fullfile(raw_subjdir, ...
                         ['ses-' num2str(ses, '%02d')], func_dir);
                 end
-                funcderiv_folder = fullfile(deriv_subjdir, ...
-                    ['ses-' num2str(ses, '%02d')], func_dir);
                 fmapderiv_folder = fullfile(deriv_subjdir, ...
                     ['ses-' num2str(ses, '%02d')], fmap_dir); 
                 for tk=1:length(tasks)
@@ -506,45 +504,45 @@ switch what
             run = horzcat(run{:});
             run = horzcat(run{:});
             % Load batch and run spm
-            spmja_realign_unwarp('/localscratch', subj_str{s}, run, 1, ...
-                Inf, 'prefix', prefix, 'rawdataDir', '/localscratch');
+            spmja_realign_unwarp('/localscratch', subj_str{s}, run, 1, Inf, ...
+                'prefix', prefix, 'rawdataDir', '/localscratch');
              
             for ses = ssn
                 % Create if does not exist the derivatives folder
-                func_deriv = fullfile(base_dir, derivatives_dir, ...
+                func_deriv_folder = fullfile(base_dir, derivatives_dir, ...
                     subj_str{s}, ['ses-' num2str(ses, '%02d')], func_dir);
                 % Create/update destination folder
-                folder(func_deriv);
+                folder(func_deriv_folder);
                 % Move files from "/localscratch" to destination folder
                 if ses == 1
                     % Move mean-unwarped EPI file
                     movefile(['/localscratch/meanu' subj_str{s} ...
                         '_ses-' num2str(ses, '%02d') ...
-                        '_task-prod_run-01_bold.nii'], func_deriv);
+                        '_task-prod_run-01_bold.nii'], func_deriv_folder);
                     % Rename and move postscript file
                     old_psfile = dir('*.ps').name;
                     old_psname = old_psfile(1:end-3);
                     psfile = strcat(old_psname, '_realignunwarp.ps');
-                    movefile(old_psfile, func_deriv);
-                    movefile(fullfile(func_deriv, old_psfile), ...
-                    fullfile(func_deriv, psfile));
+                    movefile(old_psfile, func_deriv_folder);
+                    movefile(fullfile(func_deriv_folder, old_psfile), ...
+                    fullfile(func_deriv_folder, psfile));
                 end
                 % Move motion-param .txt files
                 movefile(['/localscratch/rp_' subj_str{s} '_ses-' ...
                     num2str(ses, '%02d') '_task-*_run-*_bold.txt'], ...
-                    func_deriv);
+                    func_deriv_folder);
                 
                 % Move functional files w/ param estimation in their
                 % headers, but not resliced only, as well as all .mat files
                 % (i.e. those about realign and those about the unwarp
                 movefile(['/localscratch/' subj_str{s} '_ses-' ...
                     num2str(ses, '%02d') '_task-*_run-*_bold*'], ...
-                    func_deriv);
+                    func_deriv_folder);
 
                 % Move unwarped images
                 movefile(['/localscratch/u' subj_str{s} '_ses-' ...
                     num2str(ses, '%02d') '_task-*_run-*_bold*'], ...
-                    func_deriv);
+                    func_deriv_folder);
             end % ses (ses_id)
             
             % Delete unziped raw files from localscratch
@@ -591,8 +589,7 @@ switch what
 
             % (2) Automatically co-register functional and ...
             % anatomical images
-            J.ref = {fullfile(anat_deriv, sprintf(...
-                '%s_ses-01_acq-MPRAGE_run-01_T1w.nii', subj_str{s}))};
+            J.ref = {fullfile(anat_deriv, sprintf('%s_T1w.nii', subj_str{s}))};
             J.source = {fullfile(func_deriv, ...
                 sprintf('%smeanu%s_ses-01_task-prod_run-01_bold.nii', ...
                 prefix, subj_str{s}))};
@@ -736,22 +733,18 @@ switch what
                 
             % First mask: whole btain
             nam{1}  = meanepi;
-            nam{2}  = fullfile(subj_anatderiv_dir, ...
-                sprintf('c1%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
+            nam{2}  = fullfile(subj_anatderiv_dir, sprintf('c1%s_T1w.nii', ...
                 subj_str{s}));
-            nam{3}  = fullfile(subj_anatderiv_dir, ...
-                sprintf('c2%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
+            nam{3}  = fullfile(subj_anatderiv_dir, sprintf('c2%s_T1w.nii', ...
                 subj_str{s}));
-            nam{4}  = fullfile(subj_anatderiv_dir, ...
-                sprintf('c3%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
+            nam{4}  = fullfile(subj_anatderiv_dir, sprintf('c3%s_T1w.nii', ...
                 subj_str{s}));
             spm_imcalc(nam, wholebrain_mask, 'i1>0 & (i2+i3+i4)>0.1');
 
             % Second mask: gray-matter mask
             nam     = {};
             nam{1}  = meanepi;
-            nam{2}  = fullfile(subj_anatderiv_dir, ...
-                sprintf('c1%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
+            nam{2}  = fullfile(subj_anatderiv_dir, sprintf('c1%s_T1w.nii', ...
                 subj_str{s}));
             spm_imcalc(nam, graymatter_mask, 'i1>0 & i2>0.1');
 
