@@ -62,8 +62,8 @@ wb_dir   = 'surfaceWB';
 
 % list of subjects
 % subj_n  = [3, 4, 7, 8, 10];
-subj_n  = [4, 7, 8, 10];
-% subj_n  = [3];
+% subj_n  = [4, 7, 8, 10];
+subj_n  = [3];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1234,8 +1234,7 @@ switch what
             subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
             
             % Get the name of the anatomical image
-            anat_name = sprintf('%s_ses-01_acq-MPRAGE_run-01_T1w.nii', ...
-                subj_str{s});
+            anat_name = sprintf('%s_T1w.nii', subj_str{s});
             
             freesurfer_reconall(subj_fs_dir, subj_str{s}, ...
                 fullfile(subj_anatderiv_dir, anat_name));
@@ -1308,7 +1307,7 @@ switch what
         msdtb_imana('SURF:reconall')
         msdtb_imana('SURF:xhemireg')
         msdtb_imana('SURF:map_ico')
-        msdtb_imana('SURF:fs2wb')        
+        msdtb_imana('SURF:fs2wb', 'res', 32)        
         
     case 'SUIT:isolate_segment'  
         % Segment cerebellum into grey and white matter
