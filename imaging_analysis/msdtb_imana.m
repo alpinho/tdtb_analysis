@@ -1071,7 +1071,7 @@ switch what
     case 'GLM:individual_ffx_t'
         % Estimate ffx individual tmaps across runs and sessions
         
-        % Go to the folder of scriptfileparts(mfilename('fullpath'))
+        % Go to the folder of script
         cd(fileparts(mfilename('fullpath')))
         
         sn       = subj_id; % subject list
@@ -1307,6 +1307,7 @@ switch what
         msdtb_imana('SURF:reconall')
         msdtb_imana('SURF:xhemireg')
         msdtb_imana('SURF:map_ico')
+        cd(fileparts(mfilename('fullpath'))) % Go to the folder of script
         msdtb_imana('SURF:fs2wb', 'res', 32)        
         
     case 'SUIT:isolate_segment'  
