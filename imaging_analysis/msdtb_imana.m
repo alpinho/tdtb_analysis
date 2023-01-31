@@ -1076,38 +1076,29 @@ switch what
         end % sn (subject)     
 
     case 'GLM:estimate' % estimate beta values
-        % Example usage: msdtb_imana('GLM:estimate', 'sn', [1], 'ses', {'archi'})
+        % Example usage: msdtb_imana('GLM:estimate', 'sn', [1])
         
         sn       = subj_id; % subject list
-        tasks = {'prod', 'percep', 'ntfd'};
+        designs = {'ffx', 'rand_ntfd'};
         vararginoptions(varargin, {'sn'})
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);            
-            % loop over tasks
-            for tk=1:length(tasks)
-                if strcmp(tasks{tk}, 'prod')
-                    ttag = 'production';
-                elseif strcmp(tasks{tk}, 'percep')
-                    ttag = 'perception';
-                elseif strcmp(tasks{tk}, 'ntfd')
-                    ttag = 'ntfd';
-                else
-                    continue
-                end
-                esttask_folder = fullfile(estderiv_subj_dir, ttag);
+            % loop over designs
+            for dg=1:length(designs)
+                estdesign_folder = fullfile(estderiv_subj_dir, designs{dg});
                 % Delete previous estimates, if they exist
-                if any(size(dir([esttask_folder '/*.nii']), 1))
-                    delete([esttask_folder '/*.nii']);
+                if any(size(dir([estdesign_folder '/*.nii']), 1))
+                    delete([estdesign_folder '/*.nii']);
                 end
                 % Load SPM.mat file with design and add path to store
                 % the new estimates
-                load(fullfile(esttask_folder, 'SPM.mat'));
-                SPM.swd = esttask_folder;
+                load(fullfile(estdesign_folder, 'SPM.mat'));
+                SPM.swd = estdesign_folder;
                 % Add as input SPM.mat file to the rwls GLM 
                 spm_rwls_spm(SPM);
-            end % tk (tasks)
+            end % dg (designs)
         end % s (sn)    
 
     case 'GLM:individual_ffx_t'
