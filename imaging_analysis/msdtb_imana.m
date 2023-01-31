@@ -928,6 +928,9 @@ switch what
             else
                 estimates_folder = fullfile(glms_folder, 'ffx');
             end
+            
+            % Create estimates folder if does not exist or clean it
+            folder(estimates_folder)
                 
             J = []; % structure with SPM fields to make the design
 
