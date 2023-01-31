@@ -61,9 +61,9 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n  = [3, 4, 7, 8, 10];
+subj_n  = [3, 4, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
-subj_n  = [3];
+% subj_n  = [3];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -853,6 +853,7 @@ switch what
         end % s (sn)
 
     case 'FUNC:check_coreg' % prints out the transformation matrix for coreg
+
         % Run this case to get the transformation matrix and then use it
         % for translation/rotation to check the coreg.
         % the coreg case just estimates the transformation matrix, it
@@ -873,7 +874,34 @@ switch what
         x = spm_coreg(T2_vol, T1_vol);
         M = spm_matrix(x);
         
-        spm_get_space(T2, M * T2_vol.mat);        
+        spm_get_space(T2, M * T2_vol.mat);
+
+    case 'GLM:copy_paradigm-descriptors'
+        % Example usage: msdtb_imana('GLM:copy_paradigm_descriptors')
+
+        sn  = subj_id;
+        ssn = ses_id; % list of sessions
+        vararginoptions(varargin, {'sn'});
+        
+        if isdir('/srv/diedrichsen/data')
+            source = fullfile(homedir, ...
+                'analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events/');
+        else
+            source = fullfile(...
+                '/home/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events/');
+        end
+        destination = fullfile(workdir, ...
+            'Cerebellum/music-sdtb/derivatives');
+
+        for s = sn
+            for ses = ssn
+                sfiles = [source subj_str{s} '/ses-' ...
+                    num2str(ses, '%02d') '/*.tsv'];
+                dfolder = fullfile(destination, subj_str{s}, ...
+                    ['ses-' num2str(ses, '%02d')], 'func');
+                copyfile(sfiles, dfolder)
+            end
+        end
         
     case 'GLM:grand_design' % make the design matrix for the glm
         % models each condition as a separate regressors
