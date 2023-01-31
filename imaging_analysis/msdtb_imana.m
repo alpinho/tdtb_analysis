@@ -920,8 +920,14 @@ switch what
         % loop over subjects
         for s = sn
             deriv_subjdir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s});            
-            estimates_folder = fullfile(deriv_subjdir, est_dir);
+                subj_str{s});
+            glms_folder = fullfile(deriv_subjdir, est_dir);
+            
+            if random == 1
+                estimates_folder = fullfile(glms_folder, 'rand_ntfd');
+            else
+                estimates_folder = fullfile(glms_folder, 'ffx');
+            end
                 
             J = []; % structure with SPM fields to make the design
 
@@ -963,13 +969,18 @@ switch what
                     end                
                 
                     % loop over runs
-                    if ses == 2 && strcmp(tasks{tk}, 'ntfd') && random == 1
-                        start = 3;
-                        n_run = 4;
+                    if random == 1
+                        if ses == 2 && strcmp(tasks{tk}, 'ntfd')
+                            start = 3;
+                            n_run = 4;
+                        else
+                            continue
+                        end
                     else
                         start = 1;
                         n_run = 2;
                     end
+                    
                     for r=start:n_run
                         count = count + 1;
                         fpath = fullfile(funcderiv_folder, ...
