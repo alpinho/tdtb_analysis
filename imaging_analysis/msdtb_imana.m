@@ -910,12 +910,10 @@ switch what
         % msdtb_imana('GLM:design', 'sn', [1])
         
         sn = subj_id;
-        ssn = ses_id; % list of sessions
-        tasks = {'prod', 'percep', 'ntfd'};
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         hrf_cutoff = Inf;
         prefix = 'u'; % prefix of the preprocessed epi we want to use
-        random = 0;
-        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'random'});
+        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design'});
         
         % loop over subjects
         for s = sn
@@ -923,151 +921,146 @@ switch what
                 subj_str{s});
             glms_folder = fullfile(deriv_subjdir, est_dir);
             
-            if random == 1
-                estimates_folder = fullfile(glms_folder, 'rand_ntfd');
-            else
-                estimates_folder = fullfile(glms_folder, 'ffx');
-            end
-            
-            % Create estimates folder if does not exist or clean it
-            folder(estimates_folder)
+            % loop over design
+            for dg=1:length(design)
+                estimates_folder = fullfile(glms_folder, design{dg})
+
+                % Create estimates folder if does not exist or clean it
+                folder(estimates_folder)
+
+                J = []; % structure with SPM fields to make the design
+
+                J.timing.units   = 'secs';
+                J.timing.RT      = 1.2;
+                J.timing.fmri_t  = 16;
+                J.timing.fmri_t0 = 1;
+
+                J.fact             = struct('name', {}, 'levels', {});
+                J.bases.hrf.derivs = [0 0];
+                J.bases.hrf.params = [4.5 11]; % set to [] if running wls
+                J.volt             = 1;
+                J.global           = 'None';
+                J.mask             = {char(fullfile(deriv_subjdir, ...
+                    'ses-01', func_dir, 'rmask_noskull.nii'))};
+                J.mthresh          = 1.;
+                J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
+                    'ses-01', func_dir,'rmask_gray.nii'))};
+                J.cvi              = 'fast';
+
+                J.dir = {estimates_folder};
                 
-            J = []; % structure with SPM fields to make the design
+                % Define tasks to be included in the design
+                if strcmp(design{dg}, 'allmain_tasks')
+                    tasks = {'prod', 'percep', 'ntfd'};
+                    ssn = ses_id; % list of sessions
+                elseif strcmp(design{dg}, 'rand_ntfd')
+                    tasks = {'ntfd'};
+                    ssn = [2];
+                else
+                    tasks = {design{dg}};
+                    ssn = ses_id; % list of sessions
+                end
 
-            J.timing.units   = 'secs';
-            J.timing.RT      = 1.2;
-            J.timing.fmri_t  = 16;
-            J.timing.fmri_t0 = 1;
+                % loop over sessions
+                count = 0;
+                for ses = ssn
+                    funcderiv_folder = fullfile(deriv_subjdir, ...
+                        ['ses-' num2str(ses, '%02d')], func_dir);
 
-            J.fact             = struct('name', {}, 'levels', {});
-            J.bases.hrf.derivs = [0 0];
-            J.bases.hrf.params = [4.5 11]; % set to [] if running wls
-            J.volt             = 1;
-            J.global           = 'None';
-            J.mask             = {char(fullfile(deriv_subjdir, ...
-                'ses-01', func_dir, 'rmask_noskull.nii'))};
-            J.mthresh          = 1.;
-            J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
-                'ses-01', func_dir,'rmask_gray.nii'))};
-            J.cvi              = 'fast';
-
-            J.dir = {estimates_folder};
-
-            % loop over sessions
-            count = 0;
-            for ses = ssn
-                funcderiv_folder = fullfile(deriv_subjdir, ...
-                    ['ses-' num2str(ses, '%02d')], func_dir);
-                
-                % loop over tasks
-                for tk=1:length(tasks)
-                    if strcmp(tasks{tk}, 'prod')
-                        ttag = 'production';
-                    elseif strcmp(tasks{tk}, 'percep')
-                        ttag = 'perception';
-                    elseif strcmp(tasks{tk}, 'ntfd')
-                        ttag = 'ntfd';
-                    else
-                        % do nothing
-                    end                
-                
-                    % loop over runs
-                    if random == 1
-                        if ses == 2 && strcmp(tasks{tk}, 'ntfd')
+                    % loop over tasks
+                    for tk=1:length(tasks)              
+                        % loop over runs
+                        if strcmp(design{dg}, 'rand_ntfd')
                             start = 3;
                             n_run = 4;
                         else
-                            continue
+                            start = 1;
+                            n_run = 2;
                         end
-                    else
-                        start = 1;
-                        n_run = 2;
-                    end
-                    
-                    for r=start:n_run
-                        count = count + 1;
-                        fpath = fullfile(funcderiv_folder, ...
-                            sprintf(...
-                            '%s%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
-                            prefix, subj_str{s}, ses, tasks{tk}, r));
-                        V = niftiinfo(fpath);
-                        numTRs = V.ImageSize(4);
-                        % fill in nifti image names for the current run
-                        N = cell(numTRs - numDummys, 1); % preallocating!
-                        for i = 1:(numTRs-numDummys)
-                            N{i} = fullfile(funcderiv_folder, ...
+                        for r=start:n_run
+                            count = count + 1;
+                            fpath = fullfile(funcderiv_folder, ...
                                 sprintf(...
-                                '%s%s_ses-%02d_task-%s_run-%02d_bold.nii, %d', ...
-                                prefix, subj_str{s}, ses, tasks{tk}, r, i));
-                        end % i (image numbers)
-                    
-                        % Load the scans
-                        J.sess(count).scans = N; % scans in the current runs
-                    
-                        J.sess(count).cond = struct('name', {}, ...
-                            'onset', {}, 'duration', {}, 'tmod', {}, ...
-                            'pmod', {}, 'orth', {});
-                    
-                        % Event Files
-                        % get the path to the tsv file
-                        tsv_file = fullfile(funcderiv_folder, sprintf(...
-                            '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
-                            subj_str{s}, ses, tasks{tk}, r));
-                        
-                        % get the tsvfile for the current run
-                        D = struct([]); 
-                        D = tdfread(tsv_file,'\t');
-                    
-                        trial_names = {};
-                        trial_onsets = {};
-                        trial_durations = {};
-                        trial_names = cellstr(D.trial_type);
-                        trial_onsets = num2cell(D.onset);
-                        trial_durations = num2cell(D.duration);                    
+                                '%s%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
+                                prefix, subj_str{s}, ses, tasks{tk}, r));
+                            V = niftiinfo(fpath);
+                            numTRs = V.ImageSize(4);
+                            % fill in nifti image names for the current run
+                            N = cell(numTRs - numDummys, 1); % preallocating!
+                            for i = 1:(numTRs-numDummys)
+                                N{i} = fullfile(funcderiv_folder, ...
+                                    sprintf(...
+                                    '%s%s_ses-%02d_task-%s_run-%02d_bold.nii, %d', ...
+                                    prefix, subj_str{s}, ses, tasks{tk}, r, i));
+                            end % i (image numbers)
 
-                        unique_names = {};
-                        unique_names = unique(trial_names).';
-                        % Remove Rest, since it will be modelled implicitly
-                        unique_names(ismember(unique_names, 'rest')) = [];
-                        % Define paradigm descriptors
-                        names = {};
-                        onsets = {};
-                        durations = {};
-                        % Encoding condition goes first
-                        names(2:2:length(unique_names))= unique_names(1:2:end);
-                        names(1:2:length(unique_names))= unique_names(2:2:end);
-                        % Create onsets and duration cells
-                        for u = 1:length(names)
-                            indexes = [];
-                            indexes = find(strcmp(trial_names, names{u}));
-                            for idx = 1:length(indexes)
-                                onsets{u}(idx) = trial_onsets{indexes(idx)};
-                                durations{u}(idx) = ...
-                                    trial_durations{indexes(idx)};
+                            % Load the scans
+                            J.sess(count).scans = N; % scans in the current runs
+
+                            J.sess(count).cond = struct('name', {}, ...
+                                'onset', {}, 'duration', {}, 'tmod', {}, ...
+                                'pmod', {}, 'orth', {});
+
+                            % Event Files
+                            % get the path to the tsv file
+                            tsv_file = fullfile(funcderiv_folder, sprintf(...
+                                '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
+                                subj_str{s}, ses, tasks{tk}, r));
+
+                            % get the tsvfile for the current run
+                            D = struct([]); 
+                            D = tdfread(tsv_file,'\t');
+
+                            trial_names = {};
+                            trial_onsets = {};
+                            trial_durations = {};
+                            trial_names = cellstr(D.trial_type);
+                            trial_onsets = num2cell(D.onset);
+                            trial_durations = num2cell(D.duration);                    
+
+                            unique_names = {};
+                            unique_names = unique(trial_names).';
+                            % Remove Rest, since it will be modelled implicitly
+                            unique_names(ismember(unique_names, 'rest')) = [];
+                            % Define paradigm descriptors
+                            names = {};
+                            onsets = {};
+                            durations = {};
+                            % Encoding condition goes first
+                            names(2:2:length(unique_names))= unique_names(1:2:end);
+                            names(1:2:length(unique_names))= unique_names(2:2:end);
+                            % Create onsets and duration cells
+                            for u = 1:length(names)
+                                indexes = [];
+                                indexes = find(strcmp(trial_names, names{u}));
+                                for idx = 1:length(indexes)
+                                    onsets{u}(idx) = trial_onsets{indexes(idx)};
+                                    durations{u}(idx) = ...
+                                        trial_durations{indexes(idx)};
+                                end
                             end
-                        end
 
-                        save(...
-                            sprintf(...
-                            '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
-                            subj_str{s}, ses, tasks{tk}, r), ...
-                            'names', 'onsets', 'durations'); 
-                                       
-                        J.sess(count).multi = {sprintf(...
-                            '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
-                            subj_str{s}, ses, tasks{tk}, r)};
-                    
-                        J.sess(count).regress   = struct('name', {}, ...
-                            'val', {});
-                        J.sess(count).multi_reg = {''};
-                        J.sess(count).hpf       = hrf_cutoff; % set to 0'inf' if using J.cvi = 'FAST'. SPM HPF not applied
+                            save(...
+                                sprintf(...
+                                '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
+                                subj_str{s}, ses, tasks{tk}, r), ...
+                                'names', 'onsets', 'durations'); 
 
-                    end % r (n_run)
-                end % tk (tasks)         
-            end % ses (ssn)
+                            J.sess(count).multi = {sprintf(...
+                                '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
+                                subj_str{s}, ses, tasks{tk}, r)};
 
-            % FFX across all sessions for all tasks per participant
+                            J.sess(count).regress   = struct('name', {}, ...
+                                'val', {});
+                            J.sess(count).multi_reg = {''};
+                            J.sess(count).hpf       = hrf_cutoff; % set to 0'inf' if using J.cvi = 'FAST'. SPM HPF not applied
+
+                        end % r (n_run)
+                    end % tk (tasks)         
+                end % ses (ssn)
+            % FFX across all sessions for all tasks from the design per participant
             spm_rwls_run_fmri_spec(J);
+            end % dg (design)
 
             % Remove *events.mat file from /localscratch
             if any(size(dir('/localscratch/*_events.mat'), 1))
@@ -1079,15 +1072,15 @@ switch what
         % Example usage: msdtb_imana('GLM:estimate', 'sn', [1])
         
         sn       = subj_id; % subject list
-        designs = {'ffx', 'rand_ntfd'};
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         vararginoptions(varargin, {'sn'})
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);            
             % loop over designs
-            for dg=1:length(designs)
-                estdesign_folder = fullfile(estderiv_subj_dir, designs{dg});
+            for dg=1:length(design)
+                estdesign_folder = fullfile(estderiv_subj_dir, design{dg});
                 % Delete previous estimates, if they exist
                 if any(size(dir([estdesign_folder '/*.nii']), 1))
                     delete([estdesign_folder '/*.nii']);
@@ -1108,7 +1101,6 @@ switch what
         cd(fileparts(mfilename('fullpath')))
         
         sn       = subj_id; % subject list
-        tasks = {'prod', 'percep', 'ntfd'};
         vararginoptions(varargin, {'sn'})
         
         contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...
@@ -1128,34 +1120,20 @@ switch what
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);            
-            % loop over tasks
-            for tk=1:length(tasks)
-                if strcmp(tasks{tk}, 'prod')
-                    ttag = 'production';
-                elseif strcmp(tasks{tk}, 'percep')
-                    ttag = 'perception';
-                elseif strcmp(tasks{tk}, 'ntfd')
-                    ttag = 'ntfd';
-                else
-                    continue
-                end
-                esttask_folder = fullfile(estderiv_subj_dir, ttag);
-                
-                A = []; % structure with SPM fields to build the t-contrasts
-                
-                A.spmmat = {[esttask_folder '/SPM.mat']};
-                
-                for c=1:length(contrasts)
-                    A.consess{c}.tcon.name = contrasts{c,1};
-                    A.consess{c}.tcon.weights = contrasts{c,2};
-                    A.consess{c}.tcon.sessrep = 'replsc';
-                end
-                % Delete existing contrasts
-                A.delete = 1; % 1 yes, 0 no
-                
-                matlabbatch{1}.spm.stats.con=A;
-                spm_jobman('run',matlabbatch);
-            end % tk (tasks)
+            estdesign_folder = fullfile(estderiv_subj_dir, 'ffx');
+
+            A = []; % structure with SPM fields to build the t-contrasts
+            A.spmmat = {[estdesign_folder '/SPM.mat']};
+            for c=1:length(contrasts)
+                A.consess{c}.tcon.name = contrasts{c,1};
+                A.consess{c}.tcon.weights = contrasts{c,2};
+                A.consess{c}.tcon.sessrep = 'replsc';
+            end
+
+            % Delete existing contrasts
+            A.delete = 1; % 1 yes, 0 no
+            matlabbatch{1}.spm.stats.con=A;
+            spm_jobman('run', matlabbatch);
         end % s (subject)
         
     case 'GLM:run_all'
