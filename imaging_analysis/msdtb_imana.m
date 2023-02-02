@@ -1101,6 +1101,9 @@ switch what
         cd(fileparts(mfilename('fullpath')))
         
         sn       = subj_id; % subject list
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
+            'Random NTFD: ', 'AllTasks: '};
         vararginoptions(varargin, {'sn'})
         
         contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...
@@ -1118,22 +1121,25 @@ switch what
                      };
         
         for s = sn
-            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, est_dir);            
-            estdesign_folder = fullfile(estderiv_subj_dir, 'ffx');
+            for dg=1:length(design)
+                estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, est_dir);            
+                estdesign_folder = fullfile(estderiv_subj_dir, design{dg});
 
-            A = []; % structure with SPM fields to build the t-contrasts
-            A.spmmat = {[estdesign_folder '/SPM.mat']};
-            for c=1:length(contrasts)
-                A.consess{c}.tcon.name = contrasts{c,1};
-                A.consess{c}.tcon.weights = contrasts{c,2};
-                A.consess{c}.tcon.sessrep = 'replsc';
+                A = []; % structure with SPM fields to build the t-contrasts
+                A.spmmat = {[estdesign_folder '/SPM.mat']};
+                for c=1:length(contrasts)
+                    A.consess{c}.tcon.name = [contrast_prefix{dg} ...
+                        contrasts{c,1}];
+                    A.consess{c}.tcon.weights = contrasts{c,2};
+                    A.consess{c}.tcon.sessrep = 'replsc';
+                end
+
+                % Delete existing contrasts
+                A.delete = 1; % 1 yes, 0 no
+                matlabbatch{1}.spm.stats.con=A;
+                spm_jobman('run', matlabbatch);
             end
-
-            % Delete existing contrasts
-            A.delete = 1; % 1 yes, 0 no
-            matlabbatch{1}.spm.stats.con=A;
-            spm_jobman('run', matlabbatch);
         end % s (subject)
         
     case 'GLM:run_all'
