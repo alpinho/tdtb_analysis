@@ -899,7 +899,7 @@ switch what
                     num2str(ses, '%02d') '/*.tsv'];
                 dfolder = fullfile(destination, subj_str{s}, ...
                     ['ses-' num2str(ses, '%02d')], 'func');
-                system(['cp ' sfiles ' ' dfolder])
+                system(['cp ' sfiles ' ' dfolder]);
             end
         end
         
