@@ -696,7 +696,7 @@ def individual_perception(
             if task not in ['Auditory Perception', 'Visual Perception']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
             trials = perception_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'perception')
@@ -713,8 +713,8 @@ def individual_perception(
                 standards, comparisons, _, _, n1_interval, n2_interval = \
                     perception_frequencies(beat_trials, interval_trials)
 
-                rf1 = [[n1/8 for n1 in n1b] for n1b in n1_interval]
-                rf2 = [[n2/8 for n2 in n2b] for n2b in n2_interval]
+                rf1 = [[n1/8 for n1 in n1i] for n1i in n1_interval]
+                rf2 = [[n2/8 for n2 in n2i] for n2i in n2_interval]
 
             # Aggregate data
             if task == 'Auditory Perception':
@@ -2053,45 +2053,46 @@ if __name__ == "__main__":
 
     # # ################### PERCEPTION ###################################
 
-    # estim_pse = []
-    # estim_dl = []
-    # for estimator in ['mle_cdf', 'mle_expit']:
-    #     cond_pse = []
-    #     cond_dl = []
-    #     cond_ce = []
-    #     for cond in ['beat', 'interval']:
-    #         rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
-    #             comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
-    #                 individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
-    #                                       N_SESSIONS, cond,
-    #                                       estimator=estimator)
-    #         ipse = np.concatenate(([ipse_audio], [ipse_visual]), axis = 0)
-    #         idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0)
+    estim_pse = []
+    estim_dl = []
+    for estimator in ['mle_cdf', 'mle_expit']:
+        cond_pse = []
+        cond_dl = []
+        cond_ce = []
+        for cond in ['beat', 'interval']:
+            rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
+                comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
+                    individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
+                                          N_SESSIONS, cond,
+                                          estimator=estimator)
+            ipse = np.concatenate(([ipse_audio], [ipse_visual]),
+                                  axis = 0).tolist()
+            idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0).tolist()
 
-    #         cond_pse.append(ipse)
-    #         cond_dl.append(idl)
+            cond_pse.append(ipse)
+            cond_dl.append(idl)
 
-    #         # group_perception(rfone_audio, rftwo_audio, rfone_visual,
-    #         #                  rftwo_visual, stand, comp, cond,
-    #         #                  estimator=estimator)
+            group_perception(rfone_audio, rftwo_audio, rfone_visual,
+                             rftwo_visual, stand, comp, cond,
+                             estimator=estimator)
 
-    #         if cond == 'interval' and estimator == 'mle_expit':
-    #             pass
-    #         else:
-    #             del rfone_audio
-    #             del rftwo_audio
-    #             del rfone_visual
-    #             del rftwo_visual
-    #             del stand
-    #             del comp
-    #             del ipse
-    #             del idl
+            if cond == 'interval' and estimator == 'mle_expit':
+                pass
+            else:
+                del rfone_audio
+                del rftwo_audio
+                del rfone_visual
+                del rftwo_visual
+                del stand
+                del comp
+                del ipse
+                del idl
 
-    #     estim_pse.append(cond_pse)
-    #     estim_dl.append(cond_dl)
+        estim_pse.append(cond_pse)
+        estim_dl.append(cond_dl)
 
-    # # Compute Anovas
-    # perception_performance(estim_pse, estim_dl)
+    # Compute Anovas
+    perception_performance(estim_pse, estim_dl)
 
     # # # # ################### NTFD RT'S ####################################
 
