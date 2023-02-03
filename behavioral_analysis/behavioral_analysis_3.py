@@ -524,7 +524,7 @@ def individual_production_isi_rts(
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, task)
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
             trials = production_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'production')
@@ -1191,6 +1191,25 @@ def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
     return rs_audio_beat, rs_audio_interval, rs_visual_beat, rs_visual_interval
 
 
+def ffx(audio_beat, audio_interval, visual_beat, visual_interval):
+    # Inputs shape (n_subjects, n_isi, n_trials)
+    # Computes mean of elements in the third dimension
+    # Swaps dimensions and returns array w/ shape (n_isi, n_subjects)
+
+    mean_audio_beat = np.array(audio_beat).mean(2)
+    mean_audio_interval = np.array(audio_interval).mean(2)
+    mean_visual_beat = np.array(visual_beat).mean(2)
+    mean_visual_interval = np.array(visual_interval).mean(2)
+
+    ffx_audio_beat = np.swapaxes(mean_audio_beat, 0, 1)
+    ffx_audio_interval = np.swapaxes(mean_audio_interval, 0, 1)
+    ffx_visual_beat = np.swapaxes(mean_visual_beat, 0, 1)
+    ffx_visual_interval = np.swapaxes(mean_visual_interval, 0, 1)
+
+    return (ffx_audio_beat, ffx_audio_interval, ffx_visual_beat,
+            ffx_visual_interval)
+
+
 def plot_violin(audio_beat, audio_interval,
                 visual_beat, visual_interval,
                 isi1s, ylim_b, ylim_t, y_label,
@@ -1381,8 +1400,11 @@ def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
         pairs = tuple([[(str(isi1), 'Beat'), (str(isi1), 'Interval')]
                        for isi1 in isi1s])
         annotator = Annotator(ax[m], pairs, data=df, x=x, y=y, hue=z)
-        annotator.configure(test=None, text_format="simple",
-                            test_short_name="pttest", fontsize=4.5)
+        annotator.configure(test=None,
+                            text_format="star", # text_format="simple"
+                            # test_short_name="pttest", # if former is "simple"
+                            fontsize=10.)
+
         annotator.set_pvalues(pvalue)
         annotator.annotate()
 
@@ -1402,15 +1424,15 @@ def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
             ax[m].legend([],[], frameon=False)
 
         # Change x label
-        ax[m].set_xlabel(x_label, fontweight='semibold', labelpad=15)
+        ax[m].set_xlabel(x_label, fontweight='semibold', labelpad=20)
 
         # Display means rounded to two decimals on the top
-        for p in ax[m].patches:
-            ax[m].text(p.get_x() + p.get_width()/2.,
-                       p.get_height() + np.sign(p.get_height()) * yshift,
-                       '{:.2e}'.format(p.get_height()), fontsize=2.5,
-                       fontweight='bold', color='black', ha='center',
-                       va='bottom')
+        # for p in ax[m].patches:
+        #     ax[m].text(p.get_x() + p.get_width()/2.,
+        #                p.get_height() + np.sign(p.get_height()) * yshift,
+        #                '{:.2e}'.format(p.get_height()), fontsize=2.5,
+        #                fontweight='bold', color='black', ha='center',
+        #                va='bottom')
 
         # Change width of seaborn barplots
         change_width(ax[m], .4)
@@ -1422,6 +1444,9 @@ def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
     # Title
     plt.suptitle(title, size=10, linespacing=.75)
     plt.title('95% CI for the Mean', size=8, x=-.15)
+
+    # Common x-label
+    fig.text(.555, .055, 'Standards (ms)', ha='center', fontsize=10)
 
     # plt.show()
     # Save figure
@@ -1884,7 +1909,7 @@ if __name__ == "__main__":
             SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'absolute',
             flatten=False)
 
-    # ## Reshape
+    # ## Reshape and fixed-effects
 
     # Signed asynchronies
     rs_ssync_audio_beat, rs_ssync_audio_interval, \
@@ -1897,6 +1922,23 @@ if __name__ == "__main__":
         rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
             async_audio_beat, async_audio_interval,
             async_visual_beat, async_visual_interval)
+
+    # ## Compute mean of asynchronies across trials per subject
+    # ## for every standard
+
+    # Signed asynchronies
+    ffx_ssync_audio_beat, ffx_ssync_audio_interval, ffx_ssync_visual_beat, \
+        ffx_ssync_visual_interval = ffx(ssync_audio_beat,
+                                        ssync_audio_interval,
+                                        ssync_visual_beat,
+                                        ssync_visual_interval)
+
+    # Absolute asynchronies
+    ffx_async_audio_beat, ffx_async_audio_interval, ffx_async_visual_beat, \
+        ffx_async_visual_interval = ffx(async_audio_beat,
+                                        async_audio_interval,
+                                        async_visual_beat,
+                                        async_visual_interval)
 
     # ### Group Analyses per standard --- violin plots
 
@@ -1919,14 +1961,12 @@ if __name__ == "__main__":
         'production_groupviolin_absolute_asynch')
 
     # ### Group Analyses per standard --- bar plots + paired t-test
-
-    # Signed asynchronies
     _, pssync_audio = stats.ttest_rel(
-        rs_ssync_audio_beat, rs_ssync_audio_interval,
+        ffx_ssync_audio_beat, ffx_ssync_audio_interval,
         axis=1, alternative='two-sided')
 
     _, pssync_visual = stats.ttest_rel(
-        rs_ssync_visual_beat, rs_ssync_visual_interval,
+        ffx_ssync_visual_beat, ffx_ssync_visual_interval,
         axis=1, alternative='two-sided')
 
     ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
@@ -1939,11 +1979,11 @@ if __name__ == "__main__":
 
     # Absolute asynchronies
     _, pasync_audio = stats.ttest_rel(
-        rs_async_audio_beat, rs_async_audio_interval,
+        ffx_async_audio_beat, ffx_async_audio_interval,
         axis=1, alternative='two-sided')
 
     _, pasync_visual = stats.ttest_rel(
-        rs_async_visual_beat, rs_async_visual_interval,
+        ffx_async_visual_beat, ffx_async_visual_interval,
         axis=1, alternative='two-sided')
 
     async_title = 'Group Mean of Absolute Asynchrony for the Production tasks'
@@ -1956,42 +1996,50 @@ if __name__ == "__main__":
 
     # # # ############## PRODUCTION RESPONSE TIME ########################
 
-    # # ### Individual analysis per standard --- box plots
-    # rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
-    #     rtsprod_visual_interval, standards = individual_production_isi_rts(
-    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
+    # ### Individual analysis per standard --- box plots
+    rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
+        rtsprod_visual_interval, standards = individual_production_isi_rts(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # # ## Reshape
-    # rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
-    #     rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
-    #         rtsprod_audio_beat, rtsprod_audio_interval,
-    #         rtsprod_visual_beat, rtsprod_visual_interval)
+    # ## Reshape
+    rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
+            rtsprod_audio_beat, rtsprod_audio_interval,
+            rtsprod_visual_beat, rtsprod_visual_interval)
 
-    # # ### Group Analyses per standard --- violin plots
-    # plot_violin(
-    #     rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
-    #     rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
-    #     standards, 0., 2250., 'Response Time (ms)',
-    #     'Group Distribution of Response Time for the Production Tasks',
-    #     MAIN_DIR,
-    #     'production_groupviolin_responsetime')
+    # ## Compute mean of response time across trials per subject
+    # ## for every standard
 
-    # # ### Group Analyses per standard --- bar plots + paired t-test
-    # _, prtprod_audio = stats.ttest_rel(
-    #     rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
-    #     axis=1, alternative='two-sided')
+    ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval, \
+        ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval = ffx(
+            rtsprod_audio_beat, rtsprod_audio_interval,
+            rtsprod_visual_beat, rtsprod_visual_interval)
 
-    # _, prtprod_visual = stats.ttest_rel(
-    #     rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
-    #     axis=1, alternative='two-sided')
+    # ### Group Analyses per standard --- violin plots
+    plot_violin(
+        rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+        standards, 0., 2250., 'Response Time (ms)',
+        'Group Distribution of Response Time for the Production Tasks',
+        MAIN_DIR,
+        'production_groupviolin_responsetime')
 
-    # rtprod_title = 'Group Mean of Response Time for the Production tasks'
-    # rtprod_f = 'paired-ttest_responsetime_production'
-    # plot_pttest_isi(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
-    #                 rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
-    #                 prtprod_audio, prtprod_visual,
-    #                 standards, 'Response Time (ms)', 0., 900., -100.,
-    #                 rtprod_title, MAIN_DIR, rtprod_f)
+    # ### Group Analyses per standard --- bar plots + paired t-test
+    _, prtprod_audio = stats.ttest_rel(
+        ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
+        axis=1, alternative='two-sided')
+
+    _, prtprod_visual = stats.ttest_rel(
+        ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
+        axis=1, alternative='two-sided')
+
+    rtprod_title = 'Group Mean of Response Time for the Production tasks'
+    rtprod_f = 'paired-ttest_responsetime_production'
+    plot_pttest_isi(rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+                    rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+                    prtprod_audio, prtprod_visual,
+                    standards, 'Response Time (ms)', 0., 900., -100.,
+                    rtprod_title, MAIN_DIR, rtprod_f)
 
     # # ################### PERCEPTION ###################################
 
