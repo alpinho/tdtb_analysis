@@ -22,7 +22,9 @@ def parse_logfile(parent_dir, subject_no, sesstype, n_sess, tasks,
         for i, inputs_list in enumerate(inputs_lists, 1):
             for task_name in tasks:
                 ttag = task_name + ' - ' + sesstype
+                print('ttag: ', ttag)
                 if ttag in inputs_list[8][0][9:]:
+                    print('inputs: ', inputs_list[8][0][9:])
                     liste = inputs_list
                     # Extract trial information from log file
                     for r, row in enumerate(liste):
