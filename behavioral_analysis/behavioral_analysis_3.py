@@ -1640,39 +1640,39 @@ def group_perception(all_rf1_audio, all_rf2_audio,
                             100)
             # Plot data
             ax[m].plot(comparisons, rf2[i], 'bo', color=colors[i],
-                       markersize=3)
+                       markersize=6)
             # Plot fit
             if estimator == 'mle_cdf':
                 ax[m].plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
-                           color=colors[i],
+                           color=colors[i], linewidth=3,
                            label='Standard = ' + str(st) + 'ms')
             else:
                 assert estimator == 'mle_expit'
                 ax[m].plot(x, special.expit((x - opt_res.x[0]) / opt_res.x[1]),
-                           color=colors[i],
+                           color=colors[i], linewidth=3,
                            label='Standard = ' + str(st) + 'ms')
             # Add horizontal dashed line at y = 0.5
-            ax[m].axhline(.5, linestyle='--', color='silver', linewidth=1)
+            ax[m].axhline(.5, linestyle='--', color='grey', linewidth=3)
             # Hide the right and top spines
             ax[m].spines['right'].set_visible(False)
             ax[m].spines['top'].set_visible(False)
             # Set x axis
             x_values = np.insert(comparisons, 3, 0)
-            x_labels = [str(int(xl*100)) + '%' for xl in x_values]
-            ax[m].set_xticks(x_values, x_labels)
+            x_labels = [str(int(xl*100)) for xl in x_values]
+            ax[m].set_xticks(x_values, x_labels, fontsize=16)
             # Add estimates info
-            ax[m].text(-.21, 1.03, 'For 95% CI,', fontsize=10)
-            ax[m].text(-.21, .98 - i*.05,
-                       'PSE=%.02f' % (pse*100) +
-                       '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
-                       'DL=%.02f' % (dl*100) +
-                       '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=10,
-                       color=colors[i])
+            # ax[m].text(-.21, 1.03, 'For 95% CI,', fontsize=10)
+            # ax[m].text(-.21, .98 - i*.05,
+            #            'PSE=%.02f' % (pse*100) +
+            #            '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
+            #            'DL=%.02f' % (dl*100) +
+            #            '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=10,
+            #            color=colors[i])
 
         # Add legend
         if m == 0:
                 ax[m].legend(loc='lower right', frameon=False,
-                             prop={'size': 10})
+                             prop={'size': 14})
                 ax[m].set_title('Auditory Perception', weight='bold', pad=5,
                                 fontsize=16)
         else:
@@ -1681,12 +1681,15 @@ def group_perception(all_rf1_audio, all_rf2_audio,
                             fontsize=16)
 
         # Name of x-axis
-        fig.text(.485, .0275, 'Comparisons (%)', fontsize=14)
+        fig.text(.485, .0275, 'Comparisons (%)', fontsize=16)
         # Name of y-axis
-        fig.text(.035, .19, 'Mean of Relative Frequency for "longer" responses',
-                 fontsize=14, rotation=90)
+        fig.text(.0315, .125, 'Mean of Relative Frequency for "longer" responses (%)',
+                 fontsize=16, rotation=90)
         # Set limits of y-axis
-        ax[m].set_ylim([-.1, 1.1])
+        ax[m].set_ylim([-.1, 1.])
+        y_values = [0., .2, .4, .6, .8, 1.]
+        y_labels = [str(int(yl*100)) for yl in y_values]
+        ax[m].set_yticks(y_values, y_labels, fontsize=16)
 
     # Title
     if estimator == 'mle_cdf':
@@ -1908,148 +1911,148 @@ if __name__ == "__main__":
 
     # ############### PRODUCTION SYNCHRONIES ###########################
 
-    # ### Individual analysis per standard --- box plots
-    ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
-        ssync_visual_interval, standards = individual_production_isi_sync(
-            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed', flatten=False)
+    # # ### Individual analysis per standard --- box plots
+    # ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
+    #     ssync_visual_interval, standards = individual_production_isi_sync(
+    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'signed', flatten=False)
 
-    async_audio_beat, async_audio_interval, async_visual_beat, \
-        async_visual_interval, standards = individual_production_isi_sync(
-            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'absolute',
-            flatten=False)
+    # async_audio_beat, async_audio_interval, async_visual_beat, \
+    #     async_visual_interval, standards = individual_production_isi_sync(
+    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, 'absolute',
+    #         flatten=False)
 
-    # ## Compute mean of asynchronies across trials per subject
-    # ## for every standard (fixed-effects)
+    # # ## Compute mean of asynchronies across trials per subject
+    # # ## for every standard (fixed-effects)
 
-    # Signed asynchronies
-    ffx_ssync_audio_beat, ffx_ssync_audio_interval, ffx_ssync_visual_beat, \
-        ffx_ssync_visual_interval = ffx(ssync_audio_beat,
-                                        ssync_audio_interval,
-                                        ssync_visual_beat,
-                                        ssync_visual_interval)
+    # # Signed asynchronies
+    # ffx_ssync_audio_beat, ffx_ssync_audio_interval, ffx_ssync_visual_beat, \
+    #     ffx_ssync_visual_interval = ffx(ssync_audio_beat,
+    #                                     ssync_audio_interval,
+    #                                     ssync_visual_beat,
+    #                                     ssync_visual_interval)
 
-    # Absolute asynchronies
-    ffx_async_audio_beat, ffx_async_audio_interval, ffx_async_visual_beat, \
-        ffx_async_visual_interval = ffx(async_audio_beat,
-                                        async_audio_interval,
-                                        async_visual_beat,
-                                        async_visual_interval)
+    # # Absolute asynchronies
+    # ffx_async_audio_beat, ffx_async_audio_interval, ffx_async_visual_beat, \
+    #     ffx_async_visual_interval = ffx(async_audio_beat,
+    #                                     async_audio_interval,
+    #                                     async_visual_beat,
+    #                                     async_visual_interval)
 
-    # ### Group Analyses per standard --- bar plots + paired t-test
+    # # ### Group Analyses per standard --- bar plots + paired t-test
 
-    # Signed asynchronies
-    _, pssync_audio = stats.ttest_rel(
-        ffx_ssync_audio_beat, ffx_ssync_audio_interval,
-        axis=1, alternative='two-sided')
+    # # Signed asynchronies
+    # _, pssync_audio = stats.ttest_rel(
+    #     ffx_ssync_audio_beat, ffx_ssync_audio_interval,
+    #     axis=1, alternative='two-sided')
 
-    _, pssync_visual = stats.ttest_rel(
-        ffx_ssync_visual_beat, ffx_ssync_visual_interval,
-        axis=1, alternative='two-sided')
+    # _, pssync_visual = stats.ttest_rel(
+    #     ffx_ssync_visual_beat, ffx_ssync_visual_interval,
+    #     axis=1, alternative='two-sided')
 
-    ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
-    ssync_f = 'paired-ttest_signed_asynch'
-    plot_pttest_isi(ffx_ssync_audio_beat, ffx_ssync_audio_interval,
-                    ffx_ssync_visual_beat, ffx_ssync_visual_interval,
-                    pssync_audio, pssync_visual,
-                    standards, 'Signed Asynchrony', -.125, .3, -.039,
-                    ssync_title, MAIN_DIR, ssync_f)
+    # ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
+    # ssync_f = 'paired-ttest_signed_asynch'
+    # plot_pttest_isi(ffx_ssync_audio_beat, ffx_ssync_audio_interval,
+    #                 ffx_ssync_visual_beat, ffx_ssync_visual_interval,
+    #                 pssync_audio, pssync_visual,
+    #                 standards, 'Signed Asynchrony', -.125, .3, -.039,
+    #                 ssync_title, MAIN_DIR, ssync_f)
 
-    # Absolute asynchronies
-    _, pasync_audio = stats.ttest_rel(
-        ffx_async_audio_beat, ffx_async_audio_interval,
-        axis=1, alternative='two-sided')
+    # # Absolute asynchronies
+    # _, pasync_audio = stats.ttest_rel(
+    #     ffx_async_audio_beat, ffx_async_audio_interval,
+    #     axis=1, alternative='two-sided')
 
-    _, pasync_visual = stats.ttest_rel(
-        ffx_async_visual_beat, ffx_async_visual_interval,
-        axis=1, alternative='two-sided')
+    # _, pasync_visual = stats.ttest_rel(
+    #     ffx_async_visual_beat, ffx_async_visual_interval,
+    #     axis=1, alternative='two-sided')
 
-    async_title = 'Group Mean of Absolute Asynchrony for the Production tasks'
-    async_f = 'paired-ttest_absolute_asynch'
-    plot_pttest_isi(ffx_async_audio_beat, ffx_async_audio_interval,
-                    ffx_async_visual_beat, ffx_async_visual_interval,
-                    pasync_audio, pasync_visual,
-                    standards, 'Absolute Asynchrony', -0., .3, -.04,
-                    async_title, MAIN_DIR, async_f)
+    # async_title = 'Group Mean of Absolute Asynchrony for the Production tasks'
+    # async_f = 'paired-ttest_absolute_asynch'
+    # plot_pttest_isi(ffx_async_audio_beat, ffx_async_audio_interval,
+    #                 ffx_async_visual_beat, ffx_async_visual_interval,
+    #                 pasync_audio, pasync_visual,
+    #                 standards, 'Absolute Asynchrony', -0., .3, -.04,
+    #                 async_title, MAIN_DIR, async_f)
 
-    # ### Group Analyses per standard --- violin plots
+    # # ### Group Analyses per standard --- violin plots
 
-    # ## Reshape
+    # # ## Reshape
 
-    # Signed asynchronies
-    rs_ssync_audio_beat, rs_ssync_audio_interval, \
-        rs_ssync_visual_beat, rs_ssync_visual_interval = ginput_reshape(
-            ssync_audio_beat, ssync_audio_interval,
-            ssync_visual_beat, ssync_visual_interval)
+    # # Signed asynchronies
+    # rs_ssync_audio_beat, rs_ssync_audio_interval, \
+    #     rs_ssync_visual_beat, rs_ssync_visual_interval = ginput_reshape(
+    #         ssync_audio_beat, ssync_audio_interval,
+    #         ssync_visual_beat, ssync_visual_interval)
 
-    # Absolute asynchronies
-    rs_async_audio_beat, rs_async_audio_interval, \
-        rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
-            async_audio_beat, async_audio_interval,
-            async_visual_beat, async_visual_interval)
+    # # Absolute asynchronies
+    # rs_async_audio_beat, rs_async_audio_interval, \
+    #     rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
+    #         async_audio_beat, async_audio_interval,
+    #         async_visual_beat, async_visual_interval)
 
-    # Signed asynchronies
-    plot_violin(
-        rs_ssync_audio_beat, rs_ssync_audio_interval,
-        rs_ssync_visual_beat, rs_ssync_visual_interval,
-        standards, -1., 4., 'Asynchrony',
-        'Group Distribution of Signed-Asynchrony for the Production Tasks',
-        MAIN_DIR,
-        'production_groupviolin_signed_asynch')
+    # # Signed asynchronies
+    # plot_violin(
+    #     rs_ssync_audio_beat, rs_ssync_audio_interval,
+    #     rs_ssync_visual_beat, rs_ssync_visual_interval,
+    #     standards, -1., 4., 'Asynchrony',
+    #     'Group Distribution of Signed-Asynchrony for the Production Tasks',
+    #     MAIN_DIR,
+    #     'production_groupviolin_signed_asynch')
 
-    # Absolute asynchronies
-    plot_violin(
-        rs_async_audio_beat, rs_async_audio_interval,
-        rs_async_visual_beat, rs_async_visual_interval,
-        standards, -.05, 4., 'Asynchrony',
-        'Group Distribution of Absolute-Asynchrony for the Production Tasks',
-        MAIN_DIR,
-        'production_groupviolin_absolute_asynch')
+    # # Absolute asynchronies
+    # plot_violin(
+    #     rs_async_audio_beat, rs_async_audio_interval,
+    #     rs_async_visual_beat, rs_async_visual_interval,
+    #     standards, -.05, 4., 'Asynchrony',
+    #     'Group Distribution of Absolute-Asynchrony for the Production Tasks',
+    #     MAIN_DIR,
+    #     'production_groupviolin_absolute_asynch')
 
-    # # # # ############## PRODUCTION RESPONSE TIME ########################
+    # # # # # ############## PRODUCTION RESPONSE TIME ########################
 
-    # ### Individual analysis per standard --- box plots
-    rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
-        rtsprod_visual_interval, standards = individual_production_isi_rts(
-            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
+    # # ### Individual analysis per standard --- box plots
+    # rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
+    #     rtsprod_visual_interval, standards = individual_production_isi_rts(
+    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # ## Compute mean of response time across trials per subject
-    # ## for every standard
-    ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval, \
-        ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval = ffx(
-            rtsprod_audio_beat, rtsprod_audio_interval,
-            rtsprod_visual_beat, rtsprod_visual_interval)
+    # # ## Compute mean of response time across trials per subject
+    # # ## for every standard
+    # ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval, \
+    #     ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval = ffx(
+    #         rtsprod_audio_beat, rtsprod_audio_interval,
+    #         rtsprod_visual_beat, rtsprod_visual_interval)
 
-    # ### Group Analyses per standard --- bar plots + paired t-test
-    _, prtprod_audio = stats.ttest_rel(
-        ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
-        axis=1, alternative='two-sided')
+    # # ### Group Analyses per standard --- bar plots + paired t-test
+    # _, prtprod_audio = stats.ttest_rel(
+    #     ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
+    #     axis=1, alternative='two-sided')
 
-    _, prtprod_visual = stats.ttest_rel(
-        ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
-        axis=1, alternative='two-sided')
+    # _, prtprod_visual = stats.ttest_rel(
+    #     ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
+    #     axis=1, alternative='two-sided')
 
-    rtprod_title = 'Group Mean of Response Time for the Production tasks'
-    rtprod_f = 'paired-ttest_responsetime_production'
-    plot_pttest_isi(ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
-                    ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
-                    prtprod_audio, prtprod_visual,
-                    standards, 'Response Time (ms)', 0., 900., -100.,
-                    rtprod_title, MAIN_DIR, rtprod_f)
+    # rtprod_title = 'Group Mean of Response Time for the Production tasks'
+    # rtprod_f = 'paired-ttest_responsetime_production'
+    # plot_pttest_isi(ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
+    #                 ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
+    #                 prtprod_audio, prtprod_visual,
+    #                 standards, 'Response Time (ms)', 0., 900., -100.,
+    #                 rtprod_title, MAIN_DIR, rtprod_f)
 
-    # ## Reshape
-    rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
-        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
-            rtsprod_audio_beat, rtsprod_audio_interval,
-            rtsprod_visual_beat, rtsprod_visual_interval)
+    # # ## Reshape
+    # rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
+    #     rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
+    #         rtsprod_audio_beat, rtsprod_audio_interval,
+    #         rtsprod_visual_beat, rtsprod_visual_interval)
 
-    # ### Group Analyses per standard --- violin plots
-    plot_violin(
-        rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
-        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
-        standards, 0., 2250., 'Response Time (ms)',
-        'Group Distribution of Response Time for the Production Tasks',
-        MAIN_DIR,
-        'production_groupviolin_responsetime')
+    # # ### Group Analyses per standard --- violin plots
+    # plot_violin(
+    #     rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+    #     rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+    #     standards, 0., 2250., 'Response Time (ms)',
+    #     'Group Distribution of Response Time for the Production Tasks',
+    #     MAIN_DIR,
+    #     'production_groupviolin_responsetime')
 
     # # ################### PERCEPTION ###################################
 
@@ -2060,6 +2063,8 @@ if __name__ == "__main__":
         cond_dl = []
         cond_ce = []
         for cond in ['beat', 'interval']:
+
+            # Compute individual psychometric functions
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
                     individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
@@ -2072,6 +2077,7 @@ if __name__ == "__main__":
             cond_pse.append(ipse)
             cond_dl.append(idl)
 
+            # Compute group psychometric functions
             group_perception(rfone_audio, rftwo_audio, rfone_visual,
                              rftwo_visual, stand, comp, cond,
                              estimator=estimator)
@@ -2094,107 +2100,109 @@ if __name__ == "__main__":
     # Compute Anovas
     perception_performance(estim_pse, estim_dl)
 
+    # Compute PSE as a function of Standard
+
     # # # # ################### NTFD RT'S ####################################
 
-    # ### Individual analysis merging all standards --- bar plots
-    m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
-        m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
-        m_rtsntfd_visual_random = individual_ntfd_rts(
-            RAND_SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
+    # # ### Individual analysis merging all standards --- bar plots
+    # m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
+    #     m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
+    #     m_rtsntfd_visual_random = individual_ntfd_rts(
+    #         RAND_SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # Compute ffx
-    m_rtsntfd_audio_beat = np.mean(
-        m_rtsntfd_audio_beat, axis=1).tolist()
-    m_rtsntfd_audio_interval = np.mean(
-        m_rtsntfd_audio_interval, axis=1).tolist()
-    m_rtsntfd_audio_random = np.mean(
-        m_rtsntfd_audio_random, axis=1).tolist()
-    m_rtsntfd_visual_beat = np.mean(
-        m_rtsntfd_visual_beat, axis=1).tolist()
-    m_rtsntfd_visual_interval = np.mean(
-        m_rtsntfd_visual_interval, axis=1).tolist()
-    m_rtsntfd_visual_random = np.mean(
-        m_rtsntfd_visual_random, axis=1).tolist()
+    # # Compute ffx
+    # m_rtsntfd_audio_beat = np.mean(
+    #     m_rtsntfd_audio_beat, axis=1).tolist()
+    # m_rtsntfd_audio_interval = np.mean(
+    #     m_rtsntfd_audio_interval, axis=1).tolist()
+    # m_rtsntfd_audio_random = np.mean(
+    #     m_rtsntfd_audio_random, axis=1).tolist()
+    # m_rtsntfd_visual_beat = np.mean(
+    #     m_rtsntfd_visual_beat, axis=1).tolist()
+    # m_rtsntfd_visual_interval = np.mean(
+    #     m_rtsntfd_visual_interval, axis=1).tolist()
+    # m_rtsntfd_visual_random = np.mean(
+    #     m_rtsntfd_visual_random, axis=1).tolist()
 
-    # Concatenate
-    m_rtsntfd_audio = m_rtsntfd_audio_beat + m_rtsntfd_audio_interval + \
-        m_rtsntfd_audio_random
-    m_rtsntfd_visual = m_rtsntfd_visual_beat + m_rtsntfd_visual_interval + \
-        m_rtsntfd_visual_random
+    # # Concatenate
+    # m_rtsntfd_audio = m_rtsntfd_audio_beat + m_rtsntfd_audio_interval + \
+    #     m_rtsntfd_audio_random
+    # m_rtsntfd_visual = m_rtsntfd_visual_beat + m_rtsntfd_visual_interval + \
+    #     m_rtsntfd_visual_random
 
-    # Compute stats
-    _, pntfd_audio_bi = stats.ttest_rel(
-        m_rtsntfd_audio_beat, m_rtsntfd_audio_interval,
-        axis=0, alternative='two-sided')
+    # # Compute stats
+    # _, pntfd_audio_bi = stats.ttest_rel(
+    #     m_rtsntfd_audio_beat, m_rtsntfd_audio_interval,
+    #     axis=0, alternative='two-sided')
 
-    _, pntfd_audio_br = stats.ttest_rel(
-        m_rtsntfd_audio_beat, m_rtsntfd_audio_random,
-        axis=0, alternative='two-sided')
+    # _, pntfd_audio_br = stats.ttest_rel(
+    #     m_rtsntfd_audio_beat, m_rtsntfd_audio_random,
+    #     axis=0, alternative='two-sided')
 
-    _, pntfd_audio_ir = stats.ttest_rel(
-        m_rtsntfd_audio_interval, m_rtsntfd_audio_random,
-        axis=0, alternative='two-sided')
+    # _, pntfd_audio_ir = stats.ttest_rel(
+    #     m_rtsntfd_audio_interval, m_rtsntfd_audio_random,
+    #     axis=0, alternative='two-sided')
 
-    _, pntfd_visual_bi = stats.ttest_rel(
-        m_rtsntfd_visual_beat, m_rtsntfd_visual_interval,
-        axis=0, alternative='two-sided')
+    # _, pntfd_visual_bi = stats.ttest_rel(
+    #     m_rtsntfd_visual_beat, m_rtsntfd_visual_interval,
+    #     axis=0, alternative='two-sided')
 
-    _, pntfd_visual_br = stats.ttest_rel(
-        m_rtsntfd_visual_beat, m_rtsntfd_visual_random,
-        axis=0, alternative='two-sided')
+    # _, pntfd_visual_br = stats.ttest_rel(
+    #     m_rtsntfd_visual_beat, m_rtsntfd_visual_random,
+    #     axis=0, alternative='two-sided')
 
-    _, pntfd_visual_ir = stats.ttest_rel(
-        m_rtsntfd_visual_interval, m_rtsntfd_visual_random,
-        axis=0, alternative='two-sided')
+    # _, pntfd_visual_ir = stats.ttest_rel(
+    #     m_rtsntfd_visual_interval, m_rtsntfd_visual_random,
+    #     axis=0, alternative='two-sided')
 
-    ntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
-    ntfd_f = 'paired-ttest_merged-rt_ntfd'
-    plot_pttest(m_rtsntfd_audio, m_rtsntfd_visual,
-                pntfd_audio_bi, pntfd_audio_br, pntfd_audio_ir,
-                pntfd_visual_bi, pntfd_visual_br, pntfd_visual_ir,
-                'Reaction Time (ms)', 0., 750., -100.,
-                ntfd_title, MAIN_DIR, ntfd_f)
+    # ntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
+    # ntfd_f = 'paired-ttest_merged-rt_ntfd'
+    # plot_pttest(m_rtsntfd_audio, m_rtsntfd_visual,
+    #             pntfd_audio_bi, pntfd_audio_br, pntfd_audio_ir,
+    #             pntfd_visual_bi, pntfd_visual_br, pntfd_visual_ir,
+    #             'Reaction Time (ms)', 0., 750., -100.,
+    #             ntfd_title, MAIN_DIR, ntfd_f)
 
-    # ### Individual analysis per standards --- box plots
-    rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
-        rtsntfd_visual_interval, standards = individual_ntfd_isi_rts(
-            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
+    # # ### Individual analysis per standards --- box plots
+    # rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
+    #     rtsntfd_visual_interval, standards = individual_ntfd_isi_rts(
+    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # ## Compute mean of reaction time across trials per subject
-    # ## for every standard (fixed-effects)
-    ffx_rtsntfd_audio_beat, ffx_rtsntfd_audio_interval, \
-        ffx_rtsntfd_visual_beat, ffx_rtsntfd_visual_interval = ffx(
-            rtsntfd_audio_beat, rtsntfd_audio_interval,
-            rtsntfd_visual_beat, rtsntfd_visual_interval)
+    # # ## Compute mean of reaction time across trials per subject
+    # # ## for every standard (fixed-effects)
+    # ffx_rtsntfd_audio_beat, ffx_rtsntfd_audio_interval, \
+    #     ffx_rtsntfd_visual_beat, ffx_rtsntfd_visual_interval = ffx(
+    #         rtsntfd_audio_beat, rtsntfd_audio_interval,
+    #         rtsntfd_visual_beat, rtsntfd_visual_interval)
 
-    # ### Group Analyses per standard --- bar plots + paired t-test
-    _, prtntfd_audio = stats.ttest_rel(
-        ffx_rtsntfd_audio_beat, ffx_rtsntfd_audio_interval,
-        axis=1, alternative='two-sided')
+    # # ### Group Analyses per standard --- bar plots + paired t-test
+    # _, prtntfd_audio = stats.ttest_rel(
+    #     ffx_rtsntfd_audio_beat, ffx_rtsntfd_audio_interval,
+    #     axis=1, alternative='two-sided')
 
-    _, prtntfd_visual = stats.ttest_rel(
-        ffx_rtsntfd_visual_beat, ffx_rtsntfd_visual_interval,
-        axis=1, alternative='two-sided')
+    # _, prtntfd_visual = stats.ttest_rel(
+    #     ffx_rtsntfd_visual_beat, ffx_rtsntfd_visual_interval,
+    #     axis=1, alternative='two-sided')
 
-    rtntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
-    rtntfd_f = 'paired-ttest_rt_ntfd'
-    plot_pttest_isi(ffx_rtsntfd_audio_beat, ffx_rtsntfd_audio_interval,
-                    ffx_rtsntfd_visual_beat, ffx_rtsntfd_visual_interval,
-                    prtntfd_audio, prtntfd_visual,
-                    standards, 'Reaction Time (ms)', 0., 650., -100.,
-                    rtntfd_title, MAIN_DIR, rtntfd_f)
+    # rtntfd_title = 'Group Mean of Reaction Time for the NTFD tasks'
+    # rtntfd_f = 'paired-ttest_rt_ntfd'
+    # plot_pttest_isi(ffx_rtsntfd_audio_beat, ffx_rtsntfd_audio_interval,
+    #                 ffx_rtsntfd_visual_beat, ffx_rtsntfd_visual_interval,
+    #                 prtntfd_audio, prtntfd_visual,
+    #                 standards, 'Reaction Time (ms)', 0., 650., -100.,
+    #                 rtntfd_title, MAIN_DIR, rtntfd_f)
 
-    # ## Reshape
-    rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval, \
-        rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval = ginput_reshape(
-            rtsntfd_audio_beat, rtsntfd_audio_interval,
-            rtsntfd_visual_beat, rtsntfd_visual_interval)
+    # # ## Reshape
+    # rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval, \
+    #     rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval = ginput_reshape(
+    #         rtsntfd_audio_beat, rtsntfd_audio_interval,
+    #         rtsntfd_visual_beat, rtsntfd_visual_interval)
 
-    # ### Group Analyses per standard --- violin plots
-    plot_violin(
-        rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
-        rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
-        standards, 0., 2250., 'Reaction Time (ms)',
-        'Group Distribution of Reaction Time for the NTFD Tasks',
-        MAIN_DIR,
-        'ntfd_groupviolin_rt')
+    # # ### Group Analyses per standard --- violin plots
+    # plot_violin(
+    #     rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval,
+    #     rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
+    #     standards, 0., 2250., 'Reaction Time (ms)',
+    #     'Group Distribution of Reaction Time for the NTFD Tasks',
+    #     MAIN_DIR,
+    #     'ntfd_groupviolin_rt')
