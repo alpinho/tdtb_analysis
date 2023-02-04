@@ -1583,6 +1583,8 @@ def group_perception(all_rf1_audio, all_rf2_audio,
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
               'tab:purple']
 
+    group_pse = []
+    group_dl = []
     for m, modality in enumerate(modalities):
         if modality == 'audio':
             rf1 = group_rf1_audio
@@ -1591,6 +1593,9 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             assert modality == 'visual'
             rf1 = group_rf1_visual
             rf2 = group_rf2_visual
+
+        modality_pse = []
+        modality_dl = []
         for i, st in enumerate(standards):
             # Chose estimator
             if estimator == 'mle_cdf':
@@ -1661,20 +1666,25 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             x_labels = [str(int(xl*100)) for xl in x_values]
             ax[m].set_xticks(x_values, x_labels, fontsize=16)
             # Add estimates info
-            # ax[m].text(-.21, 1.03, 'For 95% CI,', fontsize=10)
-            # ax[m].text(-.21, .98 - i*.05,
-            #            'PSE=%.02f' % (pse*100) +
-            #            '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
-            #            'DL=%.02f' % (dl*100) +
-            #            '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=10,
-            #            color=colors[i])
+            ax[m].text(-.21, 1.03, 'For 95% CI,', fontsize=10)
+            ax[m].text(-.21, .98 - i*.05,
+                       'PSE=%.02f' % (pse*100) +
+                       '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
+                       'DL=%.02f' % (dl*100) +
+                       '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=10,
+                       color=colors[i])
+
+            modality_pse.append(pse)
+            modality_dl.append(dl)
+
+        group_pse.append(modality_pse)
+        group_dl.append(modality_dl)
 
         # Add legend
         if m == 0:
-                ax[m].legend(loc='lower right', frameon=False,
-                             prop={'size': 14})
-                ax[m].set_title('Auditory Perception', weight='bold', pad=5,
-                                fontsize=16)
+            ax[m].legend(loc='lower right', frameon=False, prop={'size': 14})
+            ax[m].set_title('Auditory Perception', weight='bold', pad=5,
+                            fontsize=16)
         else:
             assert m == 1
             ax[m].set_title('Visual Perception', weight='bold', pad=5,
@@ -1683,11 +1693,11 @@ def group_perception(all_rf1_audio, all_rf2_audio,
         # Name of x-axis
         fig.text(.485, .0275, 'Comparisons (%)', fontsize=16)
         # Name of y-axis
-        fig.text(.0315, .125, 'Mean of Relative Frequency for "longer" responses (%)',
+        fig.text(.0315, .125,
+                 'Mean of Relative Frequency for "longer" responses (%)',
                  fontsize=16, rotation=90)
         # Set limits of y-axis
-        ax[m].set_ylim([-.1, 1.])
-        y_values = [0., .2, .4, .6, .8, 1.]
+        y_values = np.linspace(0., 1., 6)
         y_labels = [str(int(yl*100)) for yl in y_values]
         ax[m].set_yticks(y_values, y_labels, fontsize=16)
 
@@ -1701,14 +1711,85 @@ def group_perception(all_rf1_audio, all_rf2_audio,
         'Group Mean of Relative Frequencies for the ' +
         condition.capitalize() + ' condition of the Perception Tasks ' +
         suffix, x=.5, y=.97, size=16, linespacing=.75)
-    # plt.show()
 
     # Save figure
     plt.savefig(os.path.join(
         'group_perception_' + condition + '_' + estimator + '.pdf'))
 
-    return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
-            standards, comparisons)
+    return group_pse, group_dl
+
+
+def plotfit_perception(x, y, estimator):
+        fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+
+        # left   # the left side of the subplots of the figure
+        # right  # the right side of the subplots of the figure
+        # bottom # the bottom of the subplots of the figure
+        # top    # the top of the subplots of the figure
+        # wspace # the amount of width reserved for blank space between subplots
+        # hspace # the amount of height reserved for white space between subplots
+        plt.subplots_adjust(left=.085, bottom=.1, right=.975, wspace=.15)
+
+        colors = ['tab:blue', 'tab:orange']
+        legend_labels = ['Beat', 'Interval']
+
+        for m, modality_y in enumerate(y):
+            for c, condition_y in enumerate(modality_y):
+                # Linear fit
+                a, b = np.polyfit(x, condition_y, deg=1)
+                y_est = a * x + b
+                # y_err = x.std() * \
+                #     np.sqrt(1/len(x) + (x - x.mean())**2 / np.sum((x - x.mean())**2))
+
+                # Plot the linear fit
+                ax[m].plot(x, y_est, '-', color=colors[c], linewidth=3,
+                           label=legend_labels[c])
+                # ax[0].fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+                ax[m].plot(x, condition_y, 'bo', color=colors[c], markersize=6)
+                # Hide the right and top spines
+                ax[m].spines['right'].set_visible(False)
+                ax[m].spines['top'].set_visible(False)
+                # Set x axis
+                x_labels = [str(xl) for xl in x]
+                ax[m].set_xticks(x, x_labels, fontsize=16)
+                # Set limits of y-axis
+                y_values = np.linspace(-0.16, 0.16, 9)
+                y_labels = [str(int(yl*100)) for yl in y_values]
+                ax[m].set_yticks(y_values, y_labels, fontsize=16)
+                # Add horizontal dashed line at y = 0.5
+                ax[m].axhline(0., linestyle='--', color='grey', linewidth=3)
+
+            # Add legend
+            if m == 0:
+                ax[m].set_title('Auditory Perception', weight='bold', pad=5,
+                                fontsize=16)
+            else:
+                assert m == 1
+                ax[m].legend(loc='upper right', frameon=False,
+                             prop={'size': 16})
+                ax[m].set_title('Visual Perception', weight='bold', pad=5,
+                                fontsize=16)
+
+            # Name of x-axis
+            fig.text(.485, .018, 'Standards (ms)', fontsize=16)
+            # Name of y-axis
+            fig.text(.0315, .4, 'Group PSE (%)', fontsize=16, rotation=90)
+            # Legends for horizontal dashed lines
+            fig.text(.442, .51, 'No Bias', fontsize=16, color='dimgrey')
+            fig.text(.9175, .51, 'No Bias', fontsize=16, color='dimgrey')
+
+        # Title
+        if estimator == 'mle_cdf':
+            suffix = '(Estimator: MLE of Norm CDF)'
+        else:
+            assert estimator == 'mle_expit'
+            suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
+        plt.suptitle(
+            'Point of Subjective Equality (PSE) for the Perception Tasks ' +
+            suffix, x=.5, y=.97, size=16, linespacing=.75)
+
+        # Save figure
+        plt.savefig(os.path.join('pse-vs-standard_' + estimator + '.pdf'))
 
 
 def perception_performance(estim_pse, estim_dl):
@@ -2062,6 +2143,7 @@ if __name__ == "__main__":
         cond_pse = []
         cond_dl = []
         cond_ce = []
+        cond_gpse = []
         for cond in ['beat', 'interval']:
 
             # Compute individual psychometric functions
@@ -2070,17 +2152,20 @@ if __name__ == "__main__":
                     individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
                                           N_SESSIONS, cond,
                                           estimator=estimator)
+
+            # Compute group psychometric functions
+            gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
+                                       rftwo_visual, stand, comp, cond,
+                                       estimator=estimator)
+
+            # Start concatenating and appending
             ipse = np.concatenate(([ipse_audio], [ipse_visual]),
                                   axis = 0).tolist()
             idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0).tolist()
 
             cond_pse.append(ipse)
             cond_dl.append(idl)
-
-            # Compute group psychometric functions
-            group_perception(rfone_audio, rftwo_audio, rfone_visual,
-                             rftwo_visual, stand, comp, cond,
-                             estimator=estimator)
+            cond_gpse.append(gpse)
 
             if cond == 'interval' and estimator == 'mle_expit':
                 pass
@@ -2089,7 +2174,7 @@ if __name__ == "__main__":
                 del rftwo_audio
                 del rfone_visual
                 del rftwo_visual
-                del stand
+                # del stand
                 del comp
                 del ipse
                 del idl
@@ -2097,10 +2182,13 @@ if __name__ == "__main__":
         estim_pse.append(cond_pse)
         estim_dl.append(cond_dl)
 
+        # Plot PSE as a function of the standard
+        mod_gpse = np.swapaxes(cond_gpse, 0, 1)
+        plotfit_perception(stand, mod_gpse, estimator)
+
     # Compute Anovas
     perception_performance(estim_pse, estim_dl)
 
-    # Compute PSE as a function of Standard
 
     # # # # ################### NTFD RT'S ####################################
 
