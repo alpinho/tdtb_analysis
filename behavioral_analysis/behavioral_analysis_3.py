@@ -1558,6 +1558,74 @@ def plot_pttest(data_audio, data_visual,
     plt.savefig(os.path.join(this_dir, fname + '.pdf'))
 
 
+def plotfit_production(x, y, y_values, yaxis_name, title, fname, hline=False,
+                       hline_legend=None):
+    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.085, bottom=.1, right=.975, wspace=.15)
+
+    colors = ['tab:blue', 'tab:orange']
+    legend_labels = ['Beat', 'Interval']
+
+    for m, modality_y in enumerate(y):
+        for c, condition_y in enumerate(modality_y):
+            # Linear fit
+            a, b = np.polyfit(x, condition_y, deg=1)
+            y_est = a * x + b
+            # y_err = x.std() * \
+            #     np.sqrt(1/len(x) + (x - x.mean())**2 / np.sum((x - x.mean())**2))
+
+            # Plot the linear fit
+            ax[m].plot(x, y_est, '-', color=colors[c], linewidth=3,
+                       label=legend_labels[c])
+            # ax[0].fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+            ax[m].plot(x, condition_y, 'bo', color=colors[c], markersize=6)
+            # Hide the right and top spines
+            ax[m].spines['right'].set_visible(False)
+            ax[m].spines['top'].set_visible(False)
+            # Set x axis
+            x_labels = [str(xl) for xl in x]
+            ax[m].set_xticks(x, x_labels, fontsize=16)
+            # Set limits of y-axis
+            y_labels = [str(int(yl)) for yl in y_values]
+            ax[m].set_yticks(y_values, y_labels, fontsize=16)
+            # Add horizontal dashed line at y = 0.5
+            if hline:
+                ax[m].axhline(0., linestyle='--', color='grey', linewidth=3)
+
+        # Add legend
+        if m == 0:
+            ax[m].set_title('Auditory Production', weight='bold', pad=5,
+                            fontsize=16)
+        else:
+            assert m == 1
+            ax[m].legend(loc='upper right', frameon=False,
+                         prop={'size': 16})
+            ax[m].set_title('Visual Production', weight='bold', pad=5,
+                            fontsize=16)
+
+        # Name of x-axis
+        fig.text(.485, .018, 'Standards (ms)', fontsize=16)
+        # Name of y-axis
+        fig.text(.0315, .35, yaxis_name, fontsize=16, rotation=90)
+        # Legends for horizontal dashed lines
+        if hline:
+            fig.text(.395, .43, hline_legend, fontsize=16, color='dimgrey')
+            fig.text(.87, .43, hline_legend, fontsize=16, color='dimgrey')
+
+    # Title
+    plt.suptitle(title, x=.5, y=.97, size=16, linespacing=.75)
+
+    # Save figure
+    plt.savefig(os.path.join(fname + '.pdf'))
+
+
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
                      standards, comparisons, condition, estimator = 'mle_cdf'):
@@ -2091,103 +2159,152 @@ if __name__ == "__main__":
 
     # # # # # ############## PRODUCTION RESPONSE TIME ########################
 
-    # # ### Individual analysis per standard --- box plots
-    # rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
-    #     rtsprod_visual_interval, standards = individual_production_isi_rts(
-    #         SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
+    # ### Individual analysis per standard --- box plots
+    rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
+        rtsprod_visual_interval, standards = individual_production_isi_rts(
+            SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # # ## Compute mean of response time across trials per subject
-    # # ## for every standard
-    # ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval, \
-    #     ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval = ffx(
-    #         rtsprod_audio_beat, rtsprod_audio_interval,
-    #         rtsprod_visual_beat, rtsprod_visual_interval)
+    # ### Group Analyses per standard --- bar plots + paired t-test
+    # Compute mean of response time across trials per subject
+    # for every standard
+    ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval, \
+        ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval = ffx(
+            rtsprod_audio_beat, rtsprod_audio_interval,
+            rtsprod_visual_beat, rtsprod_visual_interval)
 
-    # # ### Group Analyses per standard --- bar plots + paired t-test
-    # _, prtprod_audio = stats.ttest_rel(
-    #     ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
-    #     axis=1, alternative='two-sided')
+    # Compute Stats
+    _, prtprod_audio = stats.ttest_rel(
+        ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
+        axis=1, alternative='two-sided')
 
-    # _, prtprod_visual = stats.ttest_rel(
-    #     ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
-    #     axis=1, alternative='two-sided')
+    _, prtprod_visual = stats.ttest_rel(
+        ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
+        axis=1, alternative='two-sided')
 
-    # rtprod_title = 'Group Mean of Response Time for the Production tasks'
-    # rtprod_f = 'paired-ttest_responsetime_production'
-    # plot_pttest_isi(ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
-    #                 ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
-    #                 prtprod_audio, prtprod_visual,
-    #                 standards, 'Response Time (ms)', 0., 900., -100.,
-    #                 rtprod_title, MAIN_DIR, rtprod_f)
+    # Plot
+    rtprod_title = 'Group Mean of Response Time for the Production tasks'
+    rtprod_f = 'paired-ttest_responsetime_production'
+    plot_pttest_isi(ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
+                    ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
+                    prtprod_audio, prtprod_visual,
+                    standards, 'Response Time (ms)', 0., 900., -100.,
+                    rtprod_title, MAIN_DIR, rtprod_f)
 
-    # # ## Reshape
-    # rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
-    #     rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
-    #         rtsprod_audio_beat, rtsprod_audio_interval,
-    #         rtsprod_visual_beat, rtsprod_visual_interval)
+    # ### Group Analyses per standard --- violin plots
+    # Reshape
+    rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
+            rtsprod_audio_beat, rtsprod_audio_interval,
+            rtsprod_visual_beat, rtsprod_visual_interval)
 
-    # # ### Group Analyses per standard --- violin plots
-    # plot_violin(
-    #     rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
-    #     rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
-    #     standards, 0., 2250., 'Response Time (ms)',
-    #     'Group Distribution of Response Time for the Production Tasks',
-    #     MAIN_DIR,
-    #     'production_groupviolin_responsetime')
+    # Plot
+    plot_violin(
+        rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+        standards, 0., 2250., 'Response Time (ms)',
+        'Group Distribution of Response Time for the Production Tasks',
+        MAIN_DIR,
+        'production_groupviolin_responsetime')
+
+    # ### Regression of mean and std errors
+    error_rtsprod_audio_beat = [
+        [ab - standards[s] for s, ab in enumerate(rts_ab)]
+        for rts_ab in rtsprod_audio_beat]
+    error_rtsprod_audio_interval = [
+        [ai - standards[s] for s, ai in enumerate(rts_ai)]
+        for rts_ai in rtsprod_audio_interval]
+    error_rtsprod_visual_beat = [
+        [vb - standards[s] for s, vb in enumerate(rts_vb)]
+        for rts_vb in rtsprod_visual_beat]
+    error_rtsprod_visual_interval = [
+        [vi - standards[s] for s, vi in enumerate(rts_vi)]
+        for rts_vi in rtsprod_visual_interval]
+
+    ffxerr_rtsprod_audio_beat, ffxerr_rtsprod_audio_interval, \
+        ffxerr_rtsprod_visual_beat, ffxerr_rtsprod_visual_interval = ffx(
+            error_rtsprod_audio_beat, error_rtsprod_audio_interval,
+            error_rtsprod_visual_beat, error_rtsprod_visual_interval)
+
+    # Compute Group Mean plus Std of Error and stack
+    mean_ab = np.mean(ffxerr_rtsprod_audio_beat, axis=1).tolist()
+    mean_ai = np.mean(ffxerr_rtsprod_audio_interval, axis=1).tolist()
+    mean_vb = np.mean(ffxerr_rtsprod_visual_beat, axis=1).tolist()
+    mean_vi = np.mean(ffxerr_rtsprod_visual_interval, axis=1).tolist()
+
+    std_ab = np.std(ffxerr_rtsprod_audio_beat, axis=1).tolist()
+    std_ai = np.std(ffxerr_rtsprod_audio_interval, axis=1).tolist()
+    std_vb = np.std(ffxerr_rtsprod_visual_beat, axis=1).tolist()
+    std_vi = np.std(ffxerr_rtsprod_visual_interval, axis=1).tolist()
+
+    mean_data = [[mean_ab] + [mean_ai]] + [[mean_vb] + [mean_vi]]
+    mean_std = [[std_ab] + [std_ai]] + [[std_vb] + [std_vi]]
+
+    print(np.amin(mean_data), np.amax(mean_data))
+    print(np.amin(mean_std), np.amax(mean_std))
+
+    plotfit_production(
+        standards, mean_data, np.linspace(-60, 90, 6),
+        'RT-Difference Mean (ms)',
+        'Mean of Response-Time (RT) Difference for every Standard',
+        'mean-err_production', hline=True, hline_legend=r'$RT=Standard$')
+    plotfit_production(
+        standards, mean_std, np.linspace(30, 70, 6), 'RT-Difference SD (ms)',
+        'Standard Deviation (SD) of Response-Time (RT) Difference ' + \
+        'for every Standard', 'std-err_production')
 
     # # ################### PERCEPTION ###################################
 
-    estim_pse = []
-    estim_dl = []
-    for estimator in ['mle_cdf', 'mle_expit']:
-        cond_pse = []
-        cond_dl = []
-        cond_ce = []
-        cond_gpse = []
-        for cond in ['beat', 'interval']:
+    # estim_pse = []
+    # estim_dl = []
+    # for estimator in ['mle_cdf', 'mle_expit']:
+    #     cond_pse = []
+    #     cond_dl = []
+    #     cond_ce = []
+    #     cond_gpse = []
+    #     for cond in ['beat', 'interval']:
 
-            # Compute individual psychometric functions
-            rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
-                comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
-                    individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
-                                          N_SESSIONS, cond,
-                                          estimator=estimator)
+    #         # Compute individual psychometric functions
+    #         rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
+    #             comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
+    #                 individual_perception(SUBJECTS, MAIN_DIR, SESSTYPE,
+    #                                       N_SESSIONS, cond,
+    #                                       estimator=estimator)
 
-            # Compute group psychometric functions
-            gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
-                                       rftwo_visual, stand, comp, cond,
-                                       estimator=estimator)
+    #         # Compute group psychometric functions
+    #         gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
+    #                                    rftwo_visual, stand, comp, cond,
+    #                                    estimator=estimator)
 
-            # Start concatenating and appending
-            ipse = np.concatenate(([ipse_audio], [ipse_visual]),
-                                  axis = 0).tolist()
-            idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0).tolist()
+    #         # Start concatenating and appending
+    #         ipse = np.concatenate(([ipse_audio], [ipse_visual]),
+    #                               axis = 0).tolist()
+    #         idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0).tolist()
 
-            cond_pse.append(ipse)
-            cond_dl.append(idl)
-            cond_gpse.append(gpse)
+    #         cond_pse.append(ipse)
+    #         cond_dl.append(idl)
+    #         cond_gpse.append(gpse)
 
-            if cond == 'interval' and estimator == 'mle_expit':
-                pass
-            else:
-                del rfone_audio
-                del rftwo_audio
-                del rfone_visual
-                del rftwo_visual
-                # del stand
-                del comp
-                del ipse
-                del idl
+    #         if cond == 'interval' and estimator == 'mle_expit':
+    #             pass
+    #         else:
+    #             del rfone_audio
+    #             del rftwo_audio
+    #             del rfone_visual
+    #             del rftwo_visual
+    #             # del stand
+    #             del comp
+    #             del ipse
+    #             del idl
 
-        estim_pse.append(cond_pse)
-        estim_dl.append(cond_dl)
+    #     estim_pse.append(cond_pse)
+    #     estim_dl.append(cond_dl)
 
-        # Plot PSE as a function of the standard
-        mod_gpse = np.swapaxes(cond_gpse, 0, 1)
-        plotfit_perception(stand, mod_gpse, estimator)
+    #     # Plot PSE as a function of the standard
+    #     mod_gpse = np.swapaxes(cond_gpse, 0, 1)
+    #     plotfit_perception(stand, mod_gpse, estimator)
 
-    # Compute Anovas
-    perception_performance(estim_pse, estim_dl)
+    # # Compute Anovas
+    # perception_performance(estim_pse, estim_dl)
 
 
     # # # # ################### NTFD RT'S ####################################
