@@ -2239,9 +2239,6 @@ if __name__ == "__main__":
     mean_data = [[mean_ab] + [mean_ai]] + [[mean_vb] + [mean_vi]]
     mean_std = [[std_ab] + [std_ai]] + [[std_vb] + [std_vi]]
 
-    print(np.amin(mean_data), np.amax(mean_data))
-    print(np.amin(mean_std), np.amax(mean_std))
-
     plotfit_production(
         standards, mean_data, np.linspace(-60, 90, 6),
         'RT-Difference Mean (ms)',
