@@ -1626,6 +1626,34 @@ def plotfit_production(x, y, y_values, yaxis_name, title, fname, hline=False,
     plt.savefig(os.path.join(fname + '.pdf'))
 
 
+def production_ancova(dependent_var, covariate, modality='audio'):
+    # ## Create columns of dataframe
+    # Dependent var
+    mean_flatten = np.ravel(dependent_var)
+    # Create columns of independent (categorical) var,
+    # i.e. Condition and Modality
+    standval = np.tile(covariate,
+                       dependent_var.shape[1] * dependent_var.shape[0])
+    condtag = np.repeat(['beat', 'interval'], len(covariate))
+    condval = np.tile(condtag, dependent_var.shape[0])
+    modval = np.repeat(['audio', 'visual'], len(condtag))
+
+    # Build DataFrame
+    table = np.vstack((mean_flatten, standval, condval, modval)).T
+
+    df = pd.DataFrame(
+        table, columns=['Mean Error', 'Standard', 'Condition', 'Modality'])
+    df['Mean Error'] = df['Mean Error'].apply(pd.to_numeric)
+    df['Standard'] = df['Standard'].apply(pd.to_numeric)
+
+    df_modality = df[df.Modality == modality]
+
+    aoc_modality = pg.ancova(data=df_modality, dv='Mean Error',
+                             covar='Standard', between='Condition')
+
+    return aoc_modality
+
+
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
                      standards, comparisons, condition, estimator = 'mle_cdf'):
@@ -2159,12 +2187,12 @@ if __name__ == "__main__":
 
     # # # # # ############## PRODUCTION RESPONSE TIME ########################
 
-    # ### Individual analysis per standard --- box plots
+    # ### Individual analysis per standard --- box plots ###
     rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
         rtsprod_visual_interval, standards = individual_production_isi_rts(
             SUBJECTS, MAIN_DIR, SESSTYPE, N_SESSIONS, flatten=False)
 
-    # ### Group Analyses per standard --- bar plots + paired t-test
+    # ### Group Analyses per standard --- bar plots + paired t-test ###
     # Compute mean of response time across trials per subject
     # for every standard
     ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval, \
@@ -2190,7 +2218,7 @@ if __name__ == "__main__":
                     standards, 'Response Time (ms)', 0., 900., -100.,
                     rtprod_title, MAIN_DIR, rtprod_f)
 
-    # ### Group Analyses per standard --- violin plots
+    # ### Group Analyses per standard --- violin plots ###
     # Reshape
     rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
         rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
@@ -2206,7 +2234,7 @@ if __name__ == "__main__":
         MAIN_DIR,
         'production_groupviolin_responsetime')
 
-    # ### Regression of mean and std errors
+    # ### Regression of mean and std errors ###
     error_rtsprod_audio_beat = [
         [ab - standards[s] for s, ab in enumerate(rts_ab)]
         for rts_ab in rtsprod_audio_beat]
@@ -2248,6 +2276,27 @@ if __name__ == "__main__":
         standards, mean_std, np.linspace(30, 70, 6), 'RT-Difference SD (ms)',
         'Standard Deviation (SD) of Response-Time (RT) Difference ' + \
         'for every Standard', 'std-err_production')
+
+    # Compute ANCOVAs
+    # Stack multidimensional numpy array to produce a dataframe
+    mean_data = np.array(mean_data)
+    mean_std = np.array(mean_std)
+
+    aoc_mean_audio = production_ancova(mean_data, standards, modality='audio')
+    aoc_mean_visual = production_ancova(mean_data, standards,
+                                        modality='visual')
+
+    aoc_std_audio = production_ancova(mean_std, standards, modality='audio')
+    aoc_std_visual = production_ancova(mean_std, standards, modality='visual')
+
+    print('\nANCOVA for Mean Error of Response Time in Audio Tasks')
+    print(aoc_mean_audio)
+    print('\nANCOVA for Mean Error of Response Time in Visual Tasks')
+    print(aoc_mean_visual)
+    print('\nANCOVA for SD of Response Time in Audio Tasks')
+    print(aoc_std_audio)
+    print('\nANCOVA for SD of Response Time in Visual Tasks')
+    print(aoc_std_visual)
 
     # # ################### PERCEPTION ###################################
 
