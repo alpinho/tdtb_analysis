@@ -1568,7 +1568,7 @@ def plotfit_production(x, y, y_values, yaxis_name, title, fname, hline=False,
     # top    # the top of the subplots of the figure
     # wspace # the amount of width reserved for blank space between subplots
     # hspace # the amount of height reserved for white space between subplots
-    plt.subplots_adjust(left=.085, bottom=.1, right=.975, wspace=.15)
+    plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15)
 
     colors = ['tab:blue', 'tab:orange']
     legend_labels = ['Beat', 'Interval']
@@ -1582,46 +1582,46 @@ def plotfit_production(x, y, y_values, yaxis_name, title, fname, hline=False,
             #     np.sqrt(1/len(x) + (x - x.mean())**2 / np.sum((x - x.mean())**2))
 
             # Plot the linear fit
-            ax[m].plot(x, y_est, '-', color=colors[c], linewidth=6,
+            ax[m].plot(x, y_est, '-', color=colors[c], linewidth=12,
                        label=legend_labels[c], alpha=.5)
             # ax[0].fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
-            ax[m].plot(x, condition_y, 'bo', color=colors[c], markersize=12,
+            ax[m].plot(x, condition_y, 'bo', color=colors[c], markersize=16,
                        alpha=.5)
             # Hide the right and top spines
             ax[m].spines['right'].set_visible(False)
             ax[m].spines['top'].set_visible(False)
             # Set x axis
             x_labels = [str(xl) for xl in x]
-            ax[m].set_xticks(x, x_labels, fontsize=16)
+            ax[m].set_xticks(x, x_labels, fontsize=24)
             # Set limits of y-axis
             y_labels = [str(int(yl)) for yl in y_values]
-            ax[m].set_yticks(y_values, y_labels, fontsize=16)
+            ax[m].set_yticks(y_values, y_labels, fontsize=24)
             # Add horizontal dashed line at y = 0.5
             if hline:
-                ax[m].axhline(0., linestyle='--', color='grey', linewidth=3)
+                ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
+                              alpha=.5)
 
         # Add legend
         if m == 0:
-            ax[m].set_title('Auditory Production', weight='bold', pad=5,
-                            fontsize=16)
+            ax[m].set_title('Auditory Production', weight='bold', pad=0,
+                            fontsize=24)
         else:
             assert m == 1
-            ax[m].legend(loc='upper right', frameon=False,
-                         prop={'size': 16})
-            ax[m].set_title('Visual Production', weight='bold', pad=5,
-                            fontsize=16)
+            ax[m].legend(loc='upper right', frameon=False, prop={'size': 24})
+            ax[m].set_title('Visual Production', weight='bold', pad=0,
+                            fontsize=24)
 
         # Name of x-axis
-        fig.text(.485, .018, 'Standards (ms)', fontsize=16)
+        fig.text(.465, .018, 'Standards (ms)', fontsize=24)
         # Name of y-axis
-        fig.text(.0315, .35, yaxis_name, fontsize=16, rotation=90)
+        fig.text(.02, .225, yaxis_name, fontsize=26, rotation=90)
         # Legends for horizontal dashed lines
         if hline:
-            fig.text(.395, .43, hline_legend, fontsize=16, color='dimgrey')
-            fig.text(.87, .43, hline_legend, fontsize=16, color='dimgrey')
+            fig.text(.355, .45, hline_legend, fontsize=24, color='dimgrey')
+            fig.text(.825, .45, hline_legend, fontsize=25, color='dimgrey')
 
     # Title
-    plt.suptitle(title, x=.5, y=.97, size=16, linespacing=.75)
+    plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
 
     # Save figure
     plt.savefig(os.path.join(fname + '.pdf'))
@@ -1817,7 +1817,7 @@ def group_perception(all_rf1_audio, all_rf2_audio,
 
 
 def plotfit_perception(x, y, estimator):
-        fig, ax = plt.subplots(2, 1, figsize=(8, 16))
+        fig, ax = plt.subplots(1, 2, figsize=(16, 8))
 
         # left   # the left side of the subplots of the figure
         # right  # the right side of the subplots of the figure
@@ -1825,7 +1825,7 @@ def plotfit_perception(x, y, estimator):
         # top    # the top of the subplots of the figure
         # wspace # the amount of width reserved for blank space between subplots
         # hspace # the amount of height reserved for white space between subplots
-        plt.subplots_adjust(left=.125, bottom=.075, right=.95, wspace=.15)
+        plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15)
 
         colors = ['tab:blue', 'tab:orange']
         legend_labels = ['Beat', 'Interval']
@@ -1839,52 +1839,57 @@ def plotfit_perception(x, y, estimator):
                 #     np.sqrt(1/len(x) + (x - x.mean())**2 / np.sum((x - x.mean())**2))
 
                 # Plot the linear fit
-                ax[m].plot(x, y_est, '-', color=colors[c], linewidth=6,
+                ax[m].plot(x, y_est, '-', color=colors[c], linewidth=12,
                            label=legend_labels[c], alpha=.5)
                 # ax[0].fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
                 ax[m].plot(x, condition_y, 'bo', color=colors[c],
-                           markersize=12, alpha=.5)
+                           markersize=16, alpha=.5)
                 # Hide the right and top spines
                 ax[m].spines['right'].set_visible(False)
                 ax[m].spines['top'].set_visible(False)
                 # Set x axis
                 x_labels = [str(xl) for xl in x]
-                ax[m].set_xticks(x, x_labels, fontsize=16)
+                ax[m].set_xticks(x, x_labels, fontsize=24)
                 # Set limits of y-axis
                 y_values = np.linspace(-0.16, 0.16, 9)
                 y_labels = [str(int(yl*100)) for yl in y_values]
-                ax[m].set_yticks(y_values, y_labels, fontsize=16)
+                ax[m].set_yticks(y_values, y_labels, fontsize=24)
                 # Add horizontal dashed line at y = 0.5
-                ax[m].axhline(0., linestyle='--', color='grey', linewidth=3)
+                ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
+                              alpha=.5)
 
             # Add legend
             if m == 0:
-                ax[m].set_title('Auditory Perception', weight='bold', pad=5,
-                                fontsize=16)
+                ax[m].set_title('Auditory Perception', weight='bold', pad=-5,
+                                fontsize=24)
             else:
                 assert m == 1
                 ax[m].legend(loc='upper right', frameon=False,
                              prop={'size': 16})
-                ax[m].set_title('Visual Perception', weight='bold', pad=5,
-                                fontsize=16)
+                ax[m].set_title('Visual Perception', weight='bold', pad=-5,
+                                fontsize=24)
 
             # Name of x-axis
-            fig.text(.42, .018, 'Standards (ms)', fontsize=16)
+            fig.text(.47, .018, 'Standards (ms)', fontsize=24)
             # Name of y-axis
-            fig.text(.0315, .43, 'Group PSE (%)', fontsize=16, rotation=90)
+            fig.text(.0175, .35, 'Group PSE (%)', fontsize=24, rotation=90)
             # Legends for horizontal dashed lines
-            fig.text(.83, .71, 'No Bias', fontsize=16, color='dimgrey')
-            fig.text(.83, .27, 'No Bias', fontsize=16, color='dimgrey')
+            fig.text(.42, .525, 'No Bias', fontsize=24, color='dimgrey')
+            fig.text(.895, .525, 'No Bias', fontsize=24, color='dimgrey')
 
         # Title
-        if estimator == 'mle_cdf':
-            suffix = '(Estimator: MLE of Norm CDF)'
-        else:
-            assert estimator == 'mle_expit'
-            suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
+        # if estimator == 'mle_cdf':
+        #     suffix = '(Estimator: MLE of Norm CDF)'
+        # else:
+        #     assert estimator == 'mle_expit'
+        #     suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
+        # plt.suptitle(
+        #     'Point of Subjective Equality (PSE) for the Perception Tasks' +
+        #     '\n\n' + suffix, x=.5, y=.97, size=26, linespacing=.75)
+
         plt.suptitle(
-            'Point of Subjective Equality (PSE) for the Perception Tasks' +
-            '\n\n' + suffix, x=.5, y=.97, size=16, linespacing=.75)
+            'Point of Subjective Equality (PSE) for the Perception Tasks',
+            x=.5, y=.97, size=26, linespacing=.75)
 
         # Save figure
         plt.savefig(os.path.join('pse-vs-standard_' + estimator + '.pdf'))
@@ -1986,6 +1991,8 @@ def perception_performance(estim_pse, estim_dl):
         # Define subplot of bar charts and its position in the fig
         # plt.axes([left, bottom, width, height])
         ax = plt.axes([.0345 + s*.198, .17, .165, .7])
+
+        sns.set(style="ticks", rc={"lines.linewidth": 3.})
 
         if s == 3:
             ax = sns.pointplot(
