@@ -61,8 +61,8 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-subj_n  = [3, 4, 7, 8, 10];
-% subj_n  = [4, 7, 8, 10];
+% subj_n  = [3, 4, 7, 8, 10];
+subj_n  = [4, 7, 8, 10];
 % subj_n  = [3];
 
 subj_id = 1:length(subj_n);
@@ -907,7 +907,7 @@ switch what
         % models each condition as a separate regressors
         % For conditions with multiple repetitions, one regressor
         % represents all the instances
-        % msdtb_imana('GLM:design', 'sn', [1])
+        % msdtb_imana('GLM:grand_design', 'sn', [1])
         
         sn = subj_id;
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
@@ -923,7 +923,7 @@ switch what
             
             % loop over design
             for dg=1:length(design)
-                estimates_folder = fullfile(glms_folder, design{dg})
+                estimates_folder = fullfile(glms_folder, design{dg}, 'ffx')
 
                 % Create estimates folder if does not exist or clean it
                 folder(estimates_folder)
@@ -1080,7 +1080,8 @@ switch what
                 subj_str{s}, est_dir);            
             % loop over designs
             for dg=1:length(design)
-                estdesign_folder = fullfile(estderiv_subj_dir, design{dg});
+                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
+                    'ffx');
                 % Delete previous estimates, if they exist
                 if any(size(dir([estdesign_folder '/*.nii']), 1))
                     delete([estdesign_folder '/*.nii']);
@@ -1124,7 +1125,8 @@ switch what
             for dg=1:length(design)
                 estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                     subj_str{s}, est_dir);            
-                estdesign_folder = fullfile(estderiv_subj_dir, design{dg});
+                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
+                    'ffx');
 
                 A = []; % structure with SPM fields to build the t-contrasts
                 A.spmmat = {[estdesign_folder '/SPM.mat']};
@@ -1149,7 +1151,99 @@ switch what
 
         msdtb_imana('GLM:grand_design')
         msdtb_imana('GLM:estimate')
-        msdtb_imana('GLM: individual_ffx_t') 
+        msdtb_imana('GLM:individual_ffx_t') 
+        
+    case 'CON:normalization'
+        % Example usage: msdtb_imana('CON:normalization')
+        
+        sn       = subj_id; % subject list
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        vararginoptions(varargin, {'sn', 'design'});
+        
+        for s = sn
+            for dg=1:length(design)
+                estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, est_dir);            
+                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
+                    'ffx');
+                
+                % List of contrasts in source folder
+                n_contrasts = numel(dir([estdesign_folder '/con_*.nii']));
+                confiles_destination = {};
+                for c=1:n_contrasts
+                    cname = sprintf('con_%04d.nii', c);
+                    confiles_destination{c,1} = fullfile(estdesign_folder, ...
+                        cname);
+                end
+                
+                % Deformation-Field file
+                deffield_folder = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, 'ses-01', 'anat');
+                deffield_file = [deffield_folder '/y_' subj_str{s} '_T1w.nii'];
+                
+                % Apply normalization
+                spmja_normalization_write(deffield_file, confiles_destination)
+                
+                % List normalized contrasts in ffx folder
+                confiles_source = [estdesign_folder '/wcon_*.nii'];
+                
+                % Create norm folder or empty it
+                normcontrasts_folder = fullfile(estderiv_subj_dir, ...
+                    design{dg}, 'snorm_contrasts');
+                folder(normcontrasts_folder);
+                
+                % Copy normalized contrasts to destination folder
+                movefile(confiles_source, normcontrasts_folder);
+            end
+        end        
+        
+    case 'CON:smooth'        
+        % Example usage: msdtb_imana('CON:smooth')
+        
+        sn       = subj_id; % subject list
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        smoothing_kernel = [8 8 8]
+        
+        vararginoptions(varargin, {'sn', 'design', 'smoothing_kernel'});
+        
+        for s = sn
+            for dg=1:length(design)
+                estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, est_dir);    
+                normcon_folder = fullfile(estderiv_subj_dir, design{dg}, ...
+                    'snorm_contrasts');
+                
+                % List of normalized contrasts
+                n_contrasts = numel(dir([normcon_folder '/wcon_*.nii']));
+                wconfiles_destination = {};
+                for c=1:n_contrasts
+                    cname = sprintf('wcon_%04d.nii', c);
+                    wconfiles_destination{c,1} = fullfile(normcon_folder, ...
+                        cname);
+                end
+                
+                A.data = wconfiles_destination;
+                A.fwhm = smoothing_kernel;
+                A.dtype = 0;
+                A.im = 0;
+                A.prefix = 's';
+                
+                matlabbatch{1}.spm.spatial.smooth=A;
+                spm_jobman('run',matlabbatch);                
+            end
+        end
+        
+    case 'GLMCON:run_all'
+        % Example usage: msdtb_imana('GLMCON:run_all')
+
+        % Note: Do not forget to copy tsv files to the server
+
+        msdtb_imana('GLM:grand_design')
+        msdtb_imana('GLM:estimate')
+        msdtb_imana('GLM:individual_ffx_t')
+        msdtb_imana('CON:normalization')
+        msdtb_imana('CON:smooth')
+        
         
     case 'GLM:dmtx_unf' 
         % Saves a copy of SPM.mat prepared to be loaded in python       
