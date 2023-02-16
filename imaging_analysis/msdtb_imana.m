@@ -61,8 +61,8 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n  = [3, 4, 7, 8, 10];
-subj_n  = [4, 7, 8, 10];
+subj_n  = [3, 4, 7, 8, 10];
+% subj_n  = [4, 7, 8, 10];
 % subj_n  = [3];
 
 subj_id = 1:length(subj_n);
@@ -88,6 +88,21 @@ loc_AC = {
 %           };
 
 numDummys = 0;
+
+contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...
+             'Auditory Encoding', [1 0 1 0]; ...
+             'Visual Encoding', [0 0 0 0 1 0 1 0]; ...
+             'Auditory vs Visual Encoding', [1 0 1 0 -1 0 -1 0]; ...
+             'Visual vs Auditory Encoding', [-1 0 -1 0 1 0 1 0]; ...
+             'Beat vs Interval', [1 0 -1 0 1 0 -1 0]; ...
+             'Auditory Beat vs Auditory Interval', [1 0 -1 0]; ...
+             'Visual Beat vs Visual Interval', [0 0 0 0 1 0 -1 0]; ...
+             'Interval vs Beat', [-1 0 1 0 -1 0 1 0]; ...
+             'Auditory Interval vs Auditory Beat', [-1 0 1 0]; ...
+             'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0]; ...
+             'Decision', [0 1 0 1 0 1 0 1]; ...
+             };
+
 %==============================================================================
 
 switch what
@@ -915,10 +930,11 @@ switch what
         prefix = 'u'; % prefix of the preprocessed epi we want to use
         vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design'});
         
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
         % loop over subjects
         for s = sn
-            deriv_subjdir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s});
+            deriv_subjdir = fullfile(base_dir, derivatives_dir, subj_str{s});
             glms_folder = fullfile(deriv_subjdir, est_dir);
             
             % loop over design
@@ -1107,24 +1123,10 @@ switch what
             'Random NTFD: ', 'AllTasks: '};
         vararginoptions(varargin, {'sn'})
         
-        contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...
-                     'Auditory Encoding', [1 0 1 0]; ...
-                     'Visual Encoding', [0 0 0 0 1 0 1 0]; ...
-                     'Auditory vs Visual Encoding', [1 0 1 0 -1 0 -1 0]; ...
-                     'Visual vs Auditory Encoding', [-1 0 -1 0 1 0 1 0]; ...
-                     'Beat vs Interval', [1 0 -1 0 1 0 -1 0]; ...
-                     'Auditory Beat vs Auditory Interval', [1 0 -1 0]; ...
-                     'Visual Beat vs Visual Interval', [0 0 0 0 1 0 -1 0]; ...
-                     'Interval vs Beat', [-1 0 1 0 -1 0 1 0]; ...
-                     'Auditory Interval vs Auditory Beat', [-1 0 1 0]; ...
-                     'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0]; ...
-                     'Decision', [0 1 0 1 0 1 0 1]; ...
-                     };
-        
         for s = sn
-            for dg=1:length(design)
-                estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                    subj_str{s}, est_dir);            
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir);  
+            for dg=1:length(design)          
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
                     'ffx');
 
@@ -1161,9 +1163,9 @@ switch what
         vararginoptions(varargin, {'sn', 'design'});
         
         for s = sn
-            for dg=1:length(design)
-                estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                    subj_str{s}, est_dir);            
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir); 
+            for dg=1:length(design)           
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
                     'ffx');
                 
@@ -1204,12 +1206,12 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         smoothing_kernel = [8 8 8]
         
-        vararginoptions(varargin, {'sn', 'design', 'smoothing_kernel'});
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         for s = sn
-            for dg=1:length(design)
-                estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                    subj_str{s}, est_dir);    
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir); 
+            for dg=1:length(design)   
                 normcon_folder = fullfile(estderiv_subj_dir, design{dg}, ...
                     'snorm_contrasts');
                 
@@ -1229,7 +1231,7 @@ switch what
                 A.prefix = 's';
                 
                 matlabbatch{1}.spm.spatial.smooth=A;
-                spm_jobman('run',matlabbatch);                
+                spm_jobman('run',matlabbatch);
             end
         end
         
@@ -1244,7 +1246,85 @@ switch what
         msdtb_imana('CON:normalization')
         msdtb_imana('CON:smooth')
         
+    case 'GROUP:one-sample_t_design'
+        % Example usage: msdtb_imana('CON:smooth')
         
+        sn       = subj_id; % subject list
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        
+        vararginoptions(varargin, {'sn', 'design'});
+        
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
+        derivgroup_dir = fullfile(base_dir, derivatives_dir, 'group');        
+        for dg=1:length(design)
+            ost_dir = fullfile(derivgroup_dir, design{dg}, 'onesample_t');
+%             if isfolder(ost_dir)
+%                 rmdir(ost_dir, 's');
+%             end
+            if not(isfolder(ost_dir))
+                mkdir(ost_dir);
+            end
+            for sc=1:length(contrasts)
+                contrast = strrep(contrasts{sc,1}, ' ', '_');
+                condir = fullfile(ost_dir, ['con' num2str(sc) '_' contrast]);
+                folder(condir);
+                swname = sprintf('swcon_%04d.nii', sc);
+                icon = {};
+                for s = sn
+                    snormcon_folder = fullfile(base_dir, derivatives_dir, ...
+                        subj_str{s}, est_dir, design{dg}, 'snorm_contrasts');
+                    icon{s,1} = fullfile(snormcon_folder, swname);
+                end % s (sn)
+                
+                A.dir = {condir};
+                A.des.t1.scans = icon;
+                A.cov = struct('c', {}, 'cname', {}, 'iCFI', {}, 'iCC', {});
+                A.multi_cov = struct('files', {}, 'iCFI', {}, 'iCC', {});
+                A.masking.tm.tm_none = 1;
+                A.masking.im = 1;
+                A.masking.em = {''};
+                A.globalc.g_omit = 1;
+                A.globalm.gmsca.gmsca_no = 1;
+                A.globalm.glonorm = 1;
+
+                matlabbatch{1}.spm.stats.factorial_design=A;
+                spm_jobman('run',matlabbatch);                                  
+            end % sc (n_smoothcon)
+        end % dg (design)
+        
+    case 'GROUP:estimation'
+        % Example usage: msdtb_imana('GROUP:estimate', 'sn', [1])
+        
+        sn       = subj_id; % subject list
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        model = {'onesample_t'};
+        vararginoptions(varargin, {'sn', 'model'})
+        
+        derivgroup_dir = fullfile(base_dir, derivatives_dir, 'group'); 
+        for dg=1:length(design)
+            designgroup_dir = fullfile(derivgroup_dir, design{dg});
+            for m=1:length(model)
+                modelgroup_dir = fullfile(designgroup_dir, model{m});
+                for c=1:length(contrasts)
+                    contrast = strrep(contrasts{c,1}, ' ', '_');
+                    condir = fullfile(modelgroup_dir, ...
+                        ['con' num2str(c) '_' contrast]);
+                    % Delete any pre-existing nifit file
+                    if any(size(dir([condir '/*.nii']), 1))
+                        delete([condir '/*.nii']);
+                    end
+                    % Add as input SPM.mat file
+                    A.spmmat = {fullfile(condir, 'SPM.mat')};
+                    A.write_residuals = 0;
+                    A.method.Classical = 1;
+                
+                    matlabbatch{1}.spm.stats.fmri_est=A;
+                    spm_jobman('run',matlabbatch);
+                end % c (contrasts)
+            end % m (model)
+        end % dg (design)
+                
     case 'GLM:dmtx_unf' 
         % Saves a copy of SPM.mat prepared to be loaded in python       
         
