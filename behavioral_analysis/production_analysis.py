@@ -1,0 +1,1221 @@
+"""
+Analysis of behavioral data for the Production Task of the Music-SDTB project
+
+author: Ana Luisa Pinho
+e-mail: agrilopi@uwo.ca
+
+Created: February 2022
+Last update: February 2023
+
+Compatibility: Python 3.10.4
+"""
+
+import sys
+import os
+import warnings
+
+import numpy as np
+import pandas as pd
+
+import seaborn as sns
+
+from scipy import stats
+from matplotlib import pyplot as plt
+from matplotlib import patches as mpatches
+from statannotations.Annotator import Annotator
+import pingouin as pg
+
+# setting path
+sys.path.append('../')
+# importing
+from utils import parse_logfile, customize_vplot, change_width
+
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
+
+# %%
+# ======================== MAIN FUNCTIONS ==============================
+
+
+def production_data(data):
+    trials = []
+    for dt, datum in enumerate(data):
+        if datum[5] == 'interval_1':
+            condition = datum[4]
+            theoretical_isi1 = int(datum[8])
+            real_isi1 = int(datum[9])
+            if data[dt+8][5] == 'feedback' and data[dt+8][11] == 'o':
+                rt = int(data[dt+7][7]) + int(data[dt+8][10])
+            elif data[dt+8][5] == 'feedback' and data[dt+8][10] == 'None':
+                rt = np.nan
+            else:
+                raise ValueError('No feedback entry!')
+            trials.append([condition, theoretical_isi1, real_isi1, rt])
+
+    return trials
+
+
+def filter_trialtype(trs, category):
+    beat = [tr[1:] for tr in trs if tr[0][:4] == 'beat']
+    interval = [tr[1:] for tr in trs if tr[0][:8] == 'interval']
+    random = [tr[1:] for tr in trs if tr[0][:6] == 'random']
+
+    if category in ['production', 'ntfd']:
+        beat = [list(map(int, b)) if ~np.any(np.isnan(b)) else b
+                for b in beat]
+        interval = [list(map(int, i)) if ~np.any(np.isnan(i)) else i
+                    for i in interval]
+        if random:
+            random = [list(map(int, r)) if ~np.any(np.isnan(r)) else r
+                      for r in random]
+    else:
+        assert category == 'perception'
+        beat = [[int(b[0]), int(b[1]), b[2]] for b in beat]
+        interval = [[int(i[0]), int(i[1]), i[2]] for i in interval]
+
+    return beat, interval, random
+
+
+def individual_production_isi_sync(
+        subjects, this_dir, output_folder, sesstype, n_sess, sync_type,
+        flatten=True,
+        tasks = ['Auditory Production', 'Visual Production']):
+
+    allsub_beat_audio = []
+    allsub_interval_audio = []
+    allsub_beat_visual = []
+    allsub_interval_visual = []
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory Production', 'Visual Production']:
+                raise NameError('Task not valid!')
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            trials = production_data(data)
+            beat_trials, interval_trials, _ = filter_trialtype(trials,
+                                                               'production')
+
+            # ############# Asynchronies per ISI #######################
+            isi1s = np.unique(np.array(beat_trials)[:, 0]).astype('int')
+
+            ss_isi_beat = []
+            as_isi_beat = []
+            for i in isi1s:
+                ss_beat = []
+                as_beat = []
+                for beat_trial in beat_trials:
+                    if beat_trial[0] == i:
+                        if ~np.any(np.isnan(beat_trial)):
+                            ssb = round((beat_trial[2] - beat_trial[1]) / \
+                                        beat_trial[1], 2)
+                            asb = abs(ssb)
+                        else:
+                            ssb = np.nan
+                            asb = np.nan
+                        ss_beat.append(ssb)
+                        as_beat.append(asb)
+                # Replace missing values (nan's) by median of the sample
+                if np.any(np.isnan(ss_beat)):
+                    miss_sbval = np.nanmedian(ss_beat)
+                    ss_beat = np.where(np.isnan(ss_beat), miss_sbval, ss_beat)
+                if np.any(np.isnan(as_beat)):
+                    miss_abval = np.nanmedian(as_beat)
+                    as_beat = np.where(np.isnan(as_beat), miss_abval, as_beat)
+                # Append isi array
+                ss_isi_beat.append(ss_beat)
+                as_isi_beat.append(as_beat)
+
+            ss_isi_interval = []
+            as_isi_interval = []
+            for i in isi1s:
+                ss_interval = []
+                as_interval = []
+                for interval_trial in interval_trials:
+                    if interval_trial[0] == i:
+                        if ~np.any(np.isnan(interval_trial)):
+                            ssi = round((interval_trial[2] - \
+                                         interval_trial[1]) / \
+                                        interval_trial[1], 2)
+                            asi = abs(ssi)
+                        else:
+                            ssi = np.nan
+                            asi = np.nan
+                        ss_interval.append(ssi)
+                        as_interval.append(asi)
+                # Replace missing values (nan's) by median of the isi sample
+                if np.any(np.isnan(ss_interval)):
+                    miss_sival = np.nanmedian(ss_interval)
+                    ss_interval = np.where(np.isnan(ss_interval), miss_sival,
+                                           ss_interval)
+                if np.any(np.isnan(as_interval)):
+                    miss_aival = np.nanmedian(as_interval)
+                    as_interval = np.where(np.isnan(as_interval), miss_aival,
+                                           as_interval)
+                # Append isi array
+                ss_isi_interval.append(ss_interval)
+                as_isi_interval.append(as_interval)
+
+            # ################## Plotting ###############################
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 70))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.235 + t*.42, .94 - s*.0385, .3, .032])
+
+            x_labels = [str(k) for k in isi1s]
+            x = np.arange(len(x_labels))  # the label locations
+            width = 0.35  # the width of the bars
+
+            # Transform in Symlog
+            logbeat = []
+            loginterval = []
+            shift = 2
+            if sync_type == 'signed':
+                for lsbeat in ss_isi_beat:
+                    logv = np.abs(lsbeat)*(10.**shift)
+                    logv[np.where(logv<1.)] = 1.
+                    logv = np.sign(lsbeat)*np.log10(logv)
+                    logbeat.append(logv)
+                for lsint in ss_isi_interval:
+                    logv = np.abs(lsint)*(10.**shift)
+                    logv[np.where(logv<1.)] = 1.
+                    logv = np.sign(lsint)*np.log10(logv)
+                    loginterval.append(logv)
+            else:
+                assert sync_type == 'absolute'
+                for lsbeat in as_isi_beat:
+                    logv = np.abs(lsbeat)*(10.**shift)
+                    logv[np.where(logv<1.)] = 1.
+                    logv = np.sign(lsbeat)*np.log10(logv)
+                    logbeat.append(logv)
+                for lsint in as_isi_interval:
+                    logv = np.abs(lsint)*(10.**shift)
+                    logv[np.where(logv<1.)] = 1.
+                    logv = np.sign(lsint)*np.log10(logv)
+                    loginterval.append(logv)
+
+
+            beat = ax.boxplot(logbeat,
+                              bootstrap=100,
+                              positions=np.arange(len(x))*2. - width,
+                              widths=0.6,
+                              flierprops={'marker': '+', 'markersize': 5},
+                              patch_artist=True)
+            interval = ax.boxplot(loginterval,
+                                  bootstrap=100,
+                                  positions=np.arange(len(x))*2. + width,
+                                  widths=0.6,
+                                  flierprops={'marker': '+', 'markersize': 5},
+                                  patch_artist=True)
+            # Overplot the mean, with horizontal alignment
+            # in the center of each box
+            for j in np.arange(len(x)):
+                medbeat = beat['medians'][j]
+                medinterval = interval['medians'][j]
+                ax.plot(np.average(medbeat.get_xdata()),
+                        np.average(ss_isi_beat[j]),
+                        color='w', marker='*', markeredgecolor='k')
+                ax.plot(np.average(medinterval.get_xdata()),
+                        np.average(ss_isi_interval[j]),
+                        color='w', marker='*', markeredgecolor='k')
+
+            # Fill boxes with colors
+            colors1 = ['tab:blue', 'lightblue']
+            colors2 = ['purple', 'thistle']
+            for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
+                if sync_type == 'signed':
+                    patch1.set_facecolor(colors1[0])
+                    patch2.set_facecolor(colors1[1])
+                else:
+                    assert sync_type == 'absolute'
+                    patch1.set_facecolor(colors2[0])
+                    patch2.set_facecolor(colors2[1])
+
+            # x-label at the bottom
+            if s == len(subjects) - 1:
+                fig.text(.5, .005, ' ISIs (ms)', size=18)
+
+            # x-tick labels with the standards
+            ax.set_xticks(x*2., x_labels)
+
+            if sync_type == 'signed':
+                plt.ylim([-3., 3.])
+                if (t % 2) == 0:
+                    ax.set_ylabel('SymLog10(Asynchrony)')
+            else:
+                assert sync_type == 'absolute'
+                plt.ylim([-.3, 3.])
+                if (t % 2) == 0:
+                    ax.set_ylabel('Log10(Asynchrony)')
+
+            if s == 0:
+                ax.set_title(task, pad=30, weight='bold')
+                if t == 0:
+                    ax.legend(frameon=False, loc = 'best',
+                              prop={'size': 8})
+                    ax.legend([beat["boxes"][0], interval["boxes"][0]],
+                              ['Beat', 'Interval'],
+                              loc='upper right', prop={'size': 8})
+                    fig.text(.26, 0.97, '*', color='white',
+                             backgroundcolor='silver', weight='roman',
+                             size='medium')
+                    fig.text(.275, 0.97, ' Mean', color='black',
+                             weight='roman', size='x-small')
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            # Aggregate all data
+            if task == 'Auditory Production' and sync_type == 'signed':
+                allsub_beat_audio.append(ss_isi_beat)
+                allsub_interval_audio.append(ss_isi_interval)
+            elif task == 'Visual Production' and sync_type == 'signed':
+                allsub_beat_visual.append(ss_isi_beat)
+                allsub_interval_visual.append(ss_isi_interval)
+            elif task == 'Auditory Production' and sync_type == 'absolute':
+                allsub_beat_audio.append(as_isi_beat)
+                allsub_interval_audio.append(as_isi_interval)
+            else:
+                assert task == 'Visual Production' and sync_type == 'absolute'
+                allsub_beat_visual.append(as_isi_beat)
+                allsub_interval_visual.append(as_isi_interval)
+
+        fig.text(.07, .955 - s * .0385, 'Subject %d' % subject, ha='center',
+                 fontsize=12, weight='bold')
+
+    # Title
+    if sync_type == 'signed':
+        plt.suptitle(
+            'Individual Signed Asynchrony for the Production tasks',
+            x=.5, y=.99, size=14, linespacing=.75)
+    else:
+        assert sync_type == 'absolute'
+        plt.suptitle(
+            'Individual Absolute Asynchrony for the Production tasks',
+            x=.5, y=.99, size=14, linespacing=.75)
+
+    # plt.show()
+    # Save figure
+    plt.savefig(os.path.join(
+        this_dir, output_folder,
+        'production_individual_isi_' + sync_type + '_asynch.pdf'))
+
+    # Flatten the data arrays
+    if flatten:
+        allsub_beat_audio = np.ravel(allsub_beat_audio)
+        allsub_interval_audio = np.ravel(allsub_interval_audio)
+        allsub_beat_visual = np.ravel(allsub_beat_visual)
+        allsub_interval_visual = np.ravel(allsub_interval_visual)
+
+    return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
+            allsub_interval_visual, isi1s)
+
+
+def individual_production_isi_rts(
+        subjects, this_dir, output_folder, sesstype, n_sess, flatten=True,
+        tasks = ['Auditory Production', 'Visual Production']):
+
+    allsub_beat_audio = []
+    allsub_interval_audio = []
+    allsub_beat_visual = []
+    allsub_interval_visual = []
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory Production', 'Visual Production']:
+                raise NameError('Task not valid!')
+
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            trials = production_data(data)
+            beat_trials, interval_trials, _ = filter_trialtype(trials,
+                                                               'production')
+
+            # Filter necessary data
+            beat_trials = [np.delete(trial, 1).tolist()
+                           for trial in beat_trials]
+            interval_trials = [np.delete(trial, 1).tolist()
+                               for trial in interval_trials]
+
+            # ############## Extract RT's per ISI ###################### 
+            isi1s = np.unique(np.array(beat_trials)[:, 0]).astype('int')
+
+            rt_isi1_grouped_beat = []
+            for i in isi1s:
+                rts_beat = []
+                for beat_trial in beat_trials:
+                    if beat_trial[0] == i:
+                        if ~np.any(np.isnan(beat_trial)):
+                            rts_beat.append(beat_trial[1])
+                        else:
+                            rts_beat.append(np.nan)
+                # Replace missing values (nan's) by median of the sample
+                if np.any(np.isnan(rts_beat)):
+                    miss_bval = np.nanmedian(rts_beat)
+                    rts_beat = np.where(np.isnan(rts_beat), miss_bval,
+                                        rts_beat)
+                # Append isi array
+                rt_isi1_grouped_beat.append(rts_beat)
+
+            rt_isi1_grouped_interval = []
+            for j in isi1s:
+                rts_interval = []
+                for interval_trial in interval_trials:
+                    if interval_trial[0] == j:
+                        if ~np.any(np.isnan(interval_trial)):
+                            rts_interval.append(interval_trial[1])
+                        else:
+                            rts_interval.append(np.nan)
+                # Replace missing values (nan's) by median of the isi sample
+                if np.any(np.isnan(rts_interval)):
+                    miss_ival = np.nanmedian(rts_interval)
+                    rts_interval = np.where(np.isnan(rts_interval), miss_ival,
+                                            rts_interval)
+                # Append isi array
+                rt_isi1_grouped_interval.append(rts_interval)
+
+            # ################## Plotting ###############################
+            if s == 0 and t == 0:
+                fig = plt.figure(figsize=(8, 70))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.235 + t*.42, .94 - s*.0385, .3, .032])
+
+            x_labels = [str(k) for k in isi1s]
+            x = np.arange(len(x_labels))  # the label locations
+            width = 0.35  # the width of the bars
+
+            # Transform in the LogSpace
+            logbeat = [np.log10(i) for i in rt_isi1_grouped_beat]
+            loginterval = [np.log10(j) for j in rt_isi1_grouped_interval]
+
+            beat = ax.boxplot(logbeat,
+                              bootstrap=100,
+                              positions=np.arange(len(x))*2. - width,
+                              widths=0.6,
+                              flierprops={'marker': '+', 'markersize': 5},
+                              patch_artist=True)
+            interval = ax.boxplot(loginterval,
+                                  bootstrap=100,
+                                  positions=np.arange(len(x))*2. + width,
+                                  widths=0.6,
+                                  flierprops={'marker': '+', 'markersize': 5},
+                                  patch_artist=True)
+
+            # Overplot the mean, with horizontal alignment
+            # in the center of each box
+            for j in np.arange(len(x)):
+                medbeat = beat['medians'][j]
+                medinterval = interval['medians'][j]
+                ax.plot(np.average(medbeat.get_xdata()),
+                        np.average(rt_isi1_grouped_beat[j]),
+                        color='w', marker='*', markeredgecolor='k')
+                ax.plot(np.average(medinterval.get_xdata()),
+                        np.average(rt_isi1_grouped_interval[j]),
+                        color='w', marker='*', markeredgecolor='k')
+
+            # Fill boxes with colors
+            colors = ['b', 'y']
+            for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
+                patch1.set_facecolor(colors[0])
+                patch2.set_facecolor(colors[1])
+
+            if s == len(subjects) - 1:
+                fig.text(.5, .005, ' ISIs (ms)', size=18)
+
+            ax.set_xticks(x*2., x_labels)
+            plt.ylim([2., 3.35])
+
+            if (t % 2) == 0:
+                ax.set_ylabel('Log10(Response Time)')
+
+            if s == 0:
+                ax.set_title(task, pad=30, weight='bold')
+                if t == 0:
+                    ax.legend(frameon=False, loc = 'best',
+                              prop={'size': 12})
+                    ax.legend([beat["boxes"][0], interval["boxes"][0]],
+                              ['Beat', 'Interval'],
+                              loc='upper right')
+                    fig.text(.26, 0.97, '*', color='white',
+                             backgroundcolor='silver', weight='roman',
+                             size='medium')
+                    fig.text(.275, 0.97, ' Mean', color='black',
+                             weight='roman', size='x-small')
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            # Aggregate data
+            if task == 'Auditory Production':
+                allsub_beat_audio.append(rt_isi1_grouped_beat)
+                allsub_interval_audio.append(rt_isi1_grouped_interval)
+            else:
+                assert task == 'Visual Production'
+                allsub_beat_visual.append(rt_isi1_grouped_beat)
+                allsub_interval_visual.append(rt_isi1_grouped_interval)
+
+        fig.text(.07, .955 - s * .0385, 'Subject %d' % subject, ha='center',
+                 fontsize=12, weight='bold')
+
+    # Title
+    plt.suptitle(
+        'Individual Response Time for the Production tasks', x=.5, y=.99,
+        size=14, linespacing=.75)
+
+    # plt.show()
+    # Save figure
+    plt.savefig(os.path.join(this_dir, output_folder,
+                             'production_individual_isi_responsetime.pdf'))
+
+    # Flatten the data arrays
+    if flatten:
+        allsub_beat_audio = np.ravel(allsub_beat_audio).tolist()
+        allsub_interval_audio = np.ravel(allsub_interval_audio).tolist()
+        allsub_beat_visual = np.ravel(allsub_beat_visual).tolist()
+        allsub_interval_visual = np.ravel(allsub_interval_visual).tolist()
+
+    return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
+            allsub_interval_visual, isi1s)
+
+
+def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
+    # Reshape (n_subjects, n_isi, n_trials) --> (n_isi, n_subjects*n_trials)
+
+    s_audio_beat = np.swapaxes(audio_beat, 0, 1)
+    s_audio_interval = np.swapaxes(audio_interval, 0, 1)
+    s_visual_beat = np.swapaxes(visual_beat, 0, 1)
+    s_visual_interval = np.swapaxes(visual_interval, 0, 1)
+
+    rs_audio_beat = np.reshape(
+        s_audio_beat,
+        (s_audio_beat.shape[0],
+         s_audio_beat.shape[1]*s_audio_beat.shape[2]))
+
+    rs_audio_interval = np.reshape(
+        s_audio_interval,
+        (s_audio_interval.shape[0],
+         s_audio_interval.shape[1]*s_audio_interval.shape[2]))
+
+    rs_visual_beat = np.reshape(
+        s_visual_beat,
+        (s_visual_beat.shape[0],
+         s_visual_beat.shape[1]*s_visual_beat.shape[2]))
+
+    rs_visual_interval = np.reshape(
+        s_visual_interval,
+        (s_visual_interval.shape[0],
+         s_visual_interval.shape[1]*s_visual_interval.shape[2]))
+
+    return rs_audio_beat, rs_audio_interval, rs_visual_beat, rs_visual_interval
+
+
+def ffx(audio_beat, audio_interval, visual_beat, visual_interval):
+    # Inputs shape (n_subjects, n_isi, n_trials)
+    # Computes mean of elements in the third dimension
+    # Swaps dimensions and returns array w/ shape (n_isi, n_subjects)
+
+    mean_audio_beat = np.array(audio_beat).mean(2)
+    mean_audio_interval = np.array(audio_interval).mean(2)
+    mean_visual_beat = np.array(visual_beat).mean(2)
+    mean_visual_interval = np.array(visual_interval).mean(2)
+
+    ffx_audio_beat = np.swapaxes(mean_audio_beat, 0, 1)
+    ffx_audio_interval = np.swapaxes(mean_audio_interval, 0, 1)
+    ffx_visual_beat = np.swapaxes(mean_visual_beat, 0, 1)
+    ffx_visual_interval = np.swapaxes(mean_visual_interval, 0, 1)
+
+    return (ffx_audio_beat, ffx_audio_interval, ffx_visual_beat,
+            ffx_visual_interval)
+
+
+def plot_violin(audio_beat, audio_interval,
+                visual_beat, visual_interval,
+                isi1s, ylim_b, ylim_t, y_label,
+                title, this_dir, output_folder, fname):
+
+    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.1, right=.98, bottom=.15, wspace=.075)
+
+    for i, (isi_audio_beat, isi_audio_interval) in enumerate(
+            zip(audio_beat, audio_interval)):
+        pos_ab = [i*2 - .4]
+        pos_ai = [i*2 + .4]
+        v1_ab = ax1.violinplot(isi_audio_beat, pos_ab, showmeans=True,
+                               showmedians=False, showextrema=True, widths=.75)
+        v1_ai = ax1.violinplot(isi_audio_interval, pos_ai, showmeans=True,
+                               showmedians=False, showextrema=True, widths=.75)
+        customize_vplot(isi_audio_beat, ax1, pos_ab)
+        customize_vplot(isi_audio_interval, ax1, pos_ai)
+
+        for vab in v1_ab['bodies']:
+            vab.set_facecolor('tab:blue')
+            vab.set_edgecolor('black')
+            vab.set_alpha(1)
+
+        for vai in v1_ai['bodies']:
+            vai.set_facecolor('tab:orange')
+            vai.set_edgecolor('black')
+            vai.set_alpha(1)
+
+        labels = []
+        cb = vab.get_facecolor()
+        ci = vai.get_facecolor()
+        labels.append((mpatches.Patch(color=cb), 'Beat'))
+        labels.append((mpatches.Patch(color=ci), 'Interval'))
+
+        v1_ab['cmaxes'].set_color('black')
+        v1_ab['cmins'].set_color('black')
+        v1_ab['cbars'].set_color('black')
+        v1_ab['cmeans'].set_color('black')
+
+        v1_ai['cmaxes'].set_color('black')
+        v1_ai['cmins'].set_color('black')
+        v1_ai['cbars'].set_color('black')
+        v1_ai['cmeans'].set_color('black')
+
+    for j, (isi_visual_beat, isi_visual_interval) in enumerate(
+            zip(visual_beat, visual_interval)):
+        pos_vb = [j*2 - .4]
+        pos_vi = [j*2 + .4]
+        v2_ab = ax2.violinplot(isi_visual_beat, pos_vb, showmeans=True,
+                               showmedians=False, showextrema=True, widths=.75)
+        v2_ai = ax2.violinplot(isi_visual_interval, pos_vi, showmeans=True,
+                               showmedians=False, showextrema=True, widths=.75)
+        customize_vplot(isi_visual_beat, ax2, pos_vb)
+        customize_vplot(isi_visual_interval, ax2, pos_vi)
+
+        for vab in v2_ab['bodies']:
+            vab.set_facecolor('tab:blue')
+            vab.set_edgecolor('black')
+            vab.set_alpha(1)
+
+        for vai in v2_ai['bodies']:
+            vai.set_facecolor('tab:orange')
+            vai.set_edgecolor('black')
+            vai.set_alpha(1)
+
+        v2_ab['cmaxes'].set_color('black')
+        v2_ab['cmins'].set_color('black')
+        v2_ab['cbars'].set_color('black')
+        v2_ab['cmeans'].set_color('black')
+
+        v2_ai['cmaxes'].set_color('black')
+        v2_ai['cmins'].set_color('black')
+        v2_ai['cbars'].set_color('black')
+        v2_ai['cmeans'].set_color('black')
+
+    # Hide the right and top spines
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+
+    # Label x-axis
+    x_labels = [str(standard) for standard in standards]
+    pos = np.arange(len(standards))*2
+    ax1.set_xticks(pos, x_labels)
+    ax2.set_xticks(pos, x_labels)
+
+    # Set limits of y-axis
+    ax1.set_ylim(bottom=ylim_b, top=ylim_t)
+    ax2.set_ylim(bottom=ylim_b, top=ylim_t)
+    # Set y label
+    ax1.set_ylabel(y_label, labelpad=.5)
+    # Remove y frame, labels and spines of second plot
+    ax2.spines['left'].set_visible(False)
+    ax2.axes.get_yaxis().set_visible(False)
+
+    # Title of each plot
+    ax1.set_title('Auditory Conditions', fontweight='semibold', size=10,
+                  y=-.175)
+    ax2.set_title('Visual Conditions', fontweight='semibold', size=10,
+                  y=-.175)
+
+    # Add legend
+    ax1.legend(*zip(*labels), loc='best', frameon=False)
+    fig.text(.75, 0.84, 'white circle: median', size=8)
+    fig.text(.75, 0.8, 'hline: mean', size=8)
+
+    # Title
+    plt.suptitle(title, size=10, linespacing=.75)
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
+
+
+def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
+                    pval_audio, pval_visual,
+                    isi1s, y, ylim_b, ylim_t, yshift,
+                    title, this_dir, output_folder, fname):
+
+    # Concatenate data
+    data_audio = [np.append(audio_beat[j], audio_interval[j]).tolist()
+                  for j in np.arange(len(audio_beat))]
+    data_visual = [np.append(visual_beat[j], visual_interval[j]).tolist()
+                   for j in np.arange(len(visual_beat))]
+
+    modalities = ['audio', 'visual']
+    fig, ax = plt.subplots(1, len(modalities))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.12, right=.99, bottom=.15, wspace=.075)
+
+    # Prepare the data
+    x = 'Standard'
+    z = 'Conditions'
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            n_isi = np.array(data_audio).shape[0]
+            n_repeat = np.array(data_audio).shape[1]
+            standard = [np.repeat(str(isi1), n_repeat) for isi1 in isi1s]
+            conditions = [
+                np.append(np.repeat('Beat', n_repeat / 2),
+                np.repeat('Interval', n_repeat / 2)).tolist()
+                for j in np.arange(n_isi)]
+            data_list = data_audio
+            pvalue = pval_audio
+            x_label = 'Auditory Conditions'
+        else:
+            assert modality == 'visual'
+            n_isi = np.array(data_visual).shape[0]
+            n_repeat = np.array(data_visual).shape[1]
+            standard = [np.repeat(str(isi1), n_repeat) for isi1 in isi1s]
+            conditions = [
+                np.append(np.repeat('Beat', n_repeat / 2),
+                np.repeat('Interval', n_repeat / 2)).tolist()
+                for j in np.arange(n_isi)]
+            data_list = data_visual
+            pvalue = pval_visual
+            x_label = 'Visual Conditions'
+        d = {x: np.ravel(standard),
+             y: np.ravel(data_list),
+             z: np.ravel(conditions)}
+        df = pd.DataFrame(data=d)
+
+        # Create bar plot
+        sns.barplot(ax=ax[m],
+            x=x,
+            y=y,
+            hue=z,
+            data=df,
+            estimator=np.mean,
+            ci=95, # 1.96 * standard error (95% confidence interval)
+            errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+
+        # Annotate
+        pairs = tuple([[(str(isi1), 'Beat'), (str(isi1), 'Interval')]
+                       for isi1 in isi1s])
+        annotator = Annotator(ax[m], pairs, data=df, x=x, y=y, hue=z)
+        annotator.configure(test=None,
+                            text_format="star", # text_format="simple"
+                            # test_short_name="pttest", # if former is "simple"
+                            fontsize=10.)
+
+        annotator.set_pvalues(pvalue)
+        annotator.annotate()
+
+        # Set limits of y-axis
+        ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
+
+        # Remove frame of legend
+        ax[m].legend(frameon=False)
+
+        # Change position of legend
+        sns.move_legend(ax[m], "upper right")
+
+        # For the second (right) plot, ...
+        if m ==1:
+            # ... remove labels and ticks
+            ax[m].axes.get_yaxis().set_visible(False)
+            # ... remove y frame
+            ax[m].spines['left'].set_visible(False)
+        else:
+            # ... remove legend
+            ax[m].legend([],[], frameon=False)
+
+        # Change x label
+        ax[m].set_xlabel(x_label, fontweight='semibold', labelpad=20)
+
+        # Display means rounded to two decimals on the top
+        # for p in ax[m].patches:
+        #     ax[m].text(p.get_x() + p.get_width()/2.,
+        #                p.get_height() + np.sign(p.get_height()) * yshift,
+        #                '{:.2e}'.format(p.get_height()), fontsize=2.5,
+        #                fontweight='bold', color='black', ha='center',
+        #                va='bottom')
+
+        # Change width of seaborn barplots
+        change_width(ax[m], .4)
+
+        # Hide the right and top spines
+        ax[m].spines['right'].set_visible(False)
+        ax[m].spines['top'].set_visible(False)
+
+    # Title
+    plt.suptitle(title, size=10, linespacing=.75)
+    plt.title('95% CI for the Mean', size=8, x=-.15)
+
+    # Common x-label
+    fig.text(.555, .055, 'Standards (ms)', ha='center', fontsize=10)
+
+    # plt.show()
+    # Save figure
+    plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
+
+
+def plot_pttest(data_audio, data_visual,
+                pval_audio_bi, pval_audio_br, pval_audio_ir,
+                pval_visual_bi, pval_visual_br, pval_visual_ir,
+                y, ylim_b, ylim_t, yshift, title, this_dir, output_folder,
+                fname):
+
+    modalities = ['audio', 'visual']
+    fig, ax = plt.subplots(1, len(modalities))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25)
+
+    # Define subplot of bar charts and its position in the fig
+    # plt.axes([left, bottom, width, height])
+    # ax = plt.axes([.225, .145, .65, .65])
+
+    # Prepare the data
+    x = 'Conditions'
+    pval_audio = [pval_audio_bi, pval_audio_br, pval_audio_ir]
+    pval_visual = [pval_visual_bi, pval_visual_br, pval_visual_ir]
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            data_list = data_audio
+            pvalue = pval_audio
+            x_label = 'Auditory Conditions'
+        else:
+            assert modality == 'visual'
+            data_list = data_visual
+            pvalue = pval_visual
+            x_label = 'Visual Conditions'
+        conditions = np.repeat('Beat', len(data_list) / 3).tolist() + \
+            np.repeat('Interval', len(data_list) / 3).tolist() + \
+            np.repeat('Random', len(data_list) / 3).tolist()
+        d = {x: conditions, y: data_list}
+        df = pd.DataFrame(data=d)
+
+        # Create bar plot
+        sns.barplot(ax=ax[m],
+            x=x,
+            y=y,
+            data=df,
+            estimator=np.mean,
+            ci=95, # 1.96 * standard error (95% confidence interval)
+            errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+
+        # Annotate
+        pairs = [('Beat', 'Interval'), ('Beat', 'Random'), ('Interval', 'Random')]
+        annotator = Annotator(ax[m], pairs, data=df, x=x, y=y)
+        annotator.configure(test=None,
+                            text_format="star",
+                            # test_short_name="pttest",
+                            fontsize=10.)
+        annotator.set_pvalues(pvalue)
+        annotator.annotate()
+
+        # Set limits of y-axis
+        ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
+
+        if m ==1:
+            # Remove labels and ticks
+            ax[m].axes.get_yaxis().set_visible(False)
+            # Remove y frame
+            ax[m].spines['left'].set_visible(False)
+            # Change x label
+            ax[m].set_xlabel('Visual Conditions', fontweight='semibold',
+                             labelpad=20)
+        else:
+            assert m == 0
+            ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
+                             labelpad=20)
+
+        # Display means rounded to two decimals on the top
+        # ax.bar_label(ax.containers[0], padding=-50)
+        # for p in ax[m].patches:
+        #     ax[m].text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
+        #                '{:.2e}'.format(p.get_height()), fontsize=7.,
+        #                color='black', ha='center', va='bottom')
+
+        # Change width of seaborn barplots
+        change_width(ax[m], .7)
+
+        # Hide the right and top spines
+        ax[m].spines['right'].set_visible(False)
+        ax[m].spines['top'].set_visible(False)
+
+    # Title
+    plt.suptitle(title, size=10, linespacing=.75)
+    plt.title('95% CI for the Mean', size=8, x=-.15)
+
+    # Common x-label
+    fig.text(.53, .055, 'Standards (ms)', ha='center', fontsize=10)
+
+    # plt.show()
+    # Save figure
+    plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
+
+
+def plotfit_production(x, y, y_values, yaxis_name, title, this_dir,
+                       output_folder, fname, hline=False, hline_legend=None):
+    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15)
+
+    colors = ['tab:blue', 'tab:orange']
+    legend_labels = ['Beat', 'Interval']
+
+    for m, modality_y in enumerate(y):
+        for c, condition_y in enumerate(modality_y):
+            # Linear fit
+            a, b = np.polyfit(x, condition_y, deg=1)
+            y_est = a * x + b
+            # y_err = x.std() * \
+            #     np.sqrt(1/len(x) + (x - x.mean())**2 / np.sum((x - x.mean())**2))
+
+            # Plot the linear fit
+            ax[m].plot(x, y_est, '-', color=colors[c], linewidth=12,
+                       label=legend_labels[c], alpha=.5)
+            # ax[0].fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+            ax[m].plot(x, condition_y, 'bo', color=colors[c], markersize=16,
+                       alpha=.5)
+            # Hide the right and top spines
+            ax[m].spines['right'].set_visible(False)
+            ax[m].spines['top'].set_visible(False)
+            # Set x axis
+            x_labels = [str(xl) for xl in x]
+            ax[m].set_xticks(x, x_labels, fontsize=24)
+            # Set limits of y-axis
+            y_labels = [str(int(yl)) for yl in y_values]
+            ax[m].set_yticks(y_values, y_labels, fontsize=24)
+            # Add horizontal dashed line at y = 0.5
+            if hline:
+                ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
+                              alpha=.5)
+
+        # Add legend
+        if m == 0:
+            ax[m].set_title('Auditory Production', weight='bold', pad=0,
+                            fontsize=24)
+        else:
+            assert m == 1
+            ax[m].legend(loc='upper right', frameon=False, prop={'size': 24})
+            ax[m].set_title('Visual Production', weight='bold', pad=0,
+                            fontsize=24)
+
+        # Name of x-axis
+        fig.text(.465, .018, 'Standards (ms)', fontsize=24)
+        # Name of y-axis
+        fig.text(.02, .225, yaxis_name, fontsize=26, rotation=90)
+        # Legends for horizontal dashed lines
+        if hline:
+            fig.text(.355, .45, hline_legend, fontsize=24, color='dimgrey')
+            fig.text(.825, .45, hline_legend, fontsize=25, color='dimgrey')
+
+    # Title
+    plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
+
+    # Save figure
+    plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
+
+
+def production_ancova(dependent_var, covariate, modality='audio'):
+    # ## Create columns of dataframe
+    # Dependent var
+    mean_flatten = np.ravel(dependent_var)
+    # Create columns of independent (categorical) var,
+    # i.e. Condition and Modality
+    standval = np.tile(covariate,
+                       dependent_var.shape[1] * dependent_var.shape[0])
+    condtag = np.repeat(['beat', 'interval'], len(covariate))
+    condval = np.tile(condtag, dependent_var.shape[0])
+    modval = np.repeat(['audio', 'visual'], len(condtag))
+
+    # Build DataFrame
+    table = np.vstack((mean_flatten, standval, condval, modval)).T
+
+    df = pd.DataFrame(
+        table, columns=['Mean Error', 'Standard', 'Condition', 'Modality'])
+    df['Mean Error'] = df['Mean Error'].apply(pd.to_numeric)
+    df['Standard'] = df['Standard'].apply(pd.to_numeric)
+
+    df_modality = df[df.Modality == modality]
+
+    aoc_modality = pg.ancova(data=df_modality, dv='Mean Error',
+                             covar='Standard', between='Condition')
+
+    return aoc_modality
+
+
+# %%
+# =========================== INPUTS ===================================
+
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28]
+RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+# SUBJECTS = [5]
+
+# TASKS = ['Auditory Production', 'Visual Production']
+
+SESSTYPE = 'behavioral session'
+N_SESSIONS = 3
+
+PLOTS_FOLDER = 'production_results'
+
+# %%
+# ========================= PARAMETERS =================================
+
+MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# %%
+# ============================ RUN =====================================
+
+if __name__ == "__main__":
+
+    if not os.path.exists(os.path.join(MAIN_DIR, PLOTS_FOLDER)):
+        os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER))
+
+    # ############### PRODUCTION SYNCHRONIES ###########################
+
+    # ### Individual analysis per standard --- box plots
+    ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
+        ssync_visual_interval, standards = individual_production_isi_sync(
+            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS, 'signed',
+            flatten=False)
+
+    async_audio_beat, async_audio_interval, async_visual_beat, \
+        async_visual_interval, standards = individual_production_isi_sync(
+            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS,
+            'absolute', flatten=False)
+
+    # ## Compute mean of asynchronies across trials per subject
+    # ## for every standard (fixed-effects)
+
+    # Signed asynchronies
+    ffx_ssync_audio_beat, ffx_ssync_audio_interval, ffx_ssync_visual_beat, \
+        ffx_ssync_visual_interval = ffx(ssync_audio_beat,
+                                        ssync_audio_interval,
+                                        ssync_visual_beat,
+                                        ssync_visual_interval)
+
+    # Absolute asynchronies
+    ffx_async_audio_beat, ffx_async_audio_interval, ffx_async_visual_beat, \
+        ffx_async_visual_interval = ffx(async_audio_beat,
+                                        async_audio_interval,
+                                        async_visual_beat,
+                                        async_visual_interval)
+
+    # ### Group Analyses per standard --- bar plots + paired t-test
+
+    # Signed asynchronies
+    _, pssync_audio = stats.ttest_rel(
+        ffx_ssync_audio_beat, ffx_ssync_audio_interval,
+        axis=1, alternative='two-sided')
+
+    _, pssync_visual = stats.ttest_rel(
+        ffx_ssync_visual_beat, ffx_ssync_visual_interval,
+        axis=1, alternative='two-sided')
+
+    ssync_title = 'Group Mean of Signed Asynchrony for the Production tasks'
+    ssync_f = 'paired-ttest_signed_asynch'
+    plot_pttest_isi(ffx_ssync_audio_beat, ffx_ssync_audio_interval,
+                    ffx_ssync_visual_beat, ffx_ssync_visual_interval,
+                    pssync_audio, pssync_visual,
+                    standards, 'Signed Asynchrony', -.125, .3, -.039,
+                    ssync_title, MAIN_DIR, PLOTS_FOLDER, ssync_f)
+
+    # Absolute asynchronies
+    _, pasync_audio = stats.ttest_rel(
+        ffx_async_audio_beat, ffx_async_audio_interval,
+        axis=1, alternative='two-sided')
+
+    _, pasync_visual = stats.ttest_rel(
+        ffx_async_visual_beat, ffx_async_visual_interval,
+        axis=1, alternative='two-sided')
+
+    async_title = 'Group Mean of Absolute Asynchrony for the Production tasks'
+    async_f = 'paired-ttest_absolute_asynch'
+    plot_pttest_isi(ffx_async_audio_beat, ffx_async_audio_interval,
+                    ffx_async_visual_beat, ffx_async_visual_interval,
+                    pasync_audio, pasync_visual,
+                    standards, 'Absolute Asynchrony', -0., .3, -.04,
+                    async_title, MAIN_DIR, PLOTS_FOLDER, async_f)
+
+    # ### Group Analyses per standard --- violin plots
+
+    # ## Reshape
+
+    # Signed asynchronies
+    rs_ssync_audio_beat, rs_ssync_audio_interval, \
+        rs_ssync_visual_beat, rs_ssync_visual_interval = ginput_reshape(
+            ssync_audio_beat, ssync_audio_interval,
+            ssync_visual_beat, ssync_visual_interval)
+
+    # Absolute asynchronies
+    rs_async_audio_beat, rs_async_audio_interval, \
+        rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
+            async_audio_beat, async_audio_interval,
+            async_visual_beat, async_visual_interval)
+
+    # Signed asynchronies
+    plot_violin(
+        rs_ssync_audio_beat, rs_ssync_audio_interval,
+        rs_ssync_visual_beat, rs_ssync_visual_interval,
+        standards, -1., 4., 'Asynchrony',
+        'Group Distribution of Signed-Asynchrony for the Production Tasks',
+        MAIN_DIR, PLOTS_FOLDER,
+        'production_groupviolin_signed_asynch')
+
+    # Absolute asynchronies
+    plot_violin(
+        rs_async_audio_beat, rs_async_audio_interval,
+        rs_async_visual_beat, rs_async_visual_interval,
+        standards, -.05, 4., 'Asynchrony',
+        'Group Distribution of Absolute-Asynchrony for the Production Tasks',
+        MAIN_DIR, PLOTS_FOLDER,
+        'production_groupviolin_absolute_asynch')
+
+    # # # # # ############## PRODUCTION RESPONSE TIME ########################
+
+    # ### Individual analysis per standard --- box plots ###
+    rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
+        rtsprod_visual_interval, standards = individual_production_isi_rts(
+            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS,
+            flatten=False)
+
+    # ### Group Analyses per standard --- bar plots + paired t-test ###
+    # Compute mean of response time across trials per subject
+    # for every standard
+    ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval, \
+        ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval = ffx(
+            rtsprod_audio_beat, rtsprod_audio_interval,
+            rtsprod_visual_beat, rtsprod_visual_interval)
+
+    # Compute Stats
+    _, prtprod_audio = stats.ttest_rel(
+        ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
+        axis=1, alternative='two-sided')
+
+    _, prtprod_visual = stats.ttest_rel(
+        ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
+        axis=1, alternative='two-sided')
+
+    # Plot
+    rtprod_title = 'Group Mean of Response Time for the Production tasks'
+    rtprod_f = 'paired-ttest_responsetime_production'
+    plot_pttest_isi(ffx_rtsprod_audio_beat, ffx_rtsprod_audio_interval,
+                    ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
+                    prtprod_audio, prtprod_visual,
+                    standards, 'Response Time (ms)', 0., 900., -100.,
+                    rtprod_title, MAIN_DIR, PLOTS_FOLDER, rtprod_f)
+
+    # ### Group Analyses per standard --- violin plots ###
+    # Reshape
+    rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
+            rtsprod_audio_beat, rtsprod_audio_interval,
+            rtsprod_visual_beat, rtsprod_visual_interval)
+
+    # Plot
+    plot_violin(
+        rs_rtsprod_audio_beat, rs_rtsprod_audio_interval,
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
+        standards, 0., 2250., 'Response Time (ms)',
+        'Group Distribution of Response Time for the Production Tasks',
+        MAIN_DIR, PLOTS_FOLDER,
+        'production_groupviolin_responsetime')
+
+    # ### Regression of mean and std errors ###
+    error_rtsprod_audio_beat = [
+        [ab - standards[s] for s, ab in enumerate(rts_ab)]
+        for rts_ab in rtsprod_audio_beat]
+    error_rtsprod_audio_interval = [
+        [ai - standards[s] for s, ai in enumerate(rts_ai)]
+        for rts_ai in rtsprod_audio_interval]
+    error_rtsprod_visual_beat = [
+        [vb - standards[s] for s, vb in enumerate(rts_vb)]
+        for rts_vb in rtsprod_visual_beat]
+    error_rtsprod_visual_interval = [
+        [vi - standards[s] for s, vi in enumerate(rts_vi)]
+        for rts_vi in rtsprod_visual_interval]
+
+    ffxerr_rtsprod_audio_beat, ffxerr_rtsprod_audio_interval, \
+        ffxerr_rtsprod_visual_beat, ffxerr_rtsprod_visual_interval = ffx(
+            error_rtsprod_audio_beat, error_rtsprod_audio_interval,
+            error_rtsprod_visual_beat, error_rtsprod_visual_interval)
+
+    # Compute Group Mean plus Std of Error and stack
+    mean_ab = np.mean(ffxerr_rtsprod_audio_beat, axis=1).tolist()
+    mean_ai = np.mean(ffxerr_rtsprod_audio_interval, axis=1).tolist()
+    mean_vb = np.mean(ffxerr_rtsprod_visual_beat, axis=1).tolist()
+    mean_vi = np.mean(ffxerr_rtsprod_visual_interval, axis=1).tolist()
+
+    std_ab = np.std(ffxerr_rtsprod_audio_beat, axis=1).tolist()
+    std_ai = np.std(ffxerr_rtsprod_audio_interval, axis=1).tolist()
+    std_vb = np.std(ffxerr_rtsprod_visual_beat, axis=1).tolist()
+    std_vi = np.std(ffxerr_rtsprod_visual_interval, axis=1).tolist()
+
+    mean_data = [[mean_ab] + [mean_ai]] + [[mean_vb] + [mean_vi]]
+    mean_std = [[std_ab] + [std_ai]] + [[std_vb] + [std_vi]]
+
+    plotfit_production(
+        standards, mean_data, np.linspace(-60, 90, 6),
+        'RT-Difference Mean (ms)',
+        'Mean of Response-Time (RT) Difference for every Standard',
+        MAIN_DIR, PLOTS_FOLDER, 'mean-err_production', hline=True,
+        hline_legend=r'$RT=Standard$')
+    plotfit_production(
+        standards, mean_std, np.linspace(30, 70, 6), 'RT-Difference SD (ms)',
+        'Standard Deviation (SD) of Response-Time (RT) Difference ' + \
+        'for every Standard', MAIN_DIR, PLOTS_FOLDER, 'std-err_production')
+
+    # Compute ANCOVAs
+    # Stack multidimensional numpy array to produce a dataframe
+    mean_data = np.array(mean_data)
+    mean_std = np.array(mean_std)
+
+    aoc_mean_audio = production_ancova(mean_data, standards, modality='audio')
+    aoc_mean_visual = production_ancova(mean_data, standards,
+                                        modality='visual')
+
+    aoc_std_audio = production_ancova(mean_std, standards, modality='audio')
+    aoc_std_visual = production_ancova(mean_std, standards, modality='visual')
+
+    print('\nANCOVA for Mean Error of Response Time in Audio Tasks')
+    print(aoc_mean_audio)
+    print('\nANCOVA for Mean Error of Response Time in Visual Tasks')
+    print(aoc_mean_visual)
+    print('\nANCOVA for SD of Response Time in Audio Tasks')
+    print(aoc_std_audio)
+    print('\nANCOVA for SD of Response Time in Visual Tasks')
+    print(aoc_std_visual)
