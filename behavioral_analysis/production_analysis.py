@@ -1,10 +1,10 @@
 """
-Analysis of behavioral data for the Production Task of the Music-SDTB project
+Analysis of behavioral data for the Production Tasks of the Music-SDTB project
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
-Created: February 2022
+Created: February 2023
 Last update: February 2023
 
 Compatibility: Python 3.10.4

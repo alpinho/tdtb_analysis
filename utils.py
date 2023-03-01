@@ -14,7 +14,6 @@ def parse_logfile(parent_dir, subject_no, sesstype, n_sess, tasks,
         logpath = os.path.join(parent_dir, 'sub-%02d' % subject_no, session)
         logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
         logfiles.sort()
-        print(logfiles)
         inputs_lists = [[line for line in csv.reader(open(logfile),
                                                      delimiter=',')]
                         for logfile in logfiles]
