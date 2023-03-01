@@ -779,7 +779,8 @@ def plot_pttest(data_audio, data_visual,
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             22, 23, 24, 25, 26, 27, 28]
-RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+RAND_SUBJECTS = [17]
 # SUBJECTS = [3]
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
@@ -809,7 +810,7 @@ if __name__ == "__main__":
     m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
         m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
         m_rtsntfd_visual_random = individual_ntfd_rts(
-            RAND_SUBJECTS, PLOTS_FOLDER, MAIN_DIR, SESSTYPE, N_SESSIONS,
+            RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS,
             flatten=False)
 
     # Compute ffx
