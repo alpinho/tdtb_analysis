@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: February 2023
+Last update: March 2023
 
 Compatibility: Python 3.10.4
 """
@@ -23,16 +23,16 @@ import warnings
 
 from scipy import stats, optimize, special
 from matplotlib import pyplot as plt
-from matplotlib import patches as mpatches
+from matplotlib import patches as mpatches3
 from statannotations.Annotator import Annotator
-
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
 
 # setting path
 sys.path.append('../')
 # importing
 from utils import parse_logfile, customize_vplot, change_width
+
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
 # %%
