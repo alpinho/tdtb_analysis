@@ -93,3 +93,22 @@ def change_width(ax, new_value) :
 
         # we recenter the bar
         patch.set_x(patch.get_x() + diff * .5)
+
+
+def ffx(audio_beat, audio_interval, visual_beat, visual_interval):
+    # Inputs shape (n_subjects, n_isi, n_trials)
+    # Computes mean of elements in the third dimension
+    # Swaps dimensions and returns array w/ shape (n_isi, n_subjects)
+
+    mean_audio_beat = np.array(audio_beat).mean(2)
+    mean_audio_interval = np.array(audio_interval).mean(2)
+    mean_visual_beat = np.array(visual_beat).mean(2)
+    mean_visual_interval = np.array(visual_interval).mean(2)
+
+    ffx_audio_beat = np.swapaxes(mean_audio_beat, 0, 1)
+    ffx_audio_interval = np.swapaxes(mean_audio_interval, 0, 1)
+    ffx_visual_beat = np.swapaxes(mean_visual_beat, 0, 1)
+    ffx_visual_interval = np.swapaxes(mean_visual_interval, 0, 1)
+
+    return (ffx_audio_beat, ffx_audio_interval, ffx_visual_beat,
+            ffx_visual_interval)

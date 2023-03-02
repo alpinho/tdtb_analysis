@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: February 2023
+Last update: March 2023
 
 Compatibility: Python 3.10.4
 """
@@ -17,18 +17,18 @@ import warnings
 import numpy as np
 import pandas as pd
 
+import pingouin as pg
 import seaborn as sns
 
 from scipy import stats
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
 from statannotations.Annotator import Annotator
-import pingouin as pg
 
 # setting path
 sys.path.append('../')
 # importing
-from utils import parse_logfile, customize_vplot, change_width
+from utils import parse_logfile, customize_vplot, change_width, ffx
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -117,10 +117,12 @@ def individual_production_isi_sync(
                 # Replace missing values (nan's) by median of the sample
                 if np.any(np.isnan(ss_beat)):
                     miss_sbval = np.nanmedian(ss_beat)
-                    ss_beat = np.where(np.isnan(ss_beat), miss_sbval, ss_beat)
+                    ss_beat = np.where(np.isnan(ss_beat), miss_sbval,
+                                       ss_beat).tolist()
                 if np.any(np.isnan(as_beat)):
                     miss_abval = np.nanmedian(as_beat)
-                    as_beat = np.where(np.isnan(as_beat), miss_abval, as_beat)
+                    as_beat = np.where(np.isnan(as_beat), miss_abval,
+                                       as_beat).tolist()
                 # Append isi array
                 ss_isi_beat.append(ss_beat)
                 as_isi_beat.append(as_beat)
@@ -146,11 +148,11 @@ def individual_production_isi_sync(
                 if np.any(np.isnan(ss_interval)):
                     miss_sival = np.nanmedian(ss_interval)
                     ss_interval = np.where(np.isnan(ss_interval), miss_sival,
-                                           ss_interval)
+                                           ss_interval).tolist()
                 if np.any(np.isnan(as_interval)):
                     miss_aival = np.nanmedian(as_interval)
                     as_interval = np.where(np.isnan(as_interval), miss_aival,
-                                           as_interval)
+                                           as_interval).tolist()
                 # Append isi array
                 ss_isi_interval.append(ss_interval)
                 as_isi_interval.append(as_interval)
@@ -353,7 +355,7 @@ def individual_production_isi_rts(
                 if np.any(np.isnan(rts_beat)):
                     miss_bval = np.nanmedian(rts_beat)
                     rts_beat = np.where(np.isnan(rts_beat), miss_bval,
-                                        rts_beat)
+                                        rts_beat).tolist()
                 # Append isi array
                 rt_isi1_grouped_beat.append(rts_beat)
 
@@ -370,7 +372,7 @@ def individual_production_isi_rts(
                 if np.any(np.isnan(rts_interval)):
                     miss_ival = np.nanmedian(rts_interval)
                     rts_interval = np.where(np.isnan(rts_interval), miss_ival,
-                                            rts_interval)
+                                            rts_interval).tolist()
                 # Append isi array
                 rt_isi1_grouped_interval.append(rts_interval)
 
@@ -510,25 +512,6 @@ def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
          s_visual_interval.shape[1]*s_visual_interval.shape[2]))
 
     return rs_audio_beat, rs_audio_interval, rs_visual_beat, rs_visual_interval
-
-
-def ffx(audio_beat, audio_interval, visual_beat, visual_interval):
-    # Inputs shape (n_subjects, n_isi, n_trials)
-    # Computes mean of elements in the third dimension
-    # Swaps dimensions and returns array w/ shape (n_isi, n_subjects)
-
-    mean_audio_beat = np.array(audio_beat).mean(2)
-    mean_audio_interval = np.array(audio_interval).mean(2)
-    mean_visual_beat = np.array(visual_beat).mean(2)
-    mean_visual_interval = np.array(visual_interval).mean(2)
-
-    ffx_audio_beat = np.swapaxes(mean_audio_beat, 0, 1)
-    ffx_audio_interval = np.swapaxes(mean_audio_interval, 0, 1)
-    ffx_visual_beat = np.swapaxes(mean_visual_beat, 0, 1)
-    ffx_visual_interval = np.swapaxes(mean_visual_interval, 0, 1)
-
-    return (ffx_audio_beat, ffx_audio_interval, ffx_visual_beat,
-            ffx_visual_interval)
 
 
 def plot_violin(audio_beat, audio_interval,
@@ -927,9 +910,9 @@ def plotfit_production(x, y, y_values, yaxis_name, title, this_dir,
         if m == 0:
             ax[m].set_title('Auditory Production', weight='bold', pad=0,
                             fontsize=24)
+            ax[m].legend(loc='upper left', frameon=False, prop={'size': 24})
         else:
             assert m == 1
-            ax[m].legend(loc='upper right', frameon=False, prop={'size': 24})
             ax[m].set_title('Visual Production', weight='bold', pad=0,
                             fontsize=24)
 
@@ -939,8 +922,8 @@ def plotfit_production(x, y, y_values, yaxis_name, title, this_dir,
         fig.text(.02, .225, yaxis_name, fontsize=26, rotation=90)
         # Legends for horizontal dashed lines
         if hline:
-            fig.text(.355, .45, hline_legend, fontsize=24, color='dimgrey')
-            fig.text(.825, .45, hline_legend, fontsize=25, color='dimgrey')
+            fig.text(.355, .375, hline_legend, fontsize=24, color='dimgrey')
+            fig.text(.825, .375, hline_legend, fontsize=25, color='dimgrey')
 
     # Title
     plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
@@ -1156,23 +1139,41 @@ if __name__ == "__main__":
         'production_groupviolin_responsetime')
 
     # ### Regression of mean and std errors ###
+
+    # Signed synch
     error_rtsprod_audio_beat = [
-        [ab - standards[s] for s, ab in enumerate(rts_ab)]
+        [(ab - standards[s]).tolist() for s, ab in enumerate(rts_ab)]
         for rts_ab in rtsprod_audio_beat]
     error_rtsprod_audio_interval = [
-        [ai - standards[s] for s, ai in enumerate(rts_ai)]
+        [(ai - standards[s]).tolist() for s, ai in enumerate(rts_ai)]
         for rts_ai in rtsprod_audio_interval]
     error_rtsprod_visual_beat = [
-        [vb - standards[s] for s, vb in enumerate(rts_vb)]
+        [(vb - standards[s]).tolist() for s, vb in enumerate(rts_vb)]
         for rts_vb in rtsprod_visual_beat]
     error_rtsprod_visual_interval = [
-        [vi - standards[s] for s, vi in enumerate(rts_vi)]
+        [(vi - standards[s]).tolist() for s, vi in enumerate(rts_vi)]
         for rts_vi in rtsprod_visual_interval]
 
+    # Absolute asynch
+    abs_error_rtsprod_audio_beat = np.absolute(
+        error_rtsprod_audio_beat).tolist()
+    abs_error_rtsprod_audio_interval = np.absolute(
+        error_rtsprod_audio_interval).tolist()
+    abs_error_rtsprod_visual_beat = np.absolute(
+        error_rtsprod_visual_beat).tolist()
+    abs_error_rtsprod_visual_interval = np.absolute(
+        error_rtsprod_visual_interval).tolist()
+
+    # Fixed-effects
     ffxerr_rtsprod_audio_beat, ffxerr_rtsprod_audio_interval, \
         ffxerr_rtsprod_visual_beat, ffxerr_rtsprod_visual_interval = ffx(
             error_rtsprod_audio_beat, error_rtsprod_audio_interval,
             error_rtsprod_visual_beat, error_rtsprod_visual_interval)
+
+    ffxabserr_rtsprod_audio_beat, ffxabserr_rtsprod_audio_interval, \
+        ffxabserr_rtsprod_visual_beat, ffxabserr_rtsprod_visual_interval = ffx(
+            abs_error_rtsprod_audio_beat, abs_error_rtsprod_audio_interval,
+            abs_error_rtsprod_visual_beat, abs_error_rtsprod_visual_interval)
 
     # Compute Group Mean plus Std of Error and stack
     mean_ab = np.mean(ffxerr_rtsprod_audio_beat, axis=1).tolist()
@@ -1180,16 +1181,32 @@ if __name__ == "__main__":
     mean_vb = np.mean(ffxerr_rtsprod_visual_beat, axis=1).tolist()
     mean_vi = np.mean(ffxerr_rtsprod_visual_interval, axis=1).tolist()
 
+    mean_abs_ab = np.mean(ffxabserr_rtsprod_audio_beat, axis=1).tolist()
+    mean_abs_ai = np.mean(ffxabserr_rtsprod_audio_interval, axis=1).tolist()
+    mean_abs_vb = np.mean(ffxabserr_rtsprod_visual_beat, axis=1).tolist()
+    mean_abs_vi = np.mean(ffxabserr_rtsprod_visual_interval, axis=1).tolist()
+
     std_ab = np.std(ffxerr_rtsprod_audio_beat, axis=1).tolist()
     std_ai = np.std(ffxerr_rtsprod_audio_interval, axis=1).tolist()
     std_vb = np.std(ffxerr_rtsprod_visual_beat, axis=1).tolist()
     std_vi = np.std(ffxerr_rtsprod_visual_interval, axis=1).tolist()
 
+    std_abs_ab = np.std(ffxabserr_rtsprod_audio_beat, axis=1).tolist()
+    std_abs_ai = np.std(ffxabserr_rtsprod_audio_interval, axis=1).tolist()
+    std_abs_vb = np.std(ffxabserr_rtsprod_visual_beat, axis=1).tolist()
+    std_abs_vi = np.std(ffxabserr_rtsprod_visual_interval, axis=1).tolist()
+
+    # Plot
     mean_data = [[mean_ab] + [mean_ai]] + [[mean_vb] + [mean_vi]]
     mean_std = [[std_ab] + [std_ai]] + [[std_vb] + [std_vi]]
 
+    mean_abs_data = [[mean_abs_ab] + [mean_abs_ai]] + \
+        [[mean_abs_vb] + [mean_abs_vi]]
+    mean_abs_std = [[std_abs_ab] + [std_abs_ai]] + \
+        [[std_abs_vb] + [std_abs_vi]]
+
     plotfit_production(
-        standards, mean_data, np.linspace(-60, 90, 6),
+        standards, mean_data, np.linspace(-60, 140, 6),
         'RT-Difference Mean (ms)',
         'Mean of Response-Time (RT) Difference for every Standard',
         MAIN_DIR, PLOTS_FOLDER, 'mean-err_production', hline=True,
@@ -1198,6 +1215,18 @@ if __name__ == "__main__":
         standards, mean_std, np.linspace(30, 70, 6), 'RT-Difference SD (ms)',
         'Standard Deviation (SD) of Response-Time (RT) Difference ' + \
         'for every Standard', MAIN_DIR, PLOTS_FOLDER, 'std-err_production')
+
+    plotfit_production(
+        standards, mean_abs_data, np.linspace(-60, 140, 6),
+        'Absolute RT-Difference Mean (ms)',
+        'Mean of Absolute Response-Time (RT) Difference for every Standard',
+        MAIN_DIR, PLOTS_FOLDER, 'mean-abserr_production', hline=True,
+        hline_legend=r'$RT=Standard$')
+    plotfit_production(
+        standards, mean_abs_std, np.linspace(30, 70, 6),
+        'Absolute RT-Difference SD (ms)',
+        'Standard Deviation (SD) of Absolute Response-Time (RT) Difference' + \
+        ' for every Standard', MAIN_DIR, PLOTS_FOLDER, 'std-abserr_production')
 
     # Compute ANCOVAs
     # Stack multidimensional numpy array to produce a dataframe
