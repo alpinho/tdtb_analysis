@@ -623,7 +623,7 @@ def plotfit_perception(x, y, estimator, this_dir, output_dir):
                                  'pse-vs-standard_' + estimator + '.pdf'))
 
 
-def perception_performance(estim_pse, estim_dl, this_dir, output_dir):
+def perception_performance(estim_pse, estim_dl, stand_numbers, this_dir, output_dir):
     # Stack multidimensional numpy array to produce a dataframe
     estim_pse = np.array(estim_pse)
     estim_dl = np.array(estim_dl)
@@ -632,12 +632,12 @@ def perception_performance(estim_pse, estim_dl, this_dir, output_dir):
 
     # ## Standards column
     standards = np.tile(
-        stand,
+        stand_numbers,
         estim_pse.shape[3] * estim_pse.shape[2] * estim_pse.shape[1] * \
         estim_pse.shape[0])
     # ## Individual column
     itag = ['sub-%02d' % s for s in SUBJECTS]
-    stand_individuals = np.repeat(itag, len(stand))
+    stand_individuals = np.repeat(itag, len(stand_numbers))
     individuals = np.tile(
         stand_individuals,
         estim_pse.shape[2] * estim_pse.shape[1] * estim_pse.shape[0])
@@ -679,7 +679,7 @@ def perception_performance(estim_pse, estim_dl, this_dir, output_dir):
             within=['Modality', 'Condition'],
             subject='Subject',
             detailed=True)
-        aov.to_csv(os.path.join(MAIN_DIR,
+        aov.to_csv(os.path.join(MAIN_DIR, PLOTS_FOLDER,
                                 'anovas', 'anova_DL_' + str(st) + '.csv'))
 
         print('Normality for Modality' + str(st) + ': ',
@@ -711,7 +711,8 @@ def perception_performance(estim_pse, estim_dl, this_dir, output_dir):
             alternative='two-sided',
             return_desc=True, padjust='holm', interaction=True)
         pairwise_tt.to_csv(os.path.join(
-            MAIN_DIR, 'anovas', 'pairwise_ttest_DL_' + str(st) + '.csv'))
+            MAIN_DIR, PLOTS_FOLDER, 'anovas',
+            'pairwise_ttest_DL_' + str(st) + '.csv'))
 
         if s == 0:
             fig = plt.figure(figsize=(25, 5))
@@ -799,8 +800,9 @@ def perception_performance(estim_pse, estim_dl, this_dir, output_dir):
         plt.vlines(.5, ymin, ymax, color='black')
         # Save figure
         if s == len(stand) - 1:
-            plt.savefig(os.path.join(this_dir, output_dir,
-                MAIN_DIR, 'anovas', 'anovaplot_DL.png'))
+            plt.savefig(os.path.join(this_dir, output_dir, MAIN_DIR,
+                                     PLOTS_FOLDER, 'anovas',
+                                     'anovaplot_DL.png'))
 
 
 # %%
@@ -884,4 +886,4 @@ if __name__ == "__main__":
         plotfit_perception(stand, mod_gpse, estimator, MAIN_DIR, PLOTS_FOLDER)
 
     # Compute Anovas
-    perception_performance(estim_pse, estim_dl, MAIN_DIR, PLOTS_FOLDER)
+    perception_performance(estim_pse, estim_dl, stand, MAIN_DIR, PLOTS_FOLDER)
