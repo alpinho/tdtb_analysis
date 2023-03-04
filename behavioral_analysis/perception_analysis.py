@@ -24,6 +24,8 @@ import seaborn as sns
 from scipy import stats, optimize, special
 from matplotlib import pyplot as plt
 from statannotations.Annotator import Annotator
+from statsmodels.stats.anova import AnovaRM
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 # setting path
 sys.path.append('../')
@@ -623,7 +625,7 @@ def plotfit_perception(x, y, estimator, this_dir, output_dir):
                                  'pse-vs-standard_' + estimator + '.pdf'))
 
 
-def perception_performance(estim_pse, estim_dl, stand_numbers, this_dir, output_dir):
+def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir):
     # Stack multidimensional numpy array to produce a dataframe
     estim_pse = np.array(estim_pse)
     estim_dl = np.array(estim_dl)
@@ -671,7 +673,11 @@ def perception_performance(estim_pse, estim_dl, stand_numbers, this_dir, output_
     df.loc[701, 'DL'] = dl1
     df.loc[971, 'DL'] = dl2
 
-    for s, st in enumerate(stand):
+    return df
+
+
+def twoway_repanova(df, stand_numbers, this_dir, output_dir):
+    for s, st in enumerate(stand_numbers):
         # Compute a two-way repeated-measures ANOVA
         aov = pg.rm_anova(
             data=df[df.Standard == str(st)],
@@ -679,8 +685,9 @@ def perception_performance(estim_pse, estim_dl, stand_numbers, this_dir, output_
             within=['Modality', 'Condition'],
             subject='Subject',
             detailed=True)
-        aov.to_csv(os.path.join(MAIN_DIR, PLOTS_FOLDER,
-                                'anovas', 'anova_DL_' + str(st) + '.csv'))
+        aov.to_csv(
+            os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/twoway',
+                         'anova_DL_' + str(st) + '.csv'), sep='\t')
 
         print('Normality for Modality' + str(st) + ': ',
               pg.normality(df[df.Standard == str(st)], group='Modality',
@@ -711,8 +718,8 @@ def perception_performance(estim_pse, estim_dl, stand_numbers, this_dir, output_
             alternative='two-sided',
             return_desc=True, padjust='holm', interaction=True)
         pairwise_tt.to_csv(os.path.join(
-            MAIN_DIR, PLOTS_FOLDER, 'anovas',
-            'pairwise_ttest_DL_' + str(st) + '.csv'))
+            MAIN_DIR, PLOTS_FOLDER, 'anovas/twoway',
+            'pairwise_ttest_DL_' + str(st) + '.csv'), sep='\t')
 
         if s == 0:
             fig = plt.figure(figsize=(25, 5))
@@ -799,10 +806,45 @@ def perception_performance(estim_pse, estim_dl, stand_numbers, this_dir, output_
 
         plt.vlines(.5, ymin, ymax, color='black')
         # Save figure
-        if s == len(stand) - 1:
+        if s == len(stand_numbers) - 1:
             plt.savefig(os.path.join(this_dir, output_dir, MAIN_DIR,
-                                     PLOTS_FOLDER, 'anovas',
+                                     PLOTS_FOLDER, 'anovas/twoway',
                                      'anovaplot_DL.png'))
+
+
+def threeway_repanova(df, this_dir, output_dir):
+    # Create AnovaRM object
+    model = AnovaRM(data=df, depvar='DL', subject='Subject',
+                    within=['Modality', 'Condition', 'Standard'])
+
+    # Run the 3-way repeated measures ANOVA
+    results = model.fit()
+
+    # Save ANOVA results in a TSV file
+    results.anova_table.to_csv(
+        os.path.join(this_dir, output_dir,
+                     'anovas/threeway/threeway_anova_results.tsv'),
+        sep='\t')
+
+    # Perform pairwise Tukey HSD tests
+    posthoc_modality = pairwise_tukeyhsd(df['DL'], df['Modality'],
+                                         alpha=0.05)
+    posthoc_condition = pairwise_tukeyhsd(df['DL'], df['Condition'],
+                                          alpha=0.05)
+    posthoc_standard = pairwise_tukeyhsd(df['DL'], df['Standard'],
+                                         alpha=0.05)
+
+    # Save posthoc results in a TSV file
+    output_folder = os.path.join(this_dir, output_dir, 'anovas/threeway')
+
+    with open(os.path.join(output_folder, 'posthoc_modality.tsv'), 'w') as fm:
+        fm.write(posthoc_modality.summary().as_csv(sep='\t'))
+
+    with open(os.path.join(output_folder, 'posthoc_condition.tsv'), 'w') as fc:
+        fc.write(posthoc_condition.summary().as_csv(sep='\t'))
+
+    with open(os.path.join(output_folder, 'posthoc_standard.tsv'), 'w') as fs:
+        fs.write(posthoc_standard.summary().as_csv(sep='\t'))
 
 
 # %%
@@ -831,7 +873,8 @@ MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 if __name__ == "__main__":
 
     if not os.path.exists(os.path.join(MAIN_DIR, PLOTS_FOLDER)):
-        os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER))
+        os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/twoway'))
+        os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/threeway'))
 
     # # ################### PERCEPTION ###################################
 
@@ -885,5 +928,7 @@ if __name__ == "__main__":
         mod_gpse = np.swapaxes(cond_gpse, 0, 1)
         plotfit_perception(stand, mod_gpse, estimator, MAIN_DIR, PLOTS_FOLDER)
 
-    # Compute Anovas
-    perception_performance(estim_pse, estim_dl, stand, MAIN_DIR, PLOTS_FOLDER)
+    # Compute ANOVAS
+    db = dataframe(estim_pse, estim_dl, stand, MAIN_DIR, PLOTS_FOLDER)
+    twoway_repanova(db, stand, MAIN_DIR, PLOTS_FOLDER)
+    threeway_repanova(db, MAIN_DIR, PLOTS_FOLDER)
