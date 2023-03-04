@@ -1,6 +1,7 @@
 *.pdf
 *.asv
-behavioral_analysis/anovas/
+behavioral_analysis/perception_results
+behavioral_analysis/behavsess_results_3_4
 imaging_analysis/events
 
 # Byte-compiled / optimized / DLL files
