@@ -339,7 +339,7 @@ def individual_perception(
                     ax.set_title('Auditory Perception', weight='bold', pad=50,
                                  fontsize=16)
                 else:
-                    assert t ==1
+                    assert t == 1
                     ax.set_title('Visual Perception', weight='bold', pad=50,
                                  fontsize=16)
 
@@ -377,6 +377,8 @@ def individual_perception(
     plt.savefig(os.path.join(
         this_dir, output_dir,
         'individual_perception_' + condition + '_' + estimator + '.pdf'))
+
+    plt.close('all')
 
     return (all_rf1_audio, all_rf2_audio, all_rf1_visual, all_rf2_visual,
             standards, comparisons, all_pse_audio, all_dl_audio,
@@ -542,87 +544,91 @@ def group_perception(all_rf1_audio, all_rf2_audio,
     plt.savefig(os.path.join(this_dir, output_dir,
         'group_perception_' + condition + '_' + estimator + '.pdf'))
 
+    plt.close('all')
+
     return group_pse, group_dl
 
 
 def plotfit_perception(x, y, estimator, this_dir, output_dir):
-        fig, ax = plt.subplots(1, 2, figsize=(16, 8))
+    fig, ax = plt.subplots(1, 2, figsize=(16, 8))
 
-        # left   # the left side of the subplots of the figure
-        # right  # the right side of the subplots of the figure
-        # bottom # the bottom of the subplots of the figure
-        # top    # the top of the subplots of the figure
-        # wspace # the amount of width reserved for blank space between subplots
-        # hspace # the amount of height reserved for white space between subplots
-        plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15)
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15)
 
-        colors = ['tab:blue', 'tab:orange']
-        legend_labels = ['Beat', 'Interval']
+    colors = ['tab:blue', 'tab:orange']
+    legend_labels = ['Beat', 'Interval']
 
-        for m, modality_y in enumerate(y):
-            for c, condition_y in enumerate(modality_y):
-                # Linear fit
-                a, b = np.polyfit(x, condition_y, deg=1)
-                y_est = a * x + b
-                # y_err = x.std() * \
-                #     np.sqrt(1/len(x) + (x - x.mean())**2 / np.sum((x - x.mean())**2))
+    for m, modality_y in enumerate(y):
+        for c, condition_y in enumerate(modality_y):
+            # Linear fit
+            a, b = np.polyfit(x, condition_y, deg=1)
+            y_est = a * x + b
+            # y_err = x.std() * \
+            #     np.sqrt(1/len(x) + (x - x.mean())**2 / np.sum((x - x.mean())**2))
 
-                # Plot the linear fit
-                ax[m].plot(x, y_est, '-', color=colors[c], linewidth=12,
-                           label=legend_labels[c], alpha=.5)
-                # ax[0].fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
-                ax[m].plot(x, condition_y, 'bo', color=colors[c],
-                           markersize=16, alpha=.5)
-                # Hide the right and top spines
-                ax[m].spines['right'].set_visible(False)
-                ax[m].spines['top'].set_visible(False)
-                # Set x axis
-                x_labels = [str(xl) for xl in x]
-                ax[m].set_xticks(x, x_labels, fontsize=24)
-                # Set limits of y-axis
-                y_values = np.linspace(-0.16, 0.16, 9)
-                y_labels = [str(int(yl*100)) for yl in y_values]
-                ax[m].set_yticks(y_values, y_labels, fontsize=24)
-                # Add horizontal dashed line at y = 0.5
-                ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
-                              alpha=.5)
+            # Plot the linear fit
+            ax[m].plot(x, y_est, '-', color=colors[c], linewidth=12,
+                       label=legend_labels[c], alpha=.5)
+            # ax[0].fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+            ax[m].plot(x, condition_y, 'bo', color=colors[c],
+                       markersize=16, alpha=.5)
+            # Hide the right and top spines
+            ax[m].spines['right'].set_visible(False)
+            ax[m].spines['top'].set_visible(False)
+            # Set x axis
+            x_labels = [str(xl) for xl in x]
+            ax[m].set_xticks(x, x_labels, fontsize=24)
+            # Set limits of y-axis
+            y_values = np.linspace(-0.16, 0.16, 9)
+            y_labels = [str(int(yl*100)) for yl in y_values]
+            ax[m].set_yticks(y_values, y_labels, fontsize=24)
+            # Add horizontal dashed line at y = 0.5
+            ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
+                          alpha=.5)
 
-            # Add legend
-            if m == 0:
-                ax[m].set_title('Auditory Perception', weight='bold', pad=-5,
-                                fontsize=24)
-            else:
-                assert m == 1
-                ax[m].legend(loc='upper right', frameon=False,
-                             prop={'size': 16})
-                ax[m].set_title('Visual Perception', weight='bold', pad=-5,
-                                fontsize=24)
+        # Add legend
+        if m == 0:
+            ax[m].set_title('Auditory Perception', weight='bold', pad=-5,
+                            fontsize=24)
+        else:
+            assert m == 1
+            ax[m].legend(loc='upper right', frameon=False,
+                         prop={'size': 16})
+            ax[m].set_title('Visual Perception', weight='bold', pad=-5,
+                            fontsize=24)
 
-            # Name of x-axis
-            fig.text(.47, .018, 'Standards (ms)', fontsize=24)
-            # Name of y-axis
-            fig.text(.0175, .35, 'Group PSE (%)', fontsize=24, rotation=90)
-            # Legends for horizontal dashed lines
-            fig.text(.42, .525, 'No Bias', fontsize=24, color='dimgrey')
-            fig.text(.895, .525, 'No Bias', fontsize=24, color='dimgrey')
+        # Name of x-axis
+        fig.text(.47, .018, 'Standards (ms)', fontsize=24)
+        # Name of y-axis
+        fig.text(.0175, .35, 'Group PSE (%)', fontsize=24, rotation=90)
+        # Legends for horizontal dashed lines
+        fig.text(.42, .525, 'No Bias', fontsize=24, color='dimgrey')
+        fig.text(.895, .525, 'No Bias', fontsize=24, color='dimgrey')
 
-        # Title
-        # if estimator == 'mle_cdf':
-        #     suffix = '(Estimator: MLE of Norm CDF)'
-        # else:
-        #     assert estimator == 'mle_expit'
-        #     suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
-        # plt.suptitle(
-        #     'Point of Subjective Equality (PSE) for the Perception Tasks' +
-        #     '\n\n' + suffix, x=.5, y=.97, size=26, linespacing=.75)
+    # Title
+    # if estimator == 'mle_cdf':
+    #     suffix = '(Estimator: MLE of Norm CDF)'
+    # else:
+    #     assert estimator == 'mle_expit'
+    #     suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
+    # plt.suptitle(
+    #     'Point of Subjective Equality (PSE) for the Perception Tasks' +
+    #     '\n\n' + suffix, x=.5, y=.97, size=26, linespacing=.75)
 
-        plt.suptitle(
-            'Point of Subjective Equality (PSE) for the Perception Tasks',
-            x=.5, y=.97, size=26, linespacing=.75)
+    plt.suptitle(
+        'Point of Subjective Equality (PSE) for the Perception Tasks',
+        x=.5, y=.97, size=26, linespacing=.75)
 
-        # Save figure
-        plt.savefig(os.path.join(this_dir, output_dir,
-                                 'pse-vs-standard_' + estimator + '.pdf'))
+    # Save figure
+    plt.savefig(os.path.join(this_dir, output_dir,
+                             'pse-vs-standard_' + estimator + '.pdf'))
+
+    plt.close('all')
 
 
 def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir):
@@ -810,6 +816,7 @@ def twoway_repanova(df, stand_numbers, this_dir, output_dir):
             plt.savefig(os.path.join(this_dir, output_dir, MAIN_DIR,
                                      PLOTS_FOLDER, 'anovas/twoway',
                                      'anovaplot_DL.png'))
+    plt.close('all')
 
 
 def threeway_repanova(df, this_dir, output_dir):
@@ -845,6 +852,91 @@ def threeway_repanova(df, this_dir, output_dir):
 
     with open(os.path.join(output_folder, 'posthoc_standard.tsv'), 'w') as fs:
         fs.write(posthoc_standard.summary().as_csv(sep='\t'))
+
+    # Plot
+    modalities = np.unique(df.Modality).tolist()
+    conditions = np.unique(df.Condition).tolist()
+    standards = np.unique(df.Standard).tolist()
+
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            fig = plt.figure(figsize=(8, 4))
+
+        # Define subplot of bar charts and its position in the fig
+        # plt.axes([left, bottom, width, height])
+        ax = plt.axes([.075 + m*.45, .15, .43, .75])
+
+        x_labels = [str(st) for st in standards]
+        x = np.arange(len(x_labels))  # the label locations
+        width = 0.35  # the width of the bars
+
+        dl_beat = [df[df.Modality==modality][df.Condition=='beat'][
+            df.Standard==st].DL.values.tolist() for st in standards]
+
+        dl_interval = [df[df.Modality==modality][df.Condition=='interval'][
+            df.Standard==st].DL.values.tolist() for st in standards]
+
+        beat = ax.boxplot(dl_beat,
+                          bootstrap=100,
+                          positions=np.arange(len(x))*2. - width,
+                          widths=0.6,
+                          flierprops={'marker': '', 'markersize': 5},
+                          patch_artist=True)
+        interval = ax.boxplot(dl_interval,
+                              bootstrap=100,
+                              positions=np.arange(len(x))*2. + width,
+                              widths=0.6,
+                              flierprops={'marker': '', 'markersize': 5},
+                              patch_artist=True)
+
+        # Fill boxes with colors
+        colors = ['b', 'y']
+        for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
+            patch1.set_facecolor(colors[0])
+            patch2.set_facecolor(colors[1])
+
+        # Set ticks labels in x-axis
+        ax.set_xticks(x*2., x_labels)
+
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        # For the first plot,
+        if m == 0:
+            # Place legend
+            ax.legend([beat["boxes"][0], interval["boxes"][0]],
+                      ['Beat', 'Interval'],
+                      loc='upper right', frameon=False,
+                      prop={'size': 12})
+            # Title of each plot
+            ax.set_title('Auditory Conditions', fontweight='semibold',
+                         size=10, y=.95)
+            # Set name for y-axis
+            ax.set_ylabel('Group DL')
+        # For the second plot
+        else:
+            # ... remove y frame on the left
+            ax.spines['left'].set_visible(False)
+            # ... remove labels and ticks
+            ax.axes.get_yaxis().set_visible(False)
+            # Title of each plot
+            ax.set_title('Visual Conditions', fontweight='semibold', size=10,
+                         y=.95)
+
+        # Set limits of ticks in y axis
+        plt.ylim([-.05, .5])
+
+        # Set name for x-axis
+        fig.text(.45, .025, 'Standards (ms)', size=12)
+
+    # Title
+    plt.suptitle(
+        'Descriptive Stats of Group DL for 3-way Repeated Measures ANOVA',
+        x=.5, y=.98, size=12, linespacing=.75)
+
+    # Save figure
+    plt.savefig(os.path.join(output_folder, 'threeway_boxplot.pdf'))
 
 
 # %%
@@ -928,7 +1020,11 @@ if __name__ == "__main__":
         mod_gpse = np.swapaxes(cond_gpse, 0, 1)
         plotfit_perception(stand, mod_gpse, estimator, MAIN_DIR, PLOTS_FOLDER)
 
-    # Compute ANOVAS
-    db = dataframe(estim_pse, estim_dl, stand, MAIN_DIR, PLOTS_FOLDER)
-    twoway_repanova(db, stand, MAIN_DIR, PLOTS_FOLDER)
-    threeway_repanova(db, MAIN_DIR, PLOTS_FOLDER)
+        # Compute ANOVAS
+        if estimator == 'mle_cdf':
+            continue
+        else:
+            db = dataframe(estim_pse, estim_dl, stand, MAIN_DIR, PLOTS_FOLDER)
+            # twoway_repanova(db, stand, MAIN_DIR, PLOTS_FOLDER)
+            threeway_repanova(db, MAIN_DIR, PLOTS_FOLDER)
+
