@@ -916,11 +916,11 @@ def plot_pttest(data_audio, data_visual,
             ax[m].spines['left'].set_visible(False)
             # Change x label
             ax[m].set_xlabel('Visual Conditions', fontweight='semibold',
-                             labelpad=20)
+                             labelpad=15)
         else:
             assert m == 0
             ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
-                             labelpad=20)
+                             labelpad=15)
 
         # Display means rounded to two decimals on the top
         # ax.bar_label(ax.containers[0], padding=-50)
@@ -940,12 +940,105 @@ def plot_pttest(data_audio, data_visual,
     plt.suptitle(title, size=10, linespacing=.75)
     plt.title('95% CI for the Mean', size=8, x=-.15)
 
-    # Common x-label
-    fig.text(.53, .055, 'Standards (ms)', ha='center', fontsize=10)
-
     # plt.show()
     # Save figure
     plt.savefig(os.path.join(this_dir, output_dir, fname + '.pdf'))
+
+
+def group_successrate_norand(
+        israte_audio_beat, israte_audio_interval,
+        israte_visual_beat, israte_visual_interval,
+        p_audio_bi, p_visual_bi, this_dir, output_dir):
+
+    modalities = ['audio', 'visual']
+    fig, ax = plt.subplots(1, len(modalities))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25)
+
+    # Prepare the data
+    x = 'Conditions'
+    y = 'Success Rate'
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            data_list = israte_audio_beat + israte_audio_interval
+            pvalue = p_audio_bi
+            x_label = 'Auditory Conditions'
+        else:
+            assert modality == 'visual'
+            data_list = israte_visual_beat + israte_visual_interval
+            pvalue = p_visual_bi
+            x_label = 'Visual Conditions'
+        conditions = np.repeat('Beat', len(data_list) / 2).tolist() + \
+            np.repeat('Interval', len(data_list) / 2).tolist()
+        d = {x: conditions, y: data_list}
+        df = pd.DataFrame(data=d)
+
+        # Create bar plot
+        sns.barplot(ax=ax[m],
+            x=x,
+            y=y,
+            data=df,
+            estimator=np.mean,
+            ci=95, # 1.96 * standard error (95% confidence interval)
+            errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+
+        # Annotate
+        pairs = [('Beat', 'Interval')]
+        annotator = Annotator(ax[m], pairs, data=df, x=x, y=y)
+        annotator.configure(test=None,
+                            # text_format="star",
+                            text_format="simple",
+                            test_short_name="pttest",
+                            fontsize=10.)
+        annotator.set_pvalues([pvalue])
+        annotator.annotate()
+
+        # Set limits of y-axis
+        # ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
+
+        if m ==1:
+            # Remove labels and ticks
+            ax[m].axes.get_yaxis().set_visible(False)
+            # Remove y frame
+            ax[m].spines['left'].set_visible(False)
+            # Change x label
+            ax[m].set_xlabel('Visual Conditions', fontweight='semibold',
+                             labelpad=15)
+        else:
+            assert m == 0
+            ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
+                             labelpad=15)
+
+        # Display means rounded to two decimals on the top
+        # ax.bar_label(ax.containers[0], padding=-50)
+        yshift = -.1
+        for p in ax[m].patches:
+            ax[m].text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
+                       '{:.2e}'.format(p.get_height()), fontsize=7.,
+                       color='black', ha='center', va='bottom')
+
+        # Change width of seaborn barplots
+        change_width(ax[m], .7)
+
+        # Hide the right and top spines
+        ax[m].spines['right'].set_visible(False)
+        ax[m].spines['top'].set_visible(False)
+
+    # Title
+    plt.suptitle('Group Mean of Success Rate for the NTFD Tasks', size=10,
+                 linespacing=.75)
+    plt.title('95% CI for the Mean', size=8, x=-.15)
+
+    # plt.show()
+    # Save figure
+    plt.savefig(os.path.join(this_dir, output_dir,
+                             'ntfd_group_success_rate_norandom.pdf'))
 
 
 # %%
@@ -1089,21 +1182,73 @@ if __name__ == "__main__":
     # ##################################################################
     # ### Analysis for success rate
 
+    # Individual analysis
     individual_norand_srate_audio_beat, \
-    individual_norand_srate_audio_interval, \
-    individual_norand_srate_audio_random, \
-    individual_norand_srate_visual_beat, \
-    individual_norand_srate_visual_interval, \
-    individual_norand_srate_visual_random = \
-        individual_ntfd_sucessrate(SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE,
-                                   N_SESSIONS, flatten=False)
+        individual_norand_srate_audio_interval, _, \
+        individual_norand_srate_visual_beat, \
+        individual_norand_srate_visual_interval, _ = \
+            individual_ntfd_sucessrate(SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
+                                       SESSTYPE, N_SESSIONS, flatten=False)
 
     individual_rand_srate_audio_beat, \
-    individual_rand_srate_audio_interval, \
-    individual_rand_srate_audio_random, \
-    individual_rand_srate_visual_beat, \
-    individual_rand_srate_visual_interval, \
-    individual_rand_srate_visual_random = \
-        individual_ntfd_sucessrate(RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
-                                   SESSTYPE, N_SESSIONS, random=True,
-                                   flatten=False)
+        individual_rand_srate_audio_interval, \
+        individual_rand_srate_audio_random, \
+        individual_rand_srate_visual_beat, \
+        individual_rand_srate_visual_interval, \
+        individual_rand_srate_visual_random = \
+            individual_ntfd_sucessrate(RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
+                                       SESSTYPE, N_SESSIONS, random=True,
+                                       flatten=False)
+
+    # Compute stats
+    _, pval_norand_srate_audio = stats.ttest_rel(
+        individual_norand_srate_audio_beat,
+        individual_norand_srate_audio_interval,
+        alternative='two-sided')
+
+    _, pval_norand_srate_visual = stats.ttest_rel(
+        individual_norand_srate_visual_beat,
+        individual_norand_srate_visual_interval,
+        alternative='two-sided')
+
+    # ###
+
+    _, pval_rand_srate_audio_bi = stats.ttest_rel(
+        individual_rand_srate_audio_beat,
+        individual_rand_srate_audio_interval,
+        alternative='two-sided')
+
+    _, pval_rand_srate_visual_bi = stats.ttest_rel(
+        individual_rand_srate_visual_beat,
+        individual_rand_srate_visual_interval,
+        alternative='two-sided')
+
+    _, pval_rand_srate_audio_br = stats.ttest_rel(
+        individual_rand_srate_audio_beat,
+        individual_rand_srate_audio_random,
+        alternative='two-sided')
+
+    _, pval_rand_srate_visual_br = stats.ttest_rel(
+        individual_rand_srate_visual_beat,
+        individual_rand_srate_visual_random,
+        alternative='two-sided')
+
+    _, pval_rand_srate_audio_ir = stats.ttest_rel(
+        individual_rand_srate_audio_interval,
+        individual_rand_srate_audio_random,
+        alternative='two-sided')
+
+    _, pval_rand_srate_visual_ir = stats.ttest_rel(
+        individual_rand_srate_visual_interval,
+        individual_rand_srate_visual_random,
+        alternative='two-sided')
+
+    # Group analysis
+    group_successrate_norand(
+        individual_norand_srate_audio_beat,
+        individual_norand_srate_audio_interval,
+        individual_norand_srate_visual_beat,
+        individual_norand_srate_visual_interval,
+        pval_norand_srate_audio,
+        pval_norand_srate_visual,
+        MAIN_DIR, PLOTS_FOLDER)
