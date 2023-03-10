@@ -23,7 +23,8 @@ import warnings
 
 from scipy import stats, optimize, special
 from matplotlib import pyplot as plt
-from matplotlib import patches as mpatches3
+from matplotlib import patches as mpatches
+#from matplotlib import patches as mpatches3
 from statannotations.Annotator import Annotator
 
 # setting path
@@ -75,6 +76,43 @@ def filter_trialtype(trs, category):
         interval = [[int(i[0]), int(i[1]), i[2]] for i in interval]
 
     return beat, interval, random
+
+
+def success_trialtype_filter(data):
+    trial_beat = [dt for dt in data if dt[4][:4] == 'beat']
+    trial_interval = [dt for  dt in data if dt[4][:8] == 'interval']
+    trial_random = [dt for dt in data if dt[4][:6] == 'random']
+
+    return trial_beat, trial_interval, trial_random
+
+
+def success(data, subject):
+    if subject == 4:
+        high_cir = ['o', 'y']
+        low_tri = ['p', 'b']
+    else:
+        high_cir = ['o', 'b']
+        low_tri = ['p', 'y']
+    scores = []
+    for dt, datum in enumerate(data):
+        if datum[5] == 'feedback':
+            answer = datum[11]
+            dstimulus = data[dt-1][5]
+            if answer in high_cir and dstimulus in ['beep_880hz', 'circle']:
+                scores.append(1)
+            elif answer in low_tri and dstimulus in ['beep_220hz', 'triangle']:
+                scores.append(1)
+            elif answer == 'None':
+                scores.append(np.nan)
+            else:
+                scores.append(0)
+
+    # Replace missing values (nan's) by median of the all sample
+    if np.any(np.isnan(scores)):
+        missval = np.nanmedian(scores)
+        scores = np.where(np.isnan(scores), missval, scores).tolist()
+
+    return round(np.sum(scores)/len(scores), 3)
 
 
 def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_sess,
@@ -374,6 +412,143 @@ def individual_ntfd_isi_rts(
 
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
             allsub_interval_visual, isi1s)
+
+
+def individual_ntfd_sucessrate(
+        subjects, this_dir, output_dir, sesstype, n_sess,
+        random = False, flatten=True,
+        tasks = ['Auditory No-Temporal Feature Discrimination',
+                 'Visual No-Temporal Feature Discrimination']):
+
+    allsub_success_rate_audio_beat = []
+    allsub_success_rate_audio_interval = []
+    allsub_success_rate_audio_random  = []
+    allsub_success_rate_visual_beat = []
+    allsub_success_rate_visual_interval = []
+    allsub_success_rate_visual_random  = []
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory No-Temporal Feature Discrimination',
+                            'Visual No-Temporal Feature Discrimination']:
+                raise NameError('Task not valid!')
+
+            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            if subject == 2 and \
+               task == 'Visual No-Temporal Feature Discrimination':
+                data = data[:476]
+            ft_beat, ft_interval, ft_random = success_trialtype_filter(data)
+            success_rate_beat = success(ft_beat, subject)
+            success_rate_interval = success(ft_interval, subject)
+            success_rate_random = success(ft_random, subject)
+
+            if task == 'Auditory No-Temporal Feature Discrimination':
+                allsub_success_rate_audio_beat.append(
+                    success_rate_beat)
+                allsub_success_rate_audio_interval.append(
+                    success_rate_interval)
+                allsub_success_rate_audio_random.append(
+                    success_rate_random)
+            else:
+                assert task == 'Visual No-Temporal Feature Discrimination'
+                allsub_success_rate_visual_beat.append(
+                    success_rate_beat)
+                allsub_success_rate_visual_interval.append(
+                    success_rate_interval)
+                allsub_success_rate_visual_random.append(
+                    success_rate_random)
+
+            # ################## Plotting ###############################
+            if s == 0 and t == 0:
+                if random:
+                    fig = plt.figure(figsize=(8, 20))
+                else:
+                    fig = plt.figure(figsize=(8, 20))
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            if random:
+                ax = plt.axes([.235 + t*.42, .895 - s*.0719, .3, .054])
+                labels = ['beat', 'interval', 'random']
+                x = [.2, .4, .6]  # the label locations
+            else:
+                ax = plt.axes([.235 + t*.42, .895 - s*.036, .3, .0225])
+                labels = ['beat', 'interval']
+                x = [.2, .6]  # the label locations
+
+            width = .175  # the width of the bars
+            if random:
+                ntfd_plt = ax.bar(x,
+                                  [round(np.mean(success_rate_beat), 2),
+                                   round(np.mean(success_rate_interval), 2),
+                                   round(np.mean(success_rate_random), 2)],
+                                  width=width, alpha=.5,
+                                  color=['tab:blue', 'tab:orange', 'green'])
+            else:
+                ntfd_plt = ax.bar(x,
+                                  [round(np.mean(success_rate_beat), 2),
+                                   round(np.mean(success_rate_interval), 2)],
+                                  width=width, alpha=.5,
+                                  color=['tab:blue', 'tab:orange', 'green'])
+            # Add means values on the top of the bar
+            ax.bar_label(ntfd_plt, label_type='center')
+            ax.set_xticks(x, labels)
+            plt.xlim([0., .8])
+            plt.ylim([0., 1.])
+
+            if s == 0:
+                if t == 0:
+                    ax.set_title('Auditory NTFD', weight='bold', pad=12)
+                else:
+                    assert t ==1
+                    ax.set_title('Visual NTFD', weight='bold', pad=12)
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+        if random:
+            fig.text(.07, .92 - s*.0725, 'Subject %d' % subject, ha='center',
+                     fontsize=12, weight='bold')
+        else:
+            fig.text(.07, .906 - s*.036, 'Subject %d' % subject, ha='center',
+                     fontsize=12, weight='bold')
+    fig.text(.1675, .426, 'Success Rate', ha='center', fontsize=12,
+             rotation = 90)
+
+    # Title
+    plt.suptitle('Individual Mean of Success Rate for the NTFD tasks',
+                 x=.5, y=.97, size=14, linespacing=.75)
+    # plt.show()
+
+    # Save figure
+    if random:
+        plt.savefig(os.path.join(this_dir, output_dir,
+                                 'ntfd_individual_success_rate_random.pdf'))
+    else:
+        plt.savefig(os.path.join(this_dir, output_dir,
+                                 'ntfd_individual_success_rate_norandom.pdf'))
+
+    # Flatten the data arrays
+    if flatten:
+        allsub_success_rate_audio_beat = np.ravel(
+            allsub_success_rate_audio_beat).tolist()
+        allsub_success_rate_audio_interval = np.ravel(
+            allsub_success_rate_audio_interval).tolist()
+        allsub_success_rate_audio_random = np.ravel(
+            allsub_success_rate_audio_random).tolist()
+        allsub_success_rate_visual_beat = np.ravel(
+            allsub_success_rate_visual_beat).tolist()
+        allsub_success_rate_visual_interval = np.ravel(
+            allsub_success_rate_visual_interval).tolist()
+        allsub_success_rate_visual_random = np.ravel(
+            allsub_success_rate_visual_random).tolist()
+
+    return (allsub_success_rate_audio_beat,
+            allsub_success_rate_audio_interval,
+            allsub_success_rate_audio_random,
+            allsub_success_rate_visual_beat,
+            allsub_success_rate_visual_interval,
+            allsub_success_rate_visual_random)
 
 
 def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
@@ -779,8 +954,8 @@ def plot_pttest(data_audio, data_visual,
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             22, 23, 24, 25, 26, 27, 28]
-# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
-RAND_SUBJECTS = [17]
+RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+# RAND_SUBJECTS = [17]
 # SUBJECTS = [3]
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
@@ -866,6 +1041,7 @@ if __name__ == "__main__":
                 'Reaction Time (ms)', 0., 750., -100.,
                 ntfd_title, MAIN_DIR, PLOTS_FOLDER, ntfd_f)
 
+    # ##################################################################
     # ### Individual analysis per standards --- box plots
     rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
         rtsntfd_visual_interval, standards = individual_ntfd_isi_rts(
@@ -910,3 +1086,10 @@ if __name__ == "__main__":
         'Group Distribution of Reaction Time for the NTFD Tasks',
         MAIN_DIR, PLOTS_FOLDER,
         'ntfd_groupviolin_rt')
+
+    # ##################################################################
+    # ### Individual analysis for success rate
+    individual_ntfd_sucessrate(SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE,
+                               N_SESSIONS, flatten=False)
+    individual_ntfd_sucessrate(RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE,
+                               N_SESSIONS, random=True, flatten=False)
