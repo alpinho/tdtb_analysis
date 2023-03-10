@@ -24,7 +24,6 @@ import warnings
 from scipy import stats, optimize, special
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
-#from matplotlib import patches as mpatches3
 from statannotations.Annotator import Annotator
 
 # setting path
@@ -488,7 +487,7 @@ def individual_ntfd_sucessrate(
                                   [round(np.mean(success_rate_beat), 2),
                                    round(np.mean(success_rate_interval), 2)],
                                   width=width, alpha=.5,
-                                  color=['tab:blue', 'tab:orange', 'green'])
+                                  color=['tab:blue', 'tab:orange'])
             # Add means values on the top of the bar
             ax.bar_label(ntfd_plt, label_type='center')
             ax.set_xticks(x, labels)
@@ -517,7 +516,7 @@ def individual_ntfd_sucessrate(
 
     # Title
     plt.suptitle('Individual Mean of Success Rate for the NTFD tasks',
-                 x=.5, y=.97, size=14, linespacing=.75)
+                 x=.5, y=.985, size=14, linespacing=.75)
     # plt.show()
 
     # Save figure
@@ -1088,8 +1087,23 @@ if __name__ == "__main__":
         'ntfd_groupviolin_rt')
 
     # ##################################################################
-    # ### Individual analysis for success rate
-    individual_ntfd_sucessrate(SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE,
-                               N_SESSIONS, flatten=False)
-    individual_ntfd_sucessrate(RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE,
-                               N_SESSIONS, random=True, flatten=False)
+    # ### Analysis for success rate
+
+    individual_norand_srate_audio_beat, \
+    individual_norand_srate_audio_interval, \
+    individual_norand_srate_audio_random, \
+    individual_norand_srate_visual_beat, \
+    individual_norand_srate_visual_interval, \
+    individual_norand_srate_visual_random = \
+        individual_ntfd_sucessrate(SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE,
+                                   N_SESSIONS, flatten=False)
+
+    individual_rand_srate_audio_beat, \
+    individual_rand_srate_audio_interval, \
+    individual_rand_srate_audio_random, \
+    individual_rand_srate_visual_beat, \
+    individual_rand_srate_visual_interval, \
+    individual_rand_srate_visual_random = \
+        individual_ntfd_sucessrate(RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
+                                   SESSTYPE, N_SESSIONS, random=True,
+                                   flatten=False)
