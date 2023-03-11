@@ -863,7 +863,7 @@ def plot_pttest(data_audio, data_visual,
     plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
 
 
-def plotfit_production(x, y, y_values, yaxis_name, title, this_dir,
+def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
                        output_folder, fname, hline=False, hline_legend=None):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
 
@@ -919,7 +919,7 @@ def plotfit_production(x, y, y_values, yaxis_name, title, this_dir,
         # Name of x-axis
         fig.text(.465, .018, 'Standards (ms)', fontsize=24)
         # Name of y-axis
-        fig.text(.02, .225, yaxis_name, fontsize=26, rotation=90)
+        fig.text(.02, yname_pos, yaxis_name, fontsize=26, rotation=90)
         # Legends for horizontal dashed lines
         if hline:
             fig.text(.355, .375, hline_legend, fontsize=24, color='dimgrey')
@@ -1207,26 +1207,29 @@ if __name__ == "__main__":
 
     plotfit_production(
         standards, mean_data, np.linspace(-60, 140, 6),
-        'RT-Difference Mean (ms)',
+        'RT-Difference Mean (ms)', .225,
         'Mean of Response-Time (RT) Difference for every Standard',
         MAIN_DIR, PLOTS_FOLDER, 'mean-err_production', hline=True,
         hline_legend=r'$RT=Standard$')
     plotfit_production(
-        standards, mean_std, np.linspace(30, 70, 6), 'RT-Difference SD (ms)',
+        standards, mean_std, np.linspace(30, 70, 6),
+        'RT-Difference SD (ms)', .225,
         'Standard Deviation (SD) of Response-Time (RT) Difference ' + \
-        'for every Standard', MAIN_DIR, PLOTS_FOLDER, 'std-err_production')
+        'for every Standard', MAIN_DIR, PLOTS_FOLDER,
+        'std-err_production')
 
     plotfit_production(
         standards, mean_abs_data, np.linspace(-60, 140, 6),
-        'Absolute RT-Difference Mean (ms)',
+        'Absolute RT-Difference Mean (ms)', .125,
         'Mean of Absolute Response-Time (RT) Difference for every Standard',
         MAIN_DIR, PLOTS_FOLDER, 'mean-abserr_production', hline=True,
         hline_legend=r'$RT=Standard$')
     plotfit_production(
         standards, mean_abs_std, np.linspace(30, 70, 6),
-        'Absolute RT-Difference SD (ms)',
+        'Absolute RT-Difference SD (ms)', .125,
         'Standard Deviation (SD) of Absolute Response-Time (RT) Difference' + \
-        ' for every Standard', MAIN_DIR, PLOTS_FOLDER, 'std-abserr_production')
+        ' for every Standard', MAIN_DIR, PLOTS_FOLDER,
+        'std-abserr_production')
 
     # Compute ANCOVAs
     # Stack multidimensional numpy array to produce a dataframe
