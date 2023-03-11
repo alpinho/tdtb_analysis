@@ -1000,7 +1000,7 @@ def group_successrate_norand(
         annotator.annotate()
 
         # Set limits of y-axis
-        # ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
+        # ax[m].set_ylim(bottom=0., top=1.)
 
         if m ==1:
             # Remove labels and ticks
@@ -1039,6 +1039,114 @@ def group_successrate_norand(
     # Save figure
     plt.savefig(os.path.join(this_dir, output_dir,
                              'ntfd_group_success_rate_norandom.pdf'))
+
+
+def group_successrate_rand(
+        israte_audio_beat, israte_audio_interval, israte_audio_random,
+        israte_visual_beat, israte_visual_interval, israte_visual_random,
+        p_audio_bi, p_audio_br, p_audio_ir,
+        p_visual_bi, p_visual_br, p_visual_ir,
+        this_dir, output_dir):
+
+    modalities = ['audio', 'visual']
+    fig, ax = plt.subplots(1, len(modalities))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25)
+
+    # Prepare the data
+    x = 'Conditions'
+    y = 'Success Rate'
+    p_audio = [p_audio_bi, p_audio_br, p_audio_ir]
+    p_visual = [p_visual_bi, p_visual_br, p_visual_ir]
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            data_list = (israte_audio_beat + israte_audio_interval + \
+                         israte_audio_random)
+            pvalue = p_audio
+            x_label = 'Auditory Conditions'
+        else:
+            assert modality == 'visual'
+            data_list = (israte_visual_beat + israte_visual_interval + \
+                         israte_visual_random)
+            pvalue = p_visual
+            x_label = 'Visual Conditions'
+        conditions = np.repeat('Beat', len(data_list) / 3).tolist() + \
+            np.repeat('Interval', len(data_list) / 3).tolist() + \
+            np.repeat('Random', len(data_list) / 3).tolist()
+        d = {x: conditions, y: data_list}
+        df = pd.DataFrame(data=d)
+
+        # Create bar plot
+        sns.barplot(ax=ax[m],
+            x=x,
+            y=y,
+            data=df,
+            estimator=np.mean,
+            ci=95, # 1.96 * standard error (95% confidence interval)
+            errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+
+        # Annotate
+        pairs = [('Beat', 'Interval'), ('Beat', 'Random'),
+                 ('Interval', 'Random')]
+        annotator = Annotator(ax[m], pairs, data=df, x=x, y=y)
+        annotator.configure(test=None,
+                            # text_format="star",
+                            text_format="simple",
+                            test_short_name="pttest",
+                            fontsize=10.)
+        annotator.set_pvalues(pvalue)
+        annotator.annotate()
+
+        # Set limits of y-axis
+        # ax[m].set_ylim(bottom=0., top=1.)
+
+        if m ==1:
+            # Remove labels and ticks
+            ax[m].axes.get_yaxis().set_visible(False)
+            # Remove y frame
+            ax[m].spines['left'].set_visible(False)
+            # Change x label
+            ax[m].set_xlabel('Visual Conditions', fontweight='semibold',
+                             labelpad=15)
+        else:
+            assert m == 0
+            ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
+                             labelpad=15)
+            # Set y labels
+            ax[m].set_yticks([0., .2, .4, .6, .8, 1.],
+                             ['0.0', '0.2', '0.4', '0.6', '0.8', '1.0'])
+
+        # Display means rounded to two decimals on the top
+        # ax.bar_label(ax.containers[0], padding=-50)
+        yshift = -.1
+        for p in ax[m].patches:
+            ax[m].text(p.get_x() + p.get_width()/2., p.get_height() + yshift,
+                       '{:.2e}'.format(p.get_height()), fontsize=7.,
+                       color='black', ha='center', va='bottom')
+
+        # Change width of seaborn barplots
+        change_width(ax[m], .7)
+
+        # Hide the right and top spines
+        ax[m].spines['right'].set_visible(False)
+        ax[m].spines['top'].set_visible(False)
+
+
+    # Title
+    plt.suptitle('Group Mean of Success Rate for the NTFD Tasks', size=10,
+                 linespacing=.75)
+    plt.title('95% CI for the Mean', size=8, x=-.15)
+
+    # plt.show()
+    # Save figure
+    plt.savefig(os.path.join(this_dir, output_dir,
+                             'ntfd_group_success_rate_random.pdf'))
 
 
 # %%
@@ -1251,4 +1359,19 @@ if __name__ == "__main__":
         individual_norand_srate_visual_interval,
         pval_norand_srate_audio,
         pval_norand_srate_visual,
+        MAIN_DIR, PLOTS_FOLDER)
+
+    group_successrate_rand(
+        individual_rand_srate_audio_beat,
+        individual_rand_srate_audio_interval,
+        individual_rand_srate_audio_random,
+        individual_rand_srate_visual_beat,
+        individual_rand_srate_visual_interval,
+        individual_rand_srate_visual_random,
+        pval_rand_srate_audio_bi,
+        pval_rand_srate_audio_br,
+        pval_rand_srate_audio_ir,
+        pval_rand_srate_visual_bi,
+        pval_rand_srate_visual_br,
+        pval_rand_srate_visual_ir,
         MAIN_DIR, PLOTS_FOLDER)
