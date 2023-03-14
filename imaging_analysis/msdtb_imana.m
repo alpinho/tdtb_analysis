@@ -1379,7 +1379,8 @@ switch what
         % design = {'rand_ntfd'};
         inputs_folder = 'ffx_rwls'
         outputs_folder = 'sw_contrasts_rwls'
-        vararginoptions(varargin, {'sn', 'design'});
+        vararginoptions(varargin, {'sn', 'design', 'inputs_folder', ...
+            'outputs_folder'});
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1393,7 +1394,7 @@ switch what
                 confiles_destination = {};
                 for c=1:n_contrasts
                     cname = sprintf('con_%04d.nii', c);
-                    confiles_destination{c,1} = fullfile(estdesign_folder, ...
+                    confiles_destination{c,1} = fullfile(estdesign_folder, ... 
                         cname);
                 end
                 
@@ -1403,7 +1404,8 @@ switch what
                 deffield_file = [deffield_folder '/y_' subj_str{s} '_T1w.nii'];
                 
                 % Apply normalization
-                spmja_normalization_write(deffield_file, confiles_destination)
+                spmja_normalization_write(deffield_file, ...
+                    confiles_destination, 'voxel_size', [2.5, 2.5, 2.5])
                 
                 % List normalized contrasts in ffx folder
                 confiles_source = [estdesign_folder '/wcon_*.nii'];
@@ -1426,6 +1428,9 @@ switch what
         % design = {'rand_ntfd'};
         contrasts_folder = 'sw_contrasts_rwls'
         smoothing_kernel = [8 8 8]
+        
+        vararginoptions(varargin, {'sn', 'design', 'contrasts_folder', ...
+            'smoothing_kernel'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
