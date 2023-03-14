@@ -63,7 +63,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 subj_n  = [3, 4, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
-% subj_n  = [3];
+% subj_n  = [4];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -918,15 +918,17 @@ switch what
             end
         end
         
-    case 'GLM:grand_design' % make the design matrix for the glm
+    case 'GLM:grand_design_standard' % make the design matrix for the glm
         % models each condition as a separate regressors
         % For conditions with multiple repetitions, one regressor
         % represents all the instances
         % msdtb_imana('GLM:grand_design', 'sn', [1])
         
         sn = subj_id;
-        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        hrf_cutoff = Inf;
+        % design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        design = {'ntfd'};
+        hrf_cutoff = 128; % for standard GLM in SPM
+        % hrf_cutoff = Inf; % for rwls
         prefix = 'u'; % prefix of the preprocessed epi we want to use
         vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design'});
         
@@ -939,7 +941,10 @@ switch what
             
             % loop over design
             for dg=1:length(design)
-                estimates_folder = fullfile(glms_folder, design{dg}, 'ffx')
+                estimates_folder = fullfile(glms_folder, design{dg}, ...
+                    'ffx_standard')
+%                 estimates_folder = fullfile(glms_folder, design{dg}, ...
+%                     'ses-02_run-02')
 
                 % Create estimates folder if does not exist or clean it
                 folder(estimates_folder)
@@ -949,18 +954,18 @@ switch what
                 J.timing.units   = 'secs';
                 J.timing.RT      = 1.2;
                 J.timing.fmri_t  = 16;
-                J.timing.fmri_t0 = 1;
+                J.timing.fmri_t0 = 8;
 
                 J.fact             = struct('name', {}, 'levels', {});
                 J.bases.hrf.derivs = [0 0];
-                J.bases.hrf.params = [4.5 11]; % set to [] if running wls
+                %J.bases.hrf.params = [4.5 11]; % set to [] if running wls
                 J.volt             = 1;
                 J.global           = 'None';
                 J.mask             = {char(fullfile(deriv_subjdir, ...
                     'ses-01', func_dir, 'rmask_noskull.nii'))};
                 J.mthresh          = 1.;
-                J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
-                    'ses-01', func_dir,'rmask_gray.nii'))};
+%                 J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
+%                     'ses-01', func_dir,'rmask_gray.nii'))}; % only for rwls
                 J.cvi              = 'fast';
 
                 J.dir = {estimates_folder};
@@ -980,6 +985,7 @@ switch what
                 % loop over sessions
                 count = 0;
                 for ses = ssn
+                % for ses = 2
                     funcderiv_folder = fullfile(deriv_subjdir, ...
                         ['ses-' num2str(ses, '%02d')], func_dir);
 
@@ -993,6 +999,7 @@ switch what
                             start = 1;
                             n_run = 2;
                         end
+                        % for r=2
                         for r=start:n_run
                             count = count + 1;
                             fpath = fullfile(funcderiv_folder, ...
@@ -1021,7 +1028,7 @@ switch what
                             % get the path to the tsv file
                             tsv_file = fullfile(funcderiv_folder, sprintf(...
                                 '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
-                                subj_str{s}, ses, tasks{tk}, r));
+                                subj_str{s}, ses, tasks{tk}, r))
 
                             % get the tsvfile for the current run
                             D = struct([]); 
@@ -1074,8 +1081,12 @@ switch what
                         end % r (n_run)
                     end % tk (tasks)         
                 end % ses (ssn)
-            % FFX across all sessions for all tasks from the design per participant
-            spm_rwls_run_fmri_spec(J);
+            % FFX across specified runs and sessions            
+%             matlabbatch{1}.spm.stats.fmri_spec=J % standard GLM
+%             spm_jobman('run', matlabbatch); % standard GLM
+            
+            spm_run_fmri_spec(J); % standard GLM
+
             end % dg (design)
 
             % Remove *events.mat file from /localscratch
@@ -1083,8 +1094,211 @@ switch what
                 delete('/localscratch/*_events.mat');
             end
         end % sn (subject)     
+        
+    case 'GLM:grand_design_rwls' % make the design matrix for the glm
+        % models each condition as a separate regressors
+        % For conditions with multiple repetitions, one regressor
+        % represents all the instances
+        % msdtb_imana('GLM:grand_design', 'sn', [1])
+        
+        sn = subj_id;
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        % hrf_cutoff = 128; % for standard GLM in SPM
+        hrf_cutoff = Inf; % for rwls
+        prefix = 'u'; % prefix of the preprocessed epi we want to use
+        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design'});
+        
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
+        % loop over subjects
+        for s = sn
+            deriv_subjdir = fullfile(base_dir, derivatives_dir, subj_str{s});
+            glms_folder = fullfile(deriv_subjdir, est_dir);
+            
+            % loop over design
+            for dg=1:length(design)
+                estimates_folder = fullfile(glms_folder, design{dg}, ...
+                    'ffx_rwls')
 
-    case 'GLM:estimate' % estimate beta values
+                % Create estimates folder if does not exist or clean it
+                folder(estimates_folder)
+
+                J = []; % structure with SPM fields to make the design
+
+                J.timing.units   = 'secs';
+                J.timing.RT      = 1.2;
+                J.timing.fmri_t  = 16;
+                J.timing.fmri_t0 = 8;
+
+                J.fact             = struct('name', {}, 'levels', {});
+                J.bases.hrf.derivs = [0 0];
+                J.bases.hrf.params = [4.5 11]; % set to [] if running wls
+                J.volt             = 1;
+                J.global           = 'None';
+                J.mask             = {char(fullfile(deriv_subjdir, ...
+                    'ses-01', func_dir, 'rmask_noskull.nii'))};
+                J.mthresh          = 1.;
+                J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
+                    'ses-01', func_dir,'rmask_gray.nii'))}; % only for rwls
+                J.cvi              = 'fast';
+
+                J.dir = {estimates_folder};
+                
+                % Define tasks to be included in the design
+                if strcmp(design{dg}, 'allmain_tasks')
+                    tasks = {'prod', 'percep', 'ntfd'};
+                    ssn = ses_id; % list of sessions
+                elseif strcmp(design{dg}, 'rand_ntfd')
+                    tasks = {'ntfd'};
+                    ssn = [2];
+                else
+                    tasks = {design{dg}};
+                    ssn = ses_id; % list of sessions
+                end
+
+                % loop over sessions
+                count = 0;
+                for ses = ssn
+                % for ses = 2
+                    funcderiv_folder = fullfile(deriv_subjdir, ...
+                        ['ses-' num2str(ses, '%02d')], func_dir);
+
+                    % loop over tasks
+                    for tk=1:length(tasks)              
+                        % loop over runs
+                        if strcmp(design{dg}, 'rand_ntfd')
+                            start = 3;
+                            n_run = 4;
+                        else
+                            start = 1;
+                            n_run = 2;
+                        end
+                        % for r=2
+                        for r=start:n_run
+                            count = count + 1;
+                            fpath = fullfile(funcderiv_folder, ...
+                                sprintf(...
+                                '%s%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
+                                prefix, subj_str{s}, ses, tasks{tk}, r));
+                            V = niftiinfo(fpath);
+                            numTRs = V.ImageSize(4);
+                            % fill in nifti image names for the current run
+                            N = cell(numTRs - numDummys, 1); % preallocating!
+                            for i = 1:(numTRs-numDummys)
+                                N{i} = fullfile(funcderiv_folder, ...
+                                    sprintf(...
+                                    '%s%s_ses-%02d_task-%s_run-%02d_bold.nii, %d', ...
+                                    prefix, subj_str{s}, ses, tasks{tk}, r, i));
+                            end % i (image numbers)
+
+                            % Load the scans
+                            J.sess(count).scans = N; % scans in the current runs
+
+                            J.sess(count).cond = struct('name', {}, ...
+                                'onset', {}, 'duration', {}, 'tmod', {}, ...
+                                'pmod', {}, 'orth', {});
+
+                            % Event Files
+                            % get the path to the tsv file
+                            tsv_file = fullfile(funcderiv_folder, sprintf(...
+                                '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
+                                subj_str{s}, ses, tasks{tk}, r))
+
+                            % get the tsvfile for the current run
+                            D = struct([]); 
+                            D = tdfread(tsv_file,'\t');
+
+                            trial_names = {};
+                            trial_onsets = {};
+                            trial_durations = {};
+                            trial_names = cellstr(D.trial_type);
+                            trial_onsets = num2cell(D.onset);
+                            trial_durations = num2cell(D.duration);                    
+
+                            unique_names = {};
+                            unique_names = unique(trial_names).';
+                            % Remove Rest, since it will be modelled implicitly
+                            unique_names(ismember(unique_names, 'rest')) = [];
+                            % Define paradigm descriptors
+                            names = {};
+                            onsets = {};
+                            durations = {};
+                            % Encoding condition goes first
+                            names(2:2:length(unique_names))= unique_names(1:2:end);
+                            names(1:2:length(unique_names))= unique_names(2:2:end);
+                            % Create onsets and duration cells
+                            for u = 1:length(names)
+                                indexes = [];
+                                indexes = find(strcmp(trial_names, names{u}));
+                                for idx = 1:length(indexes)
+                                    onsets{u}(idx) = trial_onsets{indexes(idx)};
+                                    durations{u}(idx) = ...
+                                        trial_durations{indexes(idx)};
+                                end
+                            end
+
+                            save(...
+                                sprintf(...
+                                '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
+                                subj_str{s}, ses, tasks{tk}, r), ...
+                                'names', 'onsets', 'durations'); 
+
+                            J.sess(count).multi = {sprintf(...
+                                '/localscratch/%s_ses-%02d_task-%s_run-%02d_events.mat', ...
+                                subj_str{s}, ses, tasks{tk}, r)};
+
+                            J.sess(count).regress   = struct('name', {}, ...
+                                'val', {});
+                            J.sess(count).multi_reg = {''};
+                            J.sess(count).hpf       = hrf_cutoff; % set to 0'inf' if using J.cvi = 'FAST'. SPM HPF not applied
+
+                        end % r (n_run)
+                    end % tk (tasks)         
+                end % ses (ssn)
+            % FFX across specified runs and sessions            
+            spm_rwls_run_fmri_spec(J); % rwls
+
+            end % dg (design)
+
+            % Remove *events.mat file from /localscratch
+            if any(size(dir('/localscratch/*_events.mat'), 1))
+                delete('/localscratch/*_events.mat');
+            end
+        end % sn (subject)     
+        
+    case 'GLM:estimate_standard' % estimate beta values
+        % Example usage: msdtb_imana('GLM:estimate', 'sn', [1])
+        
+        sn       = subj_id; % subject list
+        % design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        design = {'ntfd'};
+        vararginoptions(varargin, {'sn'})
+        
+        for s = sn
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir);            
+            % loop over designs
+            for dg=1:length(design)
+                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
+                    'ffx_standard');
+                % Delete previous estimates, if they exist
+                if any(size(dir([estdesign_folder '/*.nii']), 1))
+                    delete([estdesign_folder '/*.nii']);
+                end
+                % Load SPM.mat file with design and add path to store
+                % the new estimates
+                A = [];
+                A.spmmat = {fullfile(estdesign_folder, 'SPM.mat')};
+                A.write_residuals = 0;
+                A.method.Classical = 1;
+
+                % Add as input SPM.mat file to the rwls GLM 
+                matlabbatch{1}.spm.stats.fmri_est=A;
+                spm_jobman('run', matlabbatch);
+            end % dg (designs)
+        end % s (sn)   
+
+    case 'GLM:estimate_rwls' % estimate beta values
         % Example usage: msdtb_imana('GLM:estimate', 'sn', [1])
         
         sn       = subj_id; % subject list
@@ -1097,7 +1311,7 @@ switch what
             % loop over designs
             for dg=1:length(design)
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    'ffx');
+                    'ffx_rwls');
                 % Delete previous estimates, if they exist
                 if any(size(dir([estdesign_folder '/*.nii']), 1))
                     delete([estdesign_folder '/*.nii']);
@@ -1111,7 +1325,7 @@ switch what
             end % dg (designs)
         end % s (sn)    
 
-    case 'GLM:individual_ffx_t'
+    case 'GLM:ffx_t'
         % Estimate ffx individual tmaps across runs and sessions
         
         % Go to the folder of script
@@ -1119,8 +1333,10 @@ switch what
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        % design = {'ntfd'};
         contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
             'Random NTFD: ', 'AllTasks: '};
+        % contrast_prefix = {'NTFD: '};
         vararginoptions(varargin, {'sn'})
         
         for s = sn
@@ -1128,7 +1344,9 @@ switch what
                 subj_str{s}, est_dir);  
             for dg=1:length(design)          
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    'ffx');
+                    'ffx_rwls');
+%                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
+%                     'ses-02');
 
                 A = []; % structure with SPM fields to build the t-contrasts
                 A.spmmat = {[estdesign_folder '/SPM.mat']};
