@@ -1362,15 +1362,6 @@ switch what
             end
         end % s (subject)
         
-    case 'GLM:run_all'
-        % Example usage: msdtb_imana('GLM:run_all')
-
-        % Note: Do not forget to copy tsv files to the server
-
-        msdtb_imana('GLM:grand_design')
-        msdtb_imana('GLM:estimate')
-        msdtb_imana('GLM:individual_ffx_t') 
-        
     case 'CON:normalization'
         % Example usage: msdtb_imana('CON:normalization')
         
@@ -1466,9 +1457,9 @@ switch what
 
         % Note: Do not forget to copy tsv files to the server
 
-        msdtb_imana('GLM:grand_design')
-        msdtb_imana('GLM:estimate')
-        msdtb_imana('GLM:individual_ffx_t')
+        msdtb_imana('GLM:grand_design_rwls')
+        msdtb_imana('GLM:estimate_rwls')
+        msdtb_imana('GLM:ffx_t')
         msdtb_imana('CON:normalization')
         msdtb_imana('CON:smooth')
         
