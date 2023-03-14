@@ -61,9 +61,9 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n  = [3, 4, 7, 8, 10];
+subj_n  = [3, 4, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
-subj_n  = [4];
+% subj_n  = [4];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1375,7 +1375,10 @@ switch what
         % Example usage: msdtb_imana('CON:normalization')
         
         sn       = subj_id; % subject list
-        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
+        inputs_folder = 'ffx_rwls'
+        outputs_folder = 'sw_contrasts_rwls'
         vararginoptions(varargin, {'sn', 'design'});
         
         for s = sn
@@ -1383,7 +1386,7 @@ switch what
                 subj_str{s}, est_dir); 
             for dg=1:length(design)           
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    'ffx');
+                    inputs_folder);
                 
                 % List of contrasts in source folder
                 n_contrasts = numel(dir([estdesign_folder '/con_*.nii']));
@@ -1407,7 +1410,7 @@ switch what
                 
                 % Create norm folder or empty it
                 normcontrasts_folder = fullfile(estderiv_subj_dir, ...
-                    design{dg}, 'snorm_contrasts');
+                    design{dg}, outputs_folder);
                 folder(normcontrasts_folder);
                 
                 % Copy normalized contrasts to destination folder
@@ -1419,7 +1422,9 @@ switch what
         % Example usage: msdtb_imana('CON:smooth')
         
         sn       = subj_id; % subject list
-        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
+        contrasts_folder = 'sw_contrasts_rwls'
         smoothing_kernel = [8 8 8]
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
@@ -1429,7 +1434,7 @@ switch what
                 subj_str{s}, est_dir); 
             for dg=1:length(design)   
                 normcon_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    'snorm_contrasts');
+                    contrasts_folder);
                 
                 % List of normalized contrasts
                 n_contrasts = numel(dir([normcon_folder '/wcon_*.nii']));
