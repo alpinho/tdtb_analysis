@@ -291,6 +291,30 @@ switch what
         msdtb_imana('ANAT:reslice_lpi')
         msdtb_imana('ANAT:center_ac')
         msdtb_imana('ANAT:segment')        
+        
+    case 'ANAT:normalization'
+        % Example usage: msdtb_imana('ANAT:normalization')
+        
+        sn       = subj_id; % subject list
+        vararginoptions(varargin, {'sn'});
+        
+        for s = sn
+            % Get the directory of subjects anatomical
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
+            
+            % Get the name of the anatomical image
+            anat_name = sprintf('%s_T1w.nii', subj_str{s});
+            subj_anatfile = fullfile(subj_anatderiv_dir, anat_name)
+                
+            % Deformation-Field file
+            deffield_file = [subj_anatderiv_dir '/y_' subj_str{s} '_T1w.nii'];
+                
+            % Apply normalization
+            spmja_normalization_write(deffield_file, subj_anatfile, ...
+                'voxel_size', [1 1 1])
+        end  
 
     case 'ANAT:T1w_bcorrect' % bias correction for anatomical T1w (optional)
         % nishimoto_imana('ANAT:T1w_bcorrect')
@@ -1368,8 +1392,8 @@ switch what
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        inputs_folder = 'ffx_rwls'
-        outputs_folder = 'sw_contrasts_rwls'
+        inputs_folder = 'ffx_rwls';
+        outputs_folder = 'sw_contrasts_rwls';
         vararginoptions(varargin, {'sn', 'design', 'inputs_folder', ...
             'outputs_folder'});
         
@@ -1382,11 +1406,10 @@ switch what
                 
                 % List of contrasts in source folder
                 n_contrasts = numel(dir([estdesign_folder '/con_*.nii']));
-                confiles_destination = {};
+                confiles = {};
                 for c=1:n_contrasts
                     cname = sprintf('con_%04d.nii', c);
-                    confiles_destination{c,1} = fullfile(estdesign_folder, ... 
-                        cname);
+                    confiles{c,1} = fullfile(estdesign_folder, cname);
                 end
                 
                 % Deformation-Field file
@@ -1395,19 +1418,19 @@ switch what
                 deffield_file = [deffield_folder '/y_' subj_str{s} '_T1w.nii'];
                 
                 % Apply normalization
-                spmja_normalization_write(deffield_file, ...
-                    confiles_destination, 'voxel_size', [2.5, 2.5, 2.5])
+                spmja_normalization_write(deffield_file, confiles, ...
+                    'voxel_size', [2.5 2.5 2.5])
                 
                 % List normalized contrasts in ffx folder
-                confiles_source = [estdesign_folder '/wcon_*.nii'];
+                w_confiles_source = [estdesign_folder '/wcon_*.nii'];
                 
                 % Create norm folder or empty it
-                normcontrasts_folder = fullfile(estderiv_subj_dir, ...
+                w_condir_destination = fullfile(estderiv_subj_dir, ...
                     design{dg}, outputs_folder);
-                folder(normcontrasts_folder);
+                folder(w_condir_destination);
                 
                 % Copy normalized contrasts to destination folder
-                movefile(confiles_source, normcontrasts_folder);
+                movefile(w_confiles_source, w_condir_destination);
             end
         end        
         
@@ -1417,8 +1440,8 @@ switch what
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        contrasts_folder = 'sw_contrasts_rwls'
-        smoothing_kernel = [8 8 8]
+        contrasts_folder = 'sw_contrasts_rwls';
+        smoothing_kernel = [8 8 8];
         
         vararginoptions(varargin, {'sn', 'design', 'contrasts_folder', ...
             'smoothing_kernel'});
