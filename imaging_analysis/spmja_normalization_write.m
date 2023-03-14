@@ -14,13 +14,15 @@ if ischar(images)
 end;
 outimages=[];
 
-vararginoptions(varargin,{'outimages'});
+voxel_size = [2 2 2];
+
+vararginoptions(varargin,{'outimages', 'voxel_size'});
 
 J.subj.def = {deformation_file};
 J.subj.resample = images;
 J.woptions.bb = [-78 -112 -70
     78   76  85];
-J.woptions.vox = [2 2 2];
+J.woptions.vox = voxel_size;
 J.woptions.interp = 4;
 J.woptions.prefix = 'w';
 
