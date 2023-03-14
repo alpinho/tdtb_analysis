@@ -61,9 +61,9 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-subj_n  = [3, 4, 7, 8, 10];
+% subj_n  = [3, 4, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
-% subj_n  = [4];
+subj_n  = [4];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -925,8 +925,7 @@ switch what
         % msdtb_imana('GLM:grand_design', 'sn', [1])
         
         sn = subj_id;
-        % design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        design = {'ntfd'};
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         hrf_cutoff = 128; % for standard GLM in SPM
         % hrf_cutoff = Inf; % for rwls
         prefix = 'u'; % prefix of the preprocessed epi we want to use
@@ -1270,8 +1269,7 @@ switch what
         % Example usage: msdtb_imana('GLM:estimate', 'sn', [1])
         
         sn       = subj_id; % subject list
-        % design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        design = {'ntfd'};
+        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         vararginoptions(varargin, {'sn'})
         
         for s = sn
@@ -1332,10 +1330,10 @@ switch what
         cd(fileparts(mfilename('fullpath')))
         
         sn       = subj_id; % subject list
-        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'ntfd'};
         contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
-            'Random NTFD: ', 'AllTasks: '};
+            'AllTasks: '};
         % contrast_prefix = {'NTFD: '};
         vararginoptions(varargin, {'sn'})
         
