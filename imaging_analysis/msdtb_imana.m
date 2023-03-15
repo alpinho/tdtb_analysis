@@ -1546,8 +1546,7 @@ switch what
                 matlabbatch{1}.spm.util.imcalc=A;
                 spm_jobman('run', matlabbatch);
             end
-        end
-        
+        end     
         
     case 'GROUP:one-sample_t_design'
         % Example usage: msdtb_imana('CON:smooth')
@@ -1880,19 +1879,18 @@ switch what
         vararginoptions(varargin, 'sn');
         
         for s = sn
-            suit_subj_dir = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                'suit');
+            suit_subj_dir = fullfile(base_dir, raw_dir, subj_str{s}, 'suit');
             masks = {};
             % First image need to be in functional space to ensure 
             % correct space 
-            masks{1} = fullfile(base_dir,'derivatives',subj_str{s},'estimates',...
-                        'ses-archi','run-01','mask.nii')
+            masks{1} = fullfile(base_dir, 'derivatives', subj_str{s}, ...
+                'estimates', 'ses-archi', 'run-01', 'mask.nii')
             masks{2} = fullfile(suit_subj_dir, ...
                 sprintf('c_%s_T1w_pcereb_corr.nii', subj_str{s}));
             masks{3} = fullfile(suit_subj_dir, ...
                 sprintf('c_%s_T1w_seg1.nii', subj_str{s}));
-            group = fullfile(suit_subj_dir, 'maskbrainSUITGrey.nii');
-            spm_imcalc(masks, group, 'i2>0.1 & i3>0.1');
+            final_mask = fullfile(suit_subj_dir, 'maskbrainSUITGrey.nii');
+            spm_imcalc(masks, final_mask, 'i2>0.1 & i3>0.1');
         end
 
     case 'SUIT:reslice' % Reslice stuff into suit space 
