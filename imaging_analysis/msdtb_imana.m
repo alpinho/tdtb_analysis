@@ -1347,7 +1347,7 @@ switch what
             end % dg (designs)
         end % s (sn)    
 
-    case 'GLM:ffx_t'
+    case 'GLM:individual_ffx_t'
         % Estimate ffx individual tmaps across runs and sessions
         
         % Go to the folder of script
@@ -1387,15 +1387,18 @@ switch what
         end % s (subject)
         
     case 'CON:normalization'
-        % Example usage: msdtb_imana('CON:normalization')
+        % Example usage: msdtb_imana('CON:normalization', 'file_type', 'spmT')
+        
+        % Normalize individual contrasts or t-maps
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         inputs_folder = 'ffx_rwls';
-        outputs_folder = 'sw_contrasts_rwls';
+        outputs_folder = 'snorm_maps_rwls';
+        file_type = 'con'; % the another one is 'spmT'
         vararginoptions(varargin, {'sn', 'design', 'inputs_folder', ...
-            'outputs_folder'});
+            'outputs_folder', 'file_type'});
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1405,10 +1408,11 @@ switch what
                     inputs_folder);
                 
                 % List of contrasts in source folder
-                n_contrasts = numel(dir([estdesign_folder '/con_*.nii']));
+                n_contrasts = numel(dir([estdesign_folder '/' file_type ...
+                    '_*.nii']));
                 confiles = {};
                 for c=1:n_contrasts
-                    cname = sprintf('con_%04d.nii', c);
+                    cname = sprintf('%s_%04d.nii', file_type, c);
                     confiles{c,1} = fullfile(estdesign_folder, cname);
                 end
                 
@@ -1422,12 +1426,19 @@ switch what
                     'voxel_size', [2.5 2.5 2.5])
                 
                 % List normalized contrasts in ffx folder
-                w_confiles_source = [estdesign_folder '/wcon_*.nii'];
+                w_confiles_source = [estdesign_folder '/w' file_type '_*.nii'];
                 
-                % Create norm folder or empty it
+                % Create norm folder or delete pre-exusting files
                 w_condir_destination = fullfile(estderiv_subj_dir, ...
                     design{dg}, outputs_folder);
-                folder(w_condir_destination);
+                if any(size(dir(...
+                        [w_condir_destination '/w' file_type '*.nii']), 1))
+                    delete([w_condir_destination '/w' file_type '*.nii']);
+                end
+                if any(size(dir(...
+                        [w_condir_destination '/sw' file_type '*.nii']), 1))
+                    delete([w_condir_destination '/sw' file_type '*.nii']);
+                end
                 
                 % Copy normalized contrasts to destination folder
                 movefile(w_confiles_source, w_condir_destination);
@@ -1435,16 +1446,17 @@ switch what
         end        
         
     case 'CON:smooth'        
-        % Example usage: msdtb_imana('CON:smooth')
+        % Example usage: msdtb_imana('CON:smooth', 'file_type', 'spmT')
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        contrasts_folder = 'sw_contrasts_rwls';
+        contrasts_folder = 'snorm_maps_rwls';
+        file_type = 'con'; % the another one is 'spmT'
         smoothing_kernel = [8 8 8];
         
         vararginoptions(varargin, {'sn', 'design', 'contrasts_folder', ...
-            'smoothing_kernel'});
+            'file_type', 'smoothing_kernel'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -1456,10 +1468,11 @@ switch what
                     contrasts_folder);
                 
                 % List of normalized contrasts
-                n_contrasts = numel(dir([normcon_folder '/wcon_*.nii']));
+                n_contrasts = numel(dir([normcon_folder '/w' file_type ...
+                    '_*.nii']));
                 wconfiles_destination = {};
                 for c=1:n_contrasts
-                    cname = sprintf('wcon_%04d.nii', c);
+                    cname = sprintf('w%s_%04d.nii', file_type, c);
                     wconfiles_destination{c,1} = fullfile(normcon_folder, ...
                         cname);
                 end
@@ -1482,9 +1495,12 @@ switch what
 
         msdtb_imana('GLM:grand_design_rwls')
         msdtb_imana('GLM:estimate_rwls')
-        msdtb_imana('GLM:ffx_t')
+        msdtb_imana('GLM:individual_ffx_t')
         msdtb_imana('CON:normalization')
         msdtb_imana('CON:smooth')
+        
+    case 'GROUP:ffx_t'
+        % Estimate ffx group tmaps 
         
     case 'GROUP:one-sample_t_design'
         % Example usage: msdtb_imana('CON:smooth')
