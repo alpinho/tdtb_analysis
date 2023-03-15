@@ -1400,6 +1400,8 @@ switch what
         vararginoptions(varargin, {'sn', 'design', 'inputs_folder', ...
             'outputs_folder', 'file_type'});
         
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir); 
@@ -1428,7 +1430,7 @@ switch what
                 % List normalized contrasts in ffx folder
                 w_confiles_source = [estdesign_folder '/w' file_type '_*.nii'];
                 
-                % Create norm folder or delete pre-exusting files
+                % Create norm folder and delete pre-existing files
                 w_condir_destination = fullfile(estderiv_subj_dir, ...
                     design{dg}, outputs_folder);
                 if any(size(dir(...
@@ -1500,7 +1502,52 @@ switch what
         msdtb_imana('CON:smooth')
         
     case 'GROUP:ffx_t'
-        % Estimate ffx group tmaps 
+        % Estimate ffx group tmaps
+        
+        sn = subj_id; %subjNum
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
+        inputs_folder = 'snorm_maps_rwls';
+        file_type = 'swspmT'; % the another one is 'swcon'
+        % file_type = 'swcon';
+        vararginoptions(varargin, 'sn');
+        
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
+        for con = 1:length(contrasts)
+            for dg=1:length(design)
+                output_dir = fullfile(base_dir, derivatives_dir, ...
+                    'group', design{dg}, 'ffx_t');
+                % Delete pre-existing files
+                if con == 1 && any(size(dir(...
+                        [output_dir '/group_' file_type '*.nii']), 1))
+                    delete([output_dir '/group_' file_type '*.nii']);
+                end
+                A = [];
+                maps = {};
+                for s = sn               
+                    subj_dir = fullfile(base_dir, derivatives_dir, ...
+                        subj_str{s}, est_dir, design{dg}, inputs_folder);
+                    map_name = sprintf('%s_%04d.nii', file_type, con);
+                    maps{s,1} = fullfile(subj_dir, map_name);
+                end
+                gmap_name = sprintf('group_%s_%04d.nii', file_type, con);
+                
+                A.input = maps;
+                A.output = gmap_name;
+                A.outdir = {output_dir};
+                A.expression = '(i1+i2+i3+i4+i5)/5';
+                A.var = struct('name', {}, 'value', {});
+                A.options.dmtx = 0;
+                A.options.mask = 0;
+                A.options.interp = 1;
+                A.options.dtype = 4;               
+                
+                matlabbatch{1}.spm.util.imcalc=A;
+                spm_jobman('run', matlabbatch);
+            end
+        end
+        
         
     case 'GROUP:one-sample_t_design'
         % Example usage: msdtb_imana('CON:smooth')
@@ -1844,8 +1891,8 @@ switch what
                 sprintf('c_%s_T1w_pcereb_corr.nii', subj_str{s}));
             masks{3} = fullfile(suit_subj_dir, ...
                 sprintf('c_%s_T1w_seg1.nii', subj_str{s}));
-            final_mask = fullfile(suit_subj_dir, 'maskbrainSUITGrey.nii');
-            spm_imcalc(masks, final_mask, 'i2>0.1 & i3>0.1');
+            group = fullfile(suit_subj_dir, 'maskbrainSUITGrey.nii');
+            spm_imcalc(masks, group, 'i2>0.1 & i3>0.1');
         end
 
     case 'SUIT:reslice' % Reslice stuff into suit space 
