@@ -1478,7 +1478,7 @@ switch what
                     wconfiles_destination{c,1} = fullfile(normcon_folder, ...
                         cname);
                 end
-                
+                A = [];
                 A.data = wconfiles_destination;
                 A.fwhm = smoothing_kernel;
                 A.dtype = 0;
@@ -1510,7 +1510,7 @@ switch what
         inputs_folder = 'snorm_maps_rwls';
         file_type = 'swspmT'; % the another one is 'swcon'
         % file_type = 'swcon';
-        vararginoptions(varargin, 'sn');
+        vararginoptions(varargin, {'sn', 'file_type'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -1518,10 +1518,19 @@ switch what
             for dg=1:length(design)
                 output_dir = fullfile(base_dir, derivatives_dir, ...
                     'group', design{dg}, 'ffx_t');
+%                 if con == 1 && isfolder(output_dir)
+%                     rmdir(output_dir, 's');
+%                 end
+                contrast = strrep(contrasts{con,1}, ' ', '_');
+                contrast_dir = fullfile(output_dir, ...
+                    sprintf('con_%02d_%s', con, contrast));
+                if not(isfolder(contrast_dir))
+                    mkdir(contrast_dir);
+                end
                 % Delete pre-existing files
                 if con == 1 && any(size(dir(...
-                        [output_dir '/group_' file_type '*.nii']), 1))
-                    delete([output_dir '/group_' file_type '*.nii']);
+                        [contrast_dir '/group_' file_type '*.nii']), 1))
+                    delete([contrast_dir '/group_' file_type '*.nii']);
                 end
                 A = [];
                 maps = {};
@@ -1535,7 +1544,7 @@ switch what
                 
                 A.input = maps;
                 A.output = gmap_name;
-                A.outdir = {output_dir};
+                A.outdir = {contrast_dir};
                 A.expression = '(i1+i2+i3+i4+i5)/5';
                 A.var = struct('name', {}, 'value', {});
                 A.options.dmtx = 0;
@@ -1549,10 +1558,13 @@ switch what
         end     
         
     case 'GROUP:one-sample_t_design'
-        % Example usage: msdtb_imana('CON:smooth')
+        % Example usage: msdtb_imana('GROUP:one-sample_t_design')
         
         sn       = subj_id; % subject list
-        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
+        inputs_folder = 'snorm_maps_rwls';
+        prefix = 'swcon';
         
         vararginoptions(varargin, {'sn', 'design'});
         
@@ -1561,24 +1573,25 @@ switch what
         derivgroup_dir = fullfile(base_dir, derivatives_dir, 'group');        
         for dg=1:length(design)
             ost_dir = fullfile(derivgroup_dir, design{dg}, 'onesample_t');
-%             if isfolder(ost_dir)
-%                 rmdir(ost_dir, 's');
-%             end
+            if isfolder(ost_dir)
+                rmdir(ost_dir, 's');
+            end
             if not(isfolder(ost_dir))
                 mkdir(ost_dir);
             end
             for sc=1:length(contrasts)
                 contrast = strrep(contrasts{sc,1}, ' ', '_');
-                condir = fullfile(ost_dir, ['con' num2str(sc) '_' contrast]);
+                condir = fullfile(ost_dir, ...
+                    sprintf('con_%02d_%s', sc, contrast));
                 folder(condir);
-                swname = sprintf('swcon_%04d.nii', sc);
+                swname = sprintf('%s_%04d.nii', prefix, sc);
                 icon = {};
                 for s = sn
                     snormcon_folder = fullfile(base_dir, derivatives_dir, ...
-                        subj_str{s}, est_dir, design{dg}, 'snorm_contrasts');
+                        subj_str{s}, est_dir, design{dg}, inputs_folder);
                     icon{s,1} = fullfile(snormcon_folder, swname);
                 end % s (sn)
-                
+                A = [];
                 A.dir = {condir};
                 A.des.t1.scans = icon;
                 A.cov = struct('c', {}, 'cname', {}, 'iCFI', {}, 'iCC', {});
@@ -1599,7 +1612,8 @@ switch what
         % Example usage: msdtb_imana('GROUP:estimate', 'sn', [1])
         
         sn       = subj_id; % subject list
-        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
         model = {'onesample_t'};
         vararginoptions(varargin, {'sn', 'model'})
         
@@ -1611,18 +1625,54 @@ switch what
                 for c=1:length(contrasts)
                     contrast = strrep(contrasts{c,1}, ' ', '_');
                     condir = fullfile(modelgroup_dir, ...
-                        ['con' num2str(c) '_' contrast]);
+                        sprintf('con_%02d_%s', c, contrast));
                     % Delete any pre-existing nifit file
                     if any(size(dir([condir '/*.nii']), 1))
                         delete([condir '/*.nii']);
                     end
                     % Add as input SPM.mat file
+                    A = [];
                     A.spmmat = {fullfile(condir, 'SPM.mat')};
                     A.write_residuals = 0;
                     A.method.Classical = 1;
                 
                     matlabbatch{1}.spm.stats.fmri_est=A;
                     spm_jobman('run',matlabbatch);
+                end % c (contrasts)
+            end % m (model)
+        end % dg (design)
+        
+    case 'GROUP:rfx_t'
+        % Estimate rfx group tmaps
+        
+        sn       = subj_id; % subject list
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
+        contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
+            'AllTasks: '};
+        model = {'onesample_t'};
+        vararginoptions(varargin, {'sn', 'model'})
+        
+        derivgroup_dir = fullfile(base_dir, derivatives_dir, 'group'); 
+        for dg=1:length(design)
+            designgroup_dir = fullfile(derivgroup_dir, design{dg});
+            for m=1:length(model)
+                modelgroup_dir = fullfile(designgroup_dir, model{m});                
+                for c=1:length(contrasts)
+                    contrast = strrep(contrasts{c,1}, ' ', '_');
+                    condir = fullfile(modelgroup_dir, ...
+                        sprintf('con_%02d_%s', c, contrast));
+                    A = []; % structure with SPM fields to build the t-contrast                
+                    A.spmmat = {[condir '/SPM.mat']};
+                    A.consess{1}.tcon.name = [contrast_prefix{dg} ...
+                        contrasts{c,1}];
+                    A.consess{1}.tcon.weights = [1];
+                    A.consess{1}.tcon.sessrep = 'none';
+
+                    % Delete existing contrasts
+                    A.delete = 1; % 1 yes, 0 no
+                    matlabbatch{1}.spm.stats.con=A;
+                    spm_jobman('run', matlabbatch);
                 end % c (contrasts)
             end % m (model)
         end % dg (design)
