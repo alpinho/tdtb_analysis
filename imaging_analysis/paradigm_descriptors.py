@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: January 2023
-Last Update: January 2023
+Last Update: March 2023
 
 Compatibility: Python 3.10.4
 
@@ -160,6 +160,146 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                 a = csv.writer(fp, delimiter='\t')
                 a.writerows(liste)
 
+
+def extraction_split(data, cat, header, events_dir, ttl = True):
+    for ses_datum in data:
+        for run_datum in ses_datum:
+            onset = []
+            duration = []
+            trial_type = []
+            if ttl:
+                assert run_datum[0][4] == 'ttl'
+                offset = convert(run_datum[0][6])
+                onset.append(str(float(0)))
+                initial_rest = convert(run_datum[0][7])
+                duration.append(str(initial_rest))
+                trial_type.append('rest')
+                run_datum = run_datum[1:]
+            subject_number = int(run_datum[0][0])
+            session_number = int(run_datum[0][1])
+            run_number = int(run_datum[0][2])
+            for rw, row in enumerate(run_datum):
+                if rw == 0 or ((run_datum[rw-1][4] == 'fixcross' or \
+                                run_datum[rw-1][4] == 'baseline') and \
+                               row[4] not in 'final_baseline'):
+
+                    # Onset and duration for the encoding
+                    onset_encod = round(convert(row[6]) - offset, 3)
+
+                    if cat == 'Production':
+                        if run_datum[rw+9][10] == 'None':
+                            duration_encod = round(
+                                convert(run_datum[rw+9][6]) - \
+                                convert(row[6]), 3)
+                            onset_decis = round(
+                                convert(run_datum[rw+9][6]) - offset, 3)
+                            duration_decis = round(
+                                convert(run_datum[rw+9][7]), 3)
+                        else:
+                            duration_encod = round(
+                                convert(run_datum[rw+9][6]) + \
+                                convert(run_datum[rw+9][10]) - \
+                                convert(row[6]), 3)
+                            onset_decis = round(
+                                convert(run_datum[rw+9][6]) + \
+                                convert(run_datum[rw+9][10]) - offset, 3)
+                            duration_decis = round(
+                                convert(run_datum[rw+10][6]) - \
+                                convert(run_datum[rw+9][6]) - \
+                                convert(run_datum[rw+9][10]), 3)
+                    else:
+                        assert cat in ['Perception',
+                                       'No-Temporal Feature Discrimination']
+                        duration_encod = round(
+                            convert(run_datum[rw+11][6]) - convert(row[6]), 3)
+                        onset_decis = round(
+                            convert(run_datum[rw+11][6]) - offset, 3)
+                        duration_decis = round(convert(run_datum[rw+11][7]), 3)
+
+                    onset.append(str(onset_encod))
+                    duration.append(str(duration_encod))
+                    onset.append(str(onset_decis))
+                    duration.append(str(duration_decis))
+
+                    # Trial types for all conditions
+                    if row[4] in ['beat01', 'beat02', 'beat03'] \
+                       and row[5][:4] == 'beep':
+                        trial_type.append('auditory_beat_encoding_low')
+                        trial_type.append('auditory_beat_decision')
+                    elif row[4] in ['beat04', 'beat05'] \
+                         and row[5][:4] == 'beep':
+                        trial_type.append('auditory_beat_encoding_high')
+                        trial_type.append('auditory_beat_decision')
+                    elif row[4] in ['beat01', 'beat02', 'beat03'] \
+                         and row[5][:4] == 'rect':
+                        trial_type.append('visual_beat_encoding_low')
+                        trial_type.append('visual_beat_decision')
+                    elif row[4] in ['beat04', 'beat05'] \
+                         and row[5][:4] == 'rect':
+                        trial_type.append('visual_beat_encoding_high')
+                        trial_type.append('visual_beat_decision')
+                    elif row[4] in ['interval01', 'interval02', 'interval03'] \
+                         and row[5][:4] == 'beep':
+                        trial_type.append('auditory_interval_encoding_low')
+                        trial_type.append('auditory_interval_decision')
+                    elif row[4] in ['interval04', 'interval05'] \
+                         and row[5][:4] == 'beep':
+                        trial_type.append('auditory_interval_encoding_high')
+                        trial_type.append('auditory_interval_decision')
+                    elif row[4] in ['interval01', 'interval02', 'interval03'] \
+                         and row[5][:4] == 'rect':
+                        trial_type.append('visual_interval_encoding_low')
+                        trial_type.append('visual_interval_decision')
+                    elif row[4] in ['interval04', 'interval05'] \
+                         and row[5][:4] == 'rect':
+                        trial_type.append('visual_interval_encoding_high')
+                        trial_type.append('visual_interval_decision')
+                    elif row[4][:4] == 'rand' and row[5][:4] == 'beep':
+                        trial_type.append('auditory_random_encoding')
+                        trial_type.append('auditory_random_decision')
+                    elif row[4][:4] == 'rand' and row[5][:4] == 'rect':
+                        trial_type.append('visual_random_encoding')
+                        trial_type.append('visual_random_decision')
+                    else:
+                        raise NameError(
+                            'Trial type does not exist for this trial!')
+                elif row[4] in ['fixcross', 'baseline', 'final_baseline']:
+                    onset_rest = round(convert(row[6]) - offset, 3)
+                    onset.append(str(onset_rest))
+                    duration_rest = convert(row[7])
+                    duration.append(str(duration_rest))
+                    trial_type.append('rest')
+                else:
+                    pass
+
+            liste = np.empty((0, len(header)))
+            liste = np.vstack((header,
+                               np.vstack((onset, duration, trial_type)).T))
+
+            subjsess_dir = os.path.join(events_dir,
+                                        'sub-%02d' % subject_number,
+                                        'ses-%02d' % session_number)
+
+            if cat == 'Production':
+                cattag = 'prod'
+            elif cat == 'Perception':
+                cattag = 'percep'
+            else:
+                assert cat == 'No-Temporal Feature Discrimination'
+                cattag = 'ntfd'
+
+            fname = 'sub-%02d' % subject_number + \
+                '_ses-%02d' % session_number + '_task-' + cattag + \
+                '_run-%02d' % run_number + '_splitdesign_events.tsv'
+
+            output_path = os.path.join(subjsess_dir, fname)
+
+            # Save liste in the output file
+            with open(output_path, 'w') as fp:
+                a = csv.writer(fp, delimiter='\t')
+                a.writerows(liste)
+
+
 # %%
 # =========================== INPUTS ===================================
 
@@ -198,3 +338,8 @@ if __name__ == "__main__":
             else:
                 extraction(behavioral_data, category, HEADER, eventspath,
                            flag=1)
+
+            if c == 0:
+                extraction_split(behavioral_data, category, HEADER, eventspath)
+            else:
+                extraction_split(behavioral_data, category, HEADER, eventspath)
