@@ -63,7 +63,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 subj_n  = [3, 4, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
-% subj_n  = [4];
+% subj_n  = [10];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1129,7 +1129,12 @@ switch what
         % hrf_cutoff = 128; % for standard GLM in SPM
         hrf_cutoff = Inf; % for rwls
         prefix = 'u'; % prefix of the preprocessed epi we want to use
-        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design'});
+        % events_file_tag = 'events'
+        events_file_tag = 'splitdesign_events'
+        output_folder = 'ffx_rwls'
+        %output_folder = 'ffx_splitdesign_rwls'
+        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design', ...
+            'events_file_tag', 'output_folder'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -1141,7 +1146,7 @@ switch what
             % loop over design
             for dg=1:length(design)
                 estimates_folder = fullfile(glms_folder, design{dg}, ...
-                    'ffx_rwls')
+                    output_folder)
 
                 % Create estimates folder if does not exist or clean it
                 folder(estimates_folder)
@@ -1215,7 +1220,7 @@ switch what
                             end % i (image numbers)
 
                             % Load the scans
-                            J.sess(count).scans = N; % scans in the current runs
+                            J.sess(count).scans = N; %scans in the current runs
 
                             J.sess(count).cond = struct('name', {}, ...
                                 'onset', {}, 'duration', {}, 'tmod', {}, ...
@@ -1224,8 +1229,9 @@ switch what
                             % Event Files
                             % get the path to the tsv file
                             tsv_file = fullfile(funcderiv_folder, sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
-                                subj_str{s}, ses, tasks{tk}, r))
+                                '%s_ses-%02d_task-%s_run-%02d_%s.tsv', ...
+                                subj_str{s}, ses, tasks{tk}, r, ...
+                                events_file_tag))
 
                             % get the tsvfile for the current run
                             D = struct([]); 
@@ -1246,15 +1252,32 @@ switch what
                             names = {};
                             onsets = {};
                             durations = {};
+                            
                             % Encoding condition goes first
-                            names(2:2:length(unique_names))= unique_names(1:2:end);
-                            names(1:2:length(unique_names))= unique_names(2:2:end);
+                            if strcmp(...
+                                    events_file_tag, 'splitdesign_events') ...
+                                    && ~strcmp(design{dg}, 'rand_ntfd')
+                                % as well as low condition for the split design
+                                names(3:3:length(unique_names))= ...
+                                    unique_names(1:3:end);
+                                names(1:3:length(unique_names))= ...
+                                    unique_names(3:3:end);
+                                names(2:3:length(unique_names))= ...
+                                    unique_names(2:3:end);
+                            else
+                                names(2:2:length(unique_names))= ...
+                                    unique_names(1:2:end);
+                                names(1:2:length(unique_names))= ...
+                                    unique_names(2:2:end);
+                            end
+                            
                             % Create onsets and duration cells
                             for u = 1:length(names)
                                 indexes = [];
                                 indexes = find(strcmp(trial_names, names{u}));
                                 for idx = 1:length(indexes)
-                                    onsets{u}(idx) = trial_onsets{indexes(idx)};
+                                    onsets{u}(idx) = ...
+                                        trial_onsets{indexes(idx)};
                                     durations{u}(idx) = ...
                                         trial_durations{indexes(idx)};
                                 end
@@ -1325,7 +1348,9 @@ switch what
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        vararginoptions(varargin, {'sn'})
+        output_folder = 'ffx_rwls'
+        %output_folder = 'ffx_splitdesign_rwls'
+        vararginoptions(varargin, {'sn', 'design', 'output_folder'})
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1333,7 +1358,7 @@ switch what
             % loop over designs
             for dg=1:length(design)
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    'ffx_rwls');
+                    output_folder);
                 % Delete previous estimates, if they exist
                 if any(size(dir([estdesign_folder '/*.nii']), 1))
                     delete([estdesign_folder '/*.nii']);
