@@ -102,6 +102,31 @@ contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...
              'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0]; ...
              'Decision', [0 1 0 1 0 1 0 1]; ...
              };
+         
+contrasts_split = {'Enconding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...
+                   'Enconding High', [0 1 0 0 1 0 0 1 0 0 1 0]; ... 
+                   'Auditory Encoding Low', [1 0 0 1 0 0]; ...
+                   'Auditory Encoding High', [0 1 0 0 1 0]; ...
+                   'Visual Encoding Low', [0 0 0 0 0 0 1 0 0 1 0 0]; ...
+                   'Visual Encoding High', [0 0 0 0 0 0 0 1 0 0 1 0]; ...
+                   'Auditory vs Visual Encoding Low', [1 0 0 1 0 0 -1 0 0 -1 0 0]; ...
+                   'Auditory vs Visual Encoding High', [0 1 0 0 1 0 0 -1 0 0 -1 0]; ...
+                   'Visual vs Auditory Encoding Low', [-1 0 0 -1 0 0 1 0 0 1 0 0]; ...
+                   'Visual vs Auditory Encoding High', [0 -1 0 0 -1 0 0 1 0 0 1 0]; ...
+                   'Beat vs Interval Low', [1 0 0 -1 0 0 1 0 0 -1 0 0]; ...
+                   'Beat vs Interval High', [0 1 0 0 -1 0 0 1 0 0 -1 0]; ...
+                   'Auditory Beat vs Auditory Interval Low', [1 0 0 -1 0 0]; ...
+                   'Auditory Beat vs Auditory Interval High', [0 1 0 0 -1 0]; ...
+                   'Visual Beat vs Visual Interval Low', [0 0 0 0 0 0 1 0 0 -1 0 0]; ...
+                   'Visual Beat vs Visual Interval High', [0 0 0 0 0 0 0 1 0 0 -1 0]; ...
+                   'Interval vs Beat Low', [-1 0 0 1 0 0 -1 0 0 1 0 0]; ...
+                   'Interval vs Beat High', [0 -1 0 0 1 0 0 -1 0 0 1 0]; ...
+                   'Auditory Interval vs Auditory Beat Low', [-1 0 0 1 0 0]; ...
+                   'Auditory Interval vs Auditory Beat High', [0 -1 0 0 1 0]; ...
+                   'Visual Interval vs Visual Beat Low', [0 0 0 0 0 0 -1 0 0 1 0 0]; ...
+                   'Visual Interval vs Visual Beat High', [0 0 0 0 0 0 0 -1 0 0 1 0]; ...
+                   'Decision', [0 0 1 0 0 1 0 0 1 0 0 1]; ...
+             };
 
 %==============================================================================
 
@@ -1122,17 +1147,20 @@ switch what
         % models each condition as a separate regressors
         % For conditions with multiple repetitions, one regressor
         % represents all the instances
-        % msdtb_imana('GLM:grand_design', 'sn', [1])
+
+        % Example usage:
+        % msdtb_imana('GLM:grand_design_rwls', 'sn', [1], ...
+        %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'})
         
         sn = subj_id;
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         % hrf_cutoff = 128; % for standard GLM in SPM
         hrf_cutoff = Inf; % for rwls
         prefix = 'u'; % prefix of the preprocessed epi we want to use
-        % events_file_tag = 'events'
-        events_file_tag = 'splitdesign_events'
-        output_folder = 'ffx_rwls'
-        %output_folder = 'ffx_splitdesign_rwls'
+        % events_file_tag = 'events';
+        events_file_tag = 'splitdesign_events';
+        output_folder = 'ffx_rwls';
+        %output_folder = 'ffx_splitdesign_rwls';
         vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design', ...
             'events_file_tag', 'output_folder'});
         
@@ -1344,13 +1372,16 @@ switch what
         end % s (sn)   
 
     case 'GLM:estimate_rwls' % estimate beta values
-        % Example usage: msdtb_imana('GLM:estimate', 'sn', [1])
+        % Example usage:
+        % msdtb_imana('GLM:estimate_rwls', 'sn', [1], ...
+        %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'}, ...
+        %             'output_folder', 'ffx_splitdesign_rwls')       
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        output_folder = 'ffx_rwls'
-        %output_folder = 'ffx_splitdesign_rwls'
-        vararginoptions(varargin, {'sn', 'design', 'output_folder'})
+        output_folder = 'ffx_rwls';
+        %output_folder = 'ffx_splitdesign_rwls';
+        vararginoptions(varargin, {'sn', 'design', 'output_folder'});
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1358,7 +1389,7 @@ switch what
             % loop over designs
             for dg=1:length(design)
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    output_folder);
+                    output_folder)
                 % Delete previous estimates, if they exist
                 if any(size(dir([estdesign_folder '/*.nii']), 1))
                     delete([estdesign_folder '/*.nii']);
@@ -1375,32 +1406,39 @@ switch what
     case 'GLM:individual_ffx_t'
         % Estimate ffx individual tmaps across runs and sessions
         
+        % Example usage:
+        % msdtb_imana('GLM:individual_ffx_t', ...
+        %             'output_folder', 'ffx_splitdesign_rwls')
+        
         % Go to the folder of script
         cd(fileparts(mfilename('fullpath')))
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'ntfd'};
+        % design = {'rand_ntfd'};
         contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
             'AllTasks: '};
-        % contrast_prefix = {'NTFD: '};
-        vararginoptions(varargin, {'sn'})
+        % contrast_prefix = {'Random NTFD: '};
+        contrasts_list = {};
+        contrasts_list = contrasts;
+        % contrasts_list = contrasts_split;
+        output_folder = 'ffx_rwls';
+        %output_folder = 'ffx_splitdesign_rwls';
+        vararginoptions(varargin, {'sn', 'output_folder'});
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);  
             for dg=1:length(design)          
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    'ffx_rwls');
-%                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-%                     'ses-02');
+                    output_folder)
 
                 A = []; % structure with SPM fields to build the t-contrasts
                 A.spmmat = {[estdesign_folder '/SPM.mat']};
-                for c=1:length(contrasts)
+                for c=1:length(contrasts_list)
                     A.consess{c}.tcon.name = [contrast_prefix{dg} ...
-                        contrasts{c,1}];
-                    A.consess{c}.tcon.weights = contrasts{c,2};
+                        contrasts_list{c,1}];
+                    A.consess{c}.tcon.weights = contrasts_list{c,2};
                     A.consess{c}.tcon.sessrep = 'replsc';
                 end
 
