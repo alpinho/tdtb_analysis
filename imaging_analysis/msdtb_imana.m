@@ -924,7 +924,7 @@ switch what
         
         if isdir('/srv/diedrichsen/data')
             source = fullfile(homedir, ...
-                'analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events/');
+                'tsclient/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events/');
         else
             source = fullfile(...
                 '/home/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events/');
