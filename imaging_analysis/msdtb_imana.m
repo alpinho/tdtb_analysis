@@ -1457,11 +1457,11 @@ switch what
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        inputs_folder = 'ffx_rwls';
-        outputs_folder = 'snorm_maps_rwls';
+        input_folder = 'ffx_rwls';
+        output_folder = 'snorm_maps_rwls';
         file_type = 'con'; % the another one is 'spmT'
-        vararginoptions(varargin, {'sn', 'design', 'inputs_folder', ...
-            'outputs_folder', 'file_type'});
+        vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
+            'output_folder', 'file_type'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -1470,7 +1470,7 @@ switch what
                 subj_str{s}, est_dir); 
             for dg=1:length(design)           
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    inputs_folder);
+                    input_folder);
                 
                 % List of contrasts in source folder
                 n_contrasts = numel(dir([estdesign_folder '/' file_type ...
@@ -1495,7 +1495,7 @@ switch what
                 
                 % Create norm folder and delete pre-existing files
                 w_condir_destination = fullfile(estderiv_subj_dir, ...
-                    design{dg}, outputs_folder);
+                    design{dg}, output_folder);
                 if any(size(dir(...
                         [w_condir_destination '/w' file_type '*.nii']), 1))
                     delete([w_condir_destination '/w' file_type '*.nii']);
