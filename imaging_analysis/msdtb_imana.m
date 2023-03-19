@@ -89,43 +89,43 @@ loc_AC = {
 
 numDummys = 0;
 
-contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...
-             'Auditory Encoding', [1 0 1 0]; ...
-             'Visual Encoding', [0 0 0 0 1 0 1 0]; ...
-             'Auditory vs Visual Encoding', [1 0 1 0 -1 0 -1 0]; ...
-             'Visual vs Auditory Encoding', [-1 0 -1 0 1 0 1 0]; ...
-             'Beat vs Interval', [1 0 -1 0 1 0 -1 0]; ...
-             'Auditory Beat vs Auditory Interval', [1 0 -1 0]; ...
-             'Visual Beat vs Visual Interval', [0 0 0 0 1 0 -1 0]; ...
-             'Interval vs Beat', [-1 0 1 0 -1 0 1 0]; ...
-             'Auditory Interval vs Auditory Beat', [-1 0 1 0]; ...
-             'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0]; ...
-             'Decision', [0 1 0 1 0 1 0 1]; ...
+contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...                        %1
+             'Auditory Encoding', [1 0 1 0]; ...                        %2
+             'Visual Encoding', [0 0 0 0 1 0 1 0]; ...                  %3
+             'Auditory vs Visual Encoding', [1 0 1 0 -1 0 -1 0]; ...    %4
+             'Visual vs Auditory Encoding', [-1 0 -1 0 1 0 1 0]; ...    %5
+             'Beat vs Interval', [1 0 -1 0 1 0 -1 0]; ...               %6
+             'Auditory Beat vs Auditory Interval', [1 0 -1 0]; ...      %7
+             'Visual Beat vs Visual Interval', [0 0 0 0 1 0 -1 0]; ...  %8
+             'Interval vs Beat', [-1 0 1 0 -1 0 1 0]; ...               %9
+             'Auditory Interval vs Auditory Beat', [-1 0 1 0]; ...      %10
+             'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0]; ...  %11
+             'Decision', [0 1 0 1 0 1 0 1]; ...                         %13
              };
          
-contrasts_split = {'Enconding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...
-                   'Enconding High', [0 1 0 0 1 0 0 1 0 0 1 0]; ... 
-                   'Auditory Encoding Low', [1 0 0 1 0 0]; ...
-                   'Auditory Encoding High', [0 1 0 0 1 0]; ...
-                   'Visual Encoding Low', [0 0 0 0 0 0 1 0 0 1 0 0]; ...
-                   'Visual Encoding High', [0 0 0 0 0 0 0 1 0 0 1 0]; ...
-                   'Auditory vs Visual Encoding Low', [1 0 0 1 0 0 -1 0 0 -1 0 0]; ...
-                   'Auditory vs Visual Encoding High', [0 1 0 0 1 0 0 -1 0 0 -1 0]; ...
-                   'Visual vs Auditory Encoding Low', [-1 0 0 -1 0 0 1 0 0 1 0 0]; ...
-                   'Visual vs Auditory Encoding High', [0 -1 0 0 -1 0 0 1 0 0 1 0]; ...
-                   'Beat vs Interval Low', [1 0 0 -1 0 0 1 0 0 -1 0 0]; ...
-                   'Beat vs Interval High', [0 1 0 0 -1 0 0 1 0 0 -1 0]; ...
-                   'Auditory Beat vs Auditory Interval Low', [1 0 0 -1 0 0]; ...
-                   'Auditory Beat vs Auditory Interval High', [0 1 0 0 -1 0]; ...
-                   'Visual Beat vs Visual Interval Low', [0 0 0 0 0 0 1 0 0 -1 0 0]; ...
-                   'Visual Beat vs Visual Interval High', [0 0 0 0 0 0 0 1 0 0 -1 0]; ...
-                   'Interval vs Beat Low', [-1 0 0 1 0 0 -1 0 0 1 0 0]; ...
-                   'Interval vs Beat High', [0 -1 0 0 1 0 0 -1 0 0 1 0]; ...
-                   'Auditory Interval vs Auditory Beat Low', [-1 0 0 1 0 0]; ...
-                   'Auditory Interval vs Auditory Beat High', [0 -1 0 0 1 0]; ...
-                   'Visual Interval vs Visual Beat Low', [0 0 0 0 0 0 -1 0 0 1 0 0]; ...
-                   'Visual Interval vs Visual Beat High', [0 0 0 0 0 0 0 -1 0 0 1 0]; ...
-                   'Decision', [0 0 1 0 0 1 0 0 1 0 0 1]; ...
+contrasts_split = {'Enconding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...                        %1
+                   'Enconding High', [0 1 0 0 1 0 0 1 0 0 1 0]; ...                       %2 
+                   'Auditory Encoding Low', [1 0 0 1 0 0]; ...                            %3
+                   'Auditory Encoding High', [0 1 0 0 1 0]; ...                           %4
+                   'Visual Encoding Low', [0 0 0 0 0 0 1 0 0 1 0 0]; ...                  %5
+                   'Visual Encoding High', [0 0 0 0 0 0 0 1 0 0 1 0]; ...                 %6
+                   'Auditory vs Visual Encoding Low', [1 0 0 1 0 0 -1 0 0 -1 0 0]; ...    %7
+                   'Auditory vs Visual Encoding High', [0 1 0 0 1 0 0 -1 0 0 -1 0]; ...   %8
+                   'Visual vs Auditory Encoding Low', [-1 0 0 -1 0 0 1 0 0 1 0 0]; ...    %9
+                   'Visual vs Auditory Encoding High', [0 -1 0 0 -1 0 0 1 0 0 1 0]; ...   %10
+                   'Beat vs Interval Low', [1 0 0 -1 0 0 1 0 0 -1 0 0]; ...               %11
+                   'Beat vs Interval High', [0 1 0 0 -1 0 0 1 0 0 -1 0]; ...              %12
+                   'Auditory Beat vs Auditory Interval Low', [1 0 0 -1 0 0]; ...          %13
+                   'Auditory Beat vs Auditory Interval High', [0 1 0 0 -1 0]; ...         %14
+                   'Visual Beat vs Visual Interval Low', [0 0 0 0 0 0 1 0 0 -1 0 0]; ...  %15
+                   'Visual Beat vs Visual Interval High', [0 0 0 0 0 0 0 1 0 0 -1 0]; ... %16
+                   'Interval vs Beat Low', [-1 0 0 1 0 0 -1 0 0 1 0 0]; ...               %17
+                   'Interval vs Beat High', [0 -1 0 0 1 0 0 -1 0 0 1 0]; ...              %18
+                   'Auditory Interval vs Auditory Beat Low', [-1 0 0 1 0 0]; ...          %19
+                   'Auditory Interval vs Auditory Beat High', [0 -1 0 0 1 0]; ...         %20
+                   'Visual Interval vs Visual Beat Low', [0 0 0 0 0 0 -1 0 0 1 0 0]; ...  %21
+                   'Visual Interval vs Visual Beat High', [0 0 0 0 0 0 0 -1 0 0 1 0]; ... %22
+                   'Decision', [0 0 1 0 0 1 0 0 1 0 0 1]; ...                             %23
              };
 
 %==============================================================================
@@ -1575,19 +1575,22 @@ switch what
         output_folder = 'ffx_t';
         file_type = 'swspmT'; % the another one is 'swcon'
         % file_type = 'swcon';
+        contrasts_list = {};
+        contrasts_list = contrasts;
+        % contrasts_list = contrasts_split;
         vararginoptions(varargin, {'sn', 'file_type', 'input_folder', ...
             'output_folder'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
-        for con = 1:length(contrasts)
+        for con = 1:length(contrasts_list)
             for dg=1:length(design)
                 output_dir = fullfile(base_dir, derivatives_dir, ...
                     'group', design{dg}, output_folder)
 %                 if con == 1 && isfolder(output_dir)
 %                     rmdir(output_dir, 's');
 %                 end
-                contrast = strrep(contrasts{con,1}, ' ', '_');
+                contrast = strrep(contrasts_list{con,1}, ' ', '_');
                 contrast_dir = fullfile(output_dir, ...
                     sprintf('con_%02d_%s', con, contrast));
                 if not(isfolder(contrast_dir))
@@ -1631,6 +1634,9 @@ switch what
         % design = {'rand_ntfd'};
         input_folder = 'snorm_maps_rwls';
         output_folder = 'onesample_t';
+        contrasts_list = {};
+        contrasts_list = contrasts;
+        % contrasts_list = contrasts_split;
         prefix = 'swcon';
         
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
@@ -1647,8 +1653,8 @@ switch what
             if not(isfolder(ost_dir))
                 mkdir(ost_dir);
             end
-            for sc=1:length(contrasts)
-                contrast = strrep(contrasts{sc,1}, ' ', '_');
+            for sc=1:length(contrasts_list)
+                contrast = strrep(contrasts_list{sc,1}, ' ', '_');
                 condir = fullfile(ost_dir, ...
                     sprintf('con_%02d_%s', sc, contrast));
                 folder(condir);
@@ -1683,15 +1689,20 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         model = {'onesample_t'};
+        contrasts_list = {};
+        contrasts_list = contrasts;
+        % contrasts_list = contrasts_split;
         vararginoptions(varargin, {'sn', 'model'})
+        
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         derivgroup_dir = fullfile(base_dir, derivatives_dir, 'group'); 
         for dg=1:length(design)
             designgroup_dir = fullfile(derivgroup_dir, design{dg});
             for m=1:length(model)
                 modelgroup_dir = fullfile(designgroup_dir, model{m});
-                for c=1:length(contrasts)
-                    contrast = strrep(contrasts{c,1}, ' ', '_');
+                for c=1:length(contrasts_list)
+                    contrast = strrep(contrasts_list{c,1}, ' ', '_');
                     condir = fullfile(modelgroup_dir, ...
                         sprintf('con_%02d_%s', c, contrast));
                     % Delete any pre-existing nifit file
@@ -1706,7 +1717,7 @@ switch what
                 
                     matlabbatch{1}.spm.stats.fmri_est=A;
                     spm_jobman('run',matlabbatch);
-                end % c (contrasts)
+                end % c (contrasts_list)
             end % m (model)
         end % dg (design)
         
@@ -1719,21 +1730,26 @@ switch what
         contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
             'AllTasks: '};
         model = {'onesample_t'};
+        contrasts_list = {};
+        % contrasts_list = contrasts;
+        contrasts_list = contrasts_split;
         vararginoptions(varargin, {'sn', 'model'})
+        
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         derivgroup_dir = fullfile(base_dir, derivatives_dir, 'group'); 
         for dg=1:length(design)
             designgroup_dir = fullfile(derivgroup_dir, design{dg});
             for m=1:length(model)
                 modelgroup_dir = fullfile(designgroup_dir, model{m});                
-                for c=1:length(contrasts)
-                    contrast = strrep(contrasts{c,1}, ' ', '_');
+                for c=1:length(contrasts_list)
+                    contrast = strrep(contrasts_list{c,1}, ' ', '_');
                     condir = fullfile(modelgroup_dir, ...
                         sprintf('con_%02d_%s', c, contrast));
                     A = []; % structure with SPM fields to build the t-contrast                
                     A.spmmat = {[condir '/SPM.mat']};
                     A.consess{1}.tcon.name = [contrast_prefix{dg} ...
-                        contrasts{c,1}];
+                        contrasts_list{c,1}];
                     A.consess{1}.tcon.weights = [1];
                     A.consess{1}.tcon.sessrep = 'none';
 
@@ -1741,7 +1757,7 @@ switch what
                     A.delete = 1; % 1 yes, 0 no
                     matlabbatch{1}.spm.stats.con=A;
                     spm_jobman('run', matlabbatch);
-                end % c (contrasts)
+                end % c (contrasts_list)
             end % m (model)
         end % dg (design)
                 
