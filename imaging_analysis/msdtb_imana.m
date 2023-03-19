@@ -1565,22 +1565,25 @@ switch what
         msdtb_imana('CON:smooth')
         
     case 'GROUP:ffx_t'
-        % Estimate ffx group tmaps
+        % Estimate ffx group tmaps       
+        % Example usage: msdtb_imana('GROUP:ffx_t', 'file_type', 'swcon')
         
         sn = subj_id; %subjNum
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        inputs_folder = 'snorm_maps_rwls';
+        input_folder = 'snorm_maps_rwls';
+        output_folder = 'ffx_t';
         file_type = 'swspmT'; % the another one is 'swcon'
         % file_type = 'swcon';
-        vararginoptions(varargin, {'sn', 'file_type'});
+        vararginoptions(varargin, {'sn', 'file_type', 'input_folder', ...
+            'output_folder'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         for con = 1:length(contrasts)
             for dg=1:length(design)
                 output_dir = fullfile(base_dir, derivatives_dir, ...
-                    'group', design{dg}, 'ffx_t');
+                    'group', design{dg}, output_folder)
 %                 if con == 1 && isfolder(output_dir)
 %                     rmdir(output_dir, 's');
 %                 end
@@ -1599,7 +1602,7 @@ switch what
                 maps = {};
                 for s = sn               
                     subj_dir = fullfile(base_dir, derivatives_dir, ...
-                        subj_str{s}, est_dir, design{dg}, inputs_folder);
+                        subj_str{s}, est_dir, design{dg}, input_folder);
                     map_name = sprintf('%s_%04d.nii', file_type, con);
                     maps{s,1} = fullfile(subj_dir, map_name);
                 end
@@ -1626,16 +1629,18 @@ switch what
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        inputs_folder = 'snorm_maps_rwls';
+        input_folder = 'snorm_maps_rwls';
+        output_folder = 'onesample_t';
         prefix = 'swcon';
         
-        vararginoptions(varargin, {'sn', 'design'});
+        vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
+            'output_folder'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         derivgroup_dir = fullfile(base_dir, derivatives_dir, 'group');        
         for dg=1:length(design)
-            ost_dir = fullfile(derivgroup_dir, design{dg}, 'onesample_t');
+            ost_dir = fullfile(derivgroup_dir, design{dg}, output_folder);
             if isfolder(ost_dir)
                 rmdir(ost_dir, 's');
             end
@@ -1651,7 +1656,7 @@ switch what
                 icon = {};
                 for s = sn
                     snormcon_folder = fullfile(base_dir, derivatives_dir, ...
-                        subj_str{s}, est_dir, design{dg}, inputs_folder);
+                        subj_str{s}, est_dir, design{dg}, input_folder);
                     icon{s,1} = fullfile(snormcon_folder, swname);
                 end % s (sn)
                 A = [];
