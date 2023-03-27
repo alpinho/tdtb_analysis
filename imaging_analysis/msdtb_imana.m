@@ -308,16 +308,9 @@ switch what
             J.warp.write   = [1 1];
             matlabbatch{1}.spm.spatial.preproc=J;
             spm_jobman('run',matlabbatch);
-        end % s (subject)
+        end % s (subject)      
         
-    case 'ANAT:run_all'
-        % Example usage: msdtb_imana('ANAT:run_all')
-        
-        msdtb_imana('ANAT:reslice_lpi')
-        msdtb_imana('ANAT:center_ac')
-        msdtb_imana('ANAT:segment')        
-        
-    case 'ANAT:normalization'
+    case 'ANAT:t1_normalization'
         % Example usage: msdtb_imana('ANAT:normalization')
         
         sn       = subj_id; % subject list
@@ -338,8 +331,16 @@ switch what
                 
             % Apply normalization
             spmja_normalization_write(deffield_file, subj_anatfile, ...
-                'voxel_size', [1 1 1])
-        end  
+                'voxel_size', [1.0 1.0 1.0])
+        end
+        
+    case 'ANAT:run_all'
+        % Example usage: msdtb_imana('ANAT:run_all')
+        
+        msdtb_imana('ANAT:reslice_lpi')
+        msdtb_imana('ANAT:center_ac')
+        msdtb_imana('ANAT:segment')
+        msdtb_imana('ANAT:t1_normalization') 
 
     case 'ANAT:T1w_bcorrect' % bias correction for anatomical T1w (optional)
         % nishimoto_imana('ANAT:T1w_bcorrect')
@@ -795,7 +796,7 @@ switch what
                 delete(graymatter_mask)
             end  
                 
-            % First mask: whole btain
+            % First mask: whole brain
             nam{1}  = meanepi;
             nam{2}  = fullfile(subj_anatderiv_dir, sprintf('c1%s_T1w.nii', ...
                 subj_str{s}));
@@ -813,6 +814,34 @@ switch what
             spm_imcalc(nam, graymatter_mask, 'i1>0 & i2>0.1');
 
         end % s (sn)
+        
+    case 'ANAT:mask_normalization'
+        % Example usage: msdtb_imana('ANAT:normalization')
+        
+        sn       = subj_id; % subject list
+        vararginoptions(varargin, {'sn'});
+        
+        for s = sn
+            % Get the directory of subjects anatomical
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
+                
+            % Deformation-Field file
+            deffield_file = [subj_anatderiv_dir '/y_' subj_str{s} '_T1w.nii'];
+            
+            % Path of masks
+            funcmean_deriv = fullfile(deriv_subj_dir, 'ses-01', func_dir);
+            wholebrain_mask = fullfile(funcmean_deriv, ...
+                'rmask_noskull.nii');
+            graymatter_mask = fullfile(funcmean_deriv, 'rmask_gray.nii');
+                
+            % Apply normalization
+            spmja_normalization_write(deffield_file, wholebrain_mask, ...
+                'voxel_size', [2.5 2.5 2.5])
+            spmja_normalization_write(deffield_file, graymatter_mask, ...
+                'voxel_size', [2.5 2.5 2.5])
+        end
         
     case 'FUNC:run_all'
         % Example usage: msdtb_imana('FUNC:run_all')
