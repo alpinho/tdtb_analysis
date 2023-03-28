@@ -815,8 +815,8 @@ switch what
 
         end % s (sn)
         
-    case 'ANAT:mask_normalization'
-        % Example usage: msdtb_imana('ANAT:normalization')
+    case 'FUNC:mask_normalization'
+        % Example usage: msdtb_imana('FUNC:mask_normalization')
         
         sn       = subj_id; % subject list
         vararginoptions(varargin, {'sn'});
@@ -851,6 +851,7 @@ switch what
         msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
         msdtb_imana('FUNC:make_samealign', 'prefix', '')
         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
+        msdtb_imana('FUNC:mask_normalization')
         
     case 'FUNC:meanepi_bcorrect' % bias correction for the mean image before coreg (optional)
         % uses the bias field estimated in SPM segmenttion
@@ -1592,6 +1593,59 @@ switch what
         msdtb_imana('GLM:individual_ffx_t')
         msdtb_imana('CON:normalization')
         msdtb_imana('CON:smooth')
+        
+    case 'GROUP:mask'
+        % Example usage: msdtb_imana('GROUP:mask', 'mask_type', ...
+        %                            'wrmask_gray.nii')
+        
+        sn       = subj_id; % subject list
+        mask_type = 'wrmask_noskull'; % whole-brain
+        % mask_type = 'wrmask_gray'   % gray-matter
+        vararginoptions(varargin, {'sn', 'mask_type'});
+        
+        group_dir = fullfile(base_dir, derivatives_dir, 'group/anat')
+        gmask_name = sprintf('group_%s.nii', mask_type(3:end));
+        group_mask_path = fullfile(group_dir, gmask_name);
+        if not(isfolder(group_dir))
+            % Create group dir if does not exist
+            mkdir(group_dir);
+        elseif isfile(group_mask_path)
+            % Delete previous group map if it exists
+            delete(group_mask_path);
+        end
+
+        normalized_masks = {};
+        formula = '';
+        for s = sn
+            % Get the directory of subjects' functional data
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            
+            % Path of individual masks
+            funcmean_deriv = fullfile(deriv_subj_dir, 'ses-01', func_dir);
+            normalized_masks{s,1} = fullfile(funcmean_deriv, ...
+                [mask_type '.nii']);
+            
+            % Create string with formula
+            if s == length(sn)
+                formula = sprintf('(%si%d)/%d >= 0.8', formula, s, length(sn))
+            else
+                formula = sprintf('%si%d+', formula, s);
+            end
+        end
+        
+        A.input = normalized_masks;
+        A.output = gmask_name;
+        A.outdir = {group_dir};
+        A.expression = formula;
+        A.var = struct('name', {}, 'value', {});
+        A.options.dmtx = 0;
+        A.options.mask = 0;
+        A.options.interp = 1;
+        A.options.dtype = 4;               
+
+        matlabbatch{1}.spm.util.imcalc=A;
+        spm_jobman('run', matlabbatch);        
         
     case 'GROUP:ffx_t'
         % Estimate ffx group tmaps       
