@@ -1540,9 +1540,8 @@ switch what
         end % s (subject)
         
     case 'CON:normalization'
-        % Example usage: msdtb_imana('CON:normalization', 'file_type', 'spmT')
-        
         % Normalize individual contrasts or t-maps
+        % Example usage: msdtb_imana('CON:normalization', 'file_type', 'spmT')     
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
@@ -1582,16 +1581,25 @@ switch what
                 spmja_normalization_write(deffield_file, confiles, ...
                     'voxel_size', [2.5 2.5 2.5])
                 
-                % Delete pre-existing files from norm folder
+                % Create norm folder if does not exist...
                 w_condir_destination = fullfile(estderiv_subj_dir, ...
                     design{dg}, output_folder);
+                if not(isfolder(w_condir_destination))
+                    mkdir(w_condir_destination);
+                end
+                
+                % ... or delete pre-existing files from norm folder
                 if any(size(dir(...
-                        [w_condir_destination '/mw' file_type '*.nii']), 1))
-                    delete([w_condir_destination '/mw' file_type '*.nii']);
+                        [w_condir_destination '/w' file_type ...
+                        '*_masked.nii']), 1))
+                    delete([w_condir_destination '/w' file_type ...
+                        '*_masked.nii']);
                 end
                 if any(size(dir(...
-                        [w_condir_destination '/smw' file_type '*.nii']), 1))
-                    delete([w_condir_destination '/smw' file_type '*.nii']);
+                        [w_condir_destination '/sw' file_type ...
+                        '*_masked.nii']), 1))
+                    delete([w_condir_destination '/sw' file_type ...
+                        '*_masked.nii']);
                 end
                 
                 % List normalized contrasts in ffx folder
@@ -1602,12 +1610,12 @@ switch what
                 
                 % Mask results with the group-level whole-brain mask                
                 cd(w_condir_destination)
-                w_confiles_destination = dir(['w' file_type '_*.nii']);
+                w_confiles_destination = dir(['w' file_type '*.nii']);
                 for w = 1:length(w_confiles_destination) 
                     A = [];
                     A.input = {group_mask; w_confiles_destination(w).name};
-                    A.output = ['m' w_confiles_destination(w).name(1:end-4) ...
-                        '.nii'];
+                    A.output = [w_confiles_destination(w).name(1:end-4) ...
+                        '_masked.nii'];
                     A.outdir = {w_condir_destination};
                     A.expression = 'i2.*(i1>0.99)';
                     A.var = struct('name', {}, 'value', {});
@@ -1618,12 +1626,6 @@ switch what
 
                     matlabbatch{1}.spm.util.imcalc=A;
                     spm_jobman('run', matlabbatch);
-                end
-                
-                % Delete non-masked files
-                if any(size(dir(...
-                        [w_condir_destination '/w' file_type '*.nii']), 1))
-                    delete([w_condir_destination '/w' file_type '*.nii']);
                 end
             end
         end        
@@ -1637,6 +1639,8 @@ switch what
         contrasts_folder = 'snorm_maps_rwls';
         file_type = 'con'; % the another one is 'spmT'
         smoothing_kernel = [8 8 8];
+        group_mask = fullfile(base_dir, derivatives_dir, ...
+            'group/anat/group_mask_noskull.nii');
         
         vararginoptions(varargin, {'sn', 'design', 'contrasts_folder', ...
             'file_type', 'smoothing_kernel'});
@@ -1650,24 +1654,54 @@ switch what
                 normcon_folder = fullfile(estderiv_subj_dir, design{dg}, ...
                     contrasts_folder);
                 
+                % Delete pre-existing smoothed                
+                if any(size(dir([normcon_folder '/sw' file_type '*.nii']), 1))
+                    delete([normcon_folder '/sw' file_type '*.nii']);
+                end
+                
                 % List of normalized contrasts
-                n_contrasts = numel(dir([normcon_folder '/w' file_type ...
-                    '_*.nii']));
-                wconfiles_destination = {};
+                n_contrasts = numel(dir(...
+                    [normcon_folder '/w' file_type '*.nii'])) - numel(dir(...
+                    [normcon_folder '/w' file_type '*_masked.nii']));
+                wconfiles = {};
                 for c=1:n_contrasts
                     cname = sprintf('w%s_%04d.nii', file_type, c);
-                    wconfiles_destination{c,1} = fullfile(normcon_folder, ...
-                        cname);
+                    wconfiles{c,1} = fullfile(normcon_folder, cname);
                 end
                 A = [];
-                A.data = wconfiles_destination;
+                A.data = wconfiles;
                 A.fwhm = smoothing_kernel;
                 A.dtype = 0;
                 A.im = 0;
                 A.prefix = 's';
                 
+                matlabbatch{1} = {};
                 matlabbatch{1}.spm.spatial.smooth=A;
                 spm_jobman('run',matlabbatch);
+                
+                % Mask results with the group-level whole-brain mask                
+                cd(normcon_folder)
+                sw_confiles = dir(['sw' file_type '*.nii']);
+                for s = 1:length(sw_confiles) 
+                    S = [];
+                    S.input = {group_mask; sw_confiles(s).name};
+                    S.output = [sw_confiles(s).name(1:end-4) '_masked.nii'];
+                    S.outdir = {normcon_folder};
+                    S.expression = 'i2.*(i1>0.99)';
+                    S.var = struct('name', {}, 'value', {});
+                    S.options.dmtx = 0;
+                    S.options.mask = 0;
+                    S.options.interp = 1;
+                    S.options.dtype = 4;               
+
+                    matlabbatch{1} = {};
+                    matlabbatch{1}.spm.util.imcalc=S;
+                    spm_jobman('run', matlabbatch);
+                    
+                    % Delete non-masked files
+                    delete(sprintf('%s', sw_confiles(s).name(2:end)));
+                    delete(sprintf('%s', sw_confiles(s).name));
+                end
             end
         end
         
