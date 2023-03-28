@@ -21,6 +21,11 @@ else
         'Workdir not found. Mount or connect to server and try again.');
 end
 
+% Add directory path of current script to the path
+script_fullpath = mfilename('fullpath');
+script_dirpath = script_fullpath(1:end-12);
+addpath(script_dirpath);
+
 %% ----- Initialize suit toolbox -----
 % check for SUIT installation
 if isempty(which('suit_isolate_seg')) % this function is only visible while SPM is actually "running" (not just on the path). This needs to happen for SUIT to run.
@@ -1581,16 +1586,12 @@ switch what
                 w_condir_destination = fullfile(estderiv_subj_dir, ...
                     design{dg}, output_folder);
                 if any(size(dir(...
-                        [w_condir_destination '/w' file_type ...
-                        '*_masked.nii']), 1))
-                    delete([w_condir_destination '/w' file_type ...
-                        '*_masked.nii']);
+                        [w_condir_destination '/mw' file_type '*.nii']), 1))
+                    delete([w_condir_destination '/mw' file_type '*.nii']);
                 end
                 if any(size(dir(...
-                        [w_condir_destination '/sw' file_type ...
-                        '*_masked.nii']), 1))
-                    delete([w_condir_destination '/sw' file_type ...
-                        '*_masked.nii']);
+                        [w_condir_destination '/smw' file_type '*.nii']), 1))
+                    delete([w_condir_destination '/smw' file_type '*.nii']);
                 end
                 
                 % List normalized contrasts in ffx folder
@@ -1605,8 +1606,8 @@ switch what
                 for w = 1:length(w_confiles_destination) 
                     A = [];
                     A.input = {group_mask; w_confiles_destination(w).name};
-                    A.output = [w_confiles_destination(w).name(1:end-4) ...
-                        '_masked.nii'];
+                    A.output = ['m' w_confiles_destination(w).name(1:end-4) ...
+                        '.nii'];
                     A.outdir = {w_condir_destination};
                     A.expression = 'i2.*(i1>0.99)';
                     A.var = struct('name', {}, 'value', {});
