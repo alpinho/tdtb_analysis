@@ -843,6 +843,60 @@ switch what
                 'voxel_size', [2.5 2.5 2.5])
         end
         
+    case 'GROUP:mask'
+        % Example usage: msdtb_imana('GROUP:mask', 'mask_type', ...
+        %                            'wrmask_gray.nii')
+        
+        sn       = subj_id; % subject list
+        mask_type = 'wrmask_noskull'; % whole-brain
+        % mask_type = 'wrmask_gray'   % gray-matter
+        vararginoptions(varargin, {'sn', 'mask_type'});
+        
+        group_dir = fullfile(base_dir, derivatives_dir, 'group/anat')
+        gmask_name = sprintf('group_%s.nii', mask_type(3:end));
+        group_mask_path = fullfile(group_dir, gmask_name);
+        if not(isfolder(group_dir))
+            % Create group dir if does not exist
+            mkdir(group_dir);
+        elseif isfile(group_mask_path)
+            % Delete previous group map if it exists
+            delete(group_mask_path);
+        end
+
+        normalized_masks = {};
+        formula = '';
+        for s = sn
+            % Get the directory of subjects' functional data
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            
+            % Path of individual masks
+            funcmean_deriv = fullfile(deriv_subj_dir, 'ses-01', func_dir);
+            normalized_masks{s,1} = fullfile(funcmean_deriv, ...
+                [mask_type '.nii']);
+            
+            % Create string with formula
+            if s == length(sn)
+                formula = sprintf('(%si%d)/%d >= 0.8', formula, s, length(sn))
+            else
+                formula = sprintf('%si%d+', formula, s);
+            end
+        end
+        
+        A = [];
+        A.input = normalized_masks;
+        A.output = gmask_name;
+        A.outdir = {group_dir};
+        A.expression = formula;
+        A.var = struct('name', {}, 'value', {});
+        A.options.dmtx = 0;
+        A.options.mask = 0;
+        A.options.interp = 1;
+        A.options.dtype = 4;               
+
+        matlabbatch{1}.spm.util.imcalc=A;
+        spm_jobman('run', matlabbatch);    
+        
     case 'FUNC:run_all'
         % Example usage: msdtb_imana('FUNC:run_all')
         
@@ -852,6 +906,7 @@ switch what
         msdtb_imana('FUNC:make_samealign', 'prefix', '')
         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
         msdtb_imana('FUNC:mask_normalization')
+        msdtb_imana('GROUP:mask')
         
     case 'FUNC:meanepi_bcorrect' % bias correction for the mean image before coreg (optional)
         % uses the bias field estimated in SPM segmenttion
@@ -1490,6 +1545,8 @@ switch what
         input_folder = 'ffx_rwls';
         output_folder = 'snorm_maps_rwls';
         file_type = 'con'; % the another one is 'spmT'
+        group_mask = fullfile(base_dir, derivatives_dir, ...
+            'group/anat/group_mask_noskull.nii');
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
             'output_folder', 'file_type'});
         
@@ -1520,23 +1577,53 @@ switch what
                 spmja_normalization_write(deffield_file, confiles, ...
                     'voxel_size', [2.5 2.5 2.5])
                 
-                % List normalized contrasts in ffx folder
-                w_confiles_source = [estdesign_folder '/w' file_type '_*.nii'];
-                
-                % Create norm folder and delete pre-existing files
+                % Delete pre-existing files from norm folder
                 w_condir_destination = fullfile(estderiv_subj_dir, ...
                     design{dg}, output_folder);
+                if any(size(dir(...
+                        [w_condir_destination '/w' file_type ...
+                        '*_masked.nii']), 1))
+                    delete([w_condir_destination '/w' file_type ...
+                        '*_masked.nii']);
+                end
+                if any(size(dir(...
+                        [w_condir_destination '/sw' file_type ...
+                        '*_masked.nii']), 1))
+                    delete([w_condir_destination '/sw' file_type ...
+                        '*_masked.nii']);
+                end
+                
+                % List normalized contrasts in ffx folder
+                w_confiles_source = fullfile(estdesign_folder, ...
+                    ['w' file_type '_*.nii']);
+                % Copy normalized contrasts to destination folder
+                movefile(w_confiles_source, w_condir_destination);
+                
+                % Mask results with the group-level whole-brain mask                
+                cd(w_condir_destination)
+                w_confiles_destination = dir(['w' file_type '_*.nii']);
+                for w = 1:length(w_confiles_destination) 
+                    A = [];
+                    A.input = {group_mask; w_confiles_destination(w).name};
+                    A.output = [w_confiles_destination(w).name(1:end-4) ...
+                        '_masked.nii'];
+                    A.outdir = {w_condir_destination};
+                    A.expression = 'i2.*(i1>0.99)';
+                    A.var = struct('name', {}, 'value', {});
+                    A.options.dmtx = 0;
+                    A.options.mask = 0;
+                    A.options.interp = 1;
+                    A.options.dtype = 4;               
+
+                    matlabbatch{1}.spm.util.imcalc=A;
+                    spm_jobman('run', matlabbatch);
+                end
+                
+                % Delete non-masked files
                 if any(size(dir(...
                         [w_condir_destination '/w' file_type '*.nii']), 1))
                     delete([w_condir_destination '/w' file_type '*.nii']);
                 end
-                if any(size(dir(...
-                        [w_condir_destination '/sw' file_type '*.nii']), 1))
-                    delete([w_condir_destination '/sw' file_type '*.nii']);
-                end
-                
-                % Copy normalized contrasts to destination folder
-                movefile(w_confiles_source, w_condir_destination);
             end
         end        
         
@@ -1592,60 +1679,7 @@ switch what
         msdtb_imana('GLM:estimate_rwls')
         msdtb_imana('GLM:individual_ffx_t')
         msdtb_imana('CON:normalization')
-        msdtb_imana('CON:smooth')
-        
-    case 'GROUP:mask'
-        % Example usage: msdtb_imana('GROUP:mask', 'mask_type', ...
-        %                            'wrmask_gray.nii')
-        
-        sn       = subj_id; % subject list
-        mask_type = 'wrmask_noskull'; % whole-brain
-        % mask_type = 'wrmask_gray'   % gray-matter
-        vararginoptions(varargin, {'sn', 'mask_type'});
-        
-        group_dir = fullfile(base_dir, derivatives_dir, 'group/anat')
-        gmask_name = sprintf('group_%s.nii', mask_type(3:end));
-        group_mask_path = fullfile(group_dir, gmask_name);
-        if not(isfolder(group_dir))
-            % Create group dir if does not exist
-            mkdir(group_dir);
-        elseif isfile(group_mask_path)
-            % Delete previous group map if it exists
-            delete(group_mask_path);
-        end
-
-        normalized_masks = {};
-        formula = '';
-        for s = sn
-            % Get the directory of subjects' functional data
-            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s});
-            
-            % Path of individual masks
-            funcmean_deriv = fullfile(deriv_subj_dir, 'ses-01', func_dir);
-            normalized_masks{s,1} = fullfile(funcmean_deriv, ...
-                [mask_type '.nii']);
-            
-            % Create string with formula
-            if s == length(sn)
-                formula = sprintf('(%si%d)/%d >= 0.8', formula, s, length(sn))
-            else
-                formula = sprintf('%si%d+', formula, s);
-            end
-        end
-        
-        A.input = normalized_masks;
-        A.output = gmask_name;
-        A.outdir = {group_dir};
-        A.expression = formula;
-        A.var = struct('name', {}, 'value', {});
-        A.options.dmtx = 0;
-        A.options.mask = 0;
-        A.options.interp = 1;
-        A.options.dtype = 4;               
-
-        matlabbatch{1}.spm.util.imcalc=A;
-        spm_jobman('run', matlabbatch);        
+        msdtb_imana('CON:smooth')    
         
     case 'GROUP:ffx_t'
         % Estimate ffx group tmaps       
