@@ -1541,7 +1541,11 @@ switch what
         
     case 'CON:normalization'
         % Normalize individual contrasts or t-maps
-        % Example usage: msdtb_imana('CON:normalization', 'file_type', 'spmT')     
+        % Example usage: msdtb_imana(
+        %                   'CON:normalization', 
+        %                   'input_folder', 'ffx_splitdesign_rwls', ...
+        %                   'output_folder', 'snorm_splitdesign_maps_rwls', ...
+        %                   'file_type', 'spmT')     
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
@@ -1631,12 +1635,16 @@ switch what
         end        
         
     case 'CON:smooth'        
-        % Example usage: msdtb_imana('CON:smooth', 'file_type', 'spmT')
+        % Example usage: msdtb_imana(
+        %                   'CON:smooth', 
+        %                   'contrasts_folder', ...
+        %                   'snorm_splitdesign_maps_rwls', ...
+        %                   'file_type', 'spmT')
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        contrasts_folder = 'snorm_maps_rwls';
+        contrasts_folder = 'snorm_maps_rwls'; % or 'snorm_splitdesign_maps_rwls'
         file_type = 'con'; % the another one is 'spmT'
         smoothing_kernel = [8 8 8];
         group_mask = fullfile(base_dir, derivatives_dir, ...
@@ -1779,18 +1787,26 @@ switch what
         end     
         
     case 'GROUP:one-sample_t_design'
-        % Example usage: msdtb_imana('GROUP:one-sample_t_design')
+        % Example usage: msdtb_imana('GROUP:one-sample_t_design', ...
+        %                'input_folder', 'snorm_splitdesign_maps_rwls', ...
+        %                'output_folder', 'onesample_t_splitdesign')
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        input_folder = 'snorm_maps_rwls';
-        output_folder = 'onesample_t';
+        input_folder = 'snorm_maps_rwls'; % or 'snorm_splitdesign_maps_rwls'
+        output_folder = 'onesample_t'; % or 'onesample_t_splitdesign'
+        
+        % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
         contrasts_list = contrasts;
         % contrasts_list = contrasts_split;
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
         prefix = 'swcon';
         
+        group_mask = fullfile(base_dir, derivatives_dir, ...
+            'group/anat/group_mask_noskull.nii');
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
             'output_folder'});
         
@@ -1810,7 +1826,7 @@ switch what
                 condir = fullfile(ost_dir, ...
                     sprintf('con_%02d_%s', sc, contrast));
                 folder(condir);
-                swname = sprintf('%s_%04d.nii', prefix, sc);
+                swname = sprintf('%s_%04d_masked.nii', prefix, sc);
                 icon = {};
                 for s = sn
                     snormcon_folder = fullfile(base_dir, derivatives_dir, ...
@@ -1824,7 +1840,7 @@ switch what
                 A.multi_cov = struct('files', {}, 'iCFI', {}, 'iCC', {});
                 A.masking.tm.tm_none = 1;
                 A.masking.im = 1;
-                A.masking.em = {''};
+                A.masking.em = {group_mask};
                 A.globalc.g_omit = 1;
                 A.globalm.gmsca.gmsca_no = 1;
                 A.globalm.glonorm = 1;
@@ -1835,15 +1851,20 @@ switch what
         end % dg (design)
         
     case 'GROUP:estimation'
-        % Example usage: msdtb_imana('GROUP:estimate', 'sn', [1])
+        % Example usage: msdtb_imana('GROUP:estimation', ...
+        %                            'model', 'onesample_t_splitdesign')
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        model = {'onesample_t'};
+        model = {'onesample_t'}; % or 'onesample_t_splitdesign'
+
+        % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
         contrasts_list = contrasts;
         % contrasts_list = contrasts_split;
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
         vararginoptions(varargin, {'sn', 'model'})
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
@@ -1875,16 +1896,22 @@ switch what
         
     case 'GROUP:rfx_t'
         % Estimate rfx group tmaps
+        % Example usage: msdtb_imana('GROUP:rfx_t', ...
+        %                            'model', {'onesample_t_splitdesign'})
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
             'AllTasks: '};
-        model = {'onesample_t'};
+        model = {'onesample_t'}; % or 'onesample_t_splitdesign'
+
+        % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        % contrasts_list = contrasts;
-        contrasts_list = contrasts_split;
+        contrasts_list = contrasts;
+        % contrasts_list = contrasts_split;
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
         vararginoptions(varargin, {'sn', 'model'})
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
