@@ -1552,7 +1552,7 @@ switch what
         % design = {'rand_ntfd'};
         input_folder = 'ffx_rwls';
         output_folder = 'snorm_maps_rwls';
-        file_type = 'con'; % the another one is 'spmT'
+        file_type = 'con'; % the another one is 'spmT or ResMS'
         group_mask = fullfile(base_dir, derivatives_dir, ...
             'group/anat/group_mask_noskull.nii');
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
@@ -1567,13 +1567,18 @@ switch what
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
                     input_folder);
                 
-                % List of contrasts in source folder
-                n_contrasts = numel(dir([estdesign_folder '/' file_type ...
-                    '_*.nii']));
                 confiles = {};
-                for c=1:n_contrasts
-                    cname = sprintf('%s_%04d.nii', file_type, c);
-                    confiles{c,1} = fullfile(estdesign_folder, cname);
+                if file_type == 'ResMS'
+                    cname = sprintf('%s.nii', file_type);
+                    confiles = {fullfile(estdesign_folder, cname)};
+                else
+                    % List of contrasts in source folder
+                    n_contrasts = numel(dir([estdesign_folder '/' file_type ...
+                        '_*.nii']));
+                    for c=1:n_contrasts
+                        cname = sprintf('%s_%04d.nii', file_type, c);
+                        confiles{c,1} = fullfile(estdesign_folder, cname);
+                    end
                 end
                 
                 % Deformation-Field file
@@ -1608,7 +1613,7 @@ switch what
                 
                 % List normalized contrasts in ffx folder
                 w_confiles_source = fullfile(estdesign_folder, ...
-                    ['w' file_type '_*.nii']);
+                    ['w' file_type '*.nii']);
                 % Copy normalized contrasts to destination folder
                 movefile(w_confiles_source, w_condir_destination);
                 
@@ -1645,7 +1650,7 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         contrasts_folder = 'snorm_maps_rwls'; % or 'snorm_splitdesign_maps_rwls'
-        file_type = 'con'; % the another one is 'spmT'
+        file_type = 'con'; % the another one is spmT or ResMS'
         smoothing_kernel = [8 8 8];
         group_mask = fullfile(base_dir, derivatives_dir, ...
             'group/anat/group_mask_noskull.nii');
@@ -1668,14 +1673,20 @@ switch what
                 end
                 
                 % List of normalized contrasts
-                n_contrasts = numel(dir(...
-                    [normcon_folder '/w' file_type '*.nii'])) - numel(dir(...
-                    [normcon_folder '/w' file_type '*_masked.nii']));
                 wconfiles = {};
-                for c=1:n_contrasts
-                    cname = sprintf('w%s_%04d.nii', file_type, c);
-                    wconfiles{c,1} = fullfile(normcon_folder, cname);
+                if file_type == 'ResMS'
+                    wconfiles = {fullfile(normcon_folder, 'wResMS.nii')};
+                else
+                    n_contrasts = numel(dir(...
+                        [normcon_folder '/w' file_type '*.nii'])) - numel(dir(...
+                        [normcon_folder '/w' file_type '*_masked.nii']));
+
+                    for c=1:n_contrasts
+                        cname = sprintf('w%s_%04d.nii', file_type, c);
+                        wconfiles{c,1} = fullfile(normcon_folder, cname);
+                    end
                 end
+                
                 A = [];
                 A.data = wconfiles;
                 A.fwhm = smoothing_kernel;
