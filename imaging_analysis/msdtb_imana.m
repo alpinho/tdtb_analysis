@@ -106,6 +106,10 @@ contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...                        %1
              'Auditory Interval vs Auditory Beat', [-1 0 1 0]; ...      %10
              'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0]; ...  %11
              'Decision', [0 1 0 1 0 1 0 1]; ...                         %13
+             'Decision Beat vs Decision Interval', [0 1 0 -1 0 1 0 -1]; ... %14
+             'Decision Interval vs Decision Beat', [0 -1 0 1 0 -1 0 1]; ... %15
+             'Auditory Decision vs Visual Decision', [0 1 0 1 0 -1 0 -1]; ... %16
+             'Visual Decision vs Auditory Decision', [0 -1 0 -1 0 1 0 1]; ... %17
              };
          
 contrasts_split = {'Enconding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...                        %1
@@ -131,6 +135,10 @@ contrasts_split = {'Enconding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...              
                    'Visual Interval vs Visual Beat Low', [0 0 0 0 0 0 -1 0 0 1 0 0]; ...  %21
                    'Visual Interval vs Visual Beat High', [0 0 0 0 0 0 0 -1 0 0 1 0]; ... %22
                    'Decision', [0 0 1 0 0 1 0 0 1 0 0 1]; ...                             %23
+                   'Decision Beat vs Decision Interval', [0 0 1 0 0 -1 0 0 1 0 0 -1]; ... %24
+                   'Decision Interval vs Decision Beat', [0 0 -1 0 0 1 0 0 -1 0 0 1]; ... %25
+                   'Auditory Decision vs Visual Decision', [0 0 1 0 0 1 0 0 -1 0 0 -1]; ... %26
+                   'Visual Decision vs Auditory Decision', [0 0 -1 0 0 -1 0 0 1 0 0 1]; ... %27
              };
 
 %==============================================================================
@@ -1509,7 +1517,7 @@ switch what
         contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
             'AllTasks: '};
         % contrast_prefix = {'Random NTFD: '};
-        contrasts_list = {};
+        % contrasts_list = {};
         contrasts_list = contrasts;
         % contrasts_list = contrasts_split;
         output_folder = 'ffx_rwls';
@@ -1737,65 +1745,72 @@ switch what
         
     case 'GROUP:ffx_t'
         % Estimate ffx group tmaps       
-        % Example usage: msdtb_imana('GROUP:ffx_t', 'file_type', 'swcon')
+        % Example usage: msdtb_imana('GROUP:ffx_t')
         
         sn = subj_id; %subjNum
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         input_folder = 'snorm_maps_rwls';
-        output_folder = 'ffx_t';
-        file_type = 'swspmT'; % the another one is 'swcon'
-        % file_type = 'swcon';
+        output_folder = 'ffx_onesample_t';
         contrasts_list = {};
         contrasts_list = contrasts;
         % contrasts_list = contrasts_split;
-        vararginoptions(varargin, {'sn', 'file_type', 'input_folder', ...
-            'output_folder'});
+        vararginoptions(varargin, {'sn', 'input_folder', 'output_folder'});
         
-        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        % spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
+        if strcmp(design, 'allmain_tasks')
+            n_runs = 12
+        elseif strcmp(design, 'rand_ntfd')
+            n_runs = 2
+        else
+            n_runs = 4
+        end
         
         for con = 1:length(contrasts_list)
             for dg=1:length(design)
-                output_dir = fullfile(base_dir, derivatives_dir, ...
-                    'group', design{dg}, output_folder)
-%                 if con == 1 && isfolder(output_dir)
-%                     rmdir(output_dir, 's');
-%                 end
+                output_dir = fullfile(base_dir, derivatives_dir, 'group', ...
+                    design{dg}, output_folder);
                 contrast = strrep(contrasts_list{con,1}, ' ', '_');
                 contrast_dir = fullfile(output_dir, ...
                     sprintf('con_%02d_%s', con, contrast));
-                if not(isfolder(contrast_dir))
-                    mkdir(contrast_dir);
-                end
-                % Delete pre-existing files
-                if con == 1 && any(size(dir(...
-                        [contrast_dir '/group_' file_type '*.nii']), 1))
-                    delete([contrast_dir '/group_' file_type '*.nii']);
-                end
-                A = [];
+                folder(contrast_dir);
                 maps = {};
+                resms = {};
+                mean_formula = '';
                 for s = sn               
                     subj_dir = fullfile(base_dir, derivatives_dir, ...
                         subj_str{s}, est_dir, design{dg}, input_folder);
-                    map_name = sprintf('%s_%04d.nii', file_type, con);
+                    map_name = sprintf('swcon_%04d_masked.nii', con);
                     maps{s,1} = fullfile(subj_dir, map_name);
+                    resms{s,1} = fullfile(subj_dir, 'swResMS_masked.nii');
+                    % Create string with formula for mean contrasts
+                    if s == length(sn)
+                        mean_formula = sprintf('(%si%d)/%d', ...
+                            mean_formula, s, length(sn))
+                    else
+                        mean_formula = sprintf('%si%d+', mean_formula, s);
+                    end
                 end
-                gmap_name = sprintf('group_%s_%04d.nii', file_type, con);
+                gcon_name = sprintf('group_swcon_%04d.nii', con);
+                gresms_name = sprintf('group_swResMS.nii', con);
+                 
+                % Compute mean of contrasts across subjects
+                spma_imcalc(maps, gcon_name, contrast_dir, mean_formula, 0)
                 
-                A.input = maps;
-                A.output = gmap_name;
-                A.outdir = {contrast_dir};
-                A.expression = '(i1+i2+i3+i4+i5)/5';
-                A.var = struct('name', {}, 'value', {});
-                A.options.dmtx = 0;
-                A.options.mask = 0;
-                A.options.interp = 1;
-                A.options.dtype = 4;               
+                % Compute mean of ResMS across subjects
+                spma_imcalc(resms, gresms_name, contrast_dir, mean_formula, 0)
                 
-                matlabbatch{1}.spm.util.imcalc=A;
-                spm_jobman('run', matlabbatch);
+                % Compute ffx t-statistic across subjects
+                tstat_formula = sprintf('i1./sqrt(i2/(%d*%d))', length(sn), ...
+                    n_runs)
+                tstat_inputs = {fullfile(contrast_dir, gcon_name);
+                                fullfile(contrast_dir, gresms_name)};
+                tstat_outname = sprintf('groupffx_spmT_%04d', con);           
+                spma_imcalc(tstat_inputs, tstat_outname, contrast_dir, ...
+                    tstat_formula, 0)                
             end
-        end     
+        end
         
     case 'GROUP:one-sample_t_design'
         % Example usage: msdtb_imana('GROUP:one-sample_t_design', ...
@@ -1806,7 +1821,7 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         input_folder = 'snorm_maps_rwls'; % or 'snorm_splitdesign_maps_rwls'
-        output_folder = 'onesample_t'; % or 'onesample_t_splitdesign'
+        output_folder = 'rfx_onesample_t'; % or 'onesample_t_splitdesign'
         
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
