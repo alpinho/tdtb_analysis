@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: January 2023
-Last Update: March 2023
+Last Update: April 2023
 
 Compatibility: Python 3.10.4
 
@@ -35,12 +35,14 @@ def convert(strnum):
     return converted_num
 
 
-def extraction(data, cat, header, events_dir, ttl = True, flag=0):
+def extraction(data, cat, header, events_dir, ttl = True, flag=0,
+               merge_decision=0):
     for ses_datum in data:
         for run_datum in ses_datum:
             onset = []
             duration = []
             trial_type = []
+            trial_type_md = []
             if ttl:
                 assert run_datum[0][4] == 'ttl'
                 offset = convert(run_datum[0][6])
@@ -48,6 +50,7 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                 initial_rest = convert(run_datum[0][7])
                 duration.append(str(initial_rest))
                 trial_type.append('rest')
+                trial_type_md.append('rest')
                 run_datum = run_datum[1:]
             subject_number = int(run_datum[0][0])
             session_number = int(run_datum[0][1])
@@ -98,22 +101,34 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                     # Trial types for all conditions
                     if row[4][:4] == 'beat' and row[5][:4] == 'beep':
                         trial_type.append('auditory_beat_encoding')
+                        trial_type_md.append('auditory_beat_encoding')
                         trial_type.append('auditory_beat_decision')
+                        trial_type_md.append('decision')
                     elif row[4][:4] == 'beat' and row[5][:4] == 'rect':
                         trial_type.append('visual_beat_encoding')
+                        trial_type_md.append('visual_beat_encoding')
                         trial_type.append('visual_beat_decision')
+                        trial_type_md.append('decision')
                     elif row[4][:4] == 'inte' and row[5][:4] == 'beep':
                         trial_type.append('auditory_interval_encoding')
+                        trial_type_md.append('auditory_interval_encoding')
                         trial_type.append('auditory_interval_decision')
+                        trial_type_md.append('decision')
                     elif row[4][:4] == 'inte' and row[5][:4] == 'rect':
                         trial_type.append('visual_interval_encoding')
+                        trial_type_md.append('visual_interval_encoding')
                         trial_type.append('visual_interval_decision')
+                        trial_type_md.append('decision')
                     elif row[4][:4] == 'rand' and row[5][:4] == 'beep':
                         trial_type.append('auditory_random_encoding')
+                        trial_type_md.append('auditory_random_encoding')
                         trial_type.append('auditory_random_decision')
+                        trial_type_md.append('decision')
                     elif row[4][:4] == 'rand' and row[5][:4] == 'rect':
                         trial_type.append('visual_random_encoding')
+                        trial_type_md.append('visual_random_encoding')
                         trial_type.append('visual_random_decision')
+                        trial_type_md.append('decision')
                     else:
                         raise NameError(
                             'Trial type does not exist for this trial!')
@@ -123,12 +138,17 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                     duration_rest = convert(row[7])
                     duration.append(str(duration_rest))
                     trial_type.append('rest')
+                    trial_type_md.append('rest')
                 else:
                     pass
 
             liste = np.empty((0, len(header)))
-            liste = np.vstack((header,
-                               np.vstack((onset, duration, trial_type)).T))
+            if merge_decision:
+                liste = np.vstack((
+                    header, np.vstack((onset, duration, trial_type_md)).T))
+            else:
+                liste = np.vstack((
+                    header, np.vstack((onset, duration, trial_type)).T))
 
             subjsess_dir = os.path.join(events_dir,
                                         'sub-%02d' % subject_number,
@@ -161,12 +181,14 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0):
                 a.writerows(liste)
 
 
-def extraction_split(data, cat, header, events_dir, ttl = True):
+def extraction_split(data, cat, header, events_dir, ttl = True,
+                     merge_decision = 0):
     for ses_datum in data:
         for run_datum in ses_datum:
             onset = []
             duration = []
             trial_type = []
+            trial_type_md = []
             if ttl:
                 assert run_datum[0][4] == 'ttl'
                 offset = convert(run_datum[0][6])
@@ -174,6 +196,7 @@ def extraction_split(data, cat, header, events_dir, ttl = True):
                 initial_rest = convert(run_datum[0][7])
                 duration.append(str(initial_rest))
                 trial_type.append('rest')
+                trial_type_md.append('rest')
                 run_datum = run_datum[1:]
             subject_number = int(run_datum[0][0])
             session_number = int(run_datum[0][1])
@@ -225,41 +248,61 @@ def extraction_split(data, cat, header, events_dir, ttl = True):
                     if row[4] in ['beat01', 'beat02', 'beat03'] \
                        and row[5][:4] == 'beep':
                         trial_type.append('auditory_beat_encoding_low')
+                        trial_type_md.append('auditory_beat_encoding_low')
                         trial_type.append('auditory_beat_decision')
+                        trial_type_md.append('decision')
                     elif row[4] in ['beat04', 'beat05'] \
                          and row[5][:4] == 'beep':
                         trial_type.append('auditory_beat_encoding_high')
+                        trial_type_md.append('auditory_beat_encoding_high')
                         trial_type.append('auditory_beat_decision')
+                        trial_type_md.append('decision')
                     elif row[4] in ['beat01', 'beat02', 'beat03'] \
                          and row[5][:4] == 'rect':
                         trial_type.append('visual_beat_encoding_low')
+                        trial_type_md.append('visual_beat_encoding_low')
                         trial_type.append('visual_beat_decision')
+                        trial_type_md.append('decision')
                     elif row[4] in ['beat04', 'beat05'] \
                          and row[5][:4] == 'rect':
                         trial_type.append('visual_beat_encoding_high')
+                        trial_type_md.append('visual_beat_encoding_high')
                         trial_type.append('visual_beat_decision')
+                        trial_type_md.append('decision')
                     elif row[4] in ['interval01', 'interval02', 'interval03'] \
                          and row[5][:4] == 'beep':
                         trial_type.append('auditory_interval_encoding_low')
+                        trial_type_md.append('auditory_interval_encoding_low')
                         trial_type.append('auditory_interval_decision')
+                        trial_type_md.append('decision')
                     elif row[4] in ['interval04', 'interval05'] \
                          and row[5][:4] == 'beep':
                         trial_type.append('auditory_interval_encoding_high')
+                        trial_type_md.append('auditory_interval_encoding_high')
                         trial_type.append('auditory_interval_decision')
+                        trial_type_md.append('decision')
                     elif row[4] in ['interval01', 'interval02', 'interval03'] \
                          and row[5][:4] == 'rect':
                         trial_type.append('visual_interval_encoding_low')
+                        trial_type_md.append('visual_interval_encoding_low')
                         trial_type.append('visual_interval_decision')
+                        trial_type_md.append('decision')
                     elif row[4] in ['interval04', 'interval05'] \
                          and row[5][:4] == 'rect':
                         trial_type.append('visual_interval_encoding_high')
+                        trial_type_md.append('visual_interval_encoding_high')
                         trial_type.append('visual_interval_decision')
+                        trial_type_md.append('decision')
                     elif row[4][:4] == 'rand' and row[5][:4] == 'beep':
                         trial_type.append('auditory_random_encoding')
+                        trial_type_md.append('auditory_random_encoding')
                         trial_type.append('auditory_random_decision')
+                        trial_type_md.append('decision')
                     elif row[4][:4] == 'rand' and row[5][:4] == 'rect':
                         trial_type.append('visual_random_encoding')
+                        trial_type_md.append('visual_random_encoding')
                         trial_type.append('visual_random_decision')
+                        trial_type_md.append('decision')
                     else:
                         raise NameError(
                             'Trial type does not exist for this trial!')
@@ -269,12 +312,17 @@ def extraction_split(data, cat, header, events_dir, ttl = True):
                     duration_rest = convert(row[7])
                     duration.append(str(duration_rest))
                     trial_type.append('rest')
+                    trial_type_md.append('rest')
                 else:
                     pass
 
             liste = np.empty((0, len(header)))
-            liste = np.vstack((header,
-                               np.vstack((onset, duration, trial_type)).T))
+            if merge_decision:
+                liste = np.vstack((
+                    header, np.vstack((onset, duration, trial_type_md)).T))
+            else:
+                liste = np.vstack((
+                    header, np.vstack((onset, duration, trial_type)).T))
 
             subjsess_dir = os.path.join(events_dir,
                                         'sub-%02d' % subject_number,
@@ -303,7 +351,7 @@ def extraction_split(data, cat, header, events_dir, ttl = True):
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 7, 8]
+SUBJECTS = [3, 4, 7, 8, 10]
 # SUBJECTS = [3]
 
 CATEGORIES = ['Production', 'Perception', 'No-Temporal Feature Discrimination']
@@ -334,12 +382,15 @@ if __name__ == "__main__":
                                             N_SESSIONS, tasks, ttl=True,
                                             concatenate=False)
             if c == 0:
-                extraction(behavioral_data, category, HEADER, eventspath)
+                extraction(behavioral_data, category, HEADER, eventspath,
+                           merge_decision=1)
             else:
                 extraction(behavioral_data, category, HEADER, eventspath,
-                           flag=1)
+                           flag=1, merge_decision=1)
 
             if c == 0:
-                extraction_split(behavioral_data, category, HEADER, eventspath)
+                extraction_split(behavioral_data, category, HEADER, eventspath,
+                                 merge_decision=1)
             else:
-                extraction_split(behavioral_data, category, HEADER, eventspath)
+                extraction_split(behavioral_data, category, HEADER, eventspath,
+                                 merge_decision=1)
