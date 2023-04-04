@@ -1069,14 +1069,22 @@ switch what
         % models each condition as a separate regressors
         % For conditions with multiple repetitions, one regressor
         % represents all the instances
-        % msdtb_imana('GLM:grand_design', 'sn', [1])
+        % msdtb_imana('GLM:grand_design_standard', 'sn', [1], ...
+        %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'},
+        %             'events_file_tag', 'splitdesign_events', ...
+        %             'output_folder', 'ffx_splitdesign_standard')
         
         sn = subj_id;
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         hrf_cutoff = 128; % for standard GLM in SPM
         % hrf_cutoff = Inf; % for rwls
         prefix = 'u'; % prefix of the preprocessed epi we want to use
-        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design'});
+        events_file_tag = 'events';
+        % events_file_tag = 'splitdesign_events';
+        output_folder = 'ffx_standard';
+        %output_folder = 'ffx_splitdesign_standard';
+        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design', ...
+            'events_file_tag', 'output_folder'});
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -1088,9 +1096,7 @@ switch what
             % loop over design
             for dg=1:length(design)
                 estimates_folder = fullfile(glms_folder, design{dg}, ...
-                    'ffx_standard')
-%                 estimates_folder = fullfile(glms_folder, design{dg}, ...
-%                     'ses-02_run-02')
+                    output_folder)
 
                 % Create estimates folder if does not exist or clean it
                 folder(estimates_folder)
@@ -1169,12 +1175,13 @@ switch what
                             J.sess(count).cond = struct('name', {}, ...
                                 'onset', {}, 'duration', {}, 'tmod', {}, ...
                                 'pmod', {}, 'orth', {});
-
+                            
                             % Event Files
                             % get the path to the tsv file
                             tsv_file = fullfile(funcderiv_folder, sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
-                                subj_str{s}, ses, tasks{tk}, r))
+                                '%s_ses-%02d_task-%s_run-%02d_%s.tsv', ...
+                                subj_str{s}, ses, tasks{tk}, r, ...
+                                events_file_tag))
 
                             % get the tsvfile for the current run
                             D = struct([]); 
@@ -1195,9 +1202,53 @@ switch what
                             names = {};
                             onsets = {};
                             durations = {};
-                            % Encoding condition goes first
-                            names(2:2:length(unique_names))= unique_names(1:2:end);
-                            names(1:2:length(unique_names))= unique_names(2:2:end);
+
+                            % %%%%%%% Encoding condition goes first %%%%%%%
+                            % Non-merged decision model
+%                             if strcmp(...
+%                                     events_file_tag, 'splitdesign_events') ...
+%                                     && ~strcmp(design{dg}, 'rand_ntfd')
+%                                 % as well as low condition for the split design
+%                                 names(3:3:length(unique_names))= ...
+%                                     unique_names(1:3:end);
+%                                 names(1:3:length(unique_names))= ...
+%                                     unique_names(3:3:end);
+%                                 names(2:3:length(unique_names))= ...
+%                                     unique_names(2:3:end);
+%                             else
+%                                 names(2:2:length(unique_names))= ...
+%                                     unique_names(1:2:end);
+%                                 names(1:2:length(unique_names))= ...
+%                                     unique_names(2:2:end);
+%                             end
+
+                             % Merged decision model
+                            if strcmp(...
+                                    events_file_tag, 'splitdesign_events') ...
+                                    && ~strcmp(design{dg}, 'rand_ntfd')
+                                names(1:4)=unique_names(1:4);
+                                names(5:8)=unique_names(6:9);
+                                names(9)=unique_names(5);
+                            elseif ~strcmp(...
+                                    events_file_tag, 'splitdesign_events') ...
+                                    && strcmp(design{dg}, 'rand_ntfd')
+                                names(1:3)=unique_names(1:3);
+                                names(4:6)=unique_names(5:7);
+                                names(7)=unique_names(4);
+                            elseif strcmp(...
+                                    events_file_tag, 'splitdesign_events') ...
+                                    && strcmp(design{dg}, 'rand_ntfd')
+                                names(1:5)=unique_names(1:5);
+                                names(6:10)=unique_names(7:11);
+                                names(11)=unique_names(6);
+                            else
+                                names(1:2)=unique_names(1:2);
+                                names(3:4)=unique_names(4:5);
+                                names(5)=unique_names(3);
+                            end
+                            
+                            % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            
                             % Create onsets and duration cells
                             for u = 1:length(names)
                                 indexes = [];
@@ -1248,15 +1299,17 @@ switch what
 
         % Example usage:
         % msdtb_imana('GLM:grand_design_rwls', 'sn', [1], ...
-        %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'})
+        %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'},
+        %             'events_file_tag', 'splitdesign_events', ...
+        %             'output_folder', 'ffx_splitdesign_rwls')
         
         sn = subj_id;
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         % hrf_cutoff = 128; % for standard GLM in SPM
         hrf_cutoff = Inf; % for rwls
         prefix = 'u'; % prefix of the preprocessed epi we want to use
-        % events_file_tag = 'events';
-        events_file_tag = 'splitdesign_events';
+        events_file_tag = 'events';
+        % events_file_tag = 'splitdesign_events';
         output_folder = 'ffx_rwls';
         %output_folder = 'ffx_splitdesign_rwls';
         vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design', ...
@@ -1379,23 +1432,52 @@ switch what
                             onsets = {};
                             durations = {};
                             
-                            % Encoding condition goes first
+                            % %%%%%%% Encoding condition goes first %%%%%%%
+                            
+                            % Non-merged decision model
+%                             if strcmp(...
+%                                     events_file_tag, 'splitdesign_events') ...
+%                                     && ~strcmp(design{dg}, 'rand_ntfd')
+%                                 % as well as low condition for the split design
+%                                 names(3:3:length(unique_names))= ...
+%                                     unique_names(1:3:end);
+%                                 names(1:3:length(unique_names))= ...
+%                                     unique_names(3:3:end);
+%                                 names(2:3:length(unique_names))= ...
+%                                     unique_names(2:3:end);
+%                             else
+%                                 names(2:2:length(unique_names))= ...
+%                                     unique_names(1:2:end);
+%                                 names(1:2:length(unique_names))= ...
+%                                     unique_names(2:2:end);
+%                             end
+
+                             % Merged decision model
                             if strcmp(...
                                     events_file_tag, 'splitdesign_events') ...
                                     && ~strcmp(design{dg}, 'rand_ntfd')
-                                % as well as low condition for the split design
-                                names(3:3:length(unique_names))= ...
-                                    unique_names(1:3:end);
-                                names(1:3:length(unique_names))= ...
-                                    unique_names(3:3:end);
-                                names(2:3:length(unique_names))= ...
-                                    unique_names(2:3:end);
+                                names(1:4)=unique_names(1:4);
+                                names(5:8)=unique_names(6:9);
+                                names(9)=unique_names(5);
+                            elseif ~strcmp(...
+                                    events_file_tag, 'splitdesign_events') ...
+                                    && strcmp(design{dg}, 'rand_ntfd')
+                                names(1:3)=unique_names(1:3);
+                                names(4:6)=unique_names(5:7);
+                                names(7)=unique_names(4);
+                            elseif strcmp(...
+                                    events_file_tag, 'splitdesign_events') ...
+                                    && strcmp(design{dg}, 'rand_ntfd')
+                                names(1:5)=unique_names(1:5);
+                                names(6:10)=unique_names(7:11);
+                                names(11)=unique_names(6);
                             else
-                                names(2:2:length(unique_names))= ...
-                                    unique_names(1:2:end);
-                                names(1:2:length(unique_names))= ...
-                                    unique_names(2:2:end);
+                                names(1:2)=unique_names(1:2);
+                                names(3:4)=unique_names(4:5);
+                                names(5)=unique_names(3);
                             end
+                            
+                            % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                             
                             % Create onsets and duration cells
                             for u = 1:length(names)
@@ -1566,7 +1648,7 @@ switch what
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
             'output_folder', 'file_type'});
         
-        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        % spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1576,7 +1658,7 @@ switch what
                     input_folder);
                 
                 confiles = {};
-                if file_type == 'ResMS'
+                if strcmp(file_type, 'ResMS')
                     cname = sprintf('%s.nii', file_type);
                     confiles = {fullfile(estdesign_folder, cname)};
                 else
@@ -1666,7 +1748,7 @@ switch what
         vararginoptions(varargin, {'sn', 'design', 'contrasts_folder', ...
             'file_type', 'smoothing_kernel'});
         
-        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        % spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1682,7 +1764,7 @@ switch what
                 
                 % List of normalized contrasts
                 wconfiles = {};
-                if file_type == 'ResMS'
+                if strcmp(file_type, 'ResMS')
                     wconfiles = {fullfile(normcon_folder, 'wResMS.nii')};
                 else
                     n_contrasts = numel(dir(...
@@ -1883,7 +1965,7 @@ switch what
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        model = {'onesample_t'}; % or 'onesample_t_splitdesign'
+        model = {'rfx_onesample_t'}; % or 'onesample_t_splitdesign'
 
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
@@ -1930,7 +2012,7 @@ switch what
         % design = {'rand_ntfd'};
         contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
             'AllTasks: '};
-        model = {'onesample_t'}; % or 'onesample_t_splitdesign'
+        model = {'rfx_onesample_t'}; % or 'rfx_onesample_t_splitdesign'
 
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
