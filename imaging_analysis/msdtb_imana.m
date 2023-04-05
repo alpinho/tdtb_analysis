@@ -141,44 +141,44 @@ contrasts_split = {'Enconding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...              
                    'Visual Decision vs Auditory Decision', [0 0 -1 0 0 -1 0 0 1 0 0 1]; ... %27
              };
          
-contrasts_md = {'Enconding', [1 1 1 1 0]; ...                            %1
-                'Auditory Encoding', [1 1 0 0 0]; ...                    %2
-                'Visual Encoding', [0 0 1 1 0]; ...                      %3
-                'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...        %4
-                'Visual vs Auditory Encoding', [-1 -1 1 1 0]; ...        %5
-                'Beat vs Interval', [1 -1 1 -1 0]; ...                   %6
-                'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ...  %7
-                'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...      %8
-                'Interval vs Beat', [-1 1 -1 1 0]; ...                   %9
-                'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ...  %10
-                'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...      %11
-                'Decision', [0 0 0 0 1]; ...                             %12
+contrasts_md = {'Enconding', [1 1 1 1 0]; ...                           %1
+                'Auditory Encoding', [1 1 0 0 0]; ...                   %2
+                'Visual Encoding', [0 0 1 1 0]; ...                     %3
+                'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...       %4
+                'Visual vs Auditory Encoding', [-1 -1 1 1 0]; ...       %5
+                'Beat vs Interval', [1 -1 1 -1 0]; ...                  %6
+                'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %7
+                'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %8
+                'Interval vs Beat', [-1 1 -1 1 0]; ...                  %9
+                'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %10
+                'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
+                'Decision', [0 0 0 0 1]; ...                            %12
                 };
             
-contrasts_split_md = {'Enconding Low', [1 0 1 0 1 0 1 0 0]; ...                             %1
-                       'Enconding High', [0 1 0 1 0 1 0 1 0]; ...                           %2
-                       'Auditory Encoding Low', [1 0 1 0 0 0 0 0 0]; ...                    %3
-                       'Auditory Encoding High', [0 1 0 1 0 0 0 0 0]; ...                   %4
-                       'Visual Encoding Low', [0 0 0 0 1 0 1 0 0]; ...                      %5
-                       'Visual Encoding High', [0 0 0 0 0 1 0 1 0]; ...                     %6
-                       'Auditory vs Visual Encoding Low', [1 0 1 0 -1 0 -1 0 0]; ...        %7
-                       'Auditory vs Visual Encoding High', [0 1 0 1 0 -1 0 -1 0]; ...       %8
-                       'Visual vs Auditory Encoding Low', [-1 0 -1 0 1 0 1 0 0]; ...        %9
-                       'Visual vs Auditory Encoding High', [0 -1 0 -1 0 1 0 1 0]; ...       %10
-                       'Beat vs Interval Low', [1 0 -1 0 1 0 -1 0 0]; ...                   %11
-                       'Beat vs Interval High', [0 1 0 -1 0 1 0 -1 0]; ...                  %12
-                       'Auditory Beat vs Auditory Interval Low', [1 0 -1 0 0 0 0 0 0]; ...  %13
-                       'Auditory Beat vs Auditory Interval High', [0 1 0 -1 0 0 0 0 0]; ... %14
-                       'Visual Beat vs Visual Interval Low', [0 0 0 0 1 0 -1 0 0]; ...      %15
-                       'Visual Beat vs Visual Interval High', [0 0 0 0 0 1 0 -1 0]; ...     %16
-                       'Interval vs Beat Low', [-1 0 1 0 -1 0 1 0 0]; ...                   %17
-                       'Interval vs Beat High', [0 -1 0 1 0 -1 0 1 0]; ...                  %18
-                       'Auditory Interval vs Auditory Beat Low', [-1 0 1 0 0 0 0 0 0]; ...  %19
-                       'Auditory Interval vs Auditory Beat High', [0 -1 0 1 0 0 0 0 0]; ... %20
-                       'Visual Interval vs Visual Beat Low', [0 0 0 0 -1 0 1 0 0]; ...      %21
-                       'Visual Interval vs Visual Beat High', [0 0 0 0 0 -1 0 1 0]; ...     %22
-                       'Decision', [0 0 0 0 0 0 0 0 1]; ...                                 %23
-                        };
+contrasts_md_split = {'Enconding Low', [1 0 1 0 1 0 1 0 0]; ...                            %1
+                      'Enconding High', [0 1 0 1 0 1 0 1 0]; ...                           %2
+                      'Auditory Encoding Low', [1 0 1 0 0 0 0 0 0]; ...                    %3
+                      'Auditory Encoding High', [0 1 0 1 0 0 0 0 0]; ...                   %4
+                      'Visual Encoding Low', [0 0 0 0 1 0 1 0 0]; ...                      %5
+                      'Visual Encoding High', [0 0 0 0 0 1 0 1 0]; ...                     %6
+                      'Auditory vs Visual Encoding Low', [1 0 1 0 -1 0 -1 0 0]; ...        %7
+                      'Auditory vs Visual Encoding High', [0 1 0 1 0 -1 0 -1 0]; ...       %8
+                      'Visual vs Auditory Encoding Low', [-1 0 -1 0 1 0 1 0 0]; ...        %9
+                      'Visual vs Auditory Encoding High', [0 -1 0 -1 0 1 0 1 0]; ...       %10
+                      'Beat vs Interval Low', [1 0 -1 0 1 0 -1 0 0]; ...                   %11
+                      'Beat vs Interval High', [0 1 0 -1 0 1 0 -1 0]; ...                  %12
+                      'Auditory Beat vs Auditory Interval Low', [1 0 -1 0 0 0 0 0 0]; ...  %13
+                      'Auditory Beat vs Auditory Interval High', [0 1 0 -1 0 0 0 0 0]; ... %14
+                      'Visual Beat vs Visual Interval Low', [0 0 0 0 1 0 -1 0 0]; ...      %15
+                      'Visual Beat vs Visual Interval High', [0 0 0 0 0 1 0 -1 0]; ...     %16
+                      'Interval vs Beat Low', [-1 0 1 0 -1 0 1 0 0]; ...                   %17
+                      'Interval vs Beat High', [0 -1 0 1 0 -1 0 1 0]; ...                  %18
+                      'Auditory Interval vs Auditory Beat Low', [-1 0 1 0 0 0 0 0 0]; ...  %19
+                      'Auditory Interval vs Auditory Beat High', [0 -1 0 1 0 0 0 0 0]; ... %20
+                      'Visual Interval vs Visual Beat Low', [0 0 0 0 -1 0 1 0 0]; ...      %21
+                      'Visual Interval vs Visual Beat High', [0 0 0 0 0 -1 0 1 0]; ...     %22
+                      'Decision', [0 0 0 0 0 0 0 0 1]; ...                                 %23
+                       };
 
 %==============================================================================
 
@@ -1643,7 +1643,7 @@ switch what
         
         % Example usage:
         % msdtb_imana('GLM:individual_ffx_t', ...
-        %             'output_folder', 'ffx_splitdesign_rwls')
+        %             'output_folder', 'ffx_rwls_splitdesign')
         
         % Go to the folder of script
         cd(fileparts(mfilename('fullpath')))
@@ -1658,12 +1658,11 @@ switch what
                 
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        contrasts_list = contrasts_md;
-        % contrasts_list = contrasts_split_md;
+        % contrasts_list = contrasts_md;
+        contrasts_list = contrasts_md_split;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         output_folder = 'ffx_rwls';
-        %output_folder = 'ffx_splitdesign_rwls';
         
         vararginoptions(varargin, {'sn', 'output_folder'});
         
@@ -1694,15 +1693,15 @@ switch what
         % Normalize individual contrasts or t-maps
         % Example usage: msdtb_imana(
         %                   'CON:normalization', 
-        %                   'input_folder', 'ffx_splitdesign_rwls', ...
-        %                   'output_folder', 'snorm_splitdesign_maps_rwls', ...
+        %                   'input_folder', 'ffx_rwls_splitdesign', ...
+        %                   'output_folder', 'snorm_rwls_splitdesign', ...
         %                   'file_type', 'spmT')     
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         input_folder = 'ffx_rwls';
-        output_folder = 'snorm_maps_rwls';
+        output_folder = 'snorm_rwls';
         file_type = 'con'; % the another one is 'spmT or ResMS'
         group_mask = fullfile(base_dir, derivatives_dir, ...
             'group/anat/group_mask_noskull.nii');
@@ -1794,13 +1793,13 @@ switch what
         % Example usage: msdtb_imana(
         %                   'CON:smooth', 
         %                   'contrasts_folder', ...
-        %                   'snorm_splitdesign_maps_rwls', ...
+        %                   'snorm_rwls_splitdesign', ...
         %                   'file_type', 'spmT')
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        contrasts_folder = 'snorm_maps_rwls'; % or 'snorm_splitdesign_maps_rwls'
+        contrasts_folder = 'snorm_rwls'; % or 'snorm_splitdesign_maps_rwls'
         file_type = 'con'; % the another one is spmT or ResMS'
         smoothing_kernel = [8 8 8];
         group_mask = fullfile(base_dir, derivatives_dir, ...
@@ -1903,7 +1902,7 @@ switch what
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
         contrasts_list = contrasts_md;
-        % contrasts_list = contrasts_split_md;
+        % contrasts_list = contrasts_md_split;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'input_folder', 'output_folder'});
@@ -1976,8 +1975,8 @@ switch what
         
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        contrasts_list = contrasts_md;
-        % contrasts_list = contrasts_split_md;
+        % contrasts_list = contrasts_md;
+        contrasts_list = contrasts_md_split;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         prefix = 'swcon';
@@ -2038,8 +2037,8 @@ switch what
 
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        contrasts_list = contrasts_md;
-        % contrasts_list = contrasts_split_md;
+        % contrasts_list = contrasts_md;
+        contrasts_list = contrasts_md_split;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'model'})
@@ -2085,8 +2084,8 @@ switch what
 
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        contrasts_list = contrasts_md;
-        % contrasts_list = contrasts_split_md;
+        % contrasts_list = contrasts_md;
+        contrasts_list = contrasts_md_split;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'model'})
