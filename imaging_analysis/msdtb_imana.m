@@ -155,7 +155,7 @@ contrasts_md = {'Enconding', [1 1 1 1 0]; ...                            %1
                 'Decision', [0 0 0 0 1]; ...                             %12
                 };
             
-contrasts_split_md = {'Enconding Low', [1 0 1 0 1 0 1 0 0]; ...                            %1
+contrasts_split_md = {'Enconding Low', [1 0 1 0 1 0 1 0 0]; ...                             %1
                        'Enconding High', [0 1 0 1 0 1 0 1 0]; ...                           %2
                        'Auditory Encoding Low', [1 0 1 0 0 0 0 0 0]; ...                    %3
                        'Auditory Encoding High', [0 1 0 1 0 0 0 0 0]; ...                   %4
@@ -1111,7 +1111,7 @@ switch what
         % msdtb_imana('GLM:grand_design_standard', 'sn', [1], ...
         %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'},
         %             'events_file_tag', 'splitdesign_events', ...
-        %             'output_folder', 'ffx_splitdesign_standard')
+        %             'output_folder', 'ffx_standard_splitdesign')
         
         sn = subj_id;
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
@@ -1119,9 +1119,7 @@ switch what
         % hrf_cutoff = Inf; % for rwls
         prefix = 'u'; % prefix of the preprocessed epi we want to use
         events_file_tag = 'events';
-        % events_file_tag = 'splitdesign_events';
         output_folder = 'ffx_standard';
-        %output_folder = 'ffx_splitdesign_standard';
         vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design', ...
             'events_file_tag', 'output_folder'});
         
@@ -1577,12 +1575,11 @@ switch what
         % Example usage:
         % msdtb_imana('GLM:estimate_standard', 'sn', [1], ...
         %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'}, ...
-        %             'output_folder', 'ffx_splitdesign_standard')  
+        %             'output_folder', 'ffx_standard_splitdesign')  
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         output_folder = 'ffx_standard';
-        %output_folder = 'ffx_splitdesign_standard';
         vararginoptions(varargin, {'sn', 'design', 'output_folder'});
         
         for s = sn
