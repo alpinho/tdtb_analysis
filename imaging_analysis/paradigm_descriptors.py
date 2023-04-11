@@ -19,6 +19,8 @@ import csv
 
 import numpy as np
 
+import itertools, collections
+
 # setting path
 sys.path.append('../')
 # importing
@@ -33,6 +35,52 @@ def convert(strnum):
     converted_num = round(float(strnum)/1e3, 3)
 
     return converted_num
+
+
+def consume(iterator, n):
+    '''
+    Advance the iterator n-steps ahead.
+    If n is none, consume entirely.
+    '''
+    collections.deque(itertools.islice(iterator, n), maxlen=0)
+
+
+def merge_rest(onsets, durations, names):
+    idx = 0
+    res = collections.defaultdict(list)
+
+    # Grouping Consecutives
+    for key, sub in itertools.groupby(names):
+        ele = len(list(sub))
+
+        # Append strt index, and till index
+        res[key].append((idx, idx + ele - 1))
+        idx += ele
+
+    valid_pairs = [pair for pair in dict(res)['rest']
+                   if pair[0] != pair[1]]
+
+    di = {}
+    di = dict(valid_pairs)
+    first_idxs = list(di.keys())
+
+    new_onsets = []
+    new_durations = []
+    new_names = []
+    sequence = np.arange(len(names)).__iter__()
+    for nm in sequence:
+        new_onsets.append(onsets[nm])
+        new_names.append(names[nm])
+        if nm in first_idxs:
+            durations_subset = [float(d) for d in durations[nm:di[nm]+1]]
+            new_duration = sum(durations_subset)
+            new_durations.append(str(new_duration))
+            # Update list under iteration, i.e. 'sequence' list
+            consume(sequence, di[nm]-nm)
+        else:
+            new_durations.append(durations[nm])
+
+    return new_onsets, new_durations, new_names
 
 
 def extraction(data, cat, header, events_dir, ttl = True, flag=0,
@@ -182,7 +230,7 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0,
 
 
 def extraction_dr(data, cat, header, events_dir, ttl = True, flag=0,
-                  merge_decision=0):
+                  merge_decision=0, merge_rest=0):
     for ses_datum in data:
         for run_datum in ses_datum:
             onset = []
@@ -301,6 +349,17 @@ def extraction_dr(data, cat, header, events_dir, ttl = True, flag=0,
                     trial_type_md.append('rest')
                 else:
                     pass
+
+            # Merge consecutive rest conditions
+            if merge_rest:
+                onset_mr, duration_mr, trial_type_md_mr = \
+                    merge_rest(onset, duration, trial_type_md)
+                del onset
+                del duration
+                del trial_type_md
+                onset = onset_mr
+                duration = duration_mr
+                trial_type_md = trial_type_md_mr
 
             liste = np.empty((0, len(header)))
             if merge_decision:
@@ -487,9 +546,14 @@ def extraction_split(data, cat, header, events_dir, ttl = True,
                 assert cat == 'No-Temporal Feature Discrimination'
                 cattag = 'ntfd'
 
-            fname = 'sub-%02d' % subject_number + \
+            if merge_rest:
+                fname = 'sub-%02d' % subject_number + \
                 '_ses-%02d' % session_number + '_task-' + cattag + \
                 '_run-%02d' % run_number + '_splitdesign_events.tsv'
+            else:
+                fname = 'sub-%02d' % subject_number + \
+                    '_ses-%02d' % session_number + '_task-' + cattag + \
+                    '_run-%02d' % run_number + '_mr_splitdesign_events.tsv'
 
             output_path = os.path.join(subjsess_dir, fname)
 
@@ -512,7 +576,7 @@ N_SESSIONS = 2
 LOGFOLDER = 'logfiles'
 EVENTSFOLDER = 'events'
 HEADER = ['onset', 'duration', 'trial_type']
-EVENT_DURATION = 0.08
+EVENT_DURATION = .08
 
 # %%
 # ========================= PARAMETERS =================================
@@ -536,14 +600,22 @@ if __name__ == "__main__":
             if c == 0:
                 extraction(behavioral_data, category, HEADER, eventspath,
                            merge_decision=1)
+
                 extraction_dr(behavioral_data, category, HEADER, eventspath,
-                           merge_decision=1)
+                              merge_decision=1)
+                extraction_dr(behavioral_data, category, HEADER, eventspath,
+                              merge_decision=1, merge_rest=1)
+
                 extraction_split(behavioral_data, category, HEADER, eventspath,
                                  merge_decision=1)
             else:
                 extraction(behavioral_data, category, HEADER, eventspath,
                            flag=1, merge_decision=1)
+
                 extraction_dr(behavioral_data, category, HEADER, eventspath,
                            flag=1, merge_decision=1)
+                extraction_dr(behavioral_data, category, HEADER, eventspath,
+                              flag=1, merge_decision=1, merge_rest=1)
+
                 extraction_split(behavioral_data, category, HEADER, eventspath,
                                  merge_decision=1)
