@@ -173,6 +173,7 @@ def individual_production_isi_sync(
             logbeat = []
             loginterval = []
             shift = 2
+            # Convert x value to symlog scale with shift=2
             if sync_type == 'signed':
                 for lsbeat in ss_isi_beat:
                     logv = np.abs(lsbeat)*(10.**shift)
