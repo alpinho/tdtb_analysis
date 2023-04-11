@@ -45,7 +45,7 @@ def consume(iterator, n):
     collections.deque(itertools.islice(iterator, n), maxlen=0)
 
 
-def merge_rest(onsets, durations, names):
+def merge_rest_conditions(onsets, durations, names):
     idx = 0
     res = collections.defaultdict(list)
 
@@ -84,7 +84,7 @@ def merge_rest(onsets, durations, names):
 
 
 def extraction(data, cat, header, events_dir, ttl = True, flag=0,
-               merge_decision=0):
+               merge_decision=False):
     for ses_datum in data:
         for run_datum in ses_datum:
             onset = []
@@ -230,7 +230,7 @@ def extraction(data, cat, header, events_dir, ttl = True, flag=0,
 
 
 def extraction_dr(data, cat, header, events_dir, ttl = True, flag=0,
-                  merge_decision=0, merge_rest=0):
+                  merge_decision=False, merge_rest=False):
     for ses_datum in data:
         for run_datum in ses_datum:
             onset = []
@@ -350,16 +350,16 @@ def extraction_dr(data, cat, header, events_dir, ttl = True, flag=0,
                 else:
                     pass
 
-            # Merge consecutive rest conditions
             if merge_rest:
                 onset_mr, duration_mr, trial_type_md_mr = \
-                    merge_rest(onset, duration, trial_type_md)
+                    merge_rest_conditions(onset, duration, trial_type_md)
                 del onset
                 del duration
                 del trial_type_md
                 onset = onset_mr
                 duration = duration_mr
                 trial_type_md = trial_type_md_mr
+                trial_type = trial_type_md_mr
 
             liste = np.empty((0, len(header)))
             if merge_decision:
@@ -388,9 +388,14 @@ def extraction_dr(data, cat, header, events_dir, ttl = True, flag=0,
                 assert cat == 'No-Temporal Feature Discrimination'
                 cattag = 'ntfd'
 
-            fname = 'sub-%02d' % subject_number + \
-                '_ses-%02d' % session_number + '_task-' + cattag + \
-                '_run-%02d' % run_number + '_dr_events.tsv'
+            if merge_rest:
+                fname = 'sub-%02d' % subject_number + \
+                    '_ses-%02d' % session_number + '_task-' + cattag + \
+                    '_run-%02d' % run_number + '_mr_dr_events.tsv'
+            else:
+                fname = 'sub-%02d' % subject_number + \
+                    '_ses-%02d' % session_number + '_task-' + cattag + \
+                    '_run-%02d' % run_number + '_dr_events.tsv'
 
             output_path = os.path.join(subjsess_dir, fname)
 
@@ -401,7 +406,7 @@ def extraction_dr(data, cat, header, events_dir, ttl = True, flag=0,
 
 
 def extraction_split(data, cat, header, events_dir, ttl = True,
-                     merge_decision = 0):
+                     merge_decision = False):
     for ses_datum in data:
         for run_datum in ses_datum:
             onset = []
@@ -546,14 +551,9 @@ def extraction_split(data, cat, header, events_dir, ttl = True,
                 assert cat == 'No-Temporal Feature Discrimination'
                 cattag = 'ntfd'
 
-            if merge_rest:
-                fname = 'sub-%02d' % subject_number + \
-                '_ses-%02d' % session_number + '_task-' + cattag + \
-                '_run-%02d' % run_number + '_splitdesign_events.tsv'
-            else:
-                fname = 'sub-%02d' % subject_number + \
-                    '_ses-%02d' % session_number + '_task-' + cattag + \
-                    '_run-%02d' % run_number + '_mr_splitdesign_events.tsv'
+            fname = 'sub-%02d' % subject_number + \
+            '_ses-%02d' % session_number + '_task-' + cattag + \
+            '_run-%02d' % run_number + '_splitdesign_events.tsv'
 
             output_path = os.path.join(subjsess_dir, fname)
 
@@ -599,23 +599,23 @@ if __name__ == "__main__":
                                             concatenate=False)
             if c == 0:
                 extraction(behavioral_data, category, HEADER, eventspath,
-                           merge_decision=1)
+                           merge_decision=True)
 
                 extraction_dr(behavioral_data, category, HEADER, eventspath,
-                              merge_decision=1)
+                              merge_decision=True)
                 extraction_dr(behavioral_data, category, HEADER, eventspath,
-                              merge_decision=1, merge_rest=1)
+                              merge_decision=True, merge_rest=True)
 
                 extraction_split(behavioral_data, category, HEADER, eventspath,
-                                 merge_decision=1)
+                                 merge_decision=True)
             else:
                 extraction(behavioral_data, category, HEADER, eventspath,
-                           flag=1, merge_decision=1)
+                           flag=1, merge_decision=True)
 
                 extraction_dr(behavioral_data, category, HEADER, eventspath,
-                           flag=1, merge_decision=1)
+                              flag=1, merge_decision=True)
                 extraction_dr(behavioral_data, category, HEADER, eventspath,
-                              flag=1, merge_decision=1, merge_rest=1)
+                              flag=1, merge_decision=True, merge_rest=True)
 
                 extraction_split(behavioral_data, category, HEADER, eventspath,
-                                 merge_decision=1)
+                                 merge_decision=True)
