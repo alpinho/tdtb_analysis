@@ -1082,6 +1082,7 @@ switch what
 
         sn  = subj_id;
         ssn = ses_id; % list of sessions
+        suffix = 'mr_dbb' % suffix of event files
         vararginoptions(varargin, {'sn'});
         
         if isdir('/srv/diedrichsen/data')
@@ -1097,7 +1098,7 @@ switch what
         for s = sn
             for ses = ssn
                 sfiles = [source subj_str{s} '/ses-' ...
-                    num2str(ses, '%02d') '/*.tsv'];
+                    num2str(ses, '%02d') '/*' suffix '_events.tsv'];
                 dfolder = fullfile(destination, subj_str{s}, ...
                     ['ses-' num2str(ses, '%02d')], 'func');
                 system(['cp ' sfiles ' ' dfolder]);
