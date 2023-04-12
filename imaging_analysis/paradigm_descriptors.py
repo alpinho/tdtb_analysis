@@ -73,7 +73,7 @@ def merge_rest_conditions(onsets, durations, names):
         new_names.append(names[nm])
         if nm in first_idxs:
             durations_subset = [float(d) for d in durations[nm:di[nm]+1]]
-            new_duration = sum(durations_subset)
+            new_duration = round(sum(durations_subset), 3)
             new_durations.append(str(new_duration))
             # Update list under iteration, i.e. 'sequence' list
             consume(sequence, di[nm]-nm)
@@ -923,8 +923,8 @@ def extraction_split(data, cat, header, events_dir, ttl = True,
                 cattag = 'ntfd'
 
             fname = 'sub-%02d' % subject_number + \
-            '_ses-%02d' % session_number + '_task-' + cattag + \
-            '_run-%02d' % run_number + '_splitdesign_events.tsv'
+                '_ses-%02d' % session_number + '_task-' + cattag + \
+                '_run-%02d' % run_number + '_splitdesign_events.tsv'
 
             output_path = os.path.join(subjsess_dir, fname)
 
@@ -968,27 +968,28 @@ if __name__ == "__main__":
             behavioral_data = parse_logfile(logpath, subject, SESSTYPE,
                                             N_SESSIONS, tasks, ttl=True,
                                             concatenate=False)
+            # For Production tasks,
             if c == 0:
-                # extraction(behavioral_data, category, HEADER, eventspath,
-                #            merge_decision=True)
-
-                # extraction_split(behavioral_data, category, HEADER, eventspath,
-                #                  merge_decision=True)
-
+                # With flag = 0, all previous event files will be deleted
+                # in every dir subj, sess and run dependent (FOR ALL TASKS)
+                # Do flag = 0 only in the first function call of this
+                # if statement
                 extraction_drbb(behavioral_data, category, HEADER, eventspath,
-                                merge_decision=True, merge_rest=True)
+                                flag=0, merge_decision=True, merge_rest=True)
 
+                # Now, run again w/ flag=1
                 extraction_dbb(behavioral_data, category, HEADER, eventspath,
-                               merge_decision=True, merge_rest=True)
+                               flag=1, merge_decision=True, merge_rest=True)
 
                 extraction_brbb(behavioral_data, category, HEADER, eventspath,
-                                merge_decision=True, merge_rest=True)
+                                flag=1, merge_decision=True, merge_rest=True)
+            # For Remaining tasks
             else:
                 # extraction(behavioral_data, category, HEADER, eventspath,
-                #            flag=1, merge_decision=True)
+                #            flag=1, merge_decision=True, merge_rest=False)
 
                 # extraction_split(behavioral_data, category, HEADER, eventspath,
-                #                  merge_decision=True)
+                #                  flag=1, merge_decision=True, merge_rest=False)
 
                 extraction_drbb(behavioral_data, category, HEADER, eventspath,
                                 flag=1, merge_decision=True, merge_rest=True)
