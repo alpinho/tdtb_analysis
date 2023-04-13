@@ -1241,8 +1241,9 @@ switch what
                             onsets = {};
                             durations = {};
 
-                            % %%%%%%% Encoding condition goes first %%%%%%%
-                            
+                            % %%%%%%% Reorder regressors %%%%%%%
+                            names = reorder_regressors(unique_names, ...
+                                events_file_tag, design{dg});
                             
                             % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                             
