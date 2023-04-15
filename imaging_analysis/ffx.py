@@ -44,8 +44,26 @@ def compute_fixed_effects_params(contrasts, variances,
 SUBJECTS_NUMBERS = [3, 4, 7, 8, 10]
 maindir = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives'
 
-design = 'allmain_tasks'
-ffx_model = 'ffx_onesample_t_nilearn'
+designs = ['prod', 'percep', 'ntfd', 'allmain_tasks']
+
+ffx_model = 'ffx_onesample_t_standard_nilearn'
+individual_con_dir = 'snorm_standard'
+
+contrasts = [
+    'con_01_Enconding',
+    'con_02_Auditory_Encoding',
+    'con_03_Visual_Encoding',
+    'con_04_Auditory_vs_Visual_Encoding',
+    'con_05_Visual_vs_Auditory_Encoding',
+    'con_06_Beat_vs_Interval',
+    'con_07_Auditory_Beat_vs_Auditory_Interval',
+    'con_08_Visual_Beat_vs_Visual_Interval',
+    'con_09_Interval_vs_Beat',
+    'con_10_Auditory_Interval_vs_Auditory_Beat',
+    'con_11_Visual_Interval_vs_Visual_Beat',
+    'con_12_Decision'
+    ]
+
 
 # %%
 # ========================= PARAMETERS =================================
@@ -61,49 +79,53 @@ group_cmask = os.path.join(group_anat, 'group_mask_gray.nii')
 subjects = ['sub-%02d' % s for s in SUBJECTS_NUMBERS]
 
 # Get list of individual contrasts and variances
-individual_contrasts_paths = []
-individual_variances_paths = []
-for subject in subjects:
-    individual_contrast_path = os.path.join(maindir, subject, 'estimates',
-                                            'allmain_tasks', 'snorm_standard',
-                                            'swcon_0001_masked.nii')
-    individual_variance_path = os.path.join(maindir, subject, 'estimates',
-                                            'allmain_tasks', 'snorm_standard',
-                                            'swResMS_masked.nii')
-    individual_contrasts_paths.append(individual_contrast_path)
-    individual_variances_paths.append(individual_variance_path)
+for design in designs:
+    for c, contrast in enumerate(contrasts, start=1):
+        individual_contrasts_paths = []
+        individual_variances_paths = []
+        for subject in subjects:
+            individual_contrast_path = os.path.join(
+                maindir, subject, 'estimates', design, individual_con_dir,
+                'swcon_%04d_masked.nii' % c)
+            individual_variance_path = os.path.join(
+                maindir, subject, 'estimates', design, individual_con_dir,
+                'swResMS_masked.nii')
+            individual_contrasts_paths.append(individual_contrast_path)
+            individual_variances_paths.append(individual_variance_path)
 
-# Define and create output dir, if does not exist
-contrast_dir = os.path.join(group_dir, design, ffx_model, 'con_01_Encoding')
-if not os.path.exists(contrast_dir):
-    os.makedirs(contrast_dir)
-else:
-    for f in glob.glob(contrast_dir + '/*.nii'):
-        os.remove(f)
+        # Define and create output dir, if does not exist
+        contrast_dir = os.path.join(group_dir, design, ffx_model, contrast)
+        if not os.path.exists(contrast_dir):
+            os.makedirs(contrast_dir)
+        else:
+            for f in glob.glob(contrast_dir + '/*.nii'):
+                os.remove(f)
 
-# Transform nifti files in numpy arrays
-nifti_masker = NiftiMasker(mask_img=group_wholebrain_mask)
-individual_contrasts_arr = nifti_masker.fit_transform(
-    individual_contrasts_paths)
-individual_variances_arr = nifti_masker.fit_transform(
-    individual_variances_paths)
+        # Transform nifti files in numpy arrays
+        nifti_masker = NiftiMasker(mask_img=group_wholebrain_mask)
+        individual_contrasts_arr = nifti_masker.fit_transform(
+            individual_contrasts_paths)
+        individual_variances_arr = nifti_masker.fit_transform(
+            individual_variances_paths)
 
-# Compute ffx
-groupffx_contrasts_arr, groupffx_variance_arr, groupffx_tstat_arr = \
-    compute_fixed_effects_params(individual_contrasts_arr,
-                                 individual_variances_arr)
+        # Compute ffx
+        groupffx_contrasts_arr, groupffx_variance_arr, groupffx_tstat_arr = \
+            compute_fixed_effects_params(individual_contrasts_arr,
+                                         individual_variances_arr)
 
-# Transform resulting numpy arrays into nifti files
-group_contrasts_maps = nifti_masker.inverse_transform(groupffx_contrasts_arr)
-group_variances_maps = nifti_masker.inverse_transform(groupffx_variance_arr)
-group_tsat_maps = nifti_masker.inverse_transform(groupffx_tstat_arr)
+        # Transform resulting numpy arrays into nifti files
+        group_contrasts_maps = nifti_masker.inverse_transform(
+            groupffx_contrasts_arr)
+        group_variances_maps = nifti_masker.inverse_transform(
+            groupffx_variance_arr)
+        group_tsat_maps = nifti_masker.inverse_transform(groupffx_tstat_arr)
 
-# Define paths of output nifti files
-gfc_path = os.path.join(contrast_dir, 'contrast_0001.nii')
-gfv_path = os.path.join(contrast_dir, 'variance_0001.nii')
-gfs_path = os.path.join(contrast_dir, 'tstat_0001.nii')
+        # Define paths of output nifti files
+        gfc_path = os.path.join(contrast_dir, 'contrast_%04d.nii' % c)
+        gfv_path = os.path.join(contrast_dir, 'variance_%04d.nii' % c)
+        gfs_path = os.path.join(contrast_dir, 'tstat_%04d.nii' % c)
 
-# Save output nifti files
-group_contrasts_maps.to_filename(gfc_path)
-group_variances_maps.to_filename(gfv_path)
-group_tsat_maps.to_filename(gfs_path)
+        # Save output nifti files
+        group_contrasts_maps.to_filename(gfc_path)
+        group_variances_maps.to_filename(gfv_path)
+        group_tsat_maps.to_filename(gfs_path)
