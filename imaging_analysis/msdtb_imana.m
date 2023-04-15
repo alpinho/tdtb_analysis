@@ -66,7 +66,8 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-subj_n  = [3, 4, 7, 8, 10];
+% subj_n  = [3, 4, 7, 8, 10];
+subj_n  = [3, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
 % subj_n  = [10];
 
@@ -94,7 +95,7 @@ loc_AC = {
 
 numDummys = 0;
 
-contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...                              %1
+contrasts = {'Encoding', [1 0 1 0 1 0 1 0]; ...                               %1
              'Auditory Encoding', [1 0 1 0]; ...                              %2
              'Visual Encoding', [0 0 0 0 1 0 1 0]; ...                        %3
              'Auditory vs Visual Encoding', [1 0 1 0 -1 0 -1 0]; ...          %4
@@ -112,8 +113,8 @@ contrasts = {'Enconding', [1 0 1 0 1 0 1 0]; ...                              %1
              'Visual Decision vs Auditory Decision', [0 -1 0 -1 0 1 0 1]; ... %16
              };
          
-contrasts_split = {'Enconding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...                          %1
-                   'Enconding High', [0 1 0 0 1 0 0 1 0 0 1 0]; ...                         %2 
+contrasts_split = {'Encoding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...                           %1
+                   'Encoding High', [0 1 0 0 1 0 0 1 0 0 1 0]; ...                          %2 
                    'Auditory Encoding Low', [1 0 0 1 0 0]; ...                              %3
                    'Auditory Encoding High', [0 1 0 0 1 0]; ...                             %4
                    'Visual Encoding Low', [0 0 0 0 0 0 1 0 0 1 0 0]; ...                    %5
@@ -141,7 +142,7 @@ contrasts_split = {'Enconding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...              
                    'Visual Decision vs Auditory Decision', [0 0 -1 0 0 -1 0 0 1 0 0 1]; ... %27
              };
          
-contrasts_md = {'Enconding', [1 1 1 1 0]; ...                           %1
+contrasts_md = {'Encoding', [1 1 1 1 0]; ...                            %1
                 'Auditory Encoding', [1 1 0 0 0]; ...                   %2
                 'Visual Encoding', [0 0 1 1 0]; ...                     %3
                 'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...       %4
@@ -155,7 +156,7 @@ contrasts_md = {'Enconding', [1 1 1 1 0]; ...                           %1
                 'Decision', [0 0 0 0 1]; ...                            %12
                 };
             
-contrasts_md_split = {'Enconding Low', [1 0 1 0 1 0 1 0 0]; ...                            %1
+contrasts_md_split = {'Encoding Low', [1 0 1 0 1 0 1 0 0]; ...                             %1
                       'Enconding High', [0 1 0 1 0 1 0 1 0]; ...                           %2
                       'Auditory Encoding Low', [1 0 1 0 0 0 0 0 0]; ...                    %3
                       'Auditory Encoding High', [0 1 0 1 0 0 0 0 0]; ...                   %4
