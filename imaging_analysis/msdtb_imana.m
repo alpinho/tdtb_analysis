@@ -181,6 +181,49 @@ contrasts_md_split = {'Encoding Low', [1 0 1 0 1 0 1 0 0]; ...                  
                       'Decision', [0 0 0 0 0 0 0 0 1]; ...                                 %23
                        };
 
+contrasts_drbb = {'Encoding', [1 1 1 1 0 0]; ...                            %1
+                  'Auditory Encoding', [1 1 0 0 0 0]; ...                   %2
+                  'Visual Encoding', [0 0 1 1 0 0]; ...                     %3
+                  'Auditory vs Visual Encoding', [1 1 -1 -1 0 0]; ...       %4
+                  'Visual vs Auditory Encoding', [-1 -1 1 1 0 0]; ...       %5
+                  'Beat vs Interval', [1 -1 1 -1 0 0]; ...                  %6
+                  'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0]; ... %7
+                  'Visual Beat vs Visual Interval', [0 0 1 -1 0 0]; ...     %8
+                  'Interval vs Beat', [-1 1 -1 1 0 0]; ...                  %9
+                  'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0]; ... %10
+                  'Visual Interval vs Visual Beat', [0 0 -1 1 0 0]; ...     %11
+                  'Decision', [0 0 0 0 1 0]; ...                            %12
+                  'Response', [0 0 0 0 0 1]; ...                            %13
+                 };
+
+contrasts_dbb = {'Encoding', [1 1 1 1 0]; ...                            %1
+                 'Auditory Encoding', [1 1 0 0 0]; ...                   %2
+                 'Visual Encoding', [0 0 1 1 0]; ...                     %3
+                 'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...       %4
+                 'Visual vs Auditory Encoding', [-1 -1 1 1 0]; ...       %5
+                 'Beat vs Interval', [1 -1 1 -1 0]; ...                  %6
+                 'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %7
+                 'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %8
+                 'Interval vs Beat', [-1 1 -1 1 0]; ...                  %9
+                 'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %10
+                 'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
+                 'Decision', [0 0 0 0 1]; ...                            %12
+                 };
+
+contrasts_brbb = {'Encoding', [1 1 1 1 0]; ...                            %1
+                  'Auditory Encoding', [1 1 0 0 0]; ...                   %2
+                  'Visual Encoding', [0 0 1 1 0]; ...                     %3
+                  'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...       %4
+                  'Visual vs Auditory Encoding', [-1 -1 1 1 0]; ...       %5
+                  'Beat vs Interval', [1 -1 1 -1 0]; ...                  %6
+                  'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %7
+                  'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %8
+                  'Interval vs Beat', [-1 1 -1 1 0]; ...                  %9
+                  'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %10
+                  'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
+                  'Response', [0 0 0 0 1]; ...                            %12
+                 };
+
 %==============================================================================
 
 switch what
@@ -1604,7 +1647,8 @@ switch what
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
         % contrasts_list = contrasts_md;
-        contrasts_list = contrasts_md_split;
+        % contrasts_list = contrasts_md_split;
+        contrasts_list = contrasts_dbb;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         output_folder = 'ffx_rwls';
@@ -1921,7 +1965,7 @@ switch what
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
         % contrasts_list = contrasts_md;
-        contrasts_list = contrasts_md_split;
+        contrasts_list = contrasts_dbb;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         prefix = 'swcon';
@@ -1983,7 +2027,7 @@ switch what
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
         % contrasts_list = contrasts_md;
-        contrasts_list = contrasts_md_split;
+        contrasts_list = contrasts_dbb;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'model'})
@@ -2030,7 +2074,7 @@ switch what
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
         % contrasts_list = contrasts_md;
-        contrasts_list = contrasts_md_split;
+        contrasts_list = contrasts_dbb;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'model'})
