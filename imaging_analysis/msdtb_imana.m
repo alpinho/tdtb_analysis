@@ -69,7 +69,7 @@ wb_dir   = 'surfaceWB';
 % subj_n  = [3, 4, 7, 8, 10];
 subj_n  = [3, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
-% subj_n  = [10];
+% subj_n  = [7, 8, 10];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -429,6 +429,40 @@ switch what
             spmja_normalization_write(deffield_file, subj_anatfile, ...
                 'voxel_size', [1.0 1.0 1.0])
         end
+    
+    case 'ANAT:mean_t1'
+        % Example usage: msdtb_imana('ANAT:mean_t1')
+        
+        sn       = subj_id; % subject list
+        vararginoptions(varargin, {'sn'});
+
+        deriv_folder = fullfile(base_dir, derivatives_dir)
+        group_anatdir = fullfile(deriv_folder, 'group/anat')
+        gt1_name = 'group_t1.nii';
+        
+        maps={};
+        mean_formula = '';
+        for s = sn
+            % Get the directory of subjects anatomical
+            deriv_subj_dir = fullfile(deriv_folder, subj_str{s});
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
+            
+            % Get the name and fullpath of the anatomical image
+            normanat_name = sprintf('w%s_T1w.nii', subj_str{s});
+            maps{s,1} = fullfile(subj_anatderiv_dir, normanat_name);
+            
+            % Create string with formula for mean of T1 images
+            if s == length(sn)
+                mean_formula = sprintf('(%si%d)/%d', ...
+                    mean_formula, s, length(sn))
+            else
+                mean_formula = sprintf('%si%d+', mean_formula, s);
+            end           
+        end        
+                 
+        % Compute mean of T1 images across subjects
+        spma_imcalc(maps, gt1_name, group_anatdir, mean_formula, 0) 
+    
         
     case 'ANAT:run_all'
         % Example usage: msdtb_imana('ANAT:run_all')
