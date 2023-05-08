@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: January 2023
-Last Update: April 2023
+Last Update: May 2023
 
 Compatibility: Python 3.10.4
 
@@ -575,9 +575,13 @@ def extraction_dbb(data, cat, header, events_dir, ttl = True, flag=0,
                 cattag = 'ntfd'
 
             if merge_rest:
+                # fname = 'sub-%02d' % subject_number + \
+                #     '_ses-%02d' % session_number + '_task-' + cattag + \
+                #     '_run-%02d' % run_number + '_mr_dbb_events.tsv'
+
                 fname = 'sub-%02d' % subject_number + \
                     '_ses-%02d' % session_number + '_task-' + cattag + \
-                    '_run-%02d' % run_number + '_mr_dbb_events.tsv'
+                    '_run-%02d' % run_number + '_events.tsv'
             else:
                 fname = 'sub-%02d' % subject_number + \
                     '_ses-%02d' % session_number + '_task-' + cattag + \
@@ -974,15 +978,15 @@ if __name__ == "__main__":
                 # in every dir subj, sess and run dependent (FOR ALL TASKS)
                 # Do flag = 0 only in the first function call of this
                 # if statement
-                extraction_drbb(behavioral_data, category, HEADER, eventspath,
-                                flag=0, merge_decision=True, merge_rest=True)
+                # extraction_drbb(behavioral_data, category, HEADER, eventspath,
+                #                 flag=0, merge_decision=True, merge_rest=True)
 
                 # Now, run again w/ flag=1
                 extraction_dbb(behavioral_data, category, HEADER, eventspath,
-                               flag=1, merge_decision=True, merge_rest=True)
+                               flag=0, merge_decision=True, merge_rest=True)
 
-                extraction_brbb(behavioral_data, category, HEADER, eventspath,
-                                flag=1, merge_decision=True, merge_rest=True)
+                # extraction_brbb(behavioral_data, category, HEADER, eventspath,
+                #                 flag=1, merge_decision=True, merge_rest=True)
             # For Remaining tasks
             else:
                 # extraction(behavioral_data, category, HEADER, eventspath,
@@ -991,11 +995,11 @@ if __name__ == "__main__":
                 # extraction_split(behavioral_data, category, HEADER, eventspath,
                 #                  flag=1, merge_decision=True, merge_rest=False)
 
-                extraction_drbb(behavioral_data, category, HEADER, eventspath,
-                                flag=1, merge_decision=True, merge_rest=True)
+                # extraction_drbb(behavioral_data, category, HEADER, eventspath,
+                #                 flag=1, merge_decision=True, merge_rest=True)
 
                 extraction_dbb(behavioral_data, category, HEADER, eventspath,
                                flag=1, merge_decision=True, merge_rest=True)
 
-                extraction_brbb(behavioral_data, category, HEADER, eventspath,
-                                flag=1, merge_decision=True, merge_rest=True)
+                # extraction_brbb(behavioral_data, category, HEADER, eventspath,
+                #                 flag=1, merge_decision=True, merge_rest=True)
