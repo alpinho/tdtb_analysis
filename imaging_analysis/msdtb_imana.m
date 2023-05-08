@@ -66,8 +66,8 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n  = [3, 4, 7, 8, 10];
-subj_n  = [3, 7, 8, 10];
+subj_n  = [3, 4, 7, 8, 10];
+% subj_n  = [3, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
 % subj_n  = [7, 8, 10];
 
@@ -461,8 +461,7 @@ switch what
         end        
                  
         % Compute mean of T1 images across subjects
-        spma_imcalc(maps, gt1_name, group_anatdir, mean_formula, 0) 
-    
+        spma_imcalc(maps, gt1_name, group_anatdir, mean_formula, 0)    
         
     case 'ANAT:run_all'
         % Example usage: msdtb_imana('ANAT:run_all')
@@ -1160,7 +1159,7 @@ switch what
 
         sn  = subj_id;
         ssn = ses_id; % list of sessions
-        suffix = 'mr_dbb' % suffix of event files
+        suffix = '' % suffix of event files
         vararginoptions(varargin, {'sn'});
         
         if isdir('/srv/diedrichsen/data')
@@ -1179,6 +1178,12 @@ switch what
                     num2str(ses, '%02d') '/*' suffix '_events.tsv'];
                 dfolder = fullfile(destination, subj_str{s}, ...
                     ['ses-' num2str(ses, '%02d')], 'func');
+                
+                % Delete previous tsv files from destination folder
+                dold_files = [dfolder  '/*' suffix '_events.tsv']
+                delete(dold_files)
+                
+                % Copy new tsv files
                 system(['cp ' sfiles ' ' dfolder]);
             end
         end
@@ -1381,8 +1386,8 @@ switch what
         
         sn = subj_id;
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        % hrf_cutoff = 128; % for standard GLM in SPM
-        hrf_cutoff = Inf; % for rwls
+        hrf_cutoff = 128; % for standard GLM in SPM
+        % hrf_cutoff = Inf; % for rwls
         prefix = 'u'; % prefix of the preprocessed epi we want to use
         events_file_tag = 'events';
         output_folder = 'ffx_rwls';
@@ -1505,51 +1510,10 @@ switch what
                             names = {};
                             onsets = {};
                             durations = {};
-                            
-                            % %%%%%%% Encoding condition goes first %%%%%%%
-                            
-                            % Non-merged decision model
-%                             if strcmp(...
-%                                     events_file_tag, 'splitdesign_events') ...
-%                                     && ~strcmp(design{dg}, 'rand_ntfd')
-%                                 % as well as low condition for the split design
-%                                 names(3:3:length(unique_names))= ...
-%                                     unique_names(1:3:end);
-%                                 names(1:3:length(unique_names))= ...
-%                                     unique_names(3:3:end);
-%                                 names(2:3:length(unique_names))= ...
-%                                     unique_names(2:3:end);
-%                             else
-%                                 names(2:2:length(unique_names))= ...
-%                                     unique_names(1:2:end);
-%                                 names(1:2:length(unique_names))= ...
-%                                     unique_names(2:2:end);
-%                             end
 
-                             % Merged decision model
-                            if strcmp(...
-                                    events_file_tag, 'splitdesign_events') ...
-                                    && ~strcmp(design{dg}, 'rand_ntfd')
-                                names(1:4)=unique_names(1:4);
-                                names(5:8)=unique_names(6:9);
-                                names(9)=unique_names(5);
-                            elseif ~strcmp(...
-                                    events_file_tag, 'splitdesign_events') ...
-                                    && strcmp(design{dg}, 'rand_ntfd')
-                                names(1:3)=unique_names(1:3);
-                                names(4:6)=unique_names(5:7);
-                                names(7)=unique_names(4);
-                            elseif strcmp(...
-                                    events_file_tag, 'splitdesign_events') ...
-                                    && strcmp(design{dg}, 'rand_ntfd')
-                                names(1:5)=unique_names(1:5);
-                                names(6:10)=unique_names(7:11);
-                                names(11)=unique_names(6);
-                            else
-                                names(1:2)=unique_names(1:2);
-                                names(3:4)=unique_names(4:5);
-                                names(5)=unique_names(3);
-                            end
+                            % %%%%%%% Reorder regressors %%%%%%%
+                            names = reorder_regressors(unique_names, ...
+                                events_file_tag, design{dg});
                             
                             % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                             
