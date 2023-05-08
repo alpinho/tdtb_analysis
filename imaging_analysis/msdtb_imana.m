@@ -1159,7 +1159,7 @@ switch what
 
         sn  = subj_id;
         ssn = ses_id; % list of sessions
-        suffix = '' % suffix of event files
+        suffix = ''; % suffix of event files
         vararginoptions(varargin, {'sn'});
         
         if isdir('/srv/diedrichsen/data')
@@ -1180,8 +1180,8 @@ switch what
                     ['ses-' num2str(ses, '%02d')], 'func');
                 
                 % Delete previous tsv files from destination folder
-                dold_files = [dfolder  '/*' suffix '_events.tsv']
-                delete(dold_files)
+                dold_files = [dfolder  '/*' suffix '_events.tsv'];
+                delete(dold_files);
                 
                 % Copy new tsv files
                 system(['cp ' sfiles ' ' dfolder]);
