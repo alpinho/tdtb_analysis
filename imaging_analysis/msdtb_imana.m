@@ -11,6 +11,7 @@ if isdir('/srv/diedrichsen/data')
     addpath(sprintf('%s/../matlab/spm12/toolbox/suit', workdir));
     addpath(sprintf('%s/../matlab/dataframe', workdir));
     addpath(sprintf('%s/../matlab/imaging/tools', workdir));
+    addpath(sprintf('%s/../matlab/imaging/rwls', workdir));
     addpath(sprintf('%s/spm12', homedir));
     addpath(sprintf('%s/suit', homedir));
     addpath(sprintf('%s/freesurfer', homedir));
@@ -70,6 +71,7 @@ subj_n  = [3, 4, 7, 8, 10];
 % subj_n  = [3, 7, 8, 10];
 % subj_n  = [4, 7, 8, 10];
 % subj_n  = [7, 8, 10];
+% subj_n  = [3]
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1688,10 +1690,14 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         input_folder = 'ffx_rwls';
-        output_folder = 'snorm_rwls';
+        output_folder = 'swcon_rwls';
         file_type = 'con'; % the another one is 'spmT or ResMS'
+        
+        
         group_mask = fullfile(base_dir, derivatives_dir, ...
             'group/anat/group_mask_noskull.nii');
+        masking_tag = 'wbmasked'
+        
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
             'output_folder', 'file_type'});
         
@@ -1737,15 +1743,15 @@ switch what
                 % ... or delete pre-existing files from norm folder
                 if any(size(dir(...
                         [w_condir_destination '/w' file_type ...
-                        '*_masked.nii']), 1))
+                        '*_desc-' masking_tag '.nii']), 1))
                     delete([w_condir_destination '/w' file_type ...
-                        '*_masked.nii']);
+                        '*_desc-' masking_tag '.nii']);
                 end
                 if any(size(dir(...
                         [w_condir_destination '/sw' file_type ...
-                        '*_masked.nii']), 1))
+                        '*_desc-' masking_tag '.nii']), 1))
                     delete([w_condir_destination '/sw' file_type ...
-                        '*_masked.nii']);
+                        '*_desc-' masking_tag '.nii']);
                 end
                 
                 % List normalized contrasts in ffx folder
@@ -1761,7 +1767,7 @@ switch what
                     A = [];
                     A.input = {group_mask; w_confiles_destination(w).name};
                     A.output = [w_confiles_destination(w).name(1:end-4) ...
-                        '_masked.nii'];
+                        '_desc-' masking_tag '.nii'];
                     A.outdir = {w_condir_destination};
                     A.expression = 'i2.*(i1>0.99)';
                     A.var = struct('name', {}, 'value', {});
