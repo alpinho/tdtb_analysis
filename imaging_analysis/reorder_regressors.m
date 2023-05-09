@@ -55,6 +55,14 @@ switch true
         rnames(1:3)=unames(1:3);
         rnames(4:6)=unames(5:7);
         rnames(7)=unames(4);
+    case strcmp(tag, 'events') && ~strcmp(task, 'rand_ntfd')
+        rnames(1:2)=unames(1:2);
+        rnames(3:4)=unames(4:5);
+        rnames(5)=unames(3);
+    case strcmp(tag, 'events') && strcmp(task, 'rand_ntfd')
+        rnames(1:3)=unames(1:3);
+        rnames(4:6)=unames(5:7);
+        rnames(7)=unames(4);
     case ~strcmp(tag, '') && ~strcmp(task, 'rand_ntfd')
         rnames(1:2)=unames(1:2);
         rnames(3:4)=unames(4:5);
