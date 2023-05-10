@@ -1696,7 +1696,7 @@ switch what
         
         group_mask = fullfile(base_dir, derivatives_dir, ...
             'group/anat/group_mask_noskull.nii');
-        masking_tag = 'wbmasked'
+        masking_tag = 'wbmasked';
         
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
             'output_folder', 'file_type'});
@@ -1792,11 +1792,13 @@ switch what
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        contrasts_folder = 'snorm_rwls'; % or 'snorm_splitdesign_maps_rwls'
+        contrasts_folder = 'swcon_rwls'; % or 'snorm_splitdesign_maps_rwls'
         file_type = 'con'; % the another one is spmT or ResMS'
         smoothing_kernel = [8 8 8];
+        
         group_mask = fullfile(base_dir, derivatives_dir, ...
             'group/anat/group_mask_noskull.nii');
+        masking_tag = 'wbmasked';
         
         vararginoptions(varargin, {'sn', 'design', 'contrasts_folder', ...
             'file_type', 'smoothing_kernel'});
@@ -1821,8 +1823,9 @@ switch what
                     wconfiles = {fullfile(normcon_folder, 'wResMS.nii')};
                 else
                     n_contrasts = numel(dir(...
-                        [normcon_folder '/w' file_type '*.nii'])) - numel(dir(...
-                        [normcon_folder '/w' file_type '*_masked.nii']));
+                        [normcon_folder '/w' file_type '*.nii'])) - numel(...
+                        dir([normcon_folder '/w' file_type '*_desc-' ...
+                        masking_tag '.nii']));
 
                     for c=1:n_contrasts
                         cname = sprintf('w%s_%04d.nii', file_type, c);
@@ -1844,10 +1847,11 @@ switch what
                 % Mask results with the group-level whole-brain mask                
                 cd(normcon_folder)
                 sw_confiles = dir(['sw' file_type '*.nii']);
-                for s = 1:length(sw_confiles) 
+                for s = 1:length(sw_confiles)
                     S = [];
                     S.input = {group_mask; sw_confiles(s).name};
-                    S.output = [sw_confiles(s).name(1:end-4) '_masked.nii'];
+                    S.output = [sw_confiles(s).name(2:end-4) '_desc-sm8_' ...
+                        masking_tag '.nii'];
                     S.outdir = {normcon_folder};
                     S.expression = 'i2.*(i1>0.99)';
                     S.var = struct('name', {}, 'value', {});
@@ -1860,7 +1864,8 @@ switch what
                     matlabbatch{1}.spm.util.imcalc=S;
                     spm_jobman('run', matlabbatch);
                     
-                    % Delete non-masked files
+                    % Delete non-masked files (normalized +
+                    % smoothed&unsmoothed)
                     delete(sprintf('%s', sw_confiles(s).name(2:end)));
                     delete(sprintf('%s', sw_confiles(s).name));
                 end
