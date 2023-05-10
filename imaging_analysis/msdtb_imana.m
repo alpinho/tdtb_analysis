@@ -1699,7 +1699,7 @@ switch what
         masking_tag = 'wbmasked';
         
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
-            'output_folder', 'file_type'});
+            'output_folder', 'file_type', 'masking_tag'});
         
         % spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -1801,7 +1801,7 @@ switch what
         masking_tag = 'wbmasked';
         
         vararginoptions(varargin, {'sn', 'design', 'contrasts_folder', ...
-            'file_type', 'smoothing_kernel'});
+            'file_type', 'smoothing_kernel', 'masking_tag'});
         
         % spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
