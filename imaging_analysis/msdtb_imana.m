@@ -1682,8 +1682,8 @@ switch what
         % Normalize and smooth individual contrasts or t-maps
         % Example usage: msdtb_imana(
         %                   'CON:normalization', 
-        %                   'input_folder', 'ffx_rwls_splitdesign', ...
-        %                   'output_folder', 'snorm_rwls_splitdesign', ...
+        %                   'input_folder', 'ffx_standard', ...
+        %                   'output_folder', 'sw_derivatives_standard', ...
         %                   'file_type', 'spmT')     
         
         sn       = subj_id; % subject list
@@ -1827,8 +1827,7 @@ switch what
         msdtb_imana('GLM:grand_design_rwls')
         msdtb_imana('GLM:estimate_rwls')
         msdtb_imana('GLM:individual_ffx_t')
-        msdtb_imana('CON:normalization')
-        msdtb_imana('CON:smooth')    
+        msdtb_imana('CON:norm_smooth')
         
     case 'GROUP:ffx_t'
         % Estimate ffx group tmaps       
@@ -1909,14 +1908,14 @@ switch what
         
     case 'GROUP:onesample_t_design'
         % Example usage: msdtb_imana('GROUP:onesample_t_design', ...
-        %                'input_folder', 'snorm_rwls_splitdesign', ...
-        %                'output_folder', 'rfx_onesample_t_rwls_splitdesign')
+        %                'input_folder', 'sw_derivatives_standard', ...
+        %                'output_folder', 'rfx_onesample_t_standard')
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        input_folder = 'snorm_rwls'; % or 'snorm_rwls_splitdesign'
-        output_folder = 'rfx_onesample_t_rwls'; % or 'rfx_onesample_t_rwls_splitdesign'
+        input_folder = 'sw_derivatives_rwls';
+        output_folder = 'rfx_onesample_t_rwls';
         
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
@@ -1924,7 +1923,7 @@ switch what
         contrasts_list = contrasts_dbb;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
-        prefix = 'swcon';
+        suffix = 'sm8wbmasked';
         
         group_mask = fullfile(base_dir, derivatives_dir, ...
             'group/anat/group_mask_noskull.nii');
@@ -1947,7 +1946,7 @@ switch what
                 condir = fullfile(ost_dir, ...
                     sprintf('con_%02d_%s', sc, contrast));
                 folder(condir);
-                swname = sprintf('%s_%04d_masked.nii', prefix, sc);
+                swname = sprintf('wcon_%04d_desc-%s.nii', sc, suffix);
                 icon = {};
                 for s = sn
                     snormcon_folder = fullfile(base_dir, derivatives_dir, ...
