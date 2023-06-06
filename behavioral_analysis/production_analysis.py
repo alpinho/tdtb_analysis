@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: March 2023
+Last update: June 2023
 
 Compatibility: Python 3.10.4
 """
@@ -45,7 +45,7 @@ def production_data(data):
             condition = datum[4]
             theoretical_isi1 = int(datum[8])
             real_isi1 = int(datum[9])
-            if data[dt+8][5] == 'feedback' and data[dt+8][11] == 'o':
+            if data[dt+8][5] == 'feedback' and data[dt+8][11] in ['o', 'b']:
                 rt = int(data[dt+7][7]) + int(data[dt+8][10])
             elif data[dt+8][5] == 'feedback' and data[dt+8][10] == 'None':
                 rt = np.nan
@@ -78,9 +78,8 @@ def filter_trialtype(trs, category):
 
 
 def individual_production_isi_sync(
-        subjects, this_dir, output_folder, sesstype, n_sess, sync_type,
-        flatten=True,
-        tasks = ['Auditory Production', 'Visual Production']):
+        subjects, sesstypes, this_dir, output_folder, sync_type, n_trials,
+        flatten=True, tasks=['Auditory Production', 'Visual Production']):
 
     allsub_beat_audio = []
     allsub_interval_audio = []
@@ -90,7 +89,7 @@ def individual_production_isi_sync(
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            data = parse_logfile(this_dir, subject, sesstypes, task, n_trials)
             trials = production_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'production')
@@ -317,7 +316,7 @@ def individual_production_isi_sync(
 
 
 def individual_production_isi_rts(
-        subjects, this_dir, output_folder, sesstype, n_sess, flatten=True,
+        subjects, sesstypes, this_dir, output_folder, n_trials, flatten=True,
         tasks = ['Auditory Production', 'Visual Production']):
 
     allsub_beat_audio = []
@@ -329,7 +328,7 @@ def individual_production_isi_rts(
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            data = parse_logfile(this_dir, subject, sesstypes, task, n_trials)
             trials = production_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'production')
@@ -964,17 +963,20 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28]
-RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
-# SUBJECTS = [5]
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28]
+# SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 15, 16, 22, 23, 28]
+SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 15, 22, 23]
+# SUBJECTS = [3]
 
-# TASKS = ['Auditory Production', 'Visual Production']
+# TASKS = ['Visual Production']
 
-SESSTYPE = 'behavioral session'
-N_SESSIONS = 3
+SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSTYPES = ['imaging_session']
 
 PLOTS_FOLDER = 'production_results'
+
+N_TRIALS = 30
 
 # %%
 # ========================= PARAMETERS =================================
@@ -994,13 +996,13 @@ if __name__ == "__main__":
     # ### Individual analysis per standard --- box plots
     ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
         ssync_visual_interval, standards = individual_production_isi_sync(
-            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS, 'signed',
-            flatten=False)
+            SUBJECTS, SESSTYPES, MAIN_DIR, PLOTS_FOLDER, 'signed',
+            N_TRIALS, flatten=False)
 
     async_audio_beat, async_audio_interval, async_visual_beat, \
         async_visual_interval, standards = individual_production_isi_sync(
-            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS,
-            'absolute', flatten=False)
+            SUBJECTS, SESSTYPES, MAIN_DIR, PLOTS_FOLDER, 'absolute',
+            N_TRIALS, flatten=False)
 
     # ## Compute mean of asynchronies across trials per subject
     # ## for every standard (fixed-effects)
@@ -1094,7 +1096,7 @@ if __name__ == "__main__":
     # ### Individual analysis per standard --- box plots ###
     rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
         rtsprod_visual_interval, standards = individual_production_isi_rts(
-            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS,
+            SUBJECTS, SESSTYPES, MAIN_DIR, PLOTS_FOLDER, N_TRIALS,
             flatten=False)
 
     # ### Group Analyses per standard --- bar plots + paired t-test ###
