@@ -5,26 +5,30 @@ import csv
 import numpy as np
 
 
-def parse_logfile(parent_dir, subject_no, sesstype, n_sess, tasks,
-                  ttl=False, concatenate=True):
+def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
+                  ttl=False, concatenate=False):
 
-    sessions = ['ses-%02d' %s for s in np.arange(1, n_sess + 1)]
     allsessions = []
-    for session in sessions:
-        logpath = os.path.join(parent_dir, 'sub-%02d' % subject_no, session)
-        logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
-        logfiles.sort()
-        inputs_lists = [[line for line in csv.reader(open(logfile),
-                                                     delimiter=',')]
-                        for logfile in logfiles]
-        # Pick log files of selected task
-        allruns = []
-        for i, inputs_list in enumerate(inputs_lists, 1):
-            for task_name in tasks:
-                ttag = task_name + ' - ' + sesstype
+    for sesstype in sesstypes:
+        sesstype_path = os.path.join(parent_dir, 'sub-%02d' % subject_no,
+                                     sesstype + 's')
+        sessions = os.listdir(sesstype_path)
+        sessions.sort()
+        for session in sessions:
+            logpath = os.path.join(sesstype_path, session)
+            logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
+            logfiles.sort()
+            inputs_lists = [[line for line in csv.reader(open(logfile),
+                                                         delimiter=',')]
+                            for logfile in logfiles]
+            # Pick log files of selected task
+            allruns = []
+            for i, inputs_list in enumerate(inputs_lists, 1):
+                sesstype_tag = sesstype.replace('_', ' ')
+                ttag = task + ' - ' + sesstype_tag
                 # print('ttag: ', ttag)
-                if ttag in inputs_list[8][0][9:]:
-                    # print('inputs: ', inputs_list[8][0][9:])
+                if ttag in inputs_list[8][0][9:] or \
+                   ttag in inputs_list[9][0][9:]:
                     liste = inputs_list
                     # Extract trial information from log file
                     for r, row in enumerate(liste):
@@ -32,10 +36,39 @@ def parse_logfile(parent_dir, subject_no, sesstype, n_sess, tasks,
                             break
                         else:
                             continue
+                    # Remove TTL line or not?
                     if not ttl:
                         trials_info = liste[r+1:]
                     else:
                         trials_info = liste[r:]
+
+                    # For behavioral sessions
+                    if sesstype == 'behavioral_session':
+                        trials_info = trials_info[:-1]
+                    # For imaging sessions
+                    else:
+                        assert sesstype == 'imaging_session'
+                        if ttag in inputs_list[8][0][9:]:
+                            print(inputs_list[8][0][9:])
+                            print(inputs_list[9][0][9:])
+                            for li, line in enumerate(trials_info):
+                                if li and \
+                                   trials_info[li-1][3] == str(n_trials) and \
+                                   line[4] == 'fixcross':
+                                    break
+                                else:
+                                    continue
+                            trials_info = trials_info[:li]
+                        elif ttag in inputs_list[9][0][9:]:
+                            print(inputs_list[9][0][9:])
+                            print(inputs_list[8][0][9:])
+                            for li, line in enumerate(trials_info):
+                                if line[4] == 'baseline' and \
+                                   trials_info[li-2][3] == str(n_trials):
+                                    break
+                                else:
+                                    continue
+                            trials_info = trials_info[li+1:-2]
                     if concatenate:
                         allruns.extend(trials_info)
                     else:
@@ -47,10 +80,10 @@ def parse_logfile(parent_dir, subject_no, sesstype, n_sess, tasks,
                     raise NameError(
                         'Log file for selected task does not exist!')
 
-        if concatenate:
-            allsessions.extend(allruns)
-        else:
-            allsessions.append(allruns)
+            if concatenate:
+                allsessions.extend(allruns)
+            else:
+                allsessions.append(allruns)
 
     return allsessions
 
@@ -100,10 +133,12 @@ def ffx(audio_beat, audio_interval, visual_beat, visual_interval):
     # Computes mean of elements in the third dimension
     # Swaps dimensions and returns array w/ shape (n_isi, n_subjects)
 
-    mean_audio_beat = np.array(audio_beat).mean(2)
-    mean_audio_interval = np.array(audio_interval).mean(2)
-    mean_visual_beat = np.array(visual_beat).mean(2)
-    mean_visual_interval = np.array(visual_interval).mean(2)
+    mean_audio_beat = [[np.mean(ab2) for ab2 in ab1] for ab1 in audio_beat]
+    mean_audio_interval = [[np.mean(ai2) for ai2 in ai1]
+                           for ai1 in audio_interval]
+    mean_visual_beat = [[np.mean(vb2) for vb2 in vb1] for vb1 in visual_beat]
+    mean_visual_interval = [[np.mean(vi2) for vi2 in vi1]
+                            for vi1 in visual_interval]
 
     ffx_audio_beat = np.swapaxes(mean_audio_beat, 0, 1)
     ffx_audio_interval = np.swapaxes(mean_audio_interval, 0, 1)
