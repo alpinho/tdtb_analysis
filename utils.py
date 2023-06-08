@@ -6,7 +6,7 @@ import numpy as np
 
 
 def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
-                  ttl=False, concatenate=False):
+                  ttl=False, concatenate=True):
 
     allsessions = []
     for sesstype in sesstypes:
