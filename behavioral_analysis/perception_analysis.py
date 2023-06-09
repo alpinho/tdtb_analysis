@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: March 2023
+Last update: June 2023
 
 Compatibility: Python 3.10.4
 """
@@ -48,7 +48,7 @@ def perception_data(data):
             theoretical_isi1 = datum[8]
             theoretical_isi5 = data[dt+8][8]
             if data[dt+10][5] == 'feedback' and \
-               data[dt+10][11] in ['o', 'p']:
+               data[dt+10][11] in ['o', 'p', 'b', 'y']:
                 # rt = int(data[dt+9][7]) + int(data[dt+10][10])
                 answer = data[dt+10][11]
             elif data[dt+10][5] == 'feedback' and \
@@ -97,19 +97,19 @@ def perception_frequencies(beat_trials, interval_trials):
         diff_standard_beat_shorter = \
             [round((bt[1] - bt[0]) / bt[0], 2)
              for bt in beat_trials
-             if bt[0] == standard and bt[2] == 'p']
+             if bt[0] == standard and bt[2] in ['p', 'y']]
         diff_standard_beat_longer = \
             [round((bt[1] - bt[0]) / bt[0], 2)
              for bt in beat_trials
-             if bt[0] == standard and bt[2] == 'o']
+             if bt[0] == standard and bt[2] in ['o', 'b']]
         diff_standard_interval_shorter = \
             [round((it[1] - it[0]) / it[0], 2)
              for it in interval_trials
-             if it[0] == standard and it[2] == 'p']
+             if it[0] == standard and it[2] in ['p', 'y']]
         diff_standard_interval_longer = \
             [round((it[1] - it[0]) / it[0], 2)
              for it in interval_trials
-             if it[0] == standard and it[2] == 'o']
+             if it[0] == standard and it[2] in ['o', 'b']]
         n1_comp_beat = []
         n2_comp_beat = []
         n1_comp_interval = []
@@ -198,9 +198,18 @@ def errFit(hess_inv, resVariance):
     return np.sqrt(np.diag(hess_inv * resVariance))
 
 
+def outliers(arr):
+    q75, q25 = np.percentile(arr, [75, 25])
+    iqr = q75 - q25
+    high_thresh = q75 + 1.7*iqr
+    low_thresh = q25 - 1.7*iqr
+
+    return high_thresh, low_thresh
+
+
 def individual_perception(
-        subjects, this_dir, output_dir, sesstype, n_sess, condition,
-        estimator='mle_cdf',
+        subjects, this_dir, output_dir, sesstype, condition, n_trials,
+        estimator='mle_expit',
         tasks = ['Auditory Perception', 'Visual Perception']):
 
     all_rf1_audio = []
@@ -216,7 +225,7 @@ def individual_perception(
             if task not in ['Auditory Perception', 'Visual Perception']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
             trials = perception_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'perception')
@@ -388,7 +397,7 @@ def individual_perception(
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
                      standards, comparisons, condition, this_dir, output_dir,
-                     estimator = 'mle_cdf'):
+                     estimator = 'mle_expit'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
     group_rf2_audio = np.mean(all_rf2_audio, axis=0)
@@ -631,7 +640,8 @@ def plotfit_perception(x, y, estimator, this_dir, output_dir):
     plt.close('all')
 
 
-def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir):
+def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir,
+              estimator='mle_expit'):
     # Stack multidimensional numpy array to produce a dataframe
     estim_pse = np.array(estim_pse)
     estim_dl = np.array(estim_dl)
@@ -669,15 +679,20 @@ def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir):
     df = pd.DataFrame(table, columns=['DL', 'Standard', 'Modality',
                                       'Subject', 'Condition', 'Estimator'])
     df['DL'] = df['DL'].apply(pd.to_numeric)
-    df = df[df.Estimator == 'mle_expit']
+    df = df[df.Estimator == estimator]
 
     # Replace outliers by median
-    dl1 = np.median(df[df.Standard == str(510)][df.Modality == 'visual'][
-        df.Condition == 'beat'].DL.values)
-    dl2 = np.median(df[df.Standard == str(510)][df.Modality == 'visual'][
-        df.Condition == 'interval'].DL.values)
-    df.loc[701, 'DL'] = dl1
-    df.loc[971, 'DL'] = dl2
+    ht, lt = outliers(dl_flatten)
+    df['DL'] = np.where(df['DL'] > ht, np.nan, df['DL'])
+    df['DL'] = np.where(df['DL'] < lt, np.nan, df['DL'])
+    for index, row in df.iterrows():
+        if df.loc[index, 'DL'] == np.nan:
+            std_val = df.loc[index, 'Standard']
+            mod_val = df.loc[index, 'Modality']
+            cond_val = df.loc[index, 'Condition']
+            dl = np.median(df[df.Standard == std_val][
+                df.Modality == mod_val][df.Condition == cond_val].DL.values)
+            df.loc[index, 'DL'] = dl
 
     return df
 
@@ -942,17 +957,19 @@ def threeway_repanova(df, this_dir, output_dir):
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28]
-RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28]
+SUBJECTS = [3, 7, 8, 10, 11, 12, 15, 22, 23]
 # SUBJECTS = [3]
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
-SESSTYPE = 'behavioral session'
-N_SESSIONS = 3
+SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSTYPES = ['behavioral_session']
 
 PLOTS_FOLDER = 'perception_results'
+
+N_TRIALS = 30
 
 # %%
 # ========================= PARAMETERS =================================
@@ -982,9 +999,9 @@ if __name__ == "__main__":
             # Compute individual psychometric functions
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
-                    individual_perception(
-                        SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE,
-                        N_SESSIONS, cond, estimator=estimator)
+                    individual_perception(SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
+                                          SESSTYPES, cond, N_TRIALS,
+                                          estimator=estimator)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
@@ -1027,4 +1044,3 @@ if __name__ == "__main__":
             db = dataframe(estim_pse, estim_dl, stand, MAIN_DIR, PLOTS_FOLDER)
             # twoway_repanova(db, stand, MAIN_DIR, PLOTS_FOLDER)
             threeway_repanova(db, MAIN_DIR, PLOTS_FOLDER)
-
