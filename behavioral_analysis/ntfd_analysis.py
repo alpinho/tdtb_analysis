@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: March 2023
+Last update: June 2023
 
 Compatibility: Python 3.10.4
 """
@@ -45,7 +45,7 @@ def ntfd_data(data):
         if datum[5] == 'feedback':
             condition = datum[4]
             theoretical_isi1 = int(data[dt-2][8])
-            if datum[11] in ['o', 'p']:
+            if datum[11] in ['o', 'p', 'b', 'y']:
                 rt = int(data[dt-1][7]) + int(datum[10])
             elif datum[10] == 'None':
                 rt = np.nan
@@ -114,24 +114,24 @@ def success(data, subject):
     return round(np.sum(scores)/len(scores), 3)
 
 
-def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_sess,
+def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
                         flatten=True,
-                        tasks = ['Auditory No-Temporal Feature Discrimination',
-                                 'Visual No-Temporal Feature Discrimination']):
+                        tasks=['Auditory No-Temporal Feature Discrimination',
+                               'Visual No-Temporal Feature Discrimination']):
 
     allsub_beat_audio = []
     allsub_interval_audio = []
     allsub_random_audio = []
     allsub_beat_visual = []
     allsub_interval_visual = []
-    allsub_random_visual =[]
+    allsub_random_visual = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory No-Temporal Feature Discrimination',
                             'Visual No-Temporal Feature Discrimination']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
@@ -237,9 +237,9 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_sess,
 
 
 def individual_ntfd_isi_rts(
-        subjects, this_dir, output_dir, sesstype, n_sess, flatten=True,
-        tasks = ['Auditory No-Temporal Feature Discrimination',
-                 'Visual No-Temporal Feature Discrimination']):
+        subjects, this_dir, output_dir, sesstype, n_trials, n_isi_trials,
+        flatten=True, tasks=['Auditory No-Temporal Feature Discrimination',
+                             'Visual No-Temporal Feature Discrimination']):
 
     allsub_beat_audio = []
     allsub_interval_audio = []
@@ -251,7 +251,7 @@ def individual_ntfd_isi_rts(
                             'Visual No-Temporal Feature Discrimination']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
@@ -371,7 +371,7 @@ def individual_ntfd_isi_rts(
             ax.spines['top'].set_visible(False)
 
             # Aggregate data
-            diff = 36 - np.array(rt_isi1_grouped_interval).shape[1]
+            diff = n_isi_trials - np.array(rt_isi1_grouped_interval).shape[1]
             if diff != 0:
                 # Add missing data for subjects who have less data because of
                 # the introduction of the random condition
@@ -414,10 +414,9 @@ def individual_ntfd_isi_rts(
 
 
 def individual_ntfd_sucessrate(
-        subjects, this_dir, output_dir, sesstype, n_sess,
-        random = False, flatten=True,
-        tasks = ['Auditory No-Temporal Feature Discrimination',
-                 'Visual No-Temporal Feature Discrimination']):
+        subjects, this_dir, output_dir, sesstype, n_trials, random=False,
+        flatten=True, tasks=['Auditory No-Temporal Feature Discrimination',
+                             'Visual No-Temporal Feature Discrimination']):
 
     allsub_success_rate_audio_beat = []
     allsub_success_rate_audio_interval = []
@@ -431,7 +430,7 @@ def individual_ntfd_sucessrate(
                             'Visual No-Temporal Feature Discrimination']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, n_sess, [task])
+            data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
@@ -1152,24 +1151,44 @@ def group_successrate_rand(
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28]
-RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
-# RAND_SUBJECTS = [17]
-# SUBJECTS = [3]
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28]
+SUBJECTS = [3, 7, 8, 10, 11, 12, 15, 22, 23]
+
+# This set of subjects are those that for the behavioral experiments did
+# do NTFD with the Random Condition
+# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+RAND_SUBJECTS = [22, 23]
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
 #          'Visual No-Temporal Feature Discrimination']
 
-SESSTYPE = 'behavioral session'
-N_SESSIONS = 3
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSTYPES = ['imaging_session']
 
 PLOTS_FOLDER = 'ntfd_results'
+
+# Total number of trials per run
+N_TRIALS = 30
+# Total number of trials per isi per condition (without random condition)...
+# ... across all runs of all behavioral sessions
+N_ISI_TRIALS_BEHAV = 36 # (3*4*3)
+# Total number of trials per isi per condition across all runs of all ...
+# ... imaging sessions
+N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2)
 
 # %%
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if SESSTYPES == ['behavioral_session', 'imaging_session']:
+    N_ISI_TRIALS = N_ISI_TRIALS_BEHAV + N_ISI_TRIALS_IMG
+elif SESSTYPES == ['behavioral_session']:
+    N_ISI_TRIALS = N_ISI_TRIALS_BEHAV
+else:
+    assert SESSTYPES == ['imaging_session']
+    N_ISI_TRIALS = N_ISI_TRIALS_IMG
 
 # %%
 # ============================ RUN =====================================
@@ -1185,7 +1204,7 @@ if __name__ == "__main__":
     m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
         m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
         m_rtsntfd_visual_random = individual_ntfd_rts(
-            RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS,
+            RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPES, N_TRIALS,
             flatten=False)
 
     # Compute ffx
@@ -1245,8 +1264,8 @@ if __name__ == "__main__":
     # ### Individual analysis per standards --- box plots
     rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
         rtsntfd_visual_interval, standards = individual_ntfd_isi_rts(
-            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPE, N_SESSIONS,
-            flatten=False)
+            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPES, N_TRIALS,
+            N_ISI_TRIALS, flatten=False)
 
     # ## Compute mean of reaction time across trials per subject
     # ## for every standard (fixed-effects)
@@ -1296,7 +1315,7 @@ if __name__ == "__main__":
         individual_norand_srate_visual_beat, \
         individual_norand_srate_visual_interval, _ = \
             individual_ntfd_sucessrate(SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
-                                       SESSTYPE, N_SESSIONS, flatten=False)
+                                       SESSTYPES, N_TRIALS, flatten=False)
 
     individual_rand_srate_audio_beat, \
         individual_rand_srate_audio_interval, \
@@ -1305,7 +1324,7 @@ if __name__ == "__main__":
         individual_rand_srate_visual_interval, \
         individual_rand_srate_visual_random = \
             individual_ntfd_sucessrate(RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
-                                       SESSTYPE, N_SESSIONS, random=True,
+                                       SESSTYPES, N_TRIALS, random=True,
                                        flatten=False)
 
     # Compute stats
