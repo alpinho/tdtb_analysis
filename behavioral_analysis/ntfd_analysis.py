@@ -132,6 +132,7 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
                 raise NameError('Task not valid!')
 
             data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
+
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
@@ -1151,20 +1152,20 @@ def group_successrate_rand(
 # %%
 # =========================== INPUTS ===================================
 
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28]
-SUBJECTS = [3, 7, 8, 10, 11, 12, 15, 22, 23]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 22, 23, 24,
+            25, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39]
+# SUBJECTS = [3, 7, 8, 10]
 
 # This set of subjects are those that for the behavioral experiments did
-# do NTFD with the Random Condition
-# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]
-RAND_SUBJECTS = [22, 23]
+# the NTFD with the Random Condition
+RAND_SUBJECTS = [16, 17, 20, 22, 23, 24, 25, 28, 29, 30, 32, 33, 34, 35, 36,
+                 37, 38, 39]
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
 #          'Visual No-Temporal Feature Discrimination']
 
 # SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSTYPES = ['imaging_session']
+SESSTYPES = ['behavioral_session']
 
 PLOTS_FOLDER = 'ntfd_results'
 
@@ -1210,6 +1211,7 @@ if __name__ == "__main__":
     # Compute ffx
     m_rtsntfd_audio_beat = np.mean(
         m_rtsntfd_audio_beat, axis=1).tolist()
+    0/0
     m_rtsntfd_audio_interval = np.mean(
         m_rtsntfd_audio_interval, axis=1).tolist()
     m_rtsntfd_audio_random = np.mean(
