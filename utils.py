@@ -12,8 +12,16 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
     for sesstype in sesstypes:
         sesstype_path = os.path.join(parent_dir, 'sub-%02d' % subject_no,
                                      sesstype + 's')
-        sessions = os.listdir(sesstype_path)
-        sessions.sort()
+        # If the participant only did behaviour
+        if sesstype == 'imaging_session' and not os.path.exists(sesstype_path):
+            break
+        # Do not consider behavioural data from imaging session of sub-04
+        elif sesstype == 'imaging_session' and subject_no == 4:
+            break
+        else:
+            sessions = []
+            sessions = os.listdir(sesstype_path)
+            sessions.sort()
         for session in sessions:
             logpath = os.path.join(sesstype_path, session)
             logfiles = glob.glob(os.path.join(logpath, '*.xpd'))

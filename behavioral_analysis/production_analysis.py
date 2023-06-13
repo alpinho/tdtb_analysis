@@ -486,11 +486,36 @@ def individual_production_isi_rts(
 def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
     # Reshape (n_subjects, n_isi, n_trials) --> (n_isi, n_subjects*n_trials)
 
+    # Resize numpy arrays when there is less trials per isi because the participant
+    # only did the behavioral sessions
+    nt_max = np.ravel([[np.array(isi).shape[0] for isi in isis]
+                       for isis in audio_beat]).max()
+    nt_min = np.ravel([[np.array(isi).shape[0] for isi in isis]
+                       for isis in audio_beat]).min()
+    audio_beat = [
+        [np.append(ab_trials, np.repeat(np.nan, nt_max - nt_min)).tolist()
+         if len(ab_trials) < nt_max else ab_trials for ab_trials in ab_isis]
+        for ab_isis in audio_beat]
+    audio_interval = [
+        [np.append(ai_trials, np.repeat(np.nan, nt_max - nt_min)).tolist()
+         if len(ai_trials) < nt_max else ai_trials for ai_trials in ai_isis]
+        for ai_isis in audio_interval]
+    visual_beat = [
+        [np.append(vb_trials, np.repeat(np.nan, nt_max - nt_min)).tolist()
+         if len(vb_trials) < nt_max else vb_trials for vb_trials in vb_isis]
+        for vb_isis in visual_beat]
+    visual_interval = [
+        [np.append(vi_trials, np.repeat(np.nan, nt_max - nt_min)).tolist()
+         if len(vi_trials) < nt_max else vi_trials for vi_trials in vi_isis]
+        for vi_isis in visual_interval]
+
+    # Swap n_subjects with n_isi
     s_audio_beat = np.swapaxes(audio_beat, 0, 1)
     s_audio_interval = np.swapaxes(audio_interval, 0, 1)
     s_visual_beat = np.swapaxes(visual_beat, 0, 1)
     s_visual_interval = np.swapaxes(visual_interval, 0, 1)
 
+    # Reshape
     rs_audio_beat = np.reshape(
         s_audio_beat,
         (s_audio_beat.shape[0],
@@ -533,6 +558,11 @@ def plot_violin(audio_beat, audio_interval,
             zip(audio_beat, audio_interval)):
         pos_ab = [i*2 - .4]
         pos_ai = [i*2 + .4]
+
+        # Remove NaNs from data if they exist
+        isi_audio_beat = isi_audio_beat[~np.isnan(isi_audio_beat)]
+        isi_audio_interval = isi_audio_interval[~np.isnan(isi_audio_interval)]
+
         v1_ab = ax1.violinplot(isi_audio_beat, pos_ab, showmeans=True,
                                showmedians=False, showextrema=True, widths=.75)
         v1_ai = ax1.violinplot(isi_audio_interval, pos_ai, showmeans=True,
@@ -965,9 +995,7 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28]
-# SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 15, 16, 22, 23, 28]
-SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 15, 22, 23]
-# SUBJECTS = [3]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10]
 
 # TASKS = ['Visual Production']
 
@@ -1158,14 +1186,18 @@ if __name__ == "__main__":
         for rts_vi in rtsprod_visual_interval]
 
     # Absolute asynch
-    abs_error_rtsprod_audio_beat = np.absolute(
-        error_rtsprod_audio_beat).tolist()
-    abs_error_rtsprod_audio_interval = np.absolute(
-        error_rtsprod_audio_interval).tolist()
-    abs_error_rtsprod_visual_beat = np.absolute(
-        error_rtsprod_visual_beat).tolist()
-    abs_error_rtsprod_visual_interval = np.absolute(
-        error_rtsprod_visual_interval).tolist()
+    abs_error_rtsprod_audio_beat = [
+        [[np.absolute(z_ab).tolist() for z_ab in y_ab] for y_ab in x_ab]
+        for x_ab in error_rtsprod_audio_beat]
+    abs_error_rtsprod_audio_interval = [
+        [[np.absolute(z_ai).tolist() for z_ai in y_ai] for y_ai in x_ai]
+        for x_ai in error_rtsprod_audio_interval]
+    abs_error_rtsprod_visual_beat = [
+        [[np.absolute(z_vb).tolist() for z_vb in y_vb] for y_vb in x_vb]
+        for x_vb in error_rtsprod_visual_beat]
+    abs_error_rtsprod_visual_interval = [
+        [[np.absolute(z_vi).tolist() for z_vi in y_vi] for y_vi in x_vi]
+        for x_vi in error_rtsprod_visual_interval]
 
     # Fixed-effects
     ffxerr_rtsprod_audio_beat, ffxerr_rtsprod_audio_interval, \
