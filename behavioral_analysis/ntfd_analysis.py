@@ -114,6 +114,18 @@ def success(data, subject):
     return round(np.sum(scores)/len(scores), 3)
 
 
+def resize_arrays(arr):
+    """
+    Resize numpy arrays when there is less trials per isi because
+    the participant only did the behavioral sessions
+    """
+    maxlength = np.amax([np.array(arr0).shape[0] for arr0 in arr])
+    new_arr = [
+        np.append(arr0, np.repeat(np.nan, maxlength - len(arr0))).tolist()
+        if len(arr0) < maxlength else arr0 for arr0 in arr]
+
+    return new_arr
+
 def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
                         flatten=True,
                         tasks=['Auditory No-Temporal Feature Discrimination',
@@ -223,6 +235,14 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
 
     # Save figure
     plt.savefig(os.path.join(this_dir, output_dir, 'ntfd_individual_rt.pdf'))
+
+    # Resize outputs
+    allsub_beat_audio = resize_arrays(allsub_beat_audio)
+    allsub_interval_audio = resize_arrays(allsub_interval_audio)
+    allsub_random_audio = resize_arrays(allsub_random_audio)
+    allsub_beat_visual = resize_arrays(allsub_beat_visual)
+    allsub_interval_visual = resize_arrays(allsub_interval_visual)
+    allsub_random_visual = resize_arrays(allsub_random_visual)
 
     # Flatten the data arrays
     if flatten:
@@ -1164,8 +1184,8 @@ RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
 #          'Visual No-Temporal Feature Discrimination']
 
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSTYPES = ['behavioral_session']
+SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSTYPES = ['behavioral_session']
 
 PLOTS_FOLDER = 'ntfd_results'
 
@@ -1209,18 +1229,17 @@ if __name__ == "__main__":
             flatten=False)
 
     # Compute ffx
-    m_rtsntfd_audio_beat = np.mean(
+    m_rtsntfd_audio_beat = np.nanmean(
         m_rtsntfd_audio_beat, axis=1).tolist()
-    0/0
-    m_rtsntfd_audio_interval = np.mean(
+    m_rtsntfd_audio_interval = np.nanmean(
         m_rtsntfd_audio_interval, axis=1).tolist()
-    m_rtsntfd_audio_random = np.mean(
+    m_rtsntfd_audio_random = np.nanmean(
         m_rtsntfd_audio_random, axis=1).tolist()
-    m_rtsntfd_visual_beat = np.mean(
+    m_rtsntfd_visual_beat = np.nanmean(
         m_rtsntfd_visual_beat, axis=1).tolist()
-    m_rtsntfd_visual_interval = np.mean(
+    m_rtsntfd_visual_interval = np.nanmean(
         m_rtsntfd_visual_interval, axis=1).tolist()
-    m_rtsntfd_visual_random = np.mean(
+    m_rtsntfd_visual_random = np.nanmean(
         m_rtsntfd_visual_random, axis=1).tolist()
 
     # Concatenate
