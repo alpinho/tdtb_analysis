@@ -258,11 +258,11 @@ def individual_perception(
             colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
                       'tab:purple']
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(16, 70))
+                fig = plt.figure(figsize=(16, 100))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.1 + t*.46, .9475 - s*.0389, .428, .023])
+            ax = plt.axes([.1 + t*.46, .9575 - s*.03275, .428, .02])
 
             std_pse_audio = []
             std_dl_audio = []
@@ -353,7 +353,7 @@ def individual_perception(
                                  fontsize=16)
 
             # Name of x-axis
-            fig.text(.495, .005, 'Comparisons (%)', fontsize=14)
+            fig.text(.495, .0025, 'Comparisons (%)', fontsize=14)
             # Name of y-axis
             fig.text(.062, .46, 'Relative Frequency of "longer" responses',
                      fontsize=14, rotation=90)
@@ -367,7 +367,7 @@ def individual_perception(
                 all_pse_visual.append(std_pse_visual)
                 all_dl_visual.append(std_dl_visual)
 
-        fig.text(.03, .96 - s*.039, 'Subject %d' % subject, ha='center',
+        fig.text(.03, .9675 - s*.03275, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
 
     # Title
@@ -378,7 +378,7 @@ def individual_perception(
         suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
     plt.suptitle('Individual Relative Frequencies for the ' +
                  condition.capitalize() +
-                 ' condition of the Perception Tasks ' + suffix, x=.5, y=.992,
+                 ' condition of the Perception Tasks ' + suffix, x=.5, y=.995,
                  size=18, linespacing=.75)
     # plt.show()
 
@@ -959,13 +959,14 @@ def threeway_repanova(df, this_dir, output_dir):
 
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28]
-SUBJECTS = [3, 7, 8, 10, 11, 12, 15, 22, 23]
-# SUBJECTS = [3]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 22, 23, 24,
+            25, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39]
+# SUBJECTS = [3, 7, 8, 10]
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
 SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSTYPES = ['behavioral_session']
+# SESSTYPES = ['imaging_session']
 
 PLOTS_FOLDER = 'perception_results'
 

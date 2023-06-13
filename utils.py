@@ -57,8 +57,6 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                     else:
                         assert sesstype == 'imaging_session'
                         if ttag in inputs_list[8][0][9:]:
-                            print(inputs_list[8][0][9:])
-                            print(inputs_list[9][0][9:])
                             for li, line in enumerate(trials_info):
                                 if li and \
                                    trials_info[li-1][3] == str(n_trials) and \
@@ -68,8 +66,6 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                                     continue
                             trials_info = trials_info[:li]
                         elif ttag in inputs_list[9][0][9:]:
-                            print(inputs_list[9][0][9:])
-                            print(inputs_list[8][0][9:])
                             for li, line in enumerate(trials_info):
                                 if line[4] == 'baseline' and \
                                    trials_info[li-2][3] == str(n_trials):

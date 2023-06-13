@@ -162,7 +162,7 @@ def individual_production_isi_sync(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .94 - s*.0385, .3, .032])
+            ax = plt.axes([.235 + t*.42, .959 - s*.0325, .3, .026])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -259,10 +259,10 @@ def individual_production_isi_sync(
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right', prop={'size': 8})
-                    fig.text(.26, 0.97, '*', color='white',
+                    fig.text(.26, 0.9825, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.275, 0.97, ' Mean', color='black',
+                    fig.text(.275, 0.9825, ' Mean', color='black',
                              weight='roman', size='x-small')
 
             # Hide the right and top spines
@@ -284,19 +284,19 @@ def individual_production_isi_sync(
                 allsub_beat_visual.append(as_isi_beat)
                 allsub_interval_visual.append(as_isi_interval)
 
-        fig.text(.07, .955 - s * .0385, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .968 - s * .0325, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
     if sync_type == 'signed':
         plt.suptitle(
             'Individual Signed Asynchrony for the Production tasks',
-            x=.5, y=.99, size=14, linespacing=.75)
+            x=.5, y=.9975, size=14, linespacing=.75)
     else:
         assert sync_type == 'absolute'
         plt.suptitle(
             'Individual Absolute Asynchrony for the Production tasks',
-            x=.5, y=.99, size=14, linespacing=.75)
+            x=.5, y=.9975, size=14, linespacing=.75)
 
     # plt.show()
     # Save figure
@@ -382,7 +382,7 @@ def individual_production_isi_rts(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .94 - s*.0385, .3, .032])
+            ax = plt.axes([.235 + t*.42, .959 - s*.0325, .3, .026])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -440,10 +440,10 @@ def individual_production_isi_rts(
                     ax.legend([beat["boxes"][0], interval["boxes"][0]],
                               ['Beat', 'Interval'],
                               loc='upper right')
-                    fig.text(.26, 0.97, '*', color='white',
+                    fig.text(.26, 0.9825, '*', color='white',
                              backgroundcolor='silver', weight='roman',
                              size='medium')
-                    fig.text(.275, 0.97, ' Mean', color='black',
+                    fig.text(.275, 0.9825, ' Mean', color='black',
                              weight='roman', size='x-small')
 
             # Hide the right and top spines
@@ -459,12 +459,12 @@ def individual_production_isi_rts(
                 allsub_beat_visual.append(rt_isi1_grouped_beat)
                 allsub_interval_visual.append(rt_isi1_grouped_interval)
 
-        fig.text(.07, .955 - s * .0385, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .968 - s * .0325, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
     plt.suptitle(
-        'Individual Response Time for the Production tasks', x=.5, y=.99,
+        'Individual Response Time for the Production tasks', x=.5, y=.9975,
         size=14, linespacing=.75)
 
     # plt.show()
@@ -1005,7 +1005,7 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28]
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 22, 23, 24,
-            25, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38]
+            25, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39]
 # SUBJECTS = [3, 7, 8, 10]
 
 # TASKS = ['Visual Production']
