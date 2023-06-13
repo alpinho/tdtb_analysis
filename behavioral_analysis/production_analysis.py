@@ -490,22 +490,25 @@ def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
     # only did the behavioral sessions
     nt_max = np.ravel([[np.array(isi).shape[0] for isi in isis]
                        for isis in audio_beat]).max()
-    nt_min = np.ravel([[np.array(isi).shape[0] for isi in isis]
-                       for isis in audio_beat]).min()
+
     audio_beat = [
-        [np.append(ab_trials, np.repeat(np.nan, nt_max - nt_min)).tolist()
+        [np.append(
+            ab_trials, np.repeat(np.nan, nt_max - len(ab_trials))).tolist()
          if len(ab_trials) < nt_max else ab_trials for ab_trials in ab_isis]
         for ab_isis in audio_beat]
     audio_interval = [
-        [np.append(ai_trials, np.repeat(np.nan, nt_max - nt_min)).tolist()
+        [np.append(
+            ai_trials, np.repeat(np.nan, nt_max - len(ai_trials))).tolist()
          if len(ai_trials) < nt_max else ai_trials for ai_trials in ai_isis]
         for ai_isis in audio_interval]
     visual_beat = [
-        [np.append(vb_trials, np.repeat(np.nan, nt_max - nt_min)).tolist()
+        [np.append(
+            vb_trials, np.repeat(np.nan, nt_max - len(vb_trials))).tolist()
          if len(vb_trials) < nt_max else vb_trials for vb_trials in vb_isis]
         for vb_isis in visual_beat]
     visual_interval = [
-        [np.append(vi_trials, np.repeat(np.nan, nt_max - nt_min)).tolist()
+        [np.append(
+            vi_trials, np.repeat(np.nan, nt_max - len(vi_trials))).tolist()
          if len(vi_trials) < nt_max else vi_trials for vi_trials in vi_isis]
         for vi_isis in visual_interval]
 
@@ -600,6 +603,12 @@ def plot_violin(audio_beat, audio_interval,
             zip(visual_beat, visual_interval)):
         pos_vb = [j*2 - .4]
         pos_vi = [j*2 + .4]
+
+        # Remove NaNs from data if they exist
+        isi_visual_beat = isi_visual_beat[~np.isnan(isi_visual_beat)]
+        isi_visual_interval = isi_visual_interval[~np.isnan(
+            isi_visual_interval)]
+
         v2_ab = ax2.violinplot(isi_visual_beat, pos_vb, showmeans=True,
                                showmedians=False, showextrema=True, widths=.75)
         v2_ai = ax2.violinplot(isi_visual_interval, pos_vi, showmeans=True,
@@ -995,7 +1004,9 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28]
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10]
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 15, 16]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 22, 23, 24, 25, 28, 29, 30, 32, 33, 34, 35, 36, 37]
+# SUBJECTS = [3, 7, 8, 10]
 
 # TASKS = ['Visual Production']
 
