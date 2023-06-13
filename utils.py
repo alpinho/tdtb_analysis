@@ -22,6 +22,7 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
             sessions = []
             sessions = os.listdir(sesstype_path)
             sessions.sort()
+
         for session in sessions:
             logpath = os.path.join(sesstype_path, session)
             logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
