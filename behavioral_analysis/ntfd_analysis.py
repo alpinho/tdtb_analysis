@@ -175,7 +175,7 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 20))
+                fig = plt.figure(figsize=(8, 40))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
@@ -316,11 +316,11 @@ def individual_ntfd_isi_rts(
 
             # ################## Plotting set 1 ########################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 70))
+                fig = plt.figure(figsize=(8, 120))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .94 - s*.0385, .3, .032])
+            ax = plt.axes([.235 + t*.42, .9685 - s*.028, .3, .016])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -410,13 +410,13 @@ def individual_ntfd_isi_rts(
                 allsub_beat_visual.append(rt_isi1_grouped_beat)
                 allsub_interval_visual.append(rt_isi1_grouped_interval)
 
-        fig.text(.07, .955 - s * .0385, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9765 - s * .028, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
     plt.suptitle(
         'Individual Reaction Time for the NTFD tasks',
-        x=.5, y=.99, size=14, linespacing=.75)
+        x=.5, y=.9975, size=14, linespacing=.75)
 
     # plt.show()
     # Save figure
