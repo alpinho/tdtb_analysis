@@ -77,6 +77,17 @@ def filter_trialtype(trs, category):
     return beat, interval, random
 
 
+def symlog_transform(arr, shift):
+    """About this function, consult:
+    https://pythonmatplotlibtips.blogspot.com/2018/11/x-symlog-with-shift.html
+    """
+    logv = np.abs(arr)*(10.**shift)
+    logv[np.where(logv < 1.)] = 1.
+    logv = np.sign(arr)*np.log10(logv)
+
+    return logv
+
+
 def individual_production_isi_sync(
         subjects, sesstypes, this_dir, output_folder, sync_type, n_trials,
         flatten=True, tasks=['Auditory Production', 'Visual Production']):
@@ -158,11 +169,11 @@ def individual_production_isi_sync(
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 70))
+                fig = plt.figure(figsize=(8, 120))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .959 - s*.0325, .3, .026])
+            ax = plt.axes([.235 + t*.42, .9685 - s*.028, .3, .016])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -175,28 +186,19 @@ def individual_production_isi_sync(
             # Convert x value to symlog scale with shift=2
             if sync_type == 'signed':
                 for lsbeat in ss_isi_beat:
-                    logv = np.abs(lsbeat)*(10.**shift)
-                    logv[np.where(logv<1.)] = 1.
-                    logv = np.sign(lsbeat)*np.log10(logv)
+                    logv = symlog_transform(lsbeat, shift)
                     logbeat.append(logv)
                 for lsint in ss_isi_interval:
-                    logv = np.abs(lsint)*(10.**shift)
-                    logv[np.where(logv<1.)] = 1.
-                    logv = np.sign(lsint)*np.log10(logv)
+                    logv = symlog_transform(lsint, shift)
                     loginterval.append(logv)
             else:
                 assert sync_type == 'absolute'
                 for lsbeat in as_isi_beat:
-                    logv = np.abs(lsbeat)*(10.**shift)
-                    logv[np.where(logv<1.)] = 1.
-                    logv = np.sign(lsbeat)*np.log10(logv)
+                    logv = symlog_transform(lsbeat, shift)
                     logbeat.append(logv)
                 for lsint in as_isi_interval:
-                    logv = np.abs(lsint)*(10.**shift)
-                    logv[np.where(logv<1.)] = 1.
-                    logv = np.sign(lsint)*np.log10(logv)
+                    logv = symlog_transform(lsint, shift)
                     loginterval.append(logv)
-
 
             beat = ax.boxplot(logbeat,
                               bootstrap=100,
@@ -284,7 +286,7 @@ def individual_production_isi_sync(
                 allsub_beat_visual.append(as_isi_beat)
                 allsub_interval_visual.append(as_isi_interval)
 
-        fig.text(.07, .968 - s * .0325, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9765 - s * .028, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
@@ -378,11 +380,11 @@ def individual_production_isi_rts(
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 70))
+                fig = plt.figure(figsize=(8, 120))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .959 - s*.0325, .3, .026])
+            ax = plt.axes([.235 + t*.42, .9685 - s*.028, .3, .016])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -459,7 +461,7 @@ def individual_production_isi_rts(
                 allsub_beat_visual.append(rt_isi1_grouped_beat)
                 allsub_interval_visual.append(rt_isi1_grouped_interval)
 
-        fig.text(.07, .968 - s * .0325, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9765 - s * .028, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
@@ -1002,8 +1004,8 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 22, 23, 24,
-            25, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39]
 # SUBJECTS = [3, 7, 8, 10]
 
 # TASKS = ['Visual Production']
