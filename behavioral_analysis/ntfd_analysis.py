@@ -179,7 +179,7 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .895 - s*.0719, .3, .054])
+            ax = plt.axes([.235 + t*.42, .935 - s*.0375, .3, .035])
 
             labels = ['beat', 'interval', 'random']
             x = [.2, .4, .6]  # the label locations
@@ -230,7 +230,7 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
 
     # Title
     plt.suptitle('Individual Mean and Standard Deviation of Reaction Time ' + \
-                 'for the NTFD tasks', x=.5, y=.985, size=14, linespacing=.75)
+                 'for the NTFD tasks', x=.5, y=.988, size=14, linespacing=.75)
     # plt.show()
 
     # Save figure
@@ -1179,7 +1179,7 @@ SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 # This set of subjects are those that for the behavioral experiments did
 # the NTFD with the Random Condition
 RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-                 32, 33, 34, 35, 36, 37, 38, 39]
+                 32, 33, 34, 35, 36, 37, 38, 39, 40, 41]
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
 #          'Visual No-Temporal Feature Discrimination']
