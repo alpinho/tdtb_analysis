@@ -175,11 +175,11 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
 
             # ################## Plotting ###############################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 40))
+                fig = plt.figure(figsize=(8, 100))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .9375 - s*.03835, .31, .0333])
+            ax = plt.axes([.235 + t*.42, .965 - s*.025, .31, .02])
 
             labels = ['beat', 'interval', 'random']
             x = [.2, .4, .6]  # the label locations
@@ -203,7 +203,7 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
             if s == 0:
                 if t == 0:
                     ax.set_title('Auditory NTFD', weight='bold', pad=12)
-                    fig.text(.25, .96, 'Error bars: SD', fontsize=12)
+                    fig.text(.25, .98, 'Error bars: SD', fontsize=12)
                 else:
                     assert t ==1
                     ax.set_title('Visual NTFD', weight='bold', pad=12)
@@ -223,14 +223,14 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
                 allsub_interval_visual.append(interval_trials.tolist())
                 allsub_random_visual.append(random_trials.tolist())
 
-        fig.text(.07, .959 - s*.0385, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .975 - s*.025, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
     fig.text(.1675, .426, 'Reaction Time (ms)', ha='center', fontsize=12,
              rotation = 90)
 
     # Title
     plt.suptitle('Individual Mean and Standard Deviation of Reaction Time ' + \
-                 'for the NTFD tasks', x=.5, y=.99, size=14, linespacing=.75)
+                 'for the NTFD tasks', x=.5, y=.995, size=14, linespacing=.75)
     # plt.show()
 
     # Save figure
@@ -316,7 +316,7 @@ def individual_ntfd_isi_rts(
 
             # ################## Plotting set 1 ########################
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(8, 120))
+                fig = plt.figure(figsize=(8, 160))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
@@ -479,18 +479,18 @@ def individual_ntfd_sucessrate(
             # ################## Plotting ###############################
             if s == 0 and t == 0:
                 if random:
-                    fig = plt.figure(figsize=(8, 40))
+                    fig = plt.figure(figsize=(8, 100))
                 else:
-                    fig = plt.figure(figsize=(8, 40))
+                    fig = plt.figure(figsize=(8, 100))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
             if random:
-                ax = plt.axes([.235 + t*.42, .96 - s*.026, .3, .02])
+                ax = plt.axes([.235 + t*.42, .965 - s*.025, .31, .02])
                 labels = ['beat', 'interval', 'random']
                 x = [.2, .4, .6]  # the label locations
             else:
-                ax = plt.axes([.235 + t*.42, .96 - s*.026, .3, .02])
+                ax = plt.axes([.235 + t*.42, .97 - s*.02, .31, .015])
                 labels = ['beat', 'interval']
                 x = [.2, .6]  # the label locations
 
@@ -526,10 +526,10 @@ def individual_ntfd_sucessrate(
             ax.spines['top'].set_visible(False)
 
         if random:
-            fig.text(.07, .97 - s*.026, 'Subject %d' % subject, ha='center',
+            fig.text(.07, .975 - s*.025, 'Subject %d' % subject, ha='center',
                      fontsize=12, weight='bold')
         else:
-            fig.text(.07, .97 - s*.026, 'Subject %d' % subject, ha='center',
+            fig.text(.07, .9775 - s*.02, 'Subject %d' % subject, ha='center',
                      fontsize=12, weight='bold')
     fig.text(.1675, .426, 'Success Rate', ha='center', fontsize=12,
              rotation = 90)
@@ -1174,13 +1174,13 @@ def group_successrate_rand(
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
-            40, 41]
+            40, 41, 42]
 # SUBJECTS = [3, 7, 8, 10]
 
 # This set of subjects are those that for the behavioral experiments did
 # the NTFD with the Random Condition
 RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-                 32, 33, 34, 35, 36, 37, 38, 39, 40, 41]
+                 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
 #          'Visual No-Temporal Feature Discrimination']
