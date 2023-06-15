@@ -173,7 +173,7 @@ def individual_production_isi_sync(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .9685 - s*.028, .3, .016])
+            ax = plt.axes([.235 + t*.42, .97 - s*.02, .3, .016])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -286,7 +286,7 @@ def individual_production_isi_sync(
                 allsub_beat_visual.append(as_isi_beat)
                 allsub_interval_visual.append(as_isi_interval)
 
-        fig.text(.07, .9765 - s * .028, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9765 - s * .02, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
@@ -384,7 +384,7 @@ def individual_production_isi_rts(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.235 + t*.42, .9685 - s*.028, .3, .016])
+            ax = plt.axes([.235 + t*.42, .97 - s*.02, .3, .016])
 
             x_labels = [str(k) for k in isi1s]
             x = np.arange(len(x_labels))  # the label locations
@@ -461,7 +461,7 @@ def individual_production_isi_rts(
                 allsub_beat_visual.append(rt_isi1_grouped_beat)
                 allsub_interval_visual.append(rt_isi1_grouped_interval)
 
-        fig.text(.07, .9765 - s * .028, 'Subject %d' % subject, ha='center',
+        fig.text(.07, .9765 - s * .02, 'Subject %d' % subject, ha='center',
                  fontsize=12, weight='bold')
 
     # Title
@@ -1005,7 +1005,8 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 # =========================== INPUTS ===================================
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39]
+            22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
+            40, 41]
 # SUBJECTS = [3, 7, 8, 10]
 
 # TASKS = ['Visual Production']
