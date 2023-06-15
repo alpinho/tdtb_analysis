@@ -258,11 +258,11 @@ def individual_perception(
             colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
                       'tab:purple']
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(16, 120))
+                fig = plt.figure(figsize=(16, 140))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.1 + t*.46, .9685 - s*.028, .428, .016])
+            ax = plt.axes([.1 + t*.46, .9685 - s*.025, .428, .0155])
 
             std_pse_audio = []
             std_dl_audio = []
@@ -330,8 +330,8 @@ def individual_perception(
                 x_labels = [str(int(xl*100)) + '%' for xl in x_values]
                 ax.set_xticks(x_values, x_labels)
                 # Add estimates info
-                ax.text(-.21, 1.45, 'For 95% CI,', fontsize=7.5)
-                ax.text(-.21, 1.33 - i*.098,
+                ax.text(-.21, 1.53, 'For 95% CI,', fontsize=7.5)
+                ax.text(-.21, 1.41 - i*.098,
                         'PSE=%.02f' % (pse*100) +
                         '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
                         'DL=%.02f' % (dl*100) +
@@ -367,7 +367,7 @@ def individual_perception(
                 all_pse_visual.append(std_pse_visual)
                 all_dl_visual.append(std_dl_visual)
 
-        fig.text(.03, .9765 - s*.028, 'Subject %d' % subject, ha='center',
+        fig.text(.03, .9765 - s*.025, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
 
     # Title
@@ -958,7 +958,8 @@ def threeway_repanova(df, this_dir, output_dir):
 # =========================== INPUTS ===================================
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39]
+            22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
+            40, 41]
 # SUBJECTS = [3, 7, 8, 10]
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
