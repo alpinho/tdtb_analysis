@@ -67,9 +67,9 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n  = [3, 4, 7, 8, 10];
-% subj_n  = [11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 34, 35]
-subj_n  = [11, 12, 13]
+% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 
+%     34, 35]
+subj_n  = [15]
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -86,23 +86,25 @@ ses_id = 1:length(session_names);
 %           [-3.3 27.3 -54.7], ...      %sub-07
 %           [1.8 28.8 -45.5], ...       %sub-08
 %           [1.5 31.6 -51.10], ...      %sub-10
-%           };     
+%           [-1.6 20.4 -42.8], ...      %sub-11
+%           [-0.4 29.2 -21.9], ...      %sub-12
+%           [3.3 34.6 -29.3], ...       %sub-13
+%           [1.2 30.6 -46.4], ...       %sub-14
+%           [5.4 17.2 23.4], ...        %sub-15
+%           [0.7 22.8 -36.9], ...       %sub-16   
+%           [2.2 29.3 19.0], ...        %sub-18
+%           [1.8 30.4 -24.3], ...       %sub-20
+%           [0.9 32.4 -25.0], ...       %sub-22
+%           [-2.5 25.9 -37.6], ...      %sub-23
+%           [3.5 25.9 -36.0], ...       %sub-28
+%           [1.6 20.0 -1.1], ...        %sub-29
+%           [4.5 22.3 -21.5], ...       %sub-32
+%           [2.1 20.4 -11.5], ...       %sub-34
+%           [2.8 23.7 -20.7], ...       %sub-35
+%           };
+
 loc_AC = {
-          [-1.6 20.4 -42.8], ...        %sub-11
-          [-0.4 29.2 -21.9], ...        %sub-12
-          [3.3 34.6 -29.3], ...         %sub-13
-          [1.2 30.6 -46.4], ...         %sub-14
           [5.4 17.2 23.4], ...          %sub-15
-          [0.7 22.8 -36.9], ...         %sub-16   
-          [2.2 29.3 19.0], ...          %sub-18
-          [1.8 30.4 -24.3], ...         %sub-20
-          [0.9 32.4 -25.0], ...         %sub-22
-          [-2.5 25.9 -37.6], ...        %sub-23
-          [3.5 25.9 -36.0], ...         %sub-28
-          [1.6 20.0 -1.1], ...          %sub-29
-          [4.5 22.3 -21.5], ...         %sub-32
-          [2.1 20.4 -11.5], ...         %sub-34
-          [2.8 23.7 -20.7], ...         %sub-35
           };
 
 numDummys = 0;
@@ -482,26 +484,7 @@ switch what
         msdtb_imana('ANAT:center_ac')
         msdtb_imana('ANAT:segment')
         msdtb_imana('ANAT:t1_normalization') 
-
-    case 'ANAT:T1w_bcorrect' % bias correction for anatomical T1w (optional)
-        % nishimoto_imana('ANAT:T1w_bcorrect')
-        sn = subj_id;
-        vararginoptions(varargin, {'sn'});
-        
-        for s = sn
-            fprintf('- Bias correcting the anatomica image for %s\n', subj_str{s});
-            % Get the directory of subjects anatomical and functional
-            subj_anat_dir = fullfile(base_dir, subj_str{s}, anat_dir);
-            % make copy of original mean epi, and work on that
-            % Get the name of the anatomical image
-            source  = fullfile(subj_anat_dir, sprintf('%s_T1w_lpi.nii', subj_str{s}));
-            dest    = fullfile(subj_anat_dir, sprintf('b%s_T1w_lpi.nii', subj_str{s}));
-            copyfile(source, dest);
-            
-            % bias correct mean image for grey/white signal intensities
-            P{1}    = dest;
-            spmj_bias_correct(P);
-        end % s (sn)
+        % msdtb_imana('ANAT:mean_t1')
         
     case 'FUNC:make_fieldmap' % Make fieldmap
         
@@ -764,7 +747,7 @@ switch what
         % - Manually adjust mean functional image and save the results 
         %   ("r" will be added as a prefix)
         % Example usage: 
-        % msdtb_imana('FUNC:coreg', 'sn', [1], 'prefix', 'r')ses-03
+        % msdtb_imana('FUNC:coreg', 'sn', [1], 'prefix', 'r')
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -1047,124 +1030,7 @@ switch what
         msdtb_imana('FUNC:make_samealign', 'prefix', '')
         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
         msdtb_imana('FUNC:mask_normalization')
-        msdtb_imana('GROUP:mask')
-        
-    case 'FUNC:meanepi_bcorrect' % bias correction for the mean image before coreg (optional)
-        % uses the bias field estimated in SPM segmenttion
-        % Example usage: nishimoto_imana('FUNC:meanepi_bcorrect')
-        sn = subj_id;
-        vararginoptions(varargin, {'sn'});
-        
-        for s = sn
-            fprintf('- Bias correcting mean epi for %s\n', subj_str{s});
-            % Get the directory of subjects anatomical and functional
-            subj_func_dir = fullfile(base_dir, subj_str{s}, func_dir);
-            % make copy of original mean epi, and work on that
-            source  = fullfile(subj_func_dir, sprintf('mean%s_ses-01_run-01.nii', subj_str{s}));
-            dest    = fullfile(subj_func_dir, sprintf('bmean%s_ses-01_run-01.nii', subj_str{s}));
-            copyfile(source, dest);
-            
-            % bias correct mean image for grey/white signal intensities
-            P{1}    = dest;
-            spmj_bias_correct(P);
-        end % s (sn)
-        
-    case 'FUNC:coregreslice'
-        sn     = subj_id;   % list of subjects        
-        step   = 'manual';  % first 'manual' then 'auto'
-        prefix = 'r'; % to use the bias corrected version, set it to 'rb'
-
-        vararginoptions(varargin, {'sn', 'step', 'prefix'});
-        spm_jobman('initcfg')
-        for s = sn
-            % Get the directory of subjects anatomical and functional
-            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s})
-            subj_anat_dir = fullfile(deriv_subj_dir, anat_dir);
-            sbj_number = str2double((extractAfter(subj_str{s}, ...
-                'sub-')))
-            subsess = cellstr(sessmap.(['sub' num2str(sbj_number, ...
-                '%02d')]));
-            for smap = session_names
-                sesstag = sessnum{find(contains(subsess,smap))};
-                ses = sscanf(sesstag,'ses-%d');
-                subj_func_dir = fullfile(deriv_subj_dir, func_dir, ...
-                    ['ses-' num2str(ses, '%02d')]);
-            
-                % goes to subjects anatomical dir so that coreg tool ...
-                % starts from that directory (just for convenience)
-                cd(subj_anat_dir); 
-            
-                switch step
-                    case 'manual'
-                        coregtool;
-                        keyboard;
-                    case 'auto'
-                        % do nothing
-                end % switch step
-                
-                gunzip(sprintf(...
-                    '%s_space-native_desc-resampled_T1w.nii.gz', ...
-                    subj_str{s}));
-                
-                % Create copy of meanepi to be resliced
-                if strcmp(smap,'mtt1') || strcmp(smap,'mtt2')
-                    meanepi_file = fullfile(subj_func_dir, ...
-                        sprintf('%smean%s_ses-%02d_run-03_bold.nii', ...
-                        prefix, subj_str{s}, ses))
-                    resliced_meanepi = fullfile(subj_func_dir, ...
-                        sprintf(...
-                        'resliced_%smean%s_ses-%02d_run-03_bold.nii', ...
-                        prefix, subj_str{s}, ses))
-                else
-                    meanepi_file = fullfile(subj_func_dir, ...
-                        sprintf('%smean%s_ses-%02d_run-01_bold.nii', ...
-                        prefix, subj_str{s}, ses))
-                    resliced_meanepi = fullfile(subj_func_dir, ...
-                        sprintf(...
-                        'resliced_%smean%s_ses-%02d_run-01_bold.nii', ...
-                        prefix, subj_str{s}, ses))
-                end
-                copyfile(meanepi_file, resliced_meanepi)
-                            
-                J.ref = {fullfile(subj_anat_dir, sprintf(...
-                    '%s_space-native_desc-resampled_T1w.nii', ...
-                    subj_str{s}))};
-                J.source = {resliced_meanepi};
-                J.other             = {''};
-                J.eoptions.cost_fun = 'nmi';
-                J.eoptions.sep      = [4 2];
-                J.eoptions.tol      = [0.02 0.02 0.02 0.001 0.001 0.001 ...
-                    0.01 0.01 0.01 0.001 0.001 0.001];
-                J.eoptions.fwhm     = [7 7];
-                matlabbatch{1}.spm.spatial.coreg.estwrite=J;
-                spm_jobman('run',matlabbatch);
-            end
-        end % s (sn)
-
-    case 'FUNC:check_coreg' % prints out the transformation matrix for coreg
-
-        % Run this case to get the transformation matrix and then use it
-        % for translation/rotation to check the coreg.
-        % the coreg case just estimates the transformation matrix, it
-        % doesn't reslice! So you need to check it yourself!!!!
-        % Input each subject separately
-        % Example usage: nishimoto_imana('FUNC:check_coreg', 'sn', 1)
-        
-        sn = 1; 
-        
-        vararginoptions(varargin, {'sn'});
-        
-        anat_file = fullfile(base_dir, subj_str{sn}, 'anat', sprintf('%s_T1w_lpi.nii', subj_str{sn}));
-        func_file = fullfile(base_dir, subj_str{sn}, 'func', sprintf('rmask_noskull.nii')); %???????????????
-        
-        T1_vol = spm_vol(anat_file);
-        T2_vol = spm_vol(func_file);
-        
-        x = spm_coreg(T2_vol, T1_vol);
-        M = spm_matrix(x);
-        
-        spm_get_space(T2, M * T2_vol.mat);
+        % msdtb_imana('GROUP:mask')
 
     case 'GLM:copy_paradigm-descriptors'
         % Example usage: msdtb_imana('GLM:copy_paradigm_descriptors')
