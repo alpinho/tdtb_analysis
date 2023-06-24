@@ -1,7 +1,7 @@
 function psfiles(destination, suffix)         
 % Delete former postscript file
-if any(size(dir(fullfile(destination, 'spm_*.ps')), 1))
-    delete(fullfile(destination, 'spm_*.ps'));
+if any(size(dir(fullfile(destination, ['spm_*' suffix '.ps'])), 1))
+    delete(fullfile(destination, ['spm_*' suffix '.ps']));
 end
 
 % Rename and move postscript file

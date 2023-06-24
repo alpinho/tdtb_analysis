@@ -848,6 +848,9 @@ switch what
         % Example usage: 
         % msdtb_imana('FUNC:coreg', 'sn', [1], 'prefix', 'r')
         
+        % Go to the folder of script
+        cd(fileparts(mfilename('fullpath')))
+        
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         sn     = subj_id;   % list of subjects
@@ -866,6 +869,7 @@ switch what
                 subj_str{s});
             anat_deriv = fullfile(deriv_folder, 'ses-01/anat');
             func_deriv = fullfile(deriv_folder, 'ses-01', func_dir);
+            % Create a copy of the original meanepi where
             
             switch step
                 case 'manual'
@@ -888,33 +892,29 @@ switch what
             J.eoptions.tol      = [0.02 0.02 0.02 0.001 0.001 0.001 ...
                 0.01 0.01 0.01 0.001 0.001 0.001];
             J.eoptions.fwhm     = [7 7];
+            
+            % Run coregegistration
             matlabbatch{1}.spm.spatial.coreg.estimate=J;
             spm_jobman('run', matlabbatch);
+            
+            % Rename and move postscript file
+            psfiles(func_deriv, 'coregestimate')
+         
+            % Display the affine matrix of the transformation
+            % mean_epi = spm_vol(J.source);
+            % t1 = spm_vol(J.ref);
+            % x = spm_coreg(mean_epi{1}.fname, t1{1}.fname); % computes coreg again but without storing parameters in the header of source image
+            % M = spm_matrix(x);
+            % display(M)
             
             % Delete former postscript file
             if any(size(dir(fullfile(anat_deriv, 'spm_*.ps')), 1))
                 delete(fullfile(anat_deriv, 'spm_*.ps'));
             end
-            
-            % Rename and move postscript file
-            old_psfile = dir('*.ps').name;
-            old_psname = old_psfile(1:end-3);
-            psfile = strcat(old_psname, '_coregestimate.ps');
-            movefile(old_psfile, anat_deriv);
-            movefile(fullfile(anat_deriv, old_psfile), ...
-                fullfile(anat_deriv, psfile));
 
             % (3) Manually check again
-%               coregtool;
-%               keyboard();
-            % checking the affine matrix
-%                 T1_vol = spm_vol(J.ref);
-%                 T1_vol = T1_vol{1};
-%                 T2_vol = spm_vol(J.source);
-%                 T2_vol = T2_vol{1};
-%                 x = spm_coreg(T2_vol, T1_vol);
-%                 M = spm_matrix(x);
-%                 display(M)
+            % coregtool;
+            % keyboard();
 
             % NOTE:
             % Overwrites meanepi, unless you update in step one, 
