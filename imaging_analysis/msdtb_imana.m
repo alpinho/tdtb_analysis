@@ -1,5 +1,8 @@
 function [ output_args ] = msdtb_imana( what, varargin )
 
+% Go to the folder of script
+cd(fileparts(mfilename('fullpath')))
+
 % %============================================================================
 % PATH DEFINITIONS
 
@@ -492,9 +495,6 @@ switch what
         
     case 'FUNC:make_fieldmap' % Make fieldmap
         
-        % Go to the folder of script
-        cd(fileparts(mfilename('fullpath')))
-        
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         sn = subj_id;
@@ -505,9 +505,6 @@ switch what
         vararginoptions(varargin,{'sn', 'ssn', 'tasks'});
         for s = sn
             for ses = ssn
-                if strcmp(subj_str{s}, 'sub-14') && ses == 3
-                    tasks(ismember(tasks, 'percep')) = [];
-                end
                 if strcmp(subj_str{s}, 'sub-03') || ...
                     strcmp(subj_str{s}, 'sub-04') || ...
                     strcmp(subj_str{s}, 'sub-07') || ...
@@ -545,6 +542,11 @@ switch what
                 end
                 rawtag = sprintf('%s_%s', subj_str{s}, rawses_str);
                 derivtag = sprintf('%s_%s', subj_str{s}, derivses_str);
+                
+                % Remove perception task from list for sub-14 ses-03 exception
+                if strcmp(subj_str{s}, 'sub-14') && ses == 3
+                    tasks(ismember(tasks, 'percep')) = [];
+                end
                 run = {};
                 run_tags = {};
                 for tk=1:length(tasks)
@@ -678,9 +680,6 @@ switch what
         % example usage: msdtb_imana('FUNC:realign', 'sn', 1)
         % Updated upstream
         
-        % Go to the folder of script
-        cd(fileparts(mfilename('fullpath')))
-        
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         sn   = subj_id; % list of subjects
@@ -695,9 +694,6 @@ switch what
                 subj_str{s});
             run = {};
             for ses = ssn
-                if strcmp(subj_str{s}, 'sub-14') && ses == 3
-                    tasks(ismember(tasks, 'percep')) = [];
-                end
                 if strcmp(subj_str{s}, 'sub-03') || ...
                     strcmp(subj_str{s}, 'sub-04') || ...
                     strcmp(subj_str{s}, 'sub-07') || ...
@@ -709,7 +705,12 @@ switch what
                         ['ses-' num2str(ses, '%02d')], func_dir);
                 end
                 fmapderiv_folder = fullfile(deriv_subjdir, ...
-                    ['ses-' num2str(ses, '%02d')], fmap_dir); 
+                    ['ses-' num2str(ses, '%02d')], fmap_dir);
+                
+                % Remove perception task from list for sub-14 ses-03 exception
+                if strcmp(subj_str{s}, 'sub-14') && ses == 3
+                    tasks(ismember(tasks, 'percep')) = [];
+                end
                 for tk=1:length(tasks)
                     if strcmp(subj_str{s}, 'sub-14') && ses > 1 && ...
                             strcmp(tasks{tk}, 'prod')
@@ -848,9 +849,6 @@ switch what
         % Example usage: 
         % msdtb_imana('FUNC:coreg', 'sn', [1], 'prefix', 'r')
         
-        % Go to the folder of script
-        cd(fileparts(mfilename('fullpath')))
-        
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         sn     = subj_id;   % list of subjects
@@ -950,21 +948,42 @@ switch what
                 % Select image for reference 
                 %%% note that functional images are aligned with the first
                 %%% run from first session hence, the ref is always 
-                %%% rmean<subj>_ses-01_run-01
+                %%% mean<subj>_ses-01_run-01
                 P{1} = fullfile(funcmean_deriv, sprintf(...
                     '%smeanu%s_ses-01_task-prod_run-01_bold.nii', ...
                     prefix, subj_str{s}));
+                
+                % Remove perception task from list for sub-14 ses-03 exception
+                if strcmp(subj_str{s}, 'sub-14') && ses == 3
+                    tasks(ismember(tasks, 'percep')) = [];
+                end
                 % Select images to be realigned
                 for tk=1:length(tasks)
-                    if ses == 2 && strcmp(tasks{tk}, 'ntfd')
+                    if strcmp(subj_str{s}, 'sub-14') && ses > 1 && ...
+                            strcmp(tasks{tk}, 'prod')
+                        n_run = 1;
+                    elseif ~strcmp(subj_str{s}, 'sub-14') && ses == 2 && ...
+                            strcmp(tasks{tk}, 'ntfd')
                         n_run = 4;
                     else
                         n_run = 2;
                     end
                     for r=1:n_run
-                        fpath = fullfile(func_deriv, sprintf(...
-                            'u%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
-                            subj_str{s}, ses, tasks{tk}, r));
+                        if strcmp(subj_str{s}, 'sub-14') && ses == 3 && ...
+                                strcmp(tasks{tk}, 'prod')
+                            fpath = fullfile(func_deriv, sprintf(...
+                                'u%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
+                                subj_str{s}, ses, tasks{tk}, r+1));
+                        elseif strcmp(subj_str{s}, 'sub-14') && ses == 3 && ...
+                                strcmp(tasks{tk}, 'ntfd')
+                            fpath = fullfile(func_deriv, sprintf(...
+                                'u%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
+                                subj_str{s}, ses, tasks{tk}, r+2));
+                        else
+                            fpath = fullfile(func_deriv, sprintf(...
+                                'u%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
+                                subj_str{s}, ses, tasks{tk}, r));
+                        end
                         V = nifti(fpath);
                         imageNumber=1:V.dat.dim(4);
                         for i= 1:numel(imageNumber)
