@@ -3,34 +3,34 @@ function [ output_args ] = msdtb_imana( what, varargin )
 % Go to the folder of script
 cd(fileparts(mfilename('fullpath')))
 
+% Add directory path of current script to the path
+script_fullpath = mfilename('fullpath');
+script_dirpath = script_fullpath(1:end-12);
+addpath(script_dirpath);
+
 % %============================================================================
 % PATH DEFINITIONS
 
 % Add dependencies to path
 if isdir('/srv/diedrichsen/data')
-    workdir='/srv/diedrichsen/data';
     homedir = '/home/ROBARTS/agrilopi';
-    localscratch = '/localscratch'
-    addpath(sprintf('%s/../matlab/spm12', workdir));
-    addpath(sprintf('%s/../matlab/spm12/toolbox/suit', workdir));
+    workdir='/srv/diedrichsen/data';   
+    localscratch = '/localscratch';
     addpath(sprintf('%s/../matlab/dataframe', workdir));
     addpath(sprintf('%s/../matlab/imaging/tools', workdir));
     addpath(sprintf('%s/../matlab/imaging/rwls', workdir));
     addpath(sprintf('%s/spm12', homedir));
-    addpath(sprintf('%s/suit', homedir));
     addpath(sprintf('%s/freesurfer', homedir));
 elseif isdir('/home/analu/diedrichsen_data/data')
+    homedir = '/home/analu';
     workdir='/home/analu/diedrichsen_data/data';
     localscratch = '/home/analu/localscratch'
+    addpath(sprintf('%s/software/spm12', homedir));
+    addpath(sprintf('%s/software/freesurfer', homedir));
 else
     fprintf(...
         'Workdir not found. Mount or connect to server and try again.');
 end
-
-% Add directory path of current script to the path
-script_fullpath = mfilename('fullpath');
-script_dirpath = script_fullpath(1:end-12);
-addpath(script_dirpath);
 
 %% ----- Initialize suit toolbox -----
 % check for SUIT installation
@@ -74,7 +74,10 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 
 %     34, 35]
-subj_n = [18, 32]
+% subj_n = [18, 32]
+subj_n = [3]
+% subj_n = [4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, ...
+%     34, 35]
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -2328,19 +2331,19 @@ switch what
             spm_jobman('initcfg')
             
             % Get the directory of subjects anatomical
-            raw_subj_dir = fullfile(base_dir, raw_dir, subj_str{s});
-            anat_subj_dir = fullfile(raw_subj_dir, anat_dir);
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, subj_str{s});
+            anat_subj_dir = fullfile(deriv_subj_dir, anat_dir);
 
             % Get the name of the anatomical image
             anat_name = sprintf('%s_T1w.nii', subj_str{s});
             % Define suit folder
-            suit_dir = fullfile(raw_subj_dir, 'suit');
+            suit_dir = fullfile(deriv_subj_dir, 'suit');
             % Create suit folder if it does not exist
             if ~exist(suit_dir, 'dir')
                 mkdir (suit_dir)
             end
             
-            % Copy T1w_lpi file to suit-anat folder
+            % Copy T1w_lpi file to suit folder
             source = fullfile(anat_subj_dir, anat_name);
             dest   = fullfile(suit_dir, anat_name);           
             copyfile(source, dest);
