@@ -24,7 +24,7 @@ if isdir('/srv/diedrichsen/data')
 elseif isdir('/home/analu/diedrichsen_data/data')
     homedir = '/home/analu';
     workdir='/home/analu/diedrichsen_data/data';
-    localscratch = '/home/analu/localscratch'
+    localscratch = '/home/analu/localscratch';
     addpath(sprintf('%s/software/spm12', homedir));
     addpath(sprintf('%s/software/freesurfer', homedir));
 else
@@ -81,8 +81,6 @@ subj_id = 1:length(subj_n);
 for s=subj_id
     subj_str{s} = ['sub-' num2str(subj_n(s), '%02d')];
 end
-
-ses_id = 1:length(session_names);
 
 % AC coordinates (non-symmetric ones)
 % loc_AC = {
@@ -496,112 +494,58 @@ switch what
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         sn = subj_id;
-        ssn = ses_id; % list of sessions
         tasks = {'prod', 'percep', 'ntfd'};
         magnumber=1;
         prefix = '';
         vararginoptions(varargin,{'sn', 'ssn', 'tasks'});
         for s = sn
-            % for ses = ssn
-            for ses = 1
-                [raw_sestag, preproc_sestag, raw_sesrun, preproc_sesrun] = ...
-                    datamap(subj_str{s})
-                
-%                 if strcmp(subj_str{s}, 'sub-03') || ...
-%                     strcmp(subj_str{s}, 'sub-04') || ...
-%                     strcmp(subj_str{s}, 'sub-07') || ...
-%                     strcmp(subj_str{s}, 'sub-08')  
-%                     rawses_str = ['ses-' num2str(ses, '%d')];
-%                     derivses_str = ['ses-' num2str(ses, '%02d')];
-%                 else
-%                     rawses_str = ['ses-' num2str(ses, '%02d')];
-%                     derivses_str = rawses_str
-%                 end
+            [raw_sestag, preproc_sestag, raw_sesrun, preproc_sesrun] = ...
+                datamap(subj_str{s});
+            for ses = 1:length(raw_sestag)
                 
                 func_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                    rawses_str, func_dir);
+                    raw_sestag{s}, func_dir);
                 fmap_folder = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                    rawses_str, fmap_dir);
+                    raw_sestag{s}, fmap_dir);
                 mag_file = sprintf(...
-                    '%s_%s_magnitude1.nii', subj_str{s}, rawses_str);
+                    '%s_%s_magnitude1.nii', subj_str{s}, raw_sestag{s});
                 phase_file = sprintf(...
-                    '%s_%s_phasediff.nii', subj_str{s}, rawses_str);
+                    '%s_%s_phasediff.nii', subj_str{s}, raw_sestag{s});
                 magnitude = fullfile(fmap_folder, [mag_file '.gz']);
                 phasediff = fullfile(fmap_folder, [phase_file '.gz']);
                 gunzip(magnitude, localscratch);
                 gunzip(phasediff, localscratch);
                 
-%                 if strcmp(subj_str{s}, 'sub-03') || ...
-%                     strcmp(subj_str{s}, 'sub-04') || ...
-%                     strcmp(subj_str{s}, 'sub-07') || ...
-%                     strcmp(subj_str{s}, 'sub-08')
-%                     movefile(fullfile(localscratch, mag_file), ...
-%                         fullfile(localscratch, ...
-%                         sprintf('%s_ses-%02d_magnitude1.nii', ...
-%                         subj_str{s}, ses)));
-%                     movefile(fullfile(localscratch, phase_file), ...
-%                         fullfile(localscratch, ...
-%                         sprintf('%s_ses-%02d_phasediff.nii', ...
-%                         subj_str{s}, ses)));
-%                 end
-                
-                rawtag = sprintf('%s_%s', subj_str{s}, rawses_str);
-                derivtag = sprintf('%s_%s', subj_str{s}, derivses_str);
-                
-                % Remove perception task from list for sub-14 ses-03 exception
-                if strcmp(subj_str{s}, 'sub-14') && ses == 3
-                    tasks(ismember(tasks, 'percep')) = [];
+                if ~isequal(raw_sestag, preproc_sestag)
+                    movefile(fullfile(localscratch, mag_file), ...
+                        fullfile(localscratch, ...
+                        sprintf('%s_%s_magnitude1.nii', subj_str{s}, ...
+                        preproc_sestag{s})));
+                    movefile(fullfile(localscratch, phase_file), ...
+                        fullfile(localscratch, ...
+                        sprintf('%s_%s_phasediff.nii', subj_str{s}, ...
+                        preproc_sestag{s})));
                 end
-                run = {};
-                run_tags = {};
-                for tk=1:length(tasks)
-                    if strcmp(subj_str{s}, 'sub-14') && ses > 1 && ...
-                            strcmp(tasks{tk}, 'prod')
-                        n_run = 1;
-                        shift = 0;
-                    elseif ~strcmp(subj_str{s}, 'sub-14') && ses == 2 ...
-                            && strcmp(tasks{tk}, 'ntfd')
-                        n_run = 4;
-                        shift = 0;
-                    elseif strcmp(subj_str{s}, 'sub-18') && ses == 1 ...
-                            && strcmp(tasks{tk}, 'ntfd')
-                        n_run = 2;
-                        shift = 2;
-                    elseif strcmp(subj_str{s}, 'sub-32') && ses == 1 ...
-                            && strcmp(tasks{tk}, 'ntfd')
-                        n_run = 2;
-                        shift = 5;
-                    else
-                        n_run = 2;
-                        shift = 0;
-                    end
+                
+                rawtag = sprintf('%s_%s', subj_str{s}, raw_sestag{s});
+                derivtag = sprintf('%s_%s', subj_str{s}, preproc_sestag);
                     
-                    for r=1:n_run
-                        func_files = sprintf(...
-                            '%s_task-%s_run-%s_bold.nii', rawtag, ...
-                            tasks{tk}, num2str(r+shift, '%02d'));
-                        func_data = fullfile(func_folder, ...
-                            [func_files '.gz']);
-                        gunzip(func_data, localscratch);
-                        if strcmp(subj_str{s}, 'sub-03') || ...
-                            strcmp(subj_str{s}, 'sub-04') || ...
-                            strcmp(subj_str{s}, 'sub-07') || ...
-                            strcmp(subj_str{s}, 'sub-08')
-                            movefile(fullfile(localscratch, ...
-                                func_files), fullfile(localscratch, ...
-                                sprintf('%s_task-%s_run-%s_bold.nii', ...
-                                derivtag, tasks{tk}, ...
-                                num2str(r+shift, '%02d'))));
-                        end
-                        run_tags{tk}{r} = ['task-' tasks{tk} '_run-' ...
-                            num2str(r+shift, '%02d')];
+                for r=1:length(raw_sesrun)
+                    func_files = sprintf(...
+                        '%s_%s_bold.nii', rawtag, raw_sesrun{r});
+                    func_data = fullfile(func_folder, ...
+                        [func_files '.gz']);
+                    gunzip(func_data, localscratch);
+                    if ~isequal(raw_sesrun, preproc_sesrun)
+                        movefile(fullfile(localscratch, ...
+                            func_files), fullfile(localscratch, ...
+                            '%s_%s_bold.nii', rawtag, preproc_sesrun{r}));
                     end
-                end
+                end                
                 
-                
-                run = horzcat(run_tags{:});
-                spmja_makefieldmap(localscratch, derivtag, run, ...
-                    'prefix', prefix, 'rawdataDir', localscratch);
+                spmja_makefieldmap(localscratch, derivtag, ...
+                    preproc_sesrun, 'prefix', prefix, 'rawdataDir', ...
+                    localscratch);
                 
                 % Create if does not exist the derivatives folder
                 fmap_deriv = fullfile(base_dir, derivatives_dir, ...
