@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: June 2023
+Last update: July 2023
 
 Compatibility: Python 3.10.4
 """
@@ -1174,13 +1174,14 @@ def group_successrate_rand(
 
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
-            40, 41, 42, 43, 44, 45, 46]
+            40, 41, 42, 43, 44, 45, 46, 47]
 # SUBJECTS = [3, 7, 8, 10]
 
 # This set of subjects are those that for the behavioral experiments did
 # the NTFD with the Random Condition
 RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-                 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46]
+                 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 
+                 47]
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
 #          'Visual No-Temporal Feature Discrimination']
