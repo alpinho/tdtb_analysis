@@ -799,8 +799,6 @@ switch what
         % msdtb_imana('FUNC:make_samealign', 'prefix', 'r', 'sn', [1])
         
         sn     = subj_id;  % subject list
-        ssn = ses_id; % list of sessions
-        tasks = {'prod', 'percep', 'ntfd'};
         prefix = 'r'; % prefix for the meanepi: r or rbb if bias corrected
         
         vararginoptions(varargin, {'sn', 'prefix'});
@@ -810,10 +808,13 @@ switch what
             deriv_folder = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s});
             funcmean_deriv = fullfile(deriv_folder, 'ses-01', func_dir);
+            
+            [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
+            
             Q = {};
-            for ses = ssn
-                func_deriv = fullfile(deriv_folder, ...
-                    ['ses-' num2str(ses, '%02d')], func_dir);
+            for ses=1:length(preproc_sestag)
+                func_deriv = fullfile(deriv_folder, preproc_sestag{ses}, ...
+                    func_dir);
                 fprintf('- make_samealign  %s \n', subj_str{s})
                 % Select image for reference 
                 %%% note that functional images are aligned with the first
@@ -822,50 +823,19 @@ switch what
                 P{1} = fullfile(funcmean_deriv, sprintf(...
                     '%smeanu%s_ses-01_task-prod_run-01_bold.nii', ...
                     prefix, subj_str{s}));
-                
-                % Remove perception task from list for sub-14 ses-03 exception
-                if strcmp(subj_str{s}, 'sub-14') && ses == 3
-                    tasks(ismember(tasks, 'percep')) = [];
-                end
-                % Select images to be realigned
-                for tk=1:length(tasks)
-                    if strcmp(subj_str{s}, 'sub-14') && ses > 1 && ...
-                            strcmp(tasks{tk}, 'prod')
-                        n_run = 1;
-                    elseif ~strcmp(subj_str{s}, 'sub-14') && ses == 2 && ...
-                            strcmp(tasks{tk}, 'ntfd')
-                        n_run = 4;
-                    else
-                        n_run = 2;
-                    end
-                    for r=1:n_run
-                        if strcmp(subj_str{s}, 'sub-14') && ses == 3 && ...
-                                strcmp(tasks{tk}, 'prod')
-                            fpath = fullfile(func_deriv, sprintf(...
-                                'u%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
-                                subj_str{s}, ses, tasks{tk}, r+1));
-                        elseif strcmp(subj_str{s}, 'sub-14') && ses == 3 && ...
-                                strcmp(tasks{tk}, 'ntfd')
-                            fpath = fullfile(func_deriv, sprintf(...
-                                'u%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
-                                subj_str{s}, ses, tasks{tk}, r+2));
-                        else
-                            fpath = fullfile(func_deriv, sprintf(...
-                                'u%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
-                                subj_str{s}, ses, tasks{tk}, r));
-                        end
-                        V = nifti(fpath);
-                        imageNumber=1:V.dat.dim(4);
-                        for i= 1:numel(imageNumber)
-                            % for 'auto' mode in coregistration, remove prefix 
-                            % and explicitly add 'r' prefix in the same place
-    %                         Q{end+1} = fullfile(subj_func_dir, ...
-    %                             sprintf('%s%s_ses-%02d_run-%02d.nii,%d', ...
-    %                             prefix, subj_str{s}, ses, r, i)); 
-                            Q{end+1} = [fpath ',' num2str(i, '%d')];
-                        end % i (imageNumber)
-                    end % r(runs)
-                end % tk (tasks)
+
+                for r=1:length(preproc_sesrun{ses})
+                    fpath = convertStringsToChars(fullfile(func_deriv, ...
+                        sprintf('u%s_%s_%s_bold.nii', subj_str{s}, ...
+                        preproc_sestag{ses}, preproc_sesrun{ses}{r})));
+                    V = nifti(fpath);
+                    imageNumber=1:V.dat.dim(4);
+                    for i= 1:numel(imageNumber)
+                        % for 'auto' mode in coregistration, remove prefix 
+                        % and explicitly add 'r' prefix in the same place
+                        Q{end+1} = [fpath ',' num2str(i, '%d')];
+                    end % i (imageNumber)
+                end % r(runs)
             end % ss (sess)
             spmj_makesamealign_nifti(char(P),char(Q));
         end % s (sn)
