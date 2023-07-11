@@ -31,11 +31,12 @@ subfolderRawdata='';
 subfolderFieldmap='';
 rawdataDir='';
 magnumber=1;
+regularization=0.02;
 
 use3D=false;
 
 vararginoptions(varargin,{'prefix', 'image', 'subfolderRawdata', ...
-    'subfolderFieldmap', 'use3D','rawdataDir', 'magnumber'}); 
+    'subfolderFieldmap', 'use3D','rawdataDir', 'magnumber', 'regularization'}); 
 spm_dir= fileparts(which('spm'));
 spmVer=spm('Ver');
 
@@ -66,7 +67,7 @@ J.defaults.defaultsval.mflags.fwhm = 5;
 J.defaults.defaultsval.mflags.nerode = 2;                                                               
 J.defaults.defaultsval.mflags.ndilate = 4;                                                              
 J.defaults.defaultsval.mflags.thresh = 0.5;                                                             
-J.defaults.defaultsval.mflags.reg = 0.02;
+J.defaults.defaultsval.mflags.reg = regularization;
 J.matchvdm = 1;
 J.sessname = 'run';
 J.writeunwarped = 1;                                                                                    

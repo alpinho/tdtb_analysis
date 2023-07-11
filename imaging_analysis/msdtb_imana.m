@@ -74,7 +74,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 
 %     34, 35]
-subj_n = [32]
+subj_n = [20, 22, 23]
 % subj_n = [4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 32]
 
 subj_id = 1:length(subj_n);
@@ -157,7 +157,7 @@ contrasts_split = {'Encoding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...               
                    'Decision Interval vs Decision Beat', [0 0 -1 0 0 1 0 0 -1 0 0 1]; ...   %25
                    'Auditory Decision vs Visual Decision', [0 0 1 0 0 1 0 0 -1 0 0 -1]; ... %26
                    'Visual Decision vs Auditory Decision', [0 0 -1 0 0 -1 0 0 1 0 0 1]; ... %27
-             };
+                   };
          
 contrasts_md = {'Encoding', [1 1 1 1 0]; ...                            %1
                 'Auditory Encoding', [1 1 0 0 0]; ...                   %2
@@ -196,7 +196,7 @@ contrasts_md_split = {'Encoding Low', [1 0 1 0 1 0 1 0 0]; ...                  
                       'Visual Interval vs Visual Beat Low', [0 0 0 0 -1 0 1 0 0]; ...      %21
                       'Visual Interval vs Visual Beat High', [0 0 0 0 0 -1 0 1 0]; ...     %22
                       'Decision', [0 0 0 0 0 0 0 0 1]; ...                                 %23
-                       };
+                      };
 
 contrasts_drbb = {'Encoding', [1 1 1 1 0 0]; ...                            %1
                   'Auditory Encoding', [1 1 0 0 0 0]; ...                   %2
@@ -211,7 +211,7 @@ contrasts_drbb = {'Encoding', [1 1 1 1 0 0]; ...                            %1
                   'Visual Interval vs Visual Beat', [0 0 -1 1 0 0]; ...     %11
                   'Decision', [0 0 0 0 1 0]; ...                            %12
                   'Response', [0 0 0 0 0 1]; ...                            %13
-                 };
+                  };
 
 contrasts_dbb = {'Encoding', [1 1 1 1 0]; ...                            %1
                  'Auditory Encoding', [1 1 0 0 0]; ...                   %2
@@ -239,7 +239,7 @@ contrasts_brbb = {'Encoding', [1 1 1 1 0]; ...                            %1
                   'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %10
                   'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
                   'Response', [0 0 0 0 1]; ...                            %12
-                 };
+                  };
 
 %==============================================================================
 
@@ -553,9 +553,15 @@ switch what
                 end                
 
                 % Load SPM Batch
-                spmja_makefieldmap(localscratch, preproctag, ...
-                    preproc_sesrun{ses}, 'prefix', prefix, 'rawdataDir', ...
-                    localscratch);
+                if strcmp(subj_str{s}, 'sub-18')
+                    spmja_makefieldmap(localscratch, preproctag, ...
+                        preproc_sesrun{ses}, 'prefix', prefix, ...
+                        'rawdataDir', localscratch, 'regularization', 0.03);
+                else
+                    spmja_makefieldmap(localscratch, preproctag, ...
+                        preproc_sesrun{ses}, 'prefix', prefix, ...
+                        'rawdataDir', localscratch);
+                end
                 
                 % Create if does not exist the derivatives folder
                 fmap_deriv = fullfile(base_dir, derivatives_dir, ...
