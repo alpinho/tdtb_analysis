@@ -74,7 +74,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 
 %     34, 35];
-subj_n = [35];
+subj_n = [38];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -103,10 +103,11 @@ end
 %           [4.5 22.3 -21.5], ...       %sub-32
 %           [2.1 20.4 -11.5], ...       %sub-34
 %           [2.8 23.7 -20.7], ...       %sub-35
+%           [5.2 19.3 37.3], ...        %sub-38
 %           };
 
 loc_AC = {
-          [1.2 30.6 -46.4], ...         %sub-14
+          [5.2 19.3 37.3], ...         %sub-38
           };
 
 numDummys = 0;
@@ -446,7 +447,7 @@ switch what
                 'voxel_size', [1.0 1.0 1.0])
         end
     
-    case 'ANAT:mean_t1'
+    case 'GROUP:mean_t1'
         % Example usage: msdtb_imana('ANAT:mean_t1')
         
         sn       = subj_id; % subject list
@@ -482,11 +483,11 @@ switch what
     case 'ANAT:run_all'
         % Example usage: msdtb_imana('ANAT:run_all')
         
-        msdtb_imana('ANAT:reslice_lpi')
-        msdtb_imana('ANAT:center_ac')
+        % msdtb_imana('ANAT:reslice_lpi')
+        % msdtb_imana('ANAT:center_ac')
         msdtb_imana('ANAT:segment')
         msdtb_imana('ANAT:t1_normalization') 
-        % msdtb_imana('ANAT:mean_t1')
+        % msdtb_imana('GROUP:mean_t1')
         
     case 'FUNC:make_fieldmap' % Make fieldmap
         
