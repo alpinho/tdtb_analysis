@@ -73,9 +73,8 @@ wb_dir   = 'surfaceWB';
 
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 
-%     34, 35]
-subj_n = [20, 22, 23]
-% subj_n = [4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 32]
+%     34, 35];
+subj_n = [35];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
