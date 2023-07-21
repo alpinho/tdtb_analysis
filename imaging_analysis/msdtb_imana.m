@@ -587,18 +587,32 @@ switch what
                         preproc_sesrun{ses}, 'prefix', epi_prefix);
                 end
                 
-                % Move gunzipped files to func folder for realign&unwarp
+                % Add task tag to fieldmap files
                 for r=1:length(preproc_sesrun{ses})
-                    gunzipped_epi = sprintf(...
-                        '%s_%s_bold.nii', preproctag, preproc_sesrun{ses}{r});
-                    movefile(fullfile(fmapderiv_folder, gunzipped_epi), ...
-                        fullfile(funcderiv_folder, ...
-                        sprintf('%s_%s_bold.nii', ...
-                        preproctag, preproc_sesrun{ses}{r})));
-                end   
+                    movefile([fmapderiv_folder '/vdm5_sc' preproctag ...
+                        '_phasediff_run' num2str(r, '%d') '.nii'], ...
+                        fullfile(fmapderiv_folder, ['vdm5_sc' preproctag ...
+                        '_phasediff_' ...
+                        preproc_sesrun{ses}{r} '.nii']));
+                end
+                
+%                 % Move gunzipped files to func folder for realign&unwarp
+%                 for r=1:length(preproc_sesrun{ses})
+%                     gunzipped_epi = sprintf(...
+%                         '%s_%s_bold.nii', preproctag, preproc_sesrun{ses}{r});
+%                     movefile(fullfile(fmapderiv_folder, gunzipped_epi), ...
+%                         fullfile(funcderiv_folder, ...
+%                         sprintf('%s_%s_bold.nii', ...
+%                         preproctag, preproc_sesrun{ses}{r})));
+%                 end   
                 
                 % Rename and move postscript file
                 psfiles(fmapderiv_folder, 'fieldmap')
+                
+                % Delete unziped raw files from localscratch
+                if any(size(dir([localscratch '/*.nii']), 1))
+                    delete([localscratch '/*.nii']);
+                end
                 
             end % ses (length(raw_sestag))
         end % s (sn)
@@ -615,64 +629,49 @@ switch what
         vararginoptions(varargin,{'sn'});
                 
         for s = sn
-            
-            raw_subjdir = fullfile(base_dir, raw_dir, subj_str{s});          
-            deriv_subjdir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s});
+                   
+            deriv_subjdir = fullfile(base_dir, derivatives_dir, subj_str{s});
             
             run = {};
             
-            [raw_sestag, preproc_sestag, raw_sesrun, preproc_sesrun] = ...
-                datamap(subj_str{s});
+            [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
             
-            for ses = 1:length(raw_sestag)
+            for ses = 1:length(preproc_sestag)
                 
-                funcraw_folder = fullfile(raw_subjdir, raw_sestag{ses}, ...
-                    func_dir);
                 fmapderiv_folder = fullfile(deriv_subjdir, ...
-                    preproc_sestag{ses}, fmap_dir);
+                    convertStringsToChars(preproc_sestag{ses}), fmap_dir);
                 
-                rawtag = sprintf('%s_%s', subj_str{s}, ...
-                    raw_sestag{ses});
                 preproctag = sprintf('%s_%s', subj_str{s}, ...
                     preproc_sestag{ses});
+                
+                % Empty localscratch
+                if ses == 1
+                    folder(localscratch)
+                end
 
-                for r=1:length(raw_sesrun{ses})
-                    
-                    func_file = sprintf('%s_%s_bold.nii', rawtag, ...
-                        raw_sesrun{ses}{r});                        
-                    func_data = fullfile(funcraw_folder, [func_file '.gz']);
-                    
-                    % Unzip EPI files to be loaded by SPM
-                    gunzip(func_data, localscratch);
-                    
-                    % Rename EPI files if session tag or task-run number
-                    % are not equal to their corresponding defaults
-                    if ~isequal(raw_sestag{ses}, preproc_sestag{ses}) || ...
-                            ~isequal(raw_sesrun{ses}{r}, preproc_sesrun{ses}{r})
-                        movefile(fullfile(localscratch, func_file), ...
-                            fullfile(localscratch, ...
-                            sprintf('%s_%s_bold.nii', ...
-                            preproctag, preproc_sesrun{ses}{r})));
-                    end
-                    
+                for r=1:length(preproc_sesrun{ses})
+                    % Copy EPI files to localscratch
+                    func_fname = sprintf('%s_%s_bold.nii', ...
+                        preproctag, preproc_sesrun{ses}{r});
+                    func_file = fullfile(fmapderiv_folder, func_fname)
+                    copyfile(func_file, localscratch);
+                    % Copy fieldmap files to localscratch
                     fmap_fname = sprintf('vdm5_sc%s_phasediff_%s.nii', ...
                         preproctag, preproc_sesrun{ses}{r});
-                    run{ses}{r} = [...
-                        convertStringsToChars(preproc_sestag{ses}), '_', ...
-                        convertStringsToChars(preproc_sesrun{ses}{r})];
-
                     fmap_file = fullfile(fmapderiv_folder, fmap_fname);
                     copyfile(fmap_file, localscratch);
                     
+                    run{ses}{r} = [...
+                        convertStringsToChars(preproc_sestag{ses}), '_', ...
+                        convertStringsToChars(preproc_sesrun{ses}{r})];                    
                 end % r (length(raw_sesrun{ses}))
             end % ses (ses_id)
             
             run = horzcat(run{:});           
             % Load batch and run spm
             spmja_realign_unwarp(localscratch, subj_str{s}, run, 1, Inf, ...
-                'prefix', prefix, 'rawdataDir', localscratch);
-             
+                'prefix', prefix);
+            
             for ses = 1:length(preproc_sestag)
                 % Create if does not exist the derivatives folder
                 func_deriv_folder = fullfile(base_dir, derivatives_dir, ...
