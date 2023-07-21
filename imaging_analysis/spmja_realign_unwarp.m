@@ -10,22 +10,17 @@ function spmja_realign_unwarp(dataDir, subj_name, run, startTR, endTR, varargin)
 %   endTR:      Last image to align (if INF, it will use all available)
 % VARARGINOPTIONS: 
 %   'prefix'            prefix for run name (default 'a'); 
-%   'scanType'          sub folder in your subject directory
 %   'subfolderFieldmap' subfolder in the fieldmap directory
-%   'subfolderRawdata'  subfolder in the imaging_data_raw directory
-%   'rawdataDir'        overwrites standard naming and forces routine to
-%                       use this folder for location of raw data 
+
 % Tobias Wiestler & Joern Diedrichsen
 % 06/02/2012 subfolder option replaced with two options 'subfolderFieldmap' 'subfolderRawdata'
 % 23/10/2012 added rawdataDir to be able to overwrite the standard naming convention
 % 
 prefix= 'a';
-subfolderRawdata='';
 subfolderFieldmap='';
 use3D=false;
-rawdataDir=''; 
 
-vararginoptions(varargin,{'prefix', 'subfolderRawdata', 'subfolderFieldmap','use3D','rawdataDir'}); 
+vararginoptions(varargin,{'prefix', 'subfolderFieldmap','use3D'}); 
 
 % displaying whether using 3D files or not
 disp(['Using 3D: ' num2str(use3D)]);
@@ -56,15 +51,15 @@ J.uwroptions.mask = 1;
 J.uwroptions.prefix = 'u'; 
 
 
-if (isempty(rawdataDir))
-    rawdataDir=fullfile(dataDir, 'raw',subj_name,subfolderRawdata); 
-end; 
+% if (isempty(rawdataDir))
+%     rawdataDir=fullfile(dataDir, 'raw',subj_name,subfolderRawdata); 
+% end; 
 
 %_______images and fieldmap definition_________________________________
 for j=1:numel(run)
     if (isinf(endTR))  
         % All avaialble images: only works with 4d-nifits right now 
-        V = nifti(fullfile(rawdataDir, [prefix, subj_name, '_', run{j}, ...
+        V = nifti(fullfile(dataDir, [prefix, subj_name, '_', run{j}, ...
             '_bold.nii'])); 
         imageNumber=startTR:V.dat.dim(4);
     else 
@@ -73,10 +68,10 @@ for j=1:numel(run)
     scans = {};
     for i= 1:numel(imageNumber)
         if use3D
-            scans{i, 1} = fullfile(rawdataDir, [prefix, subj_name, '_', ...
+            scans{i, 1} = fullfile(dataDir, [prefix, subj_name, '_', ...
                 run{j}, '_', num2str(imageNumber(i)), '_bold.nii']);
         else
-            scans{i, 1} = fullfile(rawdataDir, [prefix, subj_name, '_', ...
+            scans{i, 1} = fullfile(dataDir, [prefix, subj_name, '_', ...
                 run{j}, '_bold.nii,', num2str(imageNumber(i))]);
         end           
     end

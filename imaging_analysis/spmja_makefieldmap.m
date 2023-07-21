@@ -9,11 +9,6 @@ function spmja_makefieldmap(dataDir, subj_name, run, varargin)
 %   prefix:  default 'a': Naming is <prefix><subjname>_run<runnumber>.nii
 %   image: Number of the image in run to which fieldmap should be aligned
 %               (default = 1) 
-%   scanType: sub folder in your subject directory
-%   subfolderFieldmap: subfolder in the fieldmap directory
-%   subfolderRawdata: subfolder in the imaging_data_raw directory
-%   rawdataDir:     forces rawdata Directory to different value from the
-%               standard naming 
 %   magnumber: number of magnitude file (when there are two)
 
 % Tobias Wiestler 2010
