@@ -27,16 +27,13 @@ function spmja_makefieldmap(dataDir, subj_name, run, varargin)
 
 prefix='a'; 
 image=1; 
-subfolderRawdata='';
-subfolderFieldmap='';
-rawdataDir='';
 magnumber=1;
 regularization=0.02;
 
 use3D=false;
 
-vararginoptions(varargin,{'prefix', 'image', 'subfolderRawdata', ...
-    'subfolderFieldmap', 'use3D','rawdataDir', 'magnumber', 'regularization'}); 
+vararginoptions(varargin,{'prefix', 'image', 'use3D', 'magnumber', ...
+    'regularization'}); 
 spm_dir= fileparts(which('spm'));
 spmVer=spm('Ver');
 
@@ -74,26 +71,26 @@ J.writeunwarped = 1;
 J.anat = [];                  
 J.matchanat = 1; 
 
-if (isempty(rawdataDir))
-    rawdataDir=fullfile(dataDir, 'raw', subj_name, subfolderRawdata); 
-end; 
+% if (isempty(rawdataDir))
+%     rawdataDir=fullfile(dataDir, 'raw', subj_name, subfolderRawdata); 
+% end; 
 
 %_______for multiple run with same fieldmap________________________________
 for i=1:numel(run) 
     if use3D
-        J.session(i).epi ={fullfile(rawdataDir, ...
+        J.session(i).epi ={fullfile(dataDir, ...
             [prefix subj_name, '_', run{i}, '_', num2str(image), ...
             '_bold.nii'])};
     else
-        J.session(i).epi ={fullfile(rawdataDir, ...
+        J.session(i).epi ={fullfile(dataDir, ...
             [prefix, subj_name, '_', run{i}, '_bold.nii,', ...
             num2str(image)])};    
     end;
 end
 
 %_______change code here if we have 1 fieldmap for each run________________
-J.phase ={fullfile(rawdataDir, [subj_name,'_phasediff.nii,1'])};
-J.magnitude =  {fullfile(rawdataDir, [subj_name,'_magnitude', ...
+J.phase ={fullfile(dataDir, [subj_name,'_phasediff.nii,1'])};
+J.magnitude =  {fullfile(dataDir, [subj_name,'_magnitude', ...
     num2str(magnumber), '.nii,1'])};
 
 matlabbatch{1}.spm.tools.fieldmap.presubphasemag.subj= J;
