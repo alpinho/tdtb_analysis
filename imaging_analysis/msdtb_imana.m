@@ -74,7 +74,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 
 %     34, 35, 38, 39, 40, 41, 42, 44];
-subj_n = [43];
+subj_n = [44, 45];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -596,16 +596,6 @@ switch what
                         preproc_sesrun{ses}{r} '.nii']));
                 end
                 
-%                 % Move gunzipped files to func folder for realign&unwarp
-%                 for r=1:length(preproc_sesrun{ses})
-%                     gunzipped_epi = sprintf(...
-%                         '%s_%s_bold.nii', preproctag, preproc_sesrun{ses}{r});
-%                     movefile(fullfile(fmapderiv_folder, gunzipped_epi), ...
-%                         fullfile(funcderiv_folder, ...
-%                         sprintf('%s_%s_bold.nii', ...
-%                         preproctag, preproc_sesrun{ses}{r})));
-%                 end   
-                
                 % Rename and move postscript file
                 psfiles(fmapderiv_folder, 'fieldmap')
                 
@@ -673,7 +663,7 @@ switch what
                 'prefix', prefix);
             
             for ses = 1:length(preproc_sestag)
-                % Create if does not exist the derivatives folder
+                % Set path of the derivatives folder
                 func_deriv_folder = fullfile(base_dir, derivatives_dir, ...
                     subj_str{s}, preproc_sestag{ses}, func_dir);
                 % Create/update destination folder
