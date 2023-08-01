@@ -646,14 +646,14 @@ switch what
                 
                 % Empty localscratch
                 if ses == 1
-                    folder(localscratch)
+                    folder(localscratch);
                 end
 
                 for r=1:length(preproc_sesrun{ses})
                     % Copy EPI files to localscratch
                     func_fname = sprintf('%s_%s_bold.nii', ...
                         preproctag, preproc_sesrun{ses}{r});
-                    func_file = fullfile(fmapderiv_folder, func_fname)
+                    func_file = fullfile(fmapderiv_folder, func_fname);
                     copyfile(func_file, localscratch);
                     % Copy fieldmap files to localscratch
                     fmap_fname = sprintf('vdm5_sc%s_phasediff_%s.nii', ...
