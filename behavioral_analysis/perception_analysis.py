@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: July 2023
+Last update: August 2023
 
 Compatibility: Python 3.10.4
 """
@@ -681,157 +681,21 @@ def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir,
     df['DL'] = df['DL'].apply(pd.to_numeric)
     df = df[df.Estimator == estimator]
 
-    # Replace outliers by median
+    # Replace outliers by median across subjects
     ht, lt = outliers(dl_flatten)
     df['DL'] = np.where(df['DL'] > ht, np.nan, df['DL'])
     df['DL'] = np.where(df['DL'] < lt, np.nan, df['DL'])
+
     for index, row in df.iterrows():
-        if df.loc[index, 'DL'] == np.nan:
+        if np.isnan(df.loc[index, 'DL']):
             std_val = df.loc[index, 'Standard']
             mod_val = df.loc[index, 'Modality']
             cond_val = df.loc[index, 'Condition']
-            dl = np.median(df[df.Standard == std_val][
+            dl = np.nanmedian(df[df.Standard == std_val][
                 df.Modality == mod_val][df.Condition == cond_val].DL.values)
             df.loc[index, 'DL'] = dl
 
     return df
-
-
-def twoway_repanova(df, stand_numbers, this_dir, output_dir):
-    for s, st in enumerate(stand_numbers):
-        # Compute a two-way repeated-measures ANOVA
-        aov = pg.rm_anova(
-            data=df[df.Standard == str(st)],
-            dv='DL',
-            within=['Modality', 'Condition'],
-            subject='Subject',
-            detailed=True)
-        aov.to_csv(
-            os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/twoway',
-                         'anova_DL_' + str(st) + '.csv'), sep='\t')
-
-        print('Normality for Modality' + str(st) + ': ',
-              pg.normality(df[df.Standard == str(st)], group='Modality',
-                           dv='DL', method='normaltest'))
-
-        print('Normality for Condition' + str(st) + ': ',
-              pg.normality(df[df.Standard == str(st)], group='Condition',
-                           dv='DL', method='normaltest'))
-
-        spher, W, chisq, dof, pval = pg.sphericity(
-            df[df.Standard == str(st)], dv='DL', subject='Subject',
-            within='Modality')
-        print('Sphericity for Modality: ', spher, round(W, 3),
-              round(chisq, 3), dof, round(pval, 3))
-
-        spher, W, chisq, dof, pval = pg.sphericity(
-            df[df.Standard == str(st)], dv='DL', subject='Subject',
-            within='Condition')
-        print('Sphericity for Condition: ', spher, round(W, 3),
-              round(chisq, 3), dof, round(pval, 3))
-
-        # Holm-corrected pairwise T-tests
-        pairwise_tt = pg.pairwise_tests(
-            data=df[df.Standard == str(st)],
-            dv='DL',
-            within=['Modality', 'Condition'],
-            subject='Subject',
-            alternative='two-sided',
-            return_desc=True, padjust='holm', interaction=True)
-        pairwise_tt.to_csv(os.path.join(
-            MAIN_DIR, PLOTS_FOLDER, 'anovas/twoway',
-            'pairwise_ttest_DL_' + str(st) + '.csv'), sep='\t')
-
-        if s == 0:
-            fig = plt.figure(figsize=(25, 5))
-
-        # Define subplot of bar charts and its position in the fig
-        # plt.axes([left, bottom, width, height])
-        ax = plt.axes([.0345 + s*.198, .17, .165, .7])
-
-        sns.set(style="ticks", rc={"lines.linewidth": 3.})
-
-        if s == 3:
-            ax = sns.pointplot(
-                data=df[df.Standard == str(st)],
-                x='Condition',
-                y='DL',
-                hue='Modality',
-                dodge=True,
-                capsize=.1,
-                ci='sd',
-                linestyles=["-", "--"],
-                palette=['lime', 'indigo'])
-        else:
-            ax = sns.pointplot(
-                data=df[df.Standard == str(st)],
-                x='Condition',
-                y='DL',
-                hue='Modality',
-                dodge=True,
-                capsize=.1,
-                ci='sd',
-                palette=['lime', 'indigo'])
-
-        # Set opacity
-        plt.setp(ax.collections, alpha=.5) #for the markers
-        plt.setp(ax.lines, alpha=.5)       #for the lines
-
-        sns.despine(fig=fig, top=True, right=True, left=False, bottom=False)
-        plt.ylim(-.3, .85)
-        _ = plt.title('Standard = ' + str(st) + ' ms', x=.5, y=1.05,
-                      fontsize=20)
-        ax.legend(frameon=False, loc = 'lower right', fontsize=16)
-        ax.set_xlabel("Condition", fontsize = 18)
-        ax.set_ylabel("DL", fontsize = 18)
-        ax.yaxis.labelpad = -4
-        ax.tick_params(axis='x', labelsize=16)
-        ax.tick_params(axis='y', labelsize=16)
-        # Annotate
-        if s == 0:
-            ymin = .075
-            ymax = .2
-            fig.text(.115, .48, '*', fontsize=18)
-            fig.text(.0725, .75, 'Error bar: SD', fontsize=18)
-        elif s == 1:
-            ymin = .084
-            ymax = .15
-            fig.text(.31, .45, '**', fontsize=18)
-        elif s == 2:
-            ymin = .08
-            ymax = .13
-            fig.text(.508, .44, '**', fontsize=18)
-        elif s == 3:
-            ymin - .08
-            ymax = .13
-            fig.text(.704, .45, '***', fontsize=18)
-            pair = [('audio', 'visual')]
-            annotator = Annotator(
-                ax, pair, data=df[df.Standard == str(st)],
-                x='Modality', y='DL')
-            annotator.configure(
-                test=None, text_format="star",
-                test_short_name="pttest", fontsize=16.)
-            annotator.set_pvalues([pairwise_tt['p-unc'][1]])
-            annotator.annotate()
-            # Add second legend
-            fig.text(.64, .81, 'Dashed: significant interaction',
-                     fontsize=14)
-            fig.text(.64, .76, 'Continuous: non-significant interaction',
-                     fontsize=14)
-        else:
-            assert s == 4
-            ymin = .093
-            fig.text(.903, .433, '**', fontsize=18)
-            ymax = .13
-
-        plt.vlines(.5, ymin, ymax, color='black')
-        # Save figure
-        if s == len(stand_numbers) - 1:
-            plt.savefig(os.path.join(this_dir, output_dir, MAIN_DIR,
-                                     PLOTS_FOLDER, 'anovas/twoway',
-                                     'anovaplot_DL.png'))
-    plt.close('all')
 
 
 def threeway_repanova(df, this_dir, output_dir):
@@ -1042,5 +906,4 @@ if __name__ == "__main__":
             continue
         else:
             db = dataframe(estim_pse, estim_dl, stand, MAIN_DIR, PLOTS_FOLDER)
-            # twoway_repanova(db, stand, MAIN_DIR, PLOTS_FOLDER)
             threeway_repanova(db, MAIN_DIR, PLOTS_FOLDER)
