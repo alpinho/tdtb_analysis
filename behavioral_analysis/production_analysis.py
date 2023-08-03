@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: July 2023
+Last update: August 2023
 
 Compatibility: Python 3.10.4
 """
@@ -951,7 +951,7 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
         if m == 0:
             ax[m].set_title('Auditory Production', weight='bold', pad=0,
                             fontsize=24)
-            ax[m].legend(loc='upper left', frameon=False, prop={'size': 24})
+            ax[m].legend(loc='lower left', frameon=False, prop={'size': 24})
         else:
             assert m == 1
             ax[m].set_title('Visual Production', weight='bold', pad=0,
@@ -963,8 +963,8 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
         fig.text(.02, yname_pos, yaxis_name, fontsize=26, rotation=90)
         # Legends for horizontal dashed lines
         if hline:
-            fig.text(.355, .375, hline_legend, fontsize=24, color='dimgrey')
-            fig.text(.825, .375, hline_legend, fontsize=25, color='dimgrey')
+            fig.text(.355, .4275, hline_legend, fontsize=24, color='dimgrey')
+            fig.text(.825, .435, hline_legend, fontsize=24, color='dimgrey')
 
     # Title
     plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
@@ -1253,7 +1253,7 @@ if __name__ == "__main__":
         [[std_abs_vb] + [std_abs_vi]]
 
     plotfit_production(
-        standards, mean_data, np.linspace(-60, 140, 6),
+        standards, mean_data, np.linspace(-60, 90, 6),
         'RT-Difference Mean (ms)', .225,
         'Mean of Response-Time (RT) Difference for every Standard',
         MAIN_DIR, PLOTS_FOLDER, 'mean-err_production', hline=True,
