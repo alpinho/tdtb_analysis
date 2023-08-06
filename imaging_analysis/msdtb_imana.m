@@ -73,8 +73,8 @@ wb_dir   = 'surfaceWB';
 
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 
-%     34, 35, 38, 39, 40, 41, 42, 44];
-subj_n = [44, 45];
+%     34, 35, 38, 39, 40, 41, 42, 43, 44, 45];
+subj_n = [32, 34, 35, 38, 39];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -347,7 +347,7 @@ switch what
             V               = spm_vol(img);
             dat             = spm_read_vols(V);
             oldOrig         = V.mat(1:3,4);
-            V.mat(1:3,4)    = oldOrig-loc_AC{s}.';
+            V.mat(1:3,4)    = oldOrig - loc_AC{s}.';
             % V.mat(1:3,4)    = -loc_AC{s}.';
             spm_write_vol(V,dat);
         end % s (subjects)
