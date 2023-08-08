@@ -212,6 +212,9 @@ def individual_perception(
         estimator='mle_expit',
         tasks = ['Auditory Perception', 'Visual Perception']):
 
+    logfiles_dir = os.path.join(
+        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+
     all_rf1_audio = []
     all_rf2_audio = []
     all_rf1_visual = []
@@ -225,7 +228,8 @@ def individual_perception(
             if task not in ['Auditory Perception', 'Visual Perception']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
+            data = parse_logfile(logfiles_dir, subject, sesstype, task,
+                                 n_trials)
             trials = perception_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'perception')

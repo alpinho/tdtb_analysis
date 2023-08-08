@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: July 2023
+Last update: August 2023
 
 Compatibility: Python 3.10.4
 """
@@ -131,6 +131,9 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
                         tasks=['Auditory No-Temporal Feature Discrimination',
                                'Visual No-Temporal Feature Discrimination']):
 
+    logfiles_dir = os.path.join(
+        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+
     allsub_beat_audio = []
     allsub_interval_audio = []
     allsub_random_audio = []
@@ -143,7 +146,8 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
                             'Visual No-Temporal Feature Discrimination']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
+            data = parse_logfile(logfiles_dir, subject, sesstype, task,
+                                 n_trials)
 
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
@@ -262,6 +266,9 @@ def individual_ntfd_isi_rts(
         flatten=True, tasks=['Auditory No-Temporal Feature Discrimination',
                              'Visual No-Temporal Feature Discrimination']):
 
+    logfiles_dir = os.path.join(
+        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+
     allsub_beat_audio = []
     allsub_interval_audio = []
     allsub_beat_visual = []
@@ -272,7 +279,8 @@ def individual_ntfd_isi_rts(
                             'Visual No-Temporal Feature Discrimination']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
+            data = parse_logfile(logfiles_dir, subject, sesstype, task,
+                                 n_trials)
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
@@ -439,6 +447,9 @@ def individual_ntfd_sucessrate(
         flatten=True, tasks=['Auditory No-Temporal Feature Discrimination',
                              'Visual No-Temporal Feature Discrimination']):
 
+    logfiles_dir = os.path.join(
+        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+
     allsub_success_rate_audio_beat = []
     allsub_success_rate_audio_interval = []
     allsub_success_rate_audio_random  = []
@@ -451,7 +462,8 @@ def individual_ntfd_sucessrate(
                             'Visual No-Temporal Feature Discrimination']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstype, task, n_trials)
+            data = parse_logfile(logfiles_dir, subject, sesstype, task,
+                                 n_trials)
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]

@@ -15,7 +15,9 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
         # If the participant only did behaviour
         if sesstype == 'imaging_session' and not os.path.exists(sesstype_path):
             break
+
         # Do not consider behavioural data from imaging session of sub-04
+        # Comment to extract paradigm descriptors
         elif sesstype == 'imaging_session' and subject_no == 4:
             break
         else:
