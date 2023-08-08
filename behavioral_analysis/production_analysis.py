@@ -92,6 +92,9 @@ def individual_production_isi_sync(
         subjects, sesstypes, this_dir, output_folder, sync_type, n_trials,
         flatten=True, tasks=['Auditory Production', 'Visual Production']):
 
+    logfiles_dir = os.path.join(
+        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+
     allsub_beat_audio = []
     allsub_interval_audio = []
     allsub_beat_visual = []
@@ -100,7 +103,8 @@ def individual_production_isi_sync(
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
-            data = parse_logfile(this_dir, subject, sesstypes, task, n_trials)
+            data = parse_logfile(logfiles_dir, subject, sesstypes, task,
+                                 n_trials)
             trials = production_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'production')
@@ -321,6 +325,9 @@ def individual_production_isi_rts(
         subjects, sesstypes, this_dir, output_folder, n_trials, flatten=True,
         tasks = ['Auditory Production', 'Visual Production']):
 
+    logfiles_dir = os.path.join(
+        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+
     allsub_beat_audio = []
     allsub_interval_audio = []
     allsub_beat_visual = []
@@ -330,7 +337,8 @@ def individual_production_isi_rts(
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
 
-            data = parse_logfile(this_dir, subject, sesstypes, task, n_trials)
+            data = parse_logfile(logfiles_dir, subject, sesstypes, task,
+                                 n_trials)
             trials = production_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'production')
