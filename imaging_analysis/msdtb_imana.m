@@ -1002,9 +1002,10 @@ switch what
             
             [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
             
-            for ses = length(preproc_sestag)
+            for ses = 1:length(preproc_sestag)
                 sfiles = convertStringsToChars(fullfile(source, ...
-                    subj_str{s}, preproc_sestag{ses}, [suffix '_events.tsv']));
+                    subj_str{s}, preproc_sestag{ses}, ...
+                    ['*' suffix '_events.tsv']));
                 dfolder = convertStringsToChars(fullfile(destination, ...
                     subj_str{s}, preproc_sestag{ses}, 'func'));
                 
