@@ -30,6 +30,7 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
             inputs_lists = [[line for line in csv.reader(open(logfile),
                                                          delimiter=',')]
                             for logfile in logfiles]
+
             # Pick log files of selected task
             allruns = []
             for i, inputs_list in enumerate(inputs_lists, 1):
@@ -65,7 +66,7 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                                     break
                                 else:
                                     continue
-                            trials_info = trials_info[:li]
+                            trials_info = trials_info[:li+2]
                         elif ttag in inputs_list[9][0][9:]:
                             for li, line in enumerate(trials_info):
                                 if line[4] == 'baseline' and \
@@ -73,7 +74,7 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                                     break
                                 else:
                                     continue
-                            trials_info = trials_info[li+1:-2]
+                            trials_info = trials_info[li+1:]
                     if concatenate:
                         allruns.extend(trials_info)
                     else:
