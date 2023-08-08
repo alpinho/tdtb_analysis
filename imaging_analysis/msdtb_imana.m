@@ -72,9 +72,9 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % list of subjects
-% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32, 
-%     34, 35, 38, 39, 40, 41, 42, 43, 44, 45];
-subj_n = [32, 34, 35, 38, 39];
+% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
+%     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45];
+subj_n = [3, 4, 7, 8, 10];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -985,29 +985,31 @@ switch what
         % Example usage: msdtb_imana('GLM:copy_paradigm_descriptors')
 
         sn  = subj_id;
-        ssn = ses_id; % list of sessions
         suffix = ''; % suffix of event files
         vararginoptions(varargin, {'sn'});
         
         if isdir('/srv/diedrichsen/data')
             source = fullfile(homedir, ...
-                'tsclient/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events/');
+                'tsclient/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events');
         else
             source = fullfile(...
-                '/home/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events/');
+                '/home/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events');
         end
         destination = fullfile(workdir, ...
             'Cerebellum/music-sdtb/derivatives');
 
         for s = sn
-            for ses = ssn
-                sfiles = [source subj_str{s} '/ses-' ...
-                    num2str(ses, '%02d') '/*' suffix '_events.tsv'];
-                dfolder = fullfile(destination, subj_str{s}, ...
-                    ['ses-' num2str(ses, '%02d')], 'func');
+            
+            [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
+            
+            for ses = length(preproc_sestag)
+                sfiles = convertStringsToChars(fullfile(source, ...
+                    subj_str{s}, preproc_sestag{ses}, [suffix '_events.tsv']));
+                dfolder = convertStringsToChars(fullfile(destination, ...
+                    subj_str{s}, preproc_sestag{ses}, 'func'));
                 
                 % Delete previous tsv files from destination folder
-                dold_files = [dfolder  '/*' suffix '_events.tsv'];
+                dold_files = fullfile(dfolder, ['*' suffix '_events.tsv']);
                 delete(dold_files);
                 
                 % Copy new tsv files
