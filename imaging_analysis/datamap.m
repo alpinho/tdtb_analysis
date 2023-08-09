@@ -86,7 +86,7 @@ switch true
         preproc_runs = raw_runs;
 
 
-    case strcmp(subject, 'sub-14')
+    case strcmp(subject, 'sub-14') % 3 sessions
         
         % Sessions
         raw_ses = {"ses-01", "ses-02", "ses-03"};
@@ -252,7 +252,7 @@ switch true
         preproc_runs = {preproc_runs_ses1, runs_ses2};
         
     
-    case strcmp(subject, 'sub-42')
+    case strcmp(subject, 'sub-42') % 3 sessions
         
         % Sessions
         raw_ses = {"ses-01", "ses-02", "ses-03"};
@@ -286,7 +286,7 @@ switch true
         preproc_runs = {runs_ses1, preproc_runs_ses2, preproc_runs_ses3};
         
  
-    case strcmp(subject, 'sub-43')
+    case strcmp(subject, 'sub-43') % 3 sessions
         
         % Sessions
         raw_ses = {"ses-01", "ses-02", "ses-03"};
