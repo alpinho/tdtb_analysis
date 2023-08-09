@@ -74,7 +74,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45];
-subj_n = [3, 4, 7, 8, 10];
+subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1000,23 +1000,46 @@ switch what
 
         for s = sn
             
-            [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
+            [original_events, renamed_events] = eventsmap(subj_str{s});
             
-            for ses = 1:length(preproc_sestag)
-                sfiles = convertStringsToChars(fullfile(source, ...
-                    subj_str{s}, preproc_sestag{ses}, ...
-                    ['*' suffix '_events.tsv']));
-                dfolder = convertStringsToChars(fullfile(destination, ...
-                    subj_str{s}, preproc_sestag{ses}, 'func'));
-                
-                % Delete previous tsv files from destination folder
-                dold_files = fullfile(dfolder, ['*' suffix '_events.tsv']);
-                delete(dold_files);
-                
-                % Copy new tsv files
-                system(['cp ' sfiles ' ' dfolder]);
-            end
-        end
+            for ses = 1:length(original_events)
+                for r = 1:length(original_events{ses})
+                    sfname = [subj_str{s} '_' original_events{ses}{r} ...
+                        '_events.tsv'];
+                    sfile = convertStringsToChars(fullfile(...
+                        source, ...
+                        subj_str{s}, ...
+                        original_events{ses}{r}(1:6), ...
+                        sfname));
+                    dfolder = convertStringsToChars(fullfile(...
+                        destination, ...
+                        subj_str{s}, ...
+                        renamed_events{ses}{r}(1:6), ...
+                        'func'));
+                    
+                    % Delete previous tsv files from destination folder
+                    if r == 1
+                        dold_files = fullfile(dfolder, ...
+                            [subj_str{s} '*_events.tsv']);
+                        delete(dold_files);
+                    end
+                    
+                    % Copy new tsv files
+                    system(['cp ' sfile ' ' dfolder]);
+
+                    % Rename copied tsv file in destination folder if it
+                    % has to be renamed
+                    current_file = fullfile(dfolder, sfname);
+                    nfname = [subj_str{s} '_' renamed_events{ses}{r} ...
+                        '_events.tsv'];
+                    new_file = fullfile(dfolder, nfname);
+                    if ~strcmp(current_file, new_file)
+                        movefile(current_file, new_file);
+                    end
+
+                end % r (original_events{ses})
+            end % ses (original_events)
+        end % s (sn)
         
     case 'GLM:grand_design_standard' % make the design matrix for the glm
         % models each condition as a separate regressors
