@@ -74,7 +74,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45];
-subj_n = [43];
+subj_n = [3, 4, 7, 8, 10];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1316,7 +1316,7 @@ switch what
                         
                         %List runs and tsv files
                         runs_list = {};
-                        tsvs_list = {};
+                        tsv_fnames_list = {};
                         for rf=start:n_run
                             run_fname = sprintf(...
                                 '%s%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
@@ -1325,10 +1325,9 @@ switch what
                                 '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
                                 subj_str{s}, ses, tasks{tk}, rf);
                             run_path = fullfile(funcderiv_folder, run_fname);
-                            tsv_path = fullfile(funcderiv_folder, tsv_fname);
                             if isfile(run_path)
                                 runs_list = [runs_list, run_path];
-                                tsvs_list = [tsvs_list, tsv_path];
+                                tsv_fnames_list = [tsv_fnames_list, tsv_fname];
                             end
                         end
                         
@@ -1350,8 +1349,10 @@ switch what
                                 'pmod', {}, 'orth', {});
 
                             % get the tsvfile for the current run
+                            tsv_path = fullfile(funcderiv_folder, ...
+                                tsv_fnames_list{r})
                             D = struct([]); 
-                            D = tdfread(tsvs_list{r},'\t');
+                            D = tdfread(tsv_path,'\t');
 
                             trial_names = {};
                             trial_onsets = {};
@@ -1388,13 +1389,11 @@ switch what
                             end
 
                             save(fullfile(localscratch, ...
-                                sprintf('%s.mat', ...
-                                tsvs_list{r}(end-40:end-4))), ...
+                                sprintf('%s.mat', tsv_fnames_list{r})), ...
                                 'names', 'onsets', 'durations');
 
                             J.sess(count).multi = {fullfile(localscratch, ...
-                                sprintf('%s.mat', ...
-                                tsvs_list{r}(end-40:end-4)))};
+                                sprintf('%s.mat', tsv_fnames_list{r}))};
 
                             J.sess(count).regress   = struct('name', {}, ...
                                 'val', {});
