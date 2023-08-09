@@ -74,7 +74,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45];
-subj_n = [45];
+subj_n = [43];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1254,13 +1254,15 @@ switch what
             deriv_subjdir = fullfile(base_dir, derivatives_dir, subj_str{s});
             glms_folder = fullfile(deriv_subjdir, est_dir);
             
+            [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
+            
             % loop over design
             for dg=1:length(design)
                 estimates_folder = fullfile(glms_folder, design{dg}, ...
-                    output_folder)
+                    output_folder);
 
                 % Create estimates folder if does not exist or clean it
-                folder(estimates_folder)
+                folder(estimates_folder);
 
                 J = []; % structure with SPM fields to make the design
 
@@ -1286,19 +1288,18 @@ switch what
                 % Define tasks to be included in the design
                 if strcmp(design{dg}, 'allmain_tasks')
                     tasks = {'prod', 'percep', 'ntfd'};
-                    ssn = ses_id; % list of sessions
+                    ssn = 1:length(preproc_sestag); % list of sessions
                 elseif strcmp(design{dg}, 'rand_ntfd')
                     tasks = {'ntfd'};
-                    ssn = [2];
+                    ssn = length(preproc_sestag);
                 else
                     tasks = {design{dg}};
-                    ssn = ses_id; % list of sessions
+                    ssn = 1:length(preproc_sestag); % list of sessions
                 end
 
                 % loop over sessions
                 count = 0;
-                for ses = ssn
-                % for ses = 2
+                for ses = 1:length(preproc_sestag)
                     funcderiv_folder = fullfile(deriv_subjdir, ...
                         ['ses-' num2str(ses, '%02d')], func_dir);
 
@@ -1312,22 +1313,33 @@ switch what
                             start = 1;
                             n_run = 2;
                         end
-                        % for r=2
-                        for r=start:n_run
-                            count = count + 1;
-                            fpath = fullfile(funcderiv_folder, ...
-                                sprintf(...
+                        
+                        %List runs and tsv files
+                        runs_list = {};
+                        tsvs_list = {};
+                        for rf=start:n_run
+                            run_fname = sprintf(...
                                 '%s%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
-                                prefix, subj_str{s}, ses, tasks{tk}, r));
-                            V = niftiinfo(fpath);
+                                prefix, subj_str{s}, ses, tasks{tk}, rf);
+                            tsv_fname = sprintf(...
+                                '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
+                                subj_str{s}, ses, tasks{tk}, rf);
+                            run_path = fullfile(funcderiv_folder, run_fname);
+                            tsv_path = fullfile(funcderiv_folder, tsv_fname);
+                            if isfile(run_path)
+                                runs_list = [runs_list, run_path];
+                                tsvs_list = [tsvs_list, tsv_path];
+                            end
+                        end
+                        
+                        for r=1:length(runs_list)
+                            count = count + 1;                            
+                            V = niftiinfo(runs_list{r});
                             numTRs = V.ImageSize(4);
                             % fill in nifti image names for the current run
                             N = cell(numTRs - numDummys, 1); % preallocating!
                             for i = 1:(numTRs-numDummys)
-                                N{i} = fullfile(funcderiv_folder, ...
-                                    sprintf(...
-                                    '%s%s_ses-%02d_task-%s_run-%02d_bold.nii, %d', ...
-                                    prefix, subj_str{s}, ses, tasks{tk}, r, i));
+                                N{i} = [runs_list{r} ', ' num2str(i, '%d')];
                             end % i (image numbers)
 
                             % Load the scans
@@ -1337,16 +1349,9 @@ switch what
                                 'onset', {}, 'duration', {}, 'tmod', {}, ...
                                 'pmod', {}, 'orth', {});
 
-                            % Event Files
-                            % get the path to the tsv file
-                            tsv_file = fullfile(funcderiv_folder, sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_%s.tsv', ...
-                                subj_str{s}, ses, tasks{tk}, r, ...
-                                events_file_tag))
-
                             % get the tsvfile for the current run
                             D = struct([]); 
-                            D = tdfread(tsv_file,'\t');
+                            D = tdfread(tsvs_list{r},'\t');
 
                             trial_names = {};
                             trial_onsets = {};
@@ -1382,15 +1387,14 @@ switch what
                                 end
                             end
 
-                            save(fullfile(localscratch, sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_events.mat', ...
-                                subj_str{s}, ses, tasks{tk}, r)), ...
-                                'names', 'onsets', 'durations'); 
+                            save(fullfile(localscratch, ...
+                                sprintf('%s.mat', ...
+                                tsvs_list{r}(end-40:end-4))), ...
+                                'names', 'onsets', 'durations');
 
-                            J.sess(count).multi = {...
-                                fullfile(localscratch, sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_events.mat', ...
-                                subj_str{s}, ses, tasks{tk}, r))};
+                            J.sess(count).multi = {fullfile(localscratch, ...
+                                sprintf('%s.mat', ...
+                                tsvs_list{r}(end-40:end-4)))};
 
                             J.sess(count).regress   = struct('name', {}, ...
                                 'val', {});
@@ -1400,10 +1404,11 @@ switch what
                         end % r (n_run)
                     end % tk (tasks)         
                 end % ses (ssn)
-            % FFX across specified runs and sessions            
-            spm_rwls_run_fmri_spec(J); % rwls
-
-            end % dg (design)
+                
+                % FFX across specified runs and sessions            
+                spm_rwls_run_fmri_spec(J); % rwls
+                
+            end % dg (design)            
 
             % Remove *events.mat file from localscratch
             if any(size(dir([localscratch '/*_events.mat']), 1))
