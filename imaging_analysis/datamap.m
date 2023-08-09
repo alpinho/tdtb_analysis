@@ -17,7 +17,7 @@ switch true
         runs_ses2 = [
             "task-prod_run-01",   "task-prod_run-02",   ...
             "task-percep_run-01", "task-percep_run-02", ...
-            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03",   "task-ntfd_run-04"
+            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03", "task-ntfd_run-04"
             ];
         raw_runs = {runs_ses1, runs_ses2};
         preproc_runs = raw_runs;
@@ -38,7 +38,7 @@ switch true
         runs_ses2 = [
             "task-prod_run-01",   "task-prod_run-02",   ...
             "task-percep_run-01", "task-percep_run-02", ...
-            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03",   "task-ntfd_run-04"
+            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03", "task-ntfd_run-04"
             ];
         raw_runs = {runs_ses1, runs_ses2};
         preproc_runs = raw_runs;
@@ -59,7 +59,7 @@ switch true
         runs_ses2 = [
             "task-prod_run-01",   "task-prod_run-02",   ...
             "task-percep_run-01", "task-percep_run-02", ...
-            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03",   "task-ntfd_run-04"
+            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03", "task-ntfd_run-04"
             ];
         raw_runs = {runs_ses1, runs_ses2};
         preproc_runs = raw_runs;
@@ -80,7 +80,7 @@ switch true
         runs_ses2 = [
             "task-prod_run-01",   "task-prod_run-02",   ...
             "task-percep_run-01", "task-percep_run-02", ...
-            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03",   "task-ntfd_run-04"
+            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03", "task-ntfd_run-04"
             ];
         raw_runs = {runs_ses1, runs_ses2};
         preproc_runs = raw_runs;
@@ -135,7 +135,7 @@ switch true
         runs_ses2 = [
             "task-prod_run-01",   "task-prod_run-02",   ...
             "task-percep_run-01", "task-percep_run-02", ...
-            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03",   "task-ntfd_run-04"
+            "task-ntfd_run-01",   "task-ntfd_run-02", "task-ntfd_run-03", "task-ntfd_run-04"
             ];
         raw_runs = {raw_runs_ses1, runs_ses2};
         preproc_runs = {preproc_runs_ses1, runs_ses2};
