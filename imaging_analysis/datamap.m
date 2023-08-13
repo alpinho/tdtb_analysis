@@ -93,7 +93,12 @@ switch true
         preproc_ses = raw_ses;
         
         % Runs
-        runs_ses1 = [
+        raw_runs_ses1 = [
+            "task-prod_run-01",   "task-prod_run-02",   ...
+            "task-percep_run-01", "task-percep_run-03", ...
+            "task-ntfd_run-01",   "task-ntfd_run-02"
+            ];
+        preproc_runs_ses1 = [
             "task-prod_run-01",   "task-prod_run-02",   ...
             "task-percep_run-01", "task-percep_run-02", ...
             "task-ntfd_run-01",   "task-ntfd_run-02"
@@ -111,8 +116,8 @@ switch true
             "task-prod_run-02",   ...
             "task-ntfd_run-03",   "task-ntfd_run-04"
             ];
-        raw_runs = {runs_ses1, runs_ses2, raw_runs_ses3};
-        preproc_runs = {runs_ses1, runs_ses2, preproc_runs_ses3};
+        raw_runs = {raw_runs_ses1, runs_ses2, raw_runs_ses3};
+        preproc_runs = {preproc_runs_ses1, runs_ses2, preproc_runs_ses3};
 
         
     case strcmp(subject, 'sub-18')
