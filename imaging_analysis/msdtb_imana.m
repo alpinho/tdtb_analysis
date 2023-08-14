@@ -74,7 +74,8 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45];
-subj_n = [14];
+subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 29, ... 
+    32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -123,134 +124,19 @@ loc_AC = {
 
 numDummys = 0;
 
-contrasts = {'Encoding', [1 0 1 0 1 0 1 0]; ...                               %1
-             'Auditory Encoding', [1 0 1 0]; ...                              %2
-             'Visual Encoding', [0 0 0 0 1 0 1 0]; ...                        %3
-             'Auditory vs Visual Encoding', [1 0 1 0 -1 0 -1 0]; ...          %4
-             'Visual vs Auditory Encoding', [-1 0 -1 0 1 0 1 0]; ...          %5
-             'Beat vs Interval', [1 0 -1 0 1 0 -1 0]; ...                     %6
-             'Auditory Beat vs Auditory Interval', [1 0 -1 0]; ...            %7
-             'Visual Beat vs Visual Interval', [0 0 0 0 1 0 -1 0]; ...        %8
-             'Interval vs Beat', [-1 0 1 0 -1 0 1 0]; ...                     %9
-             'Auditory Interval vs Auditory Beat', [-1 0 1 0]; ...            %10
-             'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0]; ...        %11
-             'Decision', [0 1 0 1 0 1 0 1]; ...                               %12
-             'Decision Beat vs Decision Interval', [0 1 0 -1 0 1 0 -1]; ...   %13
-             'Decision Interval vs Decision Beat', [0 -1 0 1 0 -1 0 1]; ...   %14
-             'Auditory Decision vs Visual Decision', [0 1 0 1 0 -1 0 -1]; ... %15
-             'Visual Decision vs Auditory Decision', [0 -1 0 -1 0 1 0 1]; ... %16
+contrasts = {'Encoding', [1 1 1 1 0]; ...                            %1
+             'Auditory Encoding', [1 1 0 0 0]; ...                   %2
+             'Visual Encoding', [0 0 1 1 0]; ...                     %3
+             'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...       %4
+             'Visual vs Auditory Encoding', [-1 -1 1 1 0]; ...       %5
+             'Beat vs Interval', [1 -1 1 -1 0]; ...                  %6
+             'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %7
+             'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %8
+             'Interval vs Beat', [-1 1 -1 1 0]; ...                  %9
+             'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %10
+             'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
+             'Decision', [0 0 0 0 1]; ...                            %12
              };
-         
-contrasts_split = {'Encoding Low', [1 0 0 1 0 0 1 0 0 1 0 0]; ...                           %1
-                   'Encoding High', [0 1 0 0 1 0 0 1 0 0 1 0]; ...                          %2 
-                   'Auditory Encoding Low', [1 0 0 1 0 0]; ...                              %3
-                   'Auditory Encoding High', [0 1 0 0 1 0]; ...                             %4
-                   'Visual Encoding Low', [0 0 0 0 0 0 1 0 0 1 0 0]; ...                    %5
-                   'Visual Encoding High', [0 0 0 0 0 0 0 1 0 0 1 0]; ...                   %6
-                   'Auditory vs Visual Encoding Low', [1 0 0 1 0 0 -1 0 0 -1 0 0]; ...      %7
-                   'Auditory vs Visual Encoding High', [0 1 0 0 1 0 0 -1 0 0 -1 0]; ...     %8
-                   'Visual vs Auditory Encoding Low', [-1 0 0 -1 0 0 1 0 0 1 0 0]; ...      %9
-                   'Visual vs Auditory Encoding High', [0 -1 0 0 -1 0 0 1 0 0 1 0]; ...     %10
-                   'Beat vs Interval Low', [1 0 0 -1 0 0 1 0 0 -1 0 0]; ...                 %11
-                   'Beat vs Interval High', [0 1 0 0 -1 0 0 1 0 0 -1 0]; ...                %12
-                   'Auditory Beat vs Auditory Interval Low', [1 0 0 -1 0 0]; ...            %13
-                   'Auditory Beat vs Auditory Interval High', [0 1 0 0 -1 0]; ...           %14
-                   'Visual Beat vs Visual Interval Low', [0 0 0 0 0 0 1 0 0 -1 0 0]; ...    %15
-                   'Visual Beat vs Visual Interval High', [0 0 0 0 0 0 0 1 0 0 -1 0]; ...   %16
-                   'Interval vs Beat Low', [-1 0 0 1 0 0 -1 0 0 1 0 0]; ...                 %17
-                   'Interval vs Beat High', [0 -1 0 0 1 0 0 -1 0 0 1 0]; ...                %18
-                   'Auditory Interval vs Auditory Beat Low', [-1 0 0 1 0 0]; ...            %19
-                   'Auditory Interval vs Auditory Beat High', [0 -1 0 0 1 0]; ...           %20
-                   'Visual Interval vs Visual Beat Low', [0 0 0 0 0 0 -1 0 0 1 0 0]; ...    %21
-                   'Visual Interval vs Visual Beat High', [0 0 0 0 0 0 0 -1 0 0 1 0]; ...   %22
-                   'Decision', [0 0 1 0 0 1 0 0 1 0 0 1]; ...                               %23
-                   'Decision Beat vs Decision Interval', [0 0 1 0 0 -1 0 0 1 0 0 -1]; ...   %24
-                   'Decision Interval vs Decision Beat', [0 0 -1 0 0 1 0 0 -1 0 0 1]; ...   %25
-                   'Auditory Decision vs Visual Decision', [0 0 1 0 0 1 0 0 -1 0 0 -1]; ... %26
-                   'Visual Decision vs Auditory Decision', [0 0 -1 0 0 -1 0 0 1 0 0 1]; ... %27
-                   };
-         
-contrasts_md = {'Encoding', [1 1 1 1 0]; ...                            %1
-                'Auditory Encoding', [1 1 0 0 0]; ...                   %2
-                'Visual Encoding', [0 0 1 1 0]; ...                     %3
-                'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...       %4
-                'Visual vs Auditory Encoding', [-1 -1 1 1 0]; ...       %5
-                'Beat vs Interval', [1 -1 1 -1 0]; ...                  %6
-                'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %7
-                'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %8
-                'Interval vs Beat', [-1 1 -1 1 0]; ...                  %9
-                'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %10
-                'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
-                'Decision', [0 0 0 0 1]; ...                            %12
-                };
-            
-contrasts_md_split = {'Encoding Low', [1 0 1 0 1 0 1 0 0]; ...                             %1
-                      'Enconding High', [0 1 0 1 0 1 0 1 0]; ...                           %2
-                      'Auditory Encoding Low', [1 0 1 0 0 0 0 0 0]; ...                    %3
-                      'Auditory Encoding High', [0 1 0 1 0 0 0 0 0]; ...                   %4
-                      'Visual Encoding Low', [0 0 0 0 1 0 1 0 0]; ...                      %5
-                      'Visual Encoding High', [0 0 0 0 0 1 0 1 0]; ...                     %6
-                      'Auditory vs Visual Encoding Low', [1 0 1 0 -1 0 -1 0 0]; ...        %7
-                      'Auditory vs Visual Encoding High', [0 1 0 1 0 -1 0 -1 0]; ...       %8
-                      'Visual vs Auditory Encoding Low', [-1 0 -1 0 1 0 1 0 0]; ...        %9
-                      'Visual vs Auditory Encoding High', [0 -1 0 -1 0 1 0 1 0]; ...       %10
-                      'Beat vs Interval Low', [1 0 -1 0 1 0 -1 0 0]; ...                   %11
-                      'Beat vs Interval High', [0 1 0 -1 0 1 0 -1 0]; ...                  %12
-                      'Auditory Beat vs Auditory Interval Low', [1 0 -1 0 0 0 0 0 0]; ...  %13
-                      'Auditory Beat vs Auditory Interval High', [0 1 0 -1 0 0 0 0 0]; ... %14
-                      'Visual Beat vs Visual Interval Low', [0 0 0 0 1 0 -1 0 0]; ...      %15
-                      'Visual Beat vs Visual Interval High', [0 0 0 0 0 1 0 -1 0]; ...     %16
-                      'Interval vs Beat Low', [-1 0 1 0 -1 0 1 0 0]; ...                   %17
-                      'Interval vs Beat High', [0 -1 0 1 0 -1 0 1 0]; ...                  %18
-                      'Auditory Interval vs Auditory Beat Low', [-1 0 1 0 0 0 0 0 0]; ...  %19
-                      'Auditory Interval vs Auditory Beat High', [0 -1 0 1 0 0 0 0 0]; ... %20
-                      'Visual Interval vs Visual Beat Low', [0 0 0 0 -1 0 1 0 0]; ...      %21
-                      'Visual Interval vs Visual Beat High', [0 0 0 0 0 -1 0 1 0]; ...     %22
-                      'Decision', [0 0 0 0 0 0 0 0 1]; ...                                 %23
-                      };
-
-contrasts_drbb = {'Encoding', [1 1 1 1 0 0]; ...                            %1
-                  'Auditory Encoding', [1 1 0 0 0 0]; ...                   %2
-                  'Visual Encoding', [0 0 1 1 0 0]; ...                     %3
-                  'Auditory vs Visual Encoding', [1 1 -1 -1 0 0]; ...       %4
-                  'Visual vs Auditory Encoding', [-1 -1 1 1 0 0]; ...       %5
-                  'Beat vs Interval', [1 -1 1 -1 0 0]; ...                  %6
-                  'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0]; ... %7
-                  'Visual Beat vs Visual Interval', [0 0 1 -1 0 0]; ...     %8
-                  'Interval vs Beat', [-1 1 -1 1 0 0]; ...                  %9
-                  'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0]; ... %10
-                  'Visual Interval vs Visual Beat', [0 0 -1 1 0 0]; ...     %11
-                  'Decision', [0 0 0 0 1 0]; ...                            %12
-                  'Response', [0 0 0 0 0 1]; ...                            %13
-                  };
-
-contrasts_dbb = {'Encoding', [1 1 1 1 0]; ...                            %1
-                 'Auditory Encoding', [1 1 0 0 0]; ...                   %2
-                 'Visual Encoding', [0 0 1 1 0]; ...                     %3
-                 'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...       %4
-                 'Visual vs Auditory Encoding', [-1 -1 1 1 0]; ...       %5
-                 'Beat vs Interval', [1 -1 1 -1 0]; ...                  %6
-                 'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %7
-                 'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %8
-                 'Interval vs Beat', [-1 1 -1 1 0]; ...                  %9
-                 'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %10
-                 'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
-                 'Decision', [0 0 0 0 1]; ...                            %12
-                 };
-
-contrasts_brbb = {'Encoding', [1 1 1 1 0]; ...                            %1
-                  'Auditory Encoding', [1 1 0 0 0]; ...                   %2
-                  'Visual Encoding', [0 0 1 1 0]; ...                     %3
-                  'Auditory vs Visual Encoding', [1 1 -1 -1 0]; ...       %4
-                  'Visual vs Auditory Encoding', [-1 -1 1 1 0]; ...       %5
-                  'Beat vs Interval', [1 -1 1 -1 0]; ...                  %6
-                  'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %7
-                  'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %8
-                  'Interval vs Beat', [-1 1 -1 1 0]; ...                  %9
-                  'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %10
-                  'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
-                  'Response', [0 0 0 0 1]; ...                            %12
-                  };
 
 %==============================================================================
 
@@ -1501,9 +1387,7 @@ switch what
                 
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        % contrasts_list = contrasts_md;
-        % contrasts_list = contrasts_md_split;
-        contrasts_list = contrasts_dbb;
+        contrasts_list = contrasts;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         output_folder = 'ffx_rwls';
