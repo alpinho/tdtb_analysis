@@ -1658,8 +1658,7 @@ switch what
         
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        % contrasts_list = contrasts_md;
-        contrasts_list = contrasts_dbb;
+        contrasts_list = contrasts;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         suffix = 'sm8wbmasked';
@@ -1720,8 +1719,7 @@ switch what
 
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        % contrasts_list = contrasts_md;
-        contrasts_list = contrasts_dbb;
+        contrasts_list = contrasts;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'model'})
@@ -1767,8 +1765,7 @@ switch what
 
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        % contrasts_list = contrasts_md;
-        contrasts_list = contrasts_dbb;
+        contrasts_list = contrasts;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'model'})
