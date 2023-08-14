@@ -642,6 +642,9 @@ def plotfit_perception(x, y, estimator, this_dir, output_dir):
 
 def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir,
               estimator='mle_expit'):
+    # Shape of pse and dl arrays:
+    # (estimators, conditions, modality, subjects, standards)
+
     # Stack multidimensional numpy array to produce a dataframe
     estim_pse = np.array(estim_pse)
     estim_dl = np.array(estim_dl)
