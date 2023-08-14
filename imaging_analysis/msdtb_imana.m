@@ -1420,7 +1420,7 @@ switch what
     case 'CON:norm_smooth'
         % Normalize and smooth individual contrasts or t-maps
         % Example usage: msdtb_imana(
-        %                   'CON:normalization', 
+        %                   'CON:normsmooth', 
         %                   'input_folder', 'ffx_standard', ...
         %                   'output_folder', 'sw_derivatives_standard', ...
         %                   'file_type', 'spmT')     
