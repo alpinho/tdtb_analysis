@@ -796,7 +796,7 @@ def threeway_repanova(df, this_dir, output_dir):
 
         # Define subplot of bar charts and its position in the fig
         # plt.axes([left, bottom, width, height])
-        ax = plt.axes([.075 + m*.45, .15, .43, .75])
+        ax = plt.axes([.1 + m*.45, .15, .43, .75])
 
         x_labels = [str(st) for st in standards]
         x = np.arange(len(x_labels))  # the label locations
@@ -857,7 +857,7 @@ def threeway_repanova(df, this_dir, output_dir):
                          y=.95)
 
         # Set limits of ticks in y axis
-        plt.ylim([-.05, .5])
+        plt.ylim([-.3, .45])
 
         # Set name for x-axis
         fig.text(.45, .025, 'Standards (ms)', size=12)
@@ -1201,7 +1201,9 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
 #             40, 41, 42, 43, 44, 45, 46, 47]
-SUBJECTS = [3, 4]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 34, 35, 36, 37, 38, 39,
+            40, 41, 42, 43, 44, 45, 46, 47]
 
 # TASKS = ['Visual Production']
 
