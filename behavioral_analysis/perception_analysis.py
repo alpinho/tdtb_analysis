@@ -18,12 +18,8 @@ import warnings
 import numpy as np
 import pandas as pd
 
-import pingouin as pg
-import seaborn as sns
-
 from scipy import stats, optimize, special
 from matplotlib import pyplot as plt
-from statannotations.Annotator import Annotator
 from statsmodels.stats.anova import AnovaRM
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
