@@ -24,6 +24,8 @@ from scipy import stats
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
 from statannotations.Annotator import Annotator
+from statsmodels.stats.anova import AnovaRM
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 # setting path
 sys.path.append('../')
@@ -493,34 +495,41 @@ def individual_production_isi_rts(
             allsub_interval_visual, isi1s)
 
 
-def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
-    # Reshape (n_subjects, n_isi, n_trials) --> (n_isi, n_subjects*n_trials)
+def ginput_resize(audio_beat, audio_interval, visual_beat, visual_interval):
+    # Inputs shape (n_subjects, n_isi, n_trials)
 
     # Resize numpy arrays when there is less trials per isi because the participant
     # only did the behavioral sessions
     nt_max = np.ravel([[np.array(isi).shape[0] for isi in isis]
                        for isis in audio_beat]).max()
 
-    audio_beat = [
+    rsi_audio_beat = [
         [np.append(
             ab_trials, np.repeat(np.nan, nt_max - len(ab_trials))).tolist()
          if len(ab_trials) < nt_max else ab_trials for ab_trials in ab_isis]
         for ab_isis in audio_beat]
-    audio_interval = [
+    rsi_audio_interval = [
         [np.append(
             ai_trials, np.repeat(np.nan, nt_max - len(ai_trials))).tolist()
          if len(ai_trials) < nt_max else ai_trials for ai_trials in ai_isis]
         for ai_isis in audio_interval]
-    visual_beat = [
+    rsi_visual_beat = [
         [np.append(
             vb_trials, np.repeat(np.nan, nt_max - len(vb_trials))).tolist()
          if len(vb_trials) < nt_max else vb_trials for vb_trials in vb_isis]
         for vb_isis in visual_beat]
-    visual_interval = [
+    rsi_visual_interval = [
         [np.append(
             vi_trials, np.repeat(np.nan, nt_max - len(vi_trials))).tolist()
          if len(vi_trials) < nt_max else vi_trials for vi_trials in vi_isis]
         for vi_isis in visual_interval]
+
+    return (rsi_audio_beat, rsi_audio_interval, rsi_visual_beat,
+            rsi_visual_interval)
+
+
+def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
+    # Reshape (n_subjects, n_isi, n_trials) --> (n_isi, n_subjects*n_trials)
 
     # Swap n_subjects with n_isi
     s_audio_beat = np.swapaxes(audio_beat, 0, 1)
@@ -529,27 +538,28 @@ def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
     s_visual_interval = np.swapaxes(visual_interval, 0, 1)
 
     # Reshape
-    rs_audio_beat = np.reshape(
+    rsh_audio_beat = np.reshape(
         s_audio_beat,
         (s_audio_beat.shape[0],
          s_audio_beat.shape[1]*s_audio_beat.shape[2]))
 
-    rs_audio_interval = np.reshape(
+    rsh_audio_interval = np.reshape(
         s_audio_interval,
         (s_audio_interval.shape[0],
          s_audio_interval.shape[1]*s_audio_interval.shape[2]))
 
-    rs_visual_beat = np.reshape(
+    rsh_visual_beat = np.reshape(
         s_visual_beat,
         (s_visual_beat.shape[0],
          s_visual_beat.shape[1]*s_visual_beat.shape[2]))
 
-    rs_visual_interval = np.reshape(
+    rsh_visual_interval = np.reshape(
         s_visual_interval,
         (s_visual_interval.shape[0],
          s_visual_interval.shape[1]*s_visual_interval.shape[2]))
 
-    return rs_audio_beat, rs_audio_interval, rs_visual_beat, rs_visual_interval
+    return (rsh_audio_beat, rsh_audio_interval, rsh_visual_beat,
+            rsh_visual_interval)
 
 
 def plot_violin(audio_beat, audio_interval,
@@ -683,6 +693,182 @@ def plot_violin(audio_beat, audio_interval,
 
     # Save figure
     plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
+
+
+def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
+              sync_visual_interval, stand_numbers):
+    # Inputs shape (n_subjects, n_isi, n_trials)
+
+    # Compute mean of trials synchronies for each standard and subject
+    sync_audio_beat = np.nanmean(sync_audio_beat, axis=2)
+    sync_audio_interval = np.nanmean(sync_audio_interval, axis=2)
+    sync_visual_beat = np.nanmean(sync_visual_beat, axis=2)
+    sync_visual_interval = np.nanmean(sync_visual_interval, axis=2)
+    
+    conditions_names = np.array(['beat', 'interval'])
+    modalities_names = np.array(['audio', 'visual'])
+
+    # Flatten the synchronies arrays
+    sync_audio_beat_flatten = np.ravel(sync_audio_beat)
+    sync_audio_interval_flatten = np.ravel(sync_audio_interval)
+    sync_visual_beat_flatten = np.ravel(sync_visual_beat)
+    sync_visual_interval_flatten = np.ravel(sync_visual_interval)
+
+    # Stack synchronies in one single array
+    asynchronies = np.hstack((sync_audio_beat_flatten,
+                              sync_audio_interval_flatten,
+                              sync_visual_beat_flatten,
+                              sync_visual_interval_flatten))
+
+    # ## Standards column
+    standards_allsubjects = np.tile(stand_numbers, sync_audio_beat.shape[0])
+    standards = np.tile(standards_allsubjects,
+                        conditions_names.shape[0] * modalities_names.shape[0])
+
+    # ## Subjects column
+    itag = ['sub-%02d' % s for s in SUBJECTS]
+    stand_allsubjects = np.repeat(itag, stand_numbers.shape[0])
+    subjects = np.tile(
+        stand_allsubjects,
+        conditions_names.shape[0] * modalities_names.shape[0])
+
+    # ## Modality column
+    modalities_stack = np.repeat(modalities_names, conditions_names.shape[0])
+    modalities = np.repeat(modalities_stack, stand_allsubjects.shape[0])
+
+    # ## Conditions column
+    conditions_stack = np.tile(conditions_names, modalities_names.shape[0])
+    conditions = np.repeat(conditions_stack, stand_allsubjects.shape[0])
+
+    # ## Build tables and dataframes
+    table = np.vstack((asynchronies, standards,
+                       subjects, modalities, conditions)).T
+
+    df = pd.DataFrame(table, columns=['Asynchronies', 'Standard', 'Subject',
+                                      'Modality', 'Condition'])
+    df['Asynchronies'] = df['Asynchronies'].apply(pd.to_numeric)
+
+    return df
+
+
+def threeway_repanova(df, this_dir, output_dir):
+    # Create AnovaRM object
+    model = AnovaRM(data=df, depvar='Asynchronies', subject='Subject',
+                    within=['Modality', 'Condition', 'Standard'])
+
+    # Run the 3-way repeated measures ANOVA
+    results = model.fit()
+
+    # Save ANOVA results in a TSV file
+    results.anova_table.to_csv(
+        os.path.join(this_dir, output_dir,
+                     'anovas/threeway/threeway_anova_results.tsv'),
+        sep='\t')
+
+    # Perform pairwise Tukey HSD tests
+    posthoc_modality = pairwise_tukeyhsd(df['Asynchronies'], df['Modality'],
+                                         alpha=0.05)
+    posthoc_condition = pairwise_tukeyhsd(df['Asynchronies'], df['Condition'],
+                                          alpha=0.05)
+    posthoc_standard = pairwise_tukeyhsd(df['Asynchronies'], df['Standard'],
+                                         alpha=0.05)
+
+    # Save posthoc results in a TSV file
+    output_folder = os.path.join(this_dir, output_dir, 'anovas/threeway')
+
+    with open(os.path.join(output_folder, 'posthoc_modality.tsv'), 'w') as fm:
+        fm.write(posthoc_modality.summary().as_csv(sep='\t'))
+
+    with open(os.path.join(output_folder, 'posthoc_condition.tsv'), 'w') as fc:
+        fc.write(posthoc_condition.summary().as_csv(sep='\t'))
+
+    with open(os.path.join(output_folder, 'posthoc_standard.tsv'), 'w') as fs:
+        fs.write(posthoc_standard.summary().as_csv(sep='\t'))
+
+    # Plot
+    modalities = np.unique(df.Modality).tolist()
+    conditions = np.unique(df.Condition).tolist()
+    standards = np.unique(df.Standard).tolist()
+
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            fig = plt.figure(figsize=(8, 4))
+
+        # Define subplot of bar charts and its position in the fig
+        # plt.axes([left, bottom, width, height])
+        ax = plt.axes([.075 + m*.45, .15, .43, .75])
+
+        x_labels = [str(st) for st in standards]
+        x = np.arange(len(x_labels))  # the label locations
+        width = 0.35  # the width of the bars
+
+        asynch_beat = [df[df.Modality==modality][df.Condition=='beat'][
+            df.Standard==st].Asynchronies.values.tolist() for st in standards]
+
+        asynch_interval = [df[df.Modality==modality][df.Condition=='interval'][
+            df.Standard==st].Asynchronies.values.tolist() for st in standards]
+
+        beat = ax.boxplot(asynch_beat,
+                          bootstrap=100,
+                          positions=np.arange(len(x))*2. - width,
+                          widths=0.6,
+                          flierprops={'marker': '', 'markersize': 5},
+                          patch_artist=True)
+        interval = ax.boxplot(asynch_interval,
+                              bootstrap=100,
+                              positions=np.arange(len(x))*2. + width,
+                              widths=0.6,
+                              flierprops={'marker': '', 'markersize': 5},
+                              patch_artist=True)
+
+        # Fill boxes with colors
+        colors = ['b', 'y']
+        for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
+            patch1.set_facecolor(colors[0])
+            patch2.set_facecolor(colors[1])
+
+        # Set ticks labels in x-axis
+        ax.set_xticks(x*2., x_labels)
+
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        # For the first plot,
+        if m == 0:
+            # Place legend
+            ax.legend([beat["boxes"][0], interval["boxes"][0]],
+                      ['Beat', 'Interval'],
+                      loc='upper right', frameon=False,
+                      prop={'size': 12})
+            # Title of each plot
+            ax.set_title('Auditory Conditions', fontweight='semibold',
+                         size=10, y=.95)
+            # Set name for y-axis
+            ax.set_ylabel('Group Signed-Asynchronies')
+        # For the second plot
+        else:
+            # ... remove y frame on the left
+            ax.spines['left'].set_visible(False)
+            # ... remove labels and ticks
+            ax.axes.get_yaxis().set_visible(False)
+            # Title of each plot
+            ax.set_title('Visual Conditions', fontweight='semibold', size=10,
+                         y=.95)
+
+        # Set limits of ticks in y axis
+        plt.ylim([-.05, .5])
+
+        # Set name for x-axis
+        fig.text(.45, .025, 'Standards (ms)', size=12)
+
+    # Title
+    plt.suptitle('Descriptive Stats of Group Signed-Asynchronies ' +
+                 'for 3-way Repeated Measures ANOVA',
+                 x=.5, y=.98, size=12, linespacing=.75)
+
+    # Save figure
+    plt.savefig(os.path.join(output_folder, 'threeway_boxplot.pdf'))
 
 
 def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
@@ -1012,10 +1198,10 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 # %%
 # =========================== INPUTS ===================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
-            40, 41, 42, 43, 44, 45, 46, 47]
-# SUBJECTS = [3, 7, 8, 10]
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
+#             40, 41, 42, 43, 44, 45, 46, 47]
+SUBJECTS = [3, 4]
 
 # TASKS = ['Visual Production']
 
@@ -1107,19 +1293,31 @@ if __name__ == "__main__":
 
     # ### Group Analyses per standard --- violin plots
 
-    # ## Reshape
+    # ## Resize&Reshape
 
     # Signed asynchronies
+    rsized_ssync_audio_beat, rsized_ssync_audio_interval, \
+        rsized_ssync_visual_beat, rsized_ssync_visual_interval = \
+            ginput_resize(ssync_audio_beat, ssync_audio_interval,
+                          ssync_visual_beat, ssync_visual_interval)
     rs_ssync_audio_beat, rs_ssync_audio_interval, \
-        rs_ssync_visual_beat, rs_ssync_visual_interval = ginput_reshape(
-            ssync_audio_beat, ssync_audio_interval,
-            ssync_visual_beat, ssync_visual_interval)
+        rs_ssync_visual_beat, rs_ssync_visual_interval = \
+            ginput_reshape(rsized_ssync_audio_beat,
+                           rsized_ssync_audio_interval,
+                           rsized_ssync_visual_beat,
+                           rsized_ssync_visual_interval)
 
     # Absolute asynchronies
+    rsized_async_audio_beat, rsized_async_audio_interval, \
+        rsized_async_visual_beat, rsized_async_visual_interval = \
+            ginput_resize(async_audio_beat, async_audio_interval,
+                          async_visual_beat, async_visual_interval)
     rs_async_audio_beat, rs_async_audio_interval, \
-        rs_async_visual_beat, rs_async_visual_interval = ginput_reshape(
-            async_audio_beat, async_audio_interval,
-            async_visual_beat, async_visual_interval)
+        rs_async_visual_beat, rs_async_visual_interval = \
+            ginput_reshape(rsized_async_audio_beat,
+                           rsized_async_audio_interval,
+                           rsized_async_visual_beat,
+                           rsized_async_visual_interval)
 
     # Signed asynchronies
     plot_violin(
@@ -1138,6 +1336,13 @@ if __name__ == "__main__":
         'Group Distribution of Absolute-Asynchrony for the Production Tasks',
         MAIN_DIR, PLOTS_FOLDER,
         'production_groupviolin_absolute_asynch')
+
+    # Compute three-way ANOVA for signed asychronies
+    db = dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
+                   rsized_ssync_visual_beat, rsized_ssync_visual_interval,
+                   standards)
+    threeway_repanova(db, MAIN_DIR, PLOTS_FOLDER)
+
 
     # # # # # ############## PRODUCTION RESPONSE TIME ########################
 
@@ -1174,11 +1379,18 @@ if __name__ == "__main__":
                     rtprod_title, MAIN_DIR, PLOTS_FOLDER, rtprod_f)
 
     # ### Group Analyses per standard --- violin plots ###
+    # Resize
+    rsized_rtsprod_audio_beat, rsized_rtsprod_audio_interval, \
+        rsized_rtsprod_visual_beat, rsized_rtsprod_visual_interval = \
+            ginput_resize(rtsprod_audio_beat, rtsprod_audio_interval,
+                          rtsprod_visual_beat, rtsprod_visual_interval)
     # Reshape
     rs_rtsprod_audio_beat, rs_rtsprod_audio_interval, \
-        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = ginput_reshape(
-            rtsprod_audio_beat, rtsprod_audio_interval,
-            rtsprod_visual_beat, rtsprod_visual_interval)
+        rs_rtsprod_visual_beat, rs_rtsprod_visual_interval = \
+            ginput_reshape(rsized_rtsprod_audio_beat,
+                           rsized_rtsprod_audio_interval,
+                           rsized_rtsprod_visual_beat,
+                           rsized_rtsprod_visual_interval)
 
     # Plot
     plot_violin(
