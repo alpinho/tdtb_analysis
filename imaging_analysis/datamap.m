@@ -344,6 +344,63 @@ switch true
             ];
         raw_runs = {runs_ses1, raw_runs_ses2};
         preproc_runs = {runs_ses1, preproc_runs_ses2};
+ 
+ 
+    case strcmp(subject, 'sub-46')
+        
+        % Sessions
+        raw_ses = {"ses-01", "ses-02", "ses-03"};
+        preproc_ses = raw_ses;
+        
+        % Runs
+        runs_ses1 = [
+            "task-prod_run-01", "task-prod_run-02", ...
+            "task-percep_run-01", "task-percep_run-02", ...
+            "task-ntfd_run-01", "task-ntfd_run-02"
+            ];
+        runs_ses2 = [
+            "task-prod_run-01", ...
+            "task-percep_run-01", ...
+            "task-ntfd_run-01", "task-ntfd_run-02"
+            ];
+        raw_runs_ses3 = [
+            "task-prod_run-01", ...
+            "task-percep_run-01", ...
+            "task-ntfd_run-01", "task-ntfd_run-02"
+            ];
+        preproc_runs_ses3 = [
+            "task-prod_run-02", ...
+            "task-percep_run-02", ...
+            "task-ntfd_run-03", "task-ntfd_run-04"
+            ];
+        raw_runs = {runs_ses1, runs_ses2, raw_runs_ses3};
+        preproc_runs = {runs_ses1, runs_ses2, preproc_runs_ses3};
+        
+        
+    case strcmp(subject, 'sub-47')
+        
+        % Sessions
+        raw_ses = {"ses-01", "ses-02", "ses-03"};
+        preproc_ses = raw_ses;
+        
+        % Runs
+        raw_runs_ses1 = [
+            "task-prod_run-01", "task-prod_run-02", ...
+            "task-percep_run-02", "task-percep_run-03", ...
+            "task-ntfd_run-02", "task-ntfd_run-03"
+            ];
+        preproc_runs_ses1 = [
+            "task-prod_run-01", "task-prod_run-02", ...
+            "task-percep_run-01", "task-percep_run-02", ...
+            "task-ntfd_run-01", "task-ntfd_run-02"
+            ];
+        runs_ses2 = [
+            "task-prod_run-01", "task-prod_run-02", ...
+            "task-percep_run-01", "task-percep_run-02", ...
+            "task-ntfd_run-01", "task-ntfd_run-02", "task-ntfd_run-03", "task-ntfd_run-04"
+            ];
+        raw_runs = {runs_ses1, runs_ses2, raw_runs_ses3};
+        preproc_runs = {runs_ses1, runs_ses2, preproc_runs_ses3};
 
 
     otherwise
