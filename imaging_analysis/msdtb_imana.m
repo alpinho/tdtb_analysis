@@ -490,7 +490,7 @@ switch what
                 
             end % ses (length(raw_sestag))
         end % s (sn)
-+
+
     case 'FUNC:realign_unwarp' % realign functional images
         % SPM realigns all volumes to the first volume of first run
         % example usage: msdtb_imana('FUNC:realign', 'sn', 1)
