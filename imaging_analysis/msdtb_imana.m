@@ -475,6 +475,41 @@ switch what
         cd(fileparts(mfilename('fullpath'))) % Go to the folder of script
         msdtb_imana('SURF:fs2wb', 'res', 32)    
         
+    case 'SUIT:isolate_segment'  
+        % Segment cerebellum into grey and white matter
+        % Example usage: ibc_imana('SUIT:isolate_segment', 'sn', 1);
+        
+        sn = subj_id;
+        
+        vararginoptions(varargin, {'sn'});
+        
+        for s = sn
+            fprintf('- Isolate and segment the cerebellum for %s\n', ...
+                subj_str{s})
+            spm_jobman('initcfg')
+            
+            % Get the directory of subjects anatomical
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, subj_str{s});
+            anat_subj_dir = fullfile(deriv_subj_dir, anat_dir);
+
+            % Get the name of the anatomical image
+            anat_name = sprintf('%s_T1w.nii', subj_str{s});
+            % Define suit folder
+            suit_dir = fullfile(deriv_subj_dir, 'ses-01/suit');
+            % Create suit folder if it does not exist
+            if ~exist(suit_dir, 'dir')
+                mkdir (suit_dir)
+            end
+            
+            % Copy T1w_lpi file to suit folder
+            source = fullfile(anat_subj_dir, anat_name);
+            dest   = fullfile(suit_dir, anat_name);           
+            copyfile(source, dest);
+            
+            % go to subject directory for suit and isolate segment
+            suit_isolate_seg({dest}, 'keeptempfiles', 1);
+        end % s (sn)
+        
     case 'FUNC:make_fieldmap' % Make fieldmap
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
@@ -2014,41 +2049,6 @@ switch what
             save(fullfile(glmDir, subj_name, 'SPM_light.mat'), 'SPM');
 
         end % sn     
-        
-    case 'SUIT:isolate_segment'  
-        % Segment cerebellum into grey and white matter
-        % Example usage: ibc_imana('SUIT:isolate_segment', 'sn', 1);
-        
-        sn = subj_id;
-        
-        vararginoptions(varargin, {'sn'});
-        
-        for s = sn
-            fprintf('- Isolate and segment the cerebellum for %s\n', ...
-                subj_str{s})
-            spm_jobman('initcfg')
-            
-            % Get the directory of subjects anatomical
-            deriv_subj_dir = fullfile(base_dir, derivatives_dir, subj_str{s});
-            anat_subj_dir = fullfile(deriv_subj_dir, anat_dir);
-
-            % Get the name of the anatomical image
-            anat_name = sprintf('%s_T1w.nii', subj_str{s});
-            % Define suit folder
-            suit_dir = fullfile(deriv_subj_dir, 'ses-01/suit');
-            % Create suit folder if it does not exist
-            if ~exist(suit_dir, 'dir')
-                mkdir (suit_dir)
-            end
-            
-            % Copy T1w_lpi file to suit folder
-            source = fullfile(anat_subj_dir, anat_name);
-            dest   = fullfile(suit_dir, anat_name);           
-            copyfile(source, dest);
-            
-            % go to subject directory for suit and isolate segment
-            suit_isolate_seg({dest}, 'keeptempfiles', 1);
-        end % s (sn)
 
     case 'SUIT:normalise_dartel' % SUIT normalization using dartel
         % LAUNCH SPM FMRI BEFORE RUNNING!!!!!
