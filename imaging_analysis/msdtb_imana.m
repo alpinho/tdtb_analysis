@@ -73,8 +73,12 @@ wb_dir   = 'surfaceWB';
 
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
-%     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46];
-subj_n = [3];
+%     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+
+subj_n = [7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 32, 34, ...
+    35, 38, 39];
+
+% subj_n = [3];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -528,6 +532,19 @@ switch what
             suit_normalize_dartel(job);
 
         end % s (subjects)
+        
+    case 'SUIT:save_dartel_def'    
+        % Saves the dartel flow field as a deformation file.
+        sn = subj_id; %subjNum
+        vararginoptions(varargin, 'sn');
+        
+        for s = sn
+            suit_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, 'ses-01/suit');
+            cd(suit_subj_dir);
+            anat_name = sprintf('%s_T1w', subj_str{s});
+            suit_save_darteldef(anat_name);
+        end
         
     case 'FUNC:make_fieldmap' % Make fieldmap
         
@@ -2068,19 +2085,6 @@ switch what
             save(fullfile(glmDir, subj_name, 'SPM_light.mat'), 'SPM');
 
         end % sn     
-
-    case 'SUIT:save_dartel_def'    
-        % Saves the dartel flow field as a deformation file.
-        sn = subj_id; %subjNum
-        vararginoptions(varargin, 'sn');
-        
-        for s = sn
-            suit_subj_dir = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                'suit');
-            cd(suit_subj_dir);
-            anat_name = sprintf('%s_T1w', subj_str{s});
-            suit_save_darteldef(anat_name);
-        end
 
     case 'SUIT:cerebellum_graymask'    
         % Conjunction of the pcereb_corr  and the cerebellar gray matter 
