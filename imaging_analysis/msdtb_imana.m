@@ -73,8 +73,9 @@ wb_dir   = 'surfaceWB';
 
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
-%     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
-subj_n = [46];
+%     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46];
+subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 22, 23, 28, 29, ... 
+    32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -135,6 +136,33 @@ contrasts = {'Encoding', [1 1 1 1 0]; ...                            %1
              'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %11
              'Decision', [0 0 0 0 1]; ...                            %12
              };
+
+         
+contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                              %1
+                    'Auditory Encoding', [1 1 1 0 0 0 0]; ...                     %2
+                    'Visual Encoding', [0 0 0 1 1 1 0]; ...                       %3
+                    'Auditory vs Visual Encoding', [1 1 1 -1 -1 -1 0]; ...        %4
+                    'Visual vs Auditory Encoding', [-1 -1 -1 1 1 1 0]; ...        %5
+                    'Beat vs Interval', [1 -1 0 1 -1 0 0]; ...                    %6
+                    'Beat vs Random', [1 0 -1 1 0 -1 0]; ...                      %7
+                    'Random vs Beat', [-1 0 1 -1 0 1 0]; ...                      %8
+                    'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0]; ...   %9
+                    'Auditory Beat vs Auditory Random', [1 0 -1 0 0 0 0]; ...     %10
+                    'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0]; ...     %11
+                    'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0]; ...       %12
+                    'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0]; ...         %13
+                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...         %14
+                    'Interval vs Beat', [-1 1 0 -1 1 0 0]; ...                    %15
+                    'Interval vs Random', [0 1 -1 0 1 -1 0]; ...                  %16
+                    'Random vs Interval', [0 -1 1 0 -1 1 0]; ...                  %17
+                    'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0]; ...   %18
+                    'Auditory Interval vs Auditory Random', [0 1 -1 0 0 0 0]; ... %19
+                    'Auditory Random vs Auditory Interval', [0 -1 1 0 0 0 0]; ... %20
+                    'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0]; ...       %21
+                    'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0]; ...     %22
+                    'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...     %23
+                    'Decision', [0 0 0 0 0 0 1]; ...                              %24
+                    };
 
 %==============================================================================
 
@@ -341,39 +369,6 @@ switch what
             spmja_normalization_write(deffield_file, subj_anatfile, ...
                 'voxel_size', [1.0 1.0 1.0])
         end
-    
-    case 'GROUP:mean_t1'
-        % Example usage: msdtb_imana('ANAT:mean_t1')
-        
-        sn       = subj_id; % subject list
-        vararginoptions(varargin, {'sn'});
-
-        deriv_folder = fullfile(base_dir, derivatives_dir)
-        group_anatdir = fullfile(deriv_folder, 'group/anat')
-        gt1_name = 'group_t1.nii';
-        
-        maps={};
-        mean_formula = '';
-        for s = sn
-            % Get the directory of subjects anatomical
-            deriv_subj_dir = fullfile(deriv_folder, subj_str{s});
-            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
-            
-            % Get the name and fullpath of the anatomical image
-            normanat_name = sprintf('w%s_T1w.nii', subj_str{s});
-            maps{s,1} = fullfile(subj_anatderiv_dir, normanat_name);
-            
-            % Create string with formula for mean of T1 images
-            if s == length(sn)
-                mean_formula = sprintf('(%si%d)/%d', ...
-                    mean_formula, s, length(sn))
-            else
-                mean_formula = sprintf('%si%d+', mean_formula, s);
-            end           
-        end        
-                 
-        % Compute mean of T1 images across subjects
-        spma_imcalc(maps, gt1_name, group_anatdir, mean_formula, 0)    
         
     case 'ANAT:run_all'
         % Example usage: msdtb_imana('ANAT:run_all')
@@ -383,6 +378,102 @@ switch what
         msdtb_imana('ANAT:segment')
         msdtb_imana('ANAT:t1_normalization') 
         % msdtb_imana('GROUP:mean_t1')
+        
+    case 'SURF:reconall' % Freesurfer reconall routine
+        % Calls recon-all, which performs, all of the
+        % FreeSurfer cortical reconstruction process
+        % Example usage: msdtb_imana('SURF:reconall', 'sn', 1)
+        
+        sn   = subj_id; % subject list
+        
+        vararginoptions(varargin, {'sn'});
+        % set freesurfer directory
+        subj_fs_dir = fullfile(base_dir, fs_dir);
+        
+        % Parent dir of anatomical images    
+        for s = sn
+            fprintf('- recon-all %s\n', subj_str{s});
+                        % Get the directory of subjects anatomical
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
+            
+            % Get the name of the anatomical image
+            anat_name = sprintf('%s_T1w.nii', subj_str{s});
+            
+            freesurfer_reconall(subj_fs_dir, subj_str{s}, ...
+                fullfile(subj_anatderiv_dir, anat_name));
+        end % s (sn)
+
+    case 'SURF:xhemireg' % Cross-register surfaces left / right hem
+        % surface-based interhemispheric registration
+        % example: msdtb_imana('SURF:xhemireg', 'sn', [1, 2, 3, 4, 5])
+        
+        sn   = subj_id; % list of subjects
+
+        vararginoptions(varargin, {'sn'})
+        
+        % set freesurfer directory
+        fs_dir = fullfile(base_dir, 'surfaceFreeSurfer');
+        
+        for s = sn
+            fprintf('- xhemiregl %s\n', subj_str{s});
+            freesurfer_registerXhem(subj_str(s), fs_dir,'hemisphere', ...
+                [1 2]); % For debug... [1 2] orig
+        end % s (sn)
+        
+    case 'SURF:map_ico' % Align to the new atlas surface (map icosahedron)
+        % Resamples a registered subject surface to a regular isocahedron
+        % This allows things to happen in atlas space - each vertex number
+        % corresponds exactly to an anatomical location
+        % Makes a new folder, called ['x' subj] that contains the 
+        % remapped subject
+        % Uses function mri_surf2surf
+        % mri_surf2surf: resamples one cortical surface onto another
+        % Example usage: 
+        % msdtb_imana('SURF:map_ico', 'sn', [1, 2, 3, 4, 5, 6])
+        
+        sn = subj_id; % list of subjects
+        
+        vararginoptions(varargin, {'sn'});
+        
+        % set freesurfer directory
+        fs_dir = fullfile(base_dir, 'surfaceFreeSurfer');
+        for s = sn
+            fprintf('- map_ico %s\n', subj_str{s});
+            freesurfer_mapicosahedron_xhem(subj_str{s}, fs_dir, ...
+                'smoothing',1,'hemisphere',[1, 2]);
+        end % s (sn)
+        
+    case 'SURF:fs2wb' % Resampling subject from freesurfer fsaverage to fs_LR
+        % Example usage: ibc_imana('SURF:fs2wb', 'sn', [1], 'res', 32)
+        
+        sn   = subj_id; % list of subjects
+        res  = 32;          % resolution of the atlas. options are: 32, 164
+        hemi = [1, 2];      % list of hemispheres
+        
+        vararginoptions(varargin, {'sn', 'res', 'hemi'});
+        
+        % set freesurfer directory
+        fs_dir = fullfile(base_dir, 'surfaceFreeSurfer');
+        % set output directory
+        wb_subj_dir  = fullfile(base_dir, wb_dir, 'data');
+        
+        for s = sn 
+            fprintf('- fs2wb %s\n', subj_str{s});
+            surf_resliceFS2WB(subj_str{s}, fs_dir, ...
+                wb_subj_dir, 'hemisphere', hemi, 'resolution', ...
+                sprintf('%dk', res))
+        end % s (sn)
+
+    case 'SURF:run_all'
+        % Example usage: msdtb_imana('SURF:run_all')
+
+        msdtb_imana('SURF:reconall')
+        msdtb_imana('SURF:xhemireg')
+        msdtb_imana('SURF:map_ico')
+        cd(fileparts(mfilename('fullpath'))) % Go to the folder of script
+        msdtb_imana('SURF:fs2wb', 'res', 32)    
         
     case 'FUNC:make_fieldmap' % Make fieldmap
         
@@ -798,7 +889,7 @@ switch what
                 'voxel_size', [2.5 2.5 2.5])
             spmja_normalization_write(deffield_file, graymatter_mask, ...
                 'voxel_size', [2.5 2.5 2.5])
-        end
+        end 
         
     case 'GROUP:mask'
         % Example usage: msdtb_imana('GROUP:mask', 'mask_type', ...
@@ -852,7 +943,7 @@ switch what
         A.options.dtype = 4;               
 
         matlabbatch{1}.spm.util.imcalc=A;
-        spm_jobman('run', matlabbatch);    
+        spm_jobman('run', matlabbatch); 
         
     case 'FUNC:run_all'
         % Example usage: msdtb_imana('FUNC:run_all')
@@ -863,7 +954,7 @@ switch what
         msdtb_imana('FUNC:make_samealign', 'prefix', '')
         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
         msdtb_imana('FUNC:mask_normalization')
-        % msdtb_imana('GROUP:mask')
+        msdtb_imana('GROUP:mask')
 
     case 'GLM:copy_paradigm-descriptors'
         % Example usage: msdtb_imana('GLM:copy_paradigm_descriptors')
@@ -1370,27 +1461,35 @@ switch what
         
         % Example usage:
         % msdtb_imana('GLM:individual_ffx_t', ...
+        %             'design', {'rand_ntfd'}, ...
+        %             'contrast_prefix', {'Random NTFD: '}, ...
+        %             'contrasts_list', contrasts_random, ...
         %             'output_folder', 'ffx_rwls_splitdesign')
-        
+ 
+        contrasts_list = {};
         % Go to the folder of script
         cd(fileparts(mfilename('fullpath')))
         
-        sn       = subj_id; % subject list
+        % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
+        
+        sn = subj_id; % subject list
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
+        
         contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
             'AllTasks: '};
-        % contrast_prefix = {'Random NTFD: '};
-                
-        % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
-        contrasts_list = {};
+        % contrast_prefix = {'Random NTFD: '};                
+
         contrasts_list = contrasts;
-        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % contrasts_list = contrasts_random;
         
         output_folder = 'ffx_rwls';
         
-        vararginoptions(varargin, {'sn', 'output_folder'});
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        vararginoptions(varargin, {'sn', 'design', 'contrast_prefix', ...
+            'contrasts_list', 'output_folder'});
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1418,16 +1517,21 @@ switch what
     case 'CON:norm_smooth'
         % Normalize and smooth individual contrasts or t-maps
         % Example usage: msdtb_imana(
-        %                   'CON:normsmooth', 
+        %                   'CON:norm_smooth', 
         %                   'input_folder', 'ffx_standard', ...
         %                   'output_folder', 'sw_derivatives_standard', ...
         %                   'file_type', 'spmT')     
         
         sn       = subj_id; % subject list
+        
+        % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
+        
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
+        
         input_folder = 'ffx_rwls';
         output_folder = 'sw_derivatives_rwls';
+        
         file_type = 'con'; % the another one is 'spmT or ResMS'
         smoothing_kernel = [8 8 8];
         
@@ -1435,10 +1539,10 @@ switch what
             'group/anat/group_mask_noskull.nii');
         masking_tag = 'wbmasked';
         
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
             'output_folder', 'file_type', 'masking_tag', 'smoothing_kernel',});
-        
-        % spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1564,7 +1668,45 @@ switch what
         msdtb_imana('GLM:grand_design_rwls')
         msdtb_imana('GLM:estimate_rwls')
         msdtb_imana('GLM:individual_ffx_t')
+        msdtb_imana('GLM:individual_ffx_t', ...
+                    'design', {'rand_ntfd'}, ...
+                    'contrast_prefix', {'Random NTFD: '}, ...
+                    'contrasts_list', contrasts_random)
         msdtb_imana('CON:norm_smooth')
+        msdtb_imana('CON:norm_smooth', 'file_type', 'spmT')
+        
+    case 'GROUP:mean_t1'
+        % Example usage: msdtb_imana('ANAT:mean_t1')
+        
+        sn       = subj_id; % subject list
+        vararginoptions(varargin, {'sn'});
+
+        deriv_folder = fullfile(base_dir, derivatives_dir)
+        group_anatdir = fullfile(deriv_folder, 'group/anat')
+        gt1_name = 'group_t1.nii';
+        
+        maps={};
+        mean_formula = '';
+        for s = sn
+            % Get the directory of subjects anatomical
+            deriv_subj_dir = fullfile(deriv_folder, subj_str{s});
+            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
+            
+            % Get the name and fullpath of the anatomical image
+            normanat_name = sprintf('w%s_T1w.nii', subj_str{s});
+            maps{s,1} = fullfile(subj_anatderiv_dir, normanat_name);
+            
+            % Create string with formula for mean of T1 images
+            if s == length(sn)
+                mean_formula = sprintf('(%si%d)/%d', ...
+                    mean_formula, s, length(sn))
+            else
+                mean_formula = sprintf('%si%d+', mean_formula, s);
+            end           
+        end        
+                 
+        % Compute mean of T1 images across subjects
+        spma_imcalc(maps, gt1_name, group_anatdir, mean_formula, 0)      
         
     case 'GROUP:ffx_t'
         % Estimate ffx group tmaps       
@@ -1582,8 +1724,7 @@ switch what
         
         % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
         contrasts_list = {};
-        contrasts_list = contrasts_md;
-        % contrasts_list = contrasts_md_split;
+        contrasts_list = contrasts;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'input_folder', 'output_folder'});
@@ -1872,103 +2013,7 @@ switch what
             SPM = rmfield(SPM,'xVi'); % 'xVi' take up a lot of space and slows down code!
             save(fullfile(glmDir, subj_name, 'SPM_light.mat'), 'SPM');
 
-        end % sn 
-         
-    case 'SURF:reconall' % Freesurfer reconall routine
-        % Calls recon-all, which performs, all of the
-        % FreeSurfer cortical reconstruction process
-        % Example usage: msdtb_imana('SURF:reconall', 'sn', 1)
-        
-        sn   = subj_id; % subject list
-        
-        vararginoptions(varargin, {'sn'});
-        % set freesurfer directory
-        subj_fs_dir = fullfile(base_dir, fs_dir);
-        
-        % Parent dir of anatomical images    
-        for s = sn
-            fprintf('- recon-all %s\n', subj_str{s});
-                        % Get the directory of subjects anatomical
-            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s});
-            subj_anatderiv_dir = fullfile(deriv_subj_dir, 'ses-01/anat');
-            
-            % Get the name of the anatomical image
-            anat_name = sprintf('%s_T1w.nii', subj_str{s});
-            
-            freesurfer_reconall(subj_fs_dir, subj_str{s}, ...
-                fullfile(subj_anatderiv_dir, anat_name));
-        end % s (sn)
-
-    case 'SURF:xhemireg' % Cross-register surfaces left / right hem
-        % surface-based interhemispheric registration
-        % example: msdtb_imana('SURF:xhemireg', 'sn', [1, 2, 3, 4, 5])
-        
-        sn   = subj_id; % list of subjects
-
-        vararginoptions(varargin, {'sn'})
-        
-        % set freesurfer directory
-        fs_dir = fullfile(base_dir, 'surfaceFreeSurfer');
-        
-        for s = sn
-            fprintf('- xhemiregl %s\n', subj_str{s});
-            freesurfer_registerXhem(subj_str(s), fs_dir,'hemisphere', ...
-                [1 2]); % For debug... [1 2] orig
-        end % s (sn)
-        
-    case 'SURF:map_ico' % Align to the new atlas surface (map icosahedron)
-        % Resamples a registered subject surface to a regular isocahedron
-        % This allows things to happen in atlas space - each vertex number
-        % corresponds exactly to an anatomical location
-        % Makes a new folder, called ['x' subj] that contains the 
-        % remapped subject
-        % Uses function mri_surf2surf
-        % mri_surf2surf: resamples one cortical surface onto another
-        % Example usage: 
-        % msdtb_imana('SURF:map_ico', 'sn', [1, 2, 3, 4, 5, 6])
-        
-        sn = subj_id; % list of subjects
-        
-        vararginoptions(varargin, {'sn'});
-        
-        % set freesurfer directory
-        fs_dir = fullfile(base_dir, 'surfaceFreeSurfer');
-        for s = sn
-            fprintf('- map_ico %s\n', subj_str{s});
-            freesurfer_mapicosahedron_xhem(subj_str{s}, fs_dir, ...
-                'smoothing',1,'hemisphere',[1, 2]);
-        end % s (sn)
-        
-    case 'SURF:fs2wb' % Resampling subject from freesurfer fsaverage to fs_LR
-        % Example usage: ibc_imana('SURF:fs2wb', 'sn', [1], 'res', 32)
-        
-        sn   = subj_id; % list of subjects
-        res  = 32;          % resolution of the atlas. options are: 32, 164
-        hemi = [1, 2];      % list of hemispheres
-        
-        vararginoptions(varargin, {'sn', 'res', 'hemi'});
-        
-        % set freesurfer directory
-        fs_dir = fullfile(base_dir, 'surfaceFreeSurfer');
-        % set output directory
-        wb_subj_dir  = fullfile(base_dir, wb_dir, 'data');
-        
-        for s = sn 
-            fprintf('- fs2wb %s\n', subj_str{s});
-            surf_resliceFS2WB(subj_str{s}, fs_dir, ...
-                wb_subj_dir, 'hemisphere', hemi, 'resolution', ...
-                sprintf('%dk', res))
-        end % s (sn)
-
-    case 'SURF:run_all'
-        % Example usage: msdtb_imana('SURF:run_all')
-
-        msdtb_imana('SURF:reconall')
-        msdtb_imana('SURF:xhemireg')
-        msdtb_imana('SURF:map_ico')
-        cd(fileparts(mfilename('fullpath'))) % Go to the folder of script
-        msdtb_imana('SURF:fs2wb', 'res', 32)        
+        end % sn     
         
     case 'SUIT:isolate_segment'  
         % Segment cerebellum into grey and white matter
