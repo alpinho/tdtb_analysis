@@ -262,9 +262,8 @@ def extraction_dbb(data, cat, header, events_dir, ttl = True, flag=0,
 # =========================== INPUTS ===================================
 
 # SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29,
-#             32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45]
-SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 29,
-            32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45]
+#             32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46]
+SUBJECTS = [28, 46]
 
 CATEGORIES = ['Production', 'Perception', 'No-Temporal Feature Discrimination']
 MODALITIES = ['Auditory', 'Visual']
