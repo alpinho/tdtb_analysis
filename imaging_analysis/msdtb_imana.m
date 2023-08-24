@@ -75,10 +75,10 @@ wb_dir   = 'surfaceWB';
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-subj_n = [7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 32, 34, ...
+subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 32, 34, ...
     35, 38, 39];
 
-% subj_n = [3];
+% SUIT: missing 4, 29 and 40 onwards
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1746,6 +1746,34 @@ switch what
         msdtb_imana('CON:norm_smooth')
         msdtb_imana('CON:norm_smooth', 'file_type', 'spmT')
         
+    case 'SUIT:cerebellum_graymask'    
+        % Conjunction of the pcereb_corr  and the cerebellar gray matter 
+        % mask (in functional space) thresholded to 0.2
+        
+        % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
+        sn = subj_id; %subjNum
+        design = 'allmain_tasks';
+        model = 'ffx_rwls';
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        vararginoptions(varargin, {'sn', 'design', 'model'});
+        
+        for s = sn
+            suit_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, 'ses-01/suit');
+            masks = {};
+            % First image need to be in functional space to ensure 
+            % correct space 
+            masks{1} = fullfile(base_dir, 'derivatives', subj_str{s}, ...
+                est_dir, design, model, 'mask.nii')
+            masks{2} = fullfile(suit_subj_dir, ...
+                sprintf('c_%s_T1w_pcereb_corr.nii', subj_str{s}));
+            masks{3} = fullfile(suit_subj_dir, ...
+                sprintf('c_%s_T1w_seg1.nii', subj_str{s}));
+            final_mask = fullfile(suit_subj_dir, 'maskbrainSUITGrey.nii');
+            spm_imcalc(masks, final_mask, 'i2>0.1 & i3>0.1');
+        end
+        
     case 'GROUP:mean_t1'
         % Example usage: msdtb_imana('ANAT:mean_t1')
         
@@ -2085,28 +2113,6 @@ switch what
             save(fullfile(glmDir, subj_name, 'SPM_light.mat'), 'SPM');
 
         end % sn     
-
-    case 'SUIT:cerebellum_graymask'    
-        % Conjunction of the pcereb_corr  and the cerebellar gray matter 
-        % mask (in functional space) thresholded to 0.2
-
-        sn = subj_id; %subjNum
-        vararginoptions(varargin, 'sn');
-        
-        for s = sn
-            suit_subj_dir = fullfile(base_dir, raw_dir, subj_str{s}, 'suit');
-            masks = {};
-            % First image need to be in functional space to ensure 
-            % correct space 
-            masks{1} = fullfile(base_dir, 'derivatives', subj_str{s}, ...
-                'estimates', 'ses-archi', 'run-01', 'mask.nii')
-            masks{2} = fullfile(suit_subj_dir, ...
-                sprintf('c_%s_T1w_pcereb_corr.nii', subj_str{s}));
-            masks{3} = fullfile(suit_subj_dir, ...
-                sprintf('c_%s_T1w_seg1.nii', subj_str{s}));
-            final_mask = fullfile(suit_subj_dir, 'maskbrainSUITGrey.nii');
-            spm_imcalc(masks, final_mask, 'i2>0.1 & i3>0.1');
-        end
 
     case 'SUIT:reslice' % Reslice stuff into suit space 
         % run the case with 'anatomical' to check the suit normalization
