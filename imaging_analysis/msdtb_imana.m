@@ -74,8 +74,7 @@ wb_dir   = 'surfaceWB';
 % list of subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46];
-subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 22, 23, 28, 29, ... 
-    32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46];
+subj_n = [3];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -509,6 +508,26 @@ switch what
             % go to subject directory for suit and isolate segment
             suit_isolate_seg({dest}, 'keeptempfiles', 1);
         end % s (sn)
+        
+    case 'SUIT:normalise_dartel' % SUIT normalization using dartel
+        % LAUNCH SPM FMRI BEFORE RUNNING!!!!!
+        % example usage: ibc_imana('SUIT:normalise_dartel')
+        sn = subj_id; %subjNum
+        vararginoptions(varargin, 'sn');
+        
+        for s = sn
+            suit_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, 'ses-01/suit');
+
+            job.subjND.gray       = {fullfile(suit_subj_dir, ...
+                sprintf('c_%s_T1w_seg1.nii', subj_str{s}))};
+            job.subjND.white      = {fullfile(suit_subj_dir, ...
+                sprintf('c_%s_T1w_seg2.nii', subj_str{s}))};
+            job.subjND.isolation  = {fullfile(suit_subj_dir, ...
+                sprintf('c_%s_T1w_pcereb_corr.nii', subj_str{s}))};
+            suit_normalize_dartel(job);
+
+        end % s (subjects)
         
     case 'FUNC:make_fieldmap' % Make fieldmap
         
@@ -2049,26 +2068,6 @@ switch what
             save(fullfile(glmDir, subj_name, 'SPM_light.mat'), 'SPM');
 
         end % sn     
-
-    case 'SUIT:normalise_dartel' % SUIT normalization using dartel
-        % LAUNCH SPM FMRI BEFORE RUNNING!!!!!
-        % example usage: ibc_imana('SUIT:normalise_dartel')
-        sn = subj_id; %subjNum
-        vararginoptions(varargin, 'sn');
-        
-        for s = sn
-            suit_subj_dir = fullfile(base_dir, raw_dir, subj_str{s}, ...
-                'suit');
-
-            job.subjND.gray       = {fullfile(suit_subj_dir, ...
-                sprintf('c_%s_T1w_seg1.nii', subj_str{s}))};
-            job.subjND.white      = {fullfile(suit_subj_dir, ...
-                sprintf('c_%s_T1w_seg2.nii', subj_str{s}))};
-            job.subjND.isolation  = {fullfile(suit_subj_dir, ...
-                sprintf('c_%s_T1w_pcereb_corr.nii', subj_str{s}))};
-            suit_normalize_dartel(job);
-
-        end % s (subjects)
 
     case 'SUIT:save_dartel_def'    
         % Saves the dartel flow field as a deformation file.
