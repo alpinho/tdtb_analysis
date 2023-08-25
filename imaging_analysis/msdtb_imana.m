@@ -962,60 +962,6 @@ switch what
                 'voxel_size', [2.5 2.5 2.5])
         end 
         
-    case 'GROUP:mask'
-        % Example usage: msdtb_imana('GROUP:mask', 'mask_type', ...
-        %                            'wrmask_gray.nii')
-        
-        sn       = subj_id; % subject list
-        mask_type = 'wrmask_noskull'; % whole-brain
-        % mask_type = 'wrmask_gray'   % gray-matter
-        vararginoptions(varargin, {'sn', 'mask_type'});
-        
-        group_dir = fullfile(base_dir, derivatives_dir, 'group/anat')
-        gmask_name = sprintf('group_%s.nii', mask_type(3:end));
-        group_mask_path = fullfile(group_dir, gmask_name);
-        if not(isfolder(group_dir))
-            % Create group dir if does not exist
-            mkdir(group_dir);
-        elseif isfile(group_mask_path)
-            % Delete previous group map if it exists
-            delete(group_mask_path);
-        end
-
-        normalized_masks = {};
-        formula = '';
-        for s = sn
-            % Get the directory of subjects' functional data
-            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s});
-            
-            % Path of individual masks
-            funcmean_deriv = fullfile(deriv_subj_dir, 'ses-01', func_dir);
-            normalized_masks{s,1} = fullfile(funcmean_deriv, ...
-                [mask_type '.nii']);
-            
-            % Create string with formula
-            if s == length(sn)
-                formula = sprintf('(%si%d)/%d >= 0.8', formula, s, length(sn))
-            else
-                formula = sprintf('%si%d+', formula, s);
-            end
-        end
-        
-        A = [];
-        A.input = normalized_masks;
-        A.output = gmask_name;
-        A.outdir = {group_dir};
-        A.expression = formula;
-        A.var = struct('name', {}, 'value', {});
-        A.options.dmtx = 0;
-        A.options.mask = 0;
-        A.options.interp = 1;
-        A.options.dtype = 4;               
-
-        matlabbatch{1}.spm.util.imcalc=A;
-        spm_jobman('run', matlabbatch); 
-        
     case 'FUNC:run_all'
         % Example usage: msdtb_imana('FUNC:run_all')
         
@@ -1526,6 +1472,34 @@ switch what
                 spm_rwls_spm(SPM);
             end % dg (designs)
         end % s (sn)    
+        
+    case 'SUIT:cerebellum_graymask'    
+        % Conjunction of the pcereb_corr  and the cerebellar gray matter 
+        % mask (in functional space) thresholded to 0.2
+        
+        % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
+        sn = subj_id; %subjNum
+        design = 'allmain_tasks';
+        model = 'ffx_rwls';
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        vararginoptions(varargin, {'sn', 'design', 'model'});
+        
+        for s = sn
+            suit_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, 'ses-01/suit');
+            masks = {};
+            % First image need to be in functional space to ensure 
+            % correct space 
+            masks{1} = fullfile(base_dir, 'derivatives', subj_str{s}, ...
+                est_dir, design, model, 'mask.nii')
+            masks{2} = fullfile(suit_subj_dir, ...
+                sprintf('c_%s_T1w_pcereb_corr.nii', subj_str{s}));
+            masks{3} = fullfile(suit_subj_dir, ...
+                sprintf('c_%s_T1w_seg1.nii', subj_str{s}));
+            final_mask = fullfile(suit_subj_dir, 'maskbrainSUITGrey.nii');
+            spm_imcalc(masks, final_mask, 'i2>0.1 & i3>0.1');
+        end
 
     case 'GLM:individual_ffx_t'
         % Estimate ffx individual tmaps across runs and sessions
@@ -1584,6 +1558,60 @@ switch what
                 spm_jobman('run', matlabbatch);
             end
         end % s (subject)
+        
+    case 'GROUP:mask'
+        % Example usage: msdtb_imana('GROUP:mask', 'mask_type', ...
+        %                            'wrmask_gray.nii')
+        
+        sn       = subj_id; % subject list
+        mask_type = 'wrmask_noskull'; % whole-brain
+        % mask_type = 'wrmask_gray'   % gray-matter
+        vararginoptions(varargin, {'sn', 'mask_type'});
+        
+        group_dir = fullfile(base_dir, derivatives_dir, 'group/anat')
+        gmask_name = sprintf('group_%s.nii', mask_type(3:end));
+        group_mask_path = fullfile(group_dir, gmask_name);
+        if not(isfolder(group_dir))
+            % Create group dir if does not exist
+            mkdir(group_dir);
+        elseif isfile(group_mask_path)
+            % Delete previous group map if it exists
+            delete(group_mask_path);
+        end
+
+        normalized_masks = {};
+        formula = '';
+        for s = sn
+            % Get the directory of subjects' functional data
+            deriv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s});
+            
+            % Path of individual masks
+            funcmean_deriv = fullfile(deriv_subj_dir, 'ses-01', func_dir);
+            normalized_masks{s,1} = fullfile(funcmean_deriv, ...
+                [mask_type '.nii']);
+            
+            % Create string with formula
+            if s == length(sn)
+                formula = sprintf('(%si%d)/%d >= 0.8', formula, s, length(sn))
+            else
+                formula = sprintf('%si%d+', formula, s);
+            end
+        end
+        
+        A = [];
+        A.input = normalized_masks;
+        A.output = gmask_name;
+        A.outdir = {group_dir};
+        A.expression = formula;
+        A.var = struct('name', {}, 'value', {});
+        A.options.dmtx = 0;
+        A.options.mask = 0;
+        A.options.interp = 1;
+        A.options.dtype = 4;               
+
+        matlabbatch{1}.spm.util.imcalc=A;
+        spm_jobman('run', matlabbatch); 
         
     case 'CON:norm_smooth'
         % Normalize and smooth individual contrasts or t-maps
@@ -1735,44 +1763,22 @@ switch what
         % Example usage: msdtb_imana('GLMCON:run_all')
 
         % Note: Do not forget to copy tsv files to the server
+        
+        sbj = subj_id; % subject list
+        vararginoptions(varargin, 'sbj')
 
-        msdtb_imana('GLM:grand_design_rwls')
-        msdtb_imana('GLM:estimate_rwls')
-        msdtb_imana('GLM:individual_ffx_t')
-        msdtb_imana('GLM:individual_ffx_t', ...
+        msdtb_imana('GLM:grand_design_rwls', 'sn', sbj)
+        msdtb_imana('GLM:estimate_rwls', 'sn', sbj)
+        msdtb_imana('GLM:individual_ffx_t', 'sn', sbj)
+        msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
                     'design', {'rand_ntfd'}, ...
                     'contrast_prefix', {'Random NTFD: '}, ...
                     'contrasts_list', contrasts_random)
-        msdtb_imana('CON:norm_smooth')
-        msdtb_imana('CON:norm_smooth', 'file_type', 'spmT')
-        
-    case 'SUIT:cerebellum_graymask'    
-        % Conjunction of the pcereb_corr  and the cerebellar gray matter 
-        % mask (in functional space) thresholded to 0.2
-        
-        % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
-        sn = subj_id; %subjNum
-        design = 'allmain_tasks';
-        model = 'ffx_rwls';
-        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        
-        vararginoptions(varargin, {'sn', 'design', 'model'});
-        
-        for s = sn
-            suit_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, 'ses-01/suit');
-            masks = {};
-            % First image need to be in functional space to ensure 
-            % correct space 
-            masks{1} = fullfile(base_dir, 'derivatives', subj_str{s}, ...
-                est_dir, design, model, 'mask.nii')
-            masks{2} = fullfile(suit_subj_dir, ...
-                sprintf('c_%s_T1w_pcereb_corr.nii', subj_str{s}));
-            masks{3} = fullfile(suit_subj_dir, ...
-                sprintf('c_%s_T1w_seg1.nii', subj_str{s}));
-            final_mask = fullfile(suit_subj_dir, 'maskbrainSUITGrey.nii');
-            spm_imcalc(masks, final_mask, 'i2>0.1 & i3>0.1');
-        end
+        msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
+        msdtb_imana('GROUP:mask', 'sn', subj_id, ...
+                    'mask_type', 'wrmask_gray.nii') %gray-matter mask
+        msdtb_imana('CON:norm_smooth', 'sn', sbj)
+        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT')
         
     case 'GROUP:mean_t1'
         % Example usage: msdtb_imana('ANAT:mean_t1')
