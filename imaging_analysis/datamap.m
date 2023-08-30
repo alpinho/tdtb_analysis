@@ -406,7 +406,7 @@ switch true
     case strcmp(subject, 'sub-47')
         
         % Sessions
-        raw_ses = {"ses-01", "ses-02", "ses-03"};
+        raw_ses = {"ses-01", "ses-02"};
         preproc_ses = raw_ses;
         
         % Runs
@@ -425,8 +425,8 @@ switch true
             "task-percep_run-01", "task-percep_run-02", ...
             "task-ntfd_run-01", "task-ntfd_run-02", "task-ntfd_run-03", "task-ntfd_run-04"
             ];
-        raw_runs = {runs_ses1, runs_ses2, raw_runs_ses3};
-        preproc_runs = {runs_ses1, runs_ses2, preproc_runs_ses3};
+        raw_runs = {raw_runs_ses1, runs_ses2};
+        preproc_runs = {preproc_runs_ses1, runs_ses2};
 
 
     otherwise
