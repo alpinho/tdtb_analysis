@@ -71,11 +71,17 @@ est_dir  = 'estimates';
 fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
-% list of subjects
+% List of all subjects
 % subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-subj_n = [20, 47];
+% List of all subjects but pilot
+% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
+%     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+
+% Working list of subjects
+subj_n = [7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
+    32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -1525,6 +1531,7 @@ switch what
             'AllTasks: '};
         % contrast_prefix = {'Random NTFD: '};                
 
+        contrasts_scheme = 'standard'
         contrasts_list = contrasts;
         % contrasts_list = contrasts_random;
         
@@ -1533,7 +1540,11 @@ switch what
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'design', 'contrast_prefix', ...
-            'contrasts_list', 'output_folder'});
+            'contrasts_scheme', 'output_folder'});
+        
+        if strcmp(contrasts_scheme, 'random')
+            contrasts_list = contrasts_random;
+        end
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1558,9 +1569,85 @@ switch what
             end
         end % s (subject)
         
+    case 'CON:norm_smooth'
+        % Normalize and smooth individual contrasts or t-maps
+        % Example usage: msdtb_imana(
+        %                   'CON:norm_smooth', ...
+        %                   'design', {'rand_ntfd'}, ...
+        %                   'input_folder', 'ffx_standard', ...
+        %                   'file_type', 'spmT')     
+        
+        sn       = subj_id; % subject list
+        
+        % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
+        
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
+        
+        input_folder = 'ffx_rwls';
+        
+        file_type = 'con'; % the another one is 'spmT or ResMS'
+        smoothing_kernel = [8 8 8];
+        
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
+            'file_type', 'smoothing_kernel'});
+        
+        for s = sn
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir); 
+            for dg=1:length(design)           
+                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
+                    input_folder);
+                
+                confiles = {};
+                if strcmp(file_type, 'ResMS')
+                    cname = sprintf('%s.nii', file_type);
+                    confiles = {fullfile(estdesign_folder, cname)};
+                else
+                    % List of contrasts in source folder
+                    n_contrasts = numel(dir([estdesign_folder '/' file_type ...
+                        '_*.nii']));
+                    for c=1:n_contrasts
+                        cname = sprintf('%s_%04d.nii', file_type, c);
+                        confiles{c,1} = fullfile(estdesign_folder, cname);
+                    end
+                end
+                
+                % Deformation-Field file
+                deffield_folder = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, 'ses-01', 'anat');
+                deffield_file = [deffield_folder '/y_' subj_str{s} '_T1w.nii'];
+                
+                % Apply normalization
+                spmja_normalization_write(deffield_file, confiles, ...
+                    'voxel_size', [2.5 2.5 2.5])
+                
+                % List normalized contrasts in ffx folder
+                cd(estdesign_folder)
+                wsource_list = dir(fullfile(estdesign_folder, ...
+                    ['w' file_type '*.nii']));
+                w_values=struct2cell(wsource_list);
+                wsource_files = w_values(1,1:end)';
+                
+                % Smooth normalized contrasts
+                S = [];
+                S.data = wsource_files;
+                S.fwhm = smoothing_kernel;
+                S.dtype = 0;
+                S.im = 0;
+                S.prefix = 's';
+                
+                matlabbatch{1} = {};
+                matlabbatch{1}.spm.spatial.smooth=S;
+                spm_jobman('run',matlabbatch);
+                
+            end % dg (design)           
+        end % s (sn)
+        
     case 'GROUP:mask'
-        % Example usage: msdtb_imana('GROUP:mask', 'mask_type', ...
-        %                            'wrmask_gray.nii')
+        % Example usage: msdtb_imana('GROUP:mask', 'mask_type', 'wrmask_gray')
         
         sn       = subj_id; % subject list
         mask_type = 'wrmask_noskull'; % whole-brain
@@ -1612,12 +1699,12 @@ switch what
         matlabbatch{1}.spm.util.imcalc=A;
         spm_jobman('run', matlabbatch); 
         
-    case 'CON:norm_smooth'
-        % Normalize and smooth individual contrasts or t-maps
+    case 'CON:masking'
+        % Apply mask to the smoothed contrasts
         % Example usage: msdtb_imana(
         %                   'CON:norm_smooth', 
         %                   'input_folder', 'ffx_standard', ...
-        %                   'output_folder', 'sw_derivatives_standard', ...
+        %                   'output_folder', 'masked_derivatives_standard', ...
         %                   'file_type', 'spmT')     
         
         sn       = subj_id; % subject list
@@ -1628,7 +1715,7 @@ switch what
         % design = {'rand_ntfd'};
         
         input_folder = 'ffx_rwls';
-        output_folder = 'sw_derivatives_rwls';
+        output_folder = 'masked_derivatives_rwls';
         
         file_type = 'con'; % the another one is 'spmT or ResMS'
         smoothing_kernel = [8 8 8];
@@ -1640,7 +1727,7 @@ switch what
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
-            'output_folder', 'file_type', 'masking_tag', 'smoothing_kernel',});
+            'output_folder', 'file_type', 'smoothing_kernel', 'masking_tag'});
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1663,33 +1750,12 @@ switch what
                     end
                 end
                 
-                % Deformation-Field file
-                deffield_folder = fullfile(base_dir, derivatives_dir, ...
-                    subj_str{s}, 'ses-01', 'anat');
-                deffield_file = [deffield_folder '/y_' subj_str{s} '_T1w.nii'];
-                
-                % Apply normalization
-                spmja_normalization_write(deffield_file, confiles, ...
-                    'voxel_size', [2.5 2.5 2.5])
-                
                 % List normalized contrasts in ffx folder
                 cd(estdesign_folder)
                 wsource_list = dir(fullfile(estdesign_folder, ...
                     ['w' file_type '*.nii']));
                 w_values=struct2cell(wsource_list);
                 wsource_files = w_values(1,1:end)';
-                
-                % Smooth normalized contrasts
-                S = [];
-                S.data = wsource_files;
-                S.fwhm = smoothing_kernel;
-                S.dtype = 0;
-                S.im = 0;
-                S.prefix = 's';
-                
-                matlabbatch{1} = {};
-                matlabbatch{1}.spm.spatial.smooth=S;
-                spm_jobman('run',matlabbatch);
                 
                 % List smoothed, normalized contrasts in ffx folder
                 swsource_list = dir(fullfile(estdesign_folder, ...
@@ -1729,7 +1795,7 @@ switch what
                     spm_jobman('run', matlabbatch);
                     
                     % Delete non-masked file
-                    delete(sprintf('%s', wsource_files{w}));
+                    % delete(sprintf('%s', wsource_files{w}));
                 end
                 
                 % Mask smoothed normalized contrasts with 
@@ -1752,7 +1818,7 @@ switch what
                     spm_jobman('run', matlabbatch);
                     
                     % Delete non-masked file
-                    delete(sprintf('%s', swsource_files{sm}));
+                    % delete(sprintf('%s', swsource_files{sm}));
                 end
                 
             end % dg (design)           
@@ -1772,12 +1838,20 @@ switch what
         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
                     'design', {'rand_ntfd'}, ...
                     'contrast_prefix', {'Random NTFD: '}, ...
-                    'contrasts_list', contrasts_random)
+                    'contrasts_scheme', 'random')
+        msdtb_imana('CON:norm_smooth', 'sn', sbj)
+        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'})
+        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT')
+        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'spmT')
         msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
         msdtb_imana('GROUP:mask', 'sn', subj_id, ...
-                    'mask_type', 'wrmask_gray.nii') %gray-matter mask
-        msdtb_imana('CON:norm_smooth', 'sn', sbj)
-        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT')
+                    'mask_type', 'wrmask_gray') % gray-matter mask
+        msdtb_imana('CON:masking', 'sn', sbj)
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'})
+        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'spmT')
         
     case 'GROUP:mean_t1'
         % Example usage: msdtb_imana('ANAT:mean_t1')
