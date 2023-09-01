@@ -1705,7 +1705,8 @@ switch what
         %                   'CON:norm_smooth', 
         %                   'input_folder', 'ffx_standard', ...
         %                   'output_folder', 'masked_derivatives_standard', ...
-        %                   'file_type', 'spmT')     
+        %                   'file_type', 'spmT', ...
+        %                   'masktag', 'gmmasked')     
         
         sn       = subj_id; % subject list
         
@@ -1720,14 +1721,21 @@ switch what
         file_type = 'con'; % the another one is 'spmT or ResMS'
         smoothing_kernel = [8 8 8];
         
-        group_mask = fullfile(base_dir, derivatives_dir, ...
-            'group/anat/group_mask_noskull.nii');
-        masking_tag = 'wbmasked';
+        masktag = 'wbmasked'; % whole-brain masking
+        % masktag = 'gmmasked'; % gray-matter masking
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
-            'output_folder', 'file_type', 'smoothing_kernel', 'masking_tag'});
+            'output_folder', 'file_type', 'smoothing_kernel', 'masktag'});
+        
+        if strcmp(masktag, 'wbmasked')
+            group_mask = fullfile(base_dir, derivatives_dir, ...
+                'group/anat/group_mask_noskull.nii');
+        elseif strcmp(masktag, 'gmmasked')
+            group_mask = fullfile(base_dir, derivatives_dir, ...
+                'group/anat/group_mask_gray.nii');
+        end
         
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
@@ -1770,9 +1778,12 @@ switch what
                     mkdir(destination_dir);
                 end
                 
-                % ... or delete pre-existing files from destination folder
-                if any(size(dir([destination_dir '/w' file_type '*.nii']), 1))
-                    delete([destination_dir '/w' file_type '*.nii']);
+                % ... or delete pre-existing files... 
+                % ... w/ the same type of masking from destination folder
+                if any(size(dir([destination_dir '/w' file_type '*' masktag ...
+                        '.nii']), 1))
+                    delete([destination_dir '/w' file_type '*' masktag ...
+                        '.nii']);
                 end
                 
                 % Mask non-smoothed normalized contrasts with 
@@ -1781,7 +1792,7 @@ switch what
                     M = [];
                     M.input = {group_mask; wsource_files{w}};
                     M.output = [wsource_files{w}(1:end-4) '_desc-' ...
-                        masking_tag '.nii'];
+                        masktag '.nii'];
                     M.outdir = {destination_dir};
                     M.expression = 'i2.*(i1>0.99)';
                     M.var = struct('name', {}, 'value', {});
@@ -1804,7 +1815,7 @@ switch what
                     MS = [];
                     MS.input = {group_mask; swsource_files{sm}};
                     MS.output = [swsource_files{sm}(2:end-4) '_desc-sm' ...
-                        num2str(smoothing_kernel(1)) masking_tag '.nii'];
+                        num2str(smoothing_kernel(1)) masktag '.nii'];
                     MS.outdir = {destination_dir};
                     MS.expression = 'i2.*(i1>0.99)';
                     MS.var = struct('name', {}, 'value', {});
@@ -1852,6 +1863,13 @@ switch what
         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT')
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
             'file_type', 'spmT')
+        msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'masktag', 'gmmasked')
+        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', ...
+            'masktag', 'gmmasked')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'spmT', 'masktag', 'gmmasked')
         
     case 'GROUP:mean_t1'
         % Example usage: msdtb_imana('ANAT:mean_t1')
