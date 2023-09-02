@@ -80,7 +80,7 @@ wb_dir   = 'surfaceWB';
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
+subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
@@ -1525,24 +1525,22 @@ switch what
         sn = subj_id; % subject list
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'rand_ntfd'};
-        
-        contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
-            'AllTasks: '};
-        % contrast_prefix = {'Random NTFD: '};                
-
-        contrasts_scheme = 'standard'
-        contrasts_list = contrasts;
-        % contrasts_list = contrasts_random;
+        % design = {'rand_ntfd'};              
         
         output_folder = 'ffx_rwls';
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         vararginoptions(varargin, {'sn', 'design', 'contrast_prefix', ...
-            'contrasts_scheme', 'output_folder'});
+            'output_folder'});
         
-        if strcmp(contrasts_scheme, 'random')
+        contrasts_list = {};
+        if isequal(design, {'prod', 'percep', 'ntfd', 'allmain_tasks'})
+            contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
+                'AllTasks: '};
+            contrasts_list = contrasts;
+        elseif isequal(design, {'rand_ntfd'})
+            contrast_prefix = {'Random NTFD: '};
             contrasts_list = contrasts_random;
         end
         
@@ -1845,24 +1843,29 @@ switch what
 
         msdtb_imana('GLM:grand_design_rwls', 'sn', sbj)
         msdtb_imana('GLM:estimate_rwls', 'sn', sbj)
+        
         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj)
         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
                     'design', {'rand_ntfd'}, ...
                     'contrast_prefix', {'Random NTFD: '}, ...
                     'contrasts_scheme', 'random')
+                
         msdtb_imana('CON:norm_smooth', 'sn', sbj)
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'})
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT')
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
             'file_type', 'spmT')
+        
         msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
         msdtb_imana('GROUP:mask', 'sn', subj_id, ...
                     'mask_type', 'wrmask_gray') % gray-matter mask
+                
         msdtb_imana('CON:masking', 'sn', sbj)
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'})
         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT')
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
             'file_type', 'spmT')
+        
         msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked')
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
             'masktag', 'gmmasked')
@@ -1982,26 +1985,40 @@ switch what
         
     case 'GROUP:onesample_t_design'
         % Example usage: msdtb_imana('GROUP:onesample_t_design', ...
-        %                'input_folder', 'sw_derivatives_standard', ...
-        %                'output_folder', 'rfx_onesample_t_standard')
+        %                'design', {'rand_ntfd'}, ...
+        %                'input_folder', 'masked_derivatives_standard', ...
+        %                'output_folder', 'rfx_onesample_t_standard', ...
+        %                'suffix', 'sm8gmmasked')
         
         sn       = subj_id; % subject list
+        
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        input_folder = 'sw_derivatives_rwls';
-        output_folder = 'rfx_onesample_t_rwls';
         
-        % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
-        contrasts_list = {};
-        contrasts_list = contrasts;
-        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        input_folder = 'masked_derivatives_rwls';
+        output_folder = 'rfx_onesample_t_rwls';
         
         suffix = 'sm8wbmasked';
         
-        group_mask = fullfile(base_dir, derivatives_dir, ...
-            'group/anat/group_mask_noskull.nii');
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
-            'output_folder'});
+            'output_folder', 'suffix'});
+        
+        if strcmp(suffix, 'sm8wbmasked')
+            group_mask = fullfile(base_dir, derivatives_dir, ...
+                'group/anat/group_mask_noskull.nii');
+        elseif strcmp(suffix, 'sm8gmmasked')
+            group_mask = fullfile(base_dir, derivatives_dir, ...
+                'group/anat/group_mask_gray.nii');
+        end
+        
+        contrasts_list = {};
+        if isequal(design, {'prod', 'percep', 'ntfd', 'allmain_tasks'})
+            contrasts_list = contrasts;
+        elseif isequal(design, {'rand_ntfd'})
+            contrasts_list = contrasts_random;
+        end
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -2045,19 +2062,26 @@ switch what
         
     case 'GROUP:estimation'
         % Example usage: msdtb_imana('GROUP:estimation', ...
+        %                            'design', {'rand_ntfd'}, ...
         %                            'model', {'rfx_onesample_t_rwls_splitdesign'})
         
         sn       = subj_id; % subject list
+        
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
+        
         model = {'rfx_onesample_t_rwls'}; % or 'rfx_onesample_t_rwls_splitdesign'
 
-        % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
-        contrasts_list = {};
-        contrasts_list = contrasts;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
-        vararginoptions(varargin, {'sn', 'model'})
+        vararginoptions(varargin, {'sn', 'design', 'model'})
+        
+        contrasts_list = {};
+        if isequal(design, {'prod', 'percep', 'ntfd', 'allmain_tasks'})
+            contrasts_list = contrasts;
+        elseif isequal(design, {'rand_ntfd'})
+            contrasts_list = contrasts_random;
+        end
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
@@ -2089,21 +2113,29 @@ switch what
     case 'GROUP:rfx_t'
         % Estimate rfx group tmaps
         % Example usage: msdtb_imana('GROUP:rfx_t', ...
+        %                            'design', {'rand_ntfd'}, ...
         %                            'model', {'rfx_onesample_t_rwls_splitdesign'})
         
         sn       = subj_id; % subject list
+        
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
-            'AllTasks: '};
+        
         model = {'rfx_onesample_t_rwls'}; % or 'rfx_onesample_t_rwls_splitdesign'
 
-        % %%%%%%%%%%% CHANGE DIRECTLY HERE FOR SPLIT DESIGN %%%%%%%%%%%%%%%
-        contrasts_list = {};
-        contrasts_list = contrasts;
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
-        vararginoptions(varargin, {'sn', 'model'})
+        vararginoptions(varargin, {'sn', 'design', 'model'})
+        
+        contrasts_list = {};
+        if isequal(design, {'prod', 'percep', 'ntfd', 'allmain_tasks'})
+            contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
+                'AllTasks: '};
+            contrasts_list = contrasts;
+        elseif isequal(design, {'rand_ntfd'})
+            contrast_prefix = {'Random NTFD: '};
+            contrasts_list = contrasts_random;
+        end
         
         spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
         
