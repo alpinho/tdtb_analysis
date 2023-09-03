@@ -80,8 +80,8 @@ wb_dir   = 'surfaceWB';
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
-    32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+subj_n = [15, 16, 18, 20, 22, 23, 28, 29, 32, 34, 35, 38, 39, 40, 41, ...
+    42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -979,11 +979,17 @@ switch what
         msdtb_imana('GROUP:mask')
 
     case 'GLM:copy_paradigm-descriptors'
-        % Example usage: msdtb_imana('GLM:copy_paradigm_descriptors')
+        % Example usage: msdtb_imana('GLM:copy_paradigm_descriptors', ...
+        %                            'paradigm_type', 'drbb')
 
         sn  = subj_id;
-        suffix = ''; % suffix of event files
-        vararginoptions(varargin, {'sn'});
+
+        paradigm_type = '';
+        % paradigm_type = 'drbb';
+
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        vararginoptions(varargin, {'sn', 'paradigm_type'});
         
         if isdir('/srv/diedrichsen/data')
             source = fullfile(homedir, ...
@@ -995,6 +1001,12 @@ switch what
         destination = fullfile(workdir, ...
             'Cerebellum/music-sdtb/derivatives');
 
+        if isempty(paradigm_type)
+            suffix = paradigm_type;
+        else
+            suffix = ['_' paradigm_type];
+        end
+
         for s = sn
             
             [original_events, renamed_events] = eventsmap(subj_str{s});
@@ -1002,7 +1014,7 @@ switch what
             for ses = 1:length(original_events)
                 for r = 1:length(original_events{ses})
                     sfname = [subj_str{s} '_' original_events{ses}{r} ...
-                        '_events.tsv'];
+                        suffix '_events.tsv'];
                     sfile = convertStringsToChars(fullfile(...
                         source, ...
                         subj_str{s}, ...
@@ -1015,11 +1027,11 @@ switch what
                         'func'));
                     
                     % Delete previous tsv files from destination folder
-                    if r == 1
-                        dold_files = fullfile(dfolder, ...
-                            [subj_str{s} '*_events.tsv']);
-                        delete(dold_files);
-                    end
+%                     if r == 1
+%                         dold_files = fullfile(dfolder, ...
+%                             [subj_str{s} '*_events.tsv']);
+%                         delete(dold_files);
+%                     end
                     
                     % Copy new tsv files
                     system(['cp ' sfile ' ' dfolder]);
@@ -1028,7 +1040,7 @@ switch what
                     % has to be renamed
                     current_file = fullfile(dfolder, sfname);
                     nfname = [subj_str{s} '_' renamed_events{ses}{r} ...
-                        '_events.tsv'];
+                        suffix '_events.tsv'];
                     new_file = fullfile(dfolder, nfname);
                     if ~strcmp(current_file, new_file)
                         movefile(current_file, new_file);
