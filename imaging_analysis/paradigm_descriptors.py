@@ -446,15 +446,15 @@ def extraction_drbb(data, cat, header, events_dir, ttl = True, flag=0,
 # =========================== INPUTS ===================================
 
 # All subjects
-SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29,
-            32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29,
+#             32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # All Subjects without pilot (sub-04)
 # SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29,
 #             32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Working list
-# SUBJECTS = [4]
+SUBJECTS = [4]
 
 CATEGORIES = ['Production', 'Perception', 'No-Temporal Feature Discrimination']
 MODALITIES = ['Auditory', 'Visual']
@@ -519,9 +519,9 @@ if __name__ == "__main__":
                 # in every dir subj, sess and run dependent (FOR ALL TASKS)
                 # Do flag = 0 only in the first function call of this
                 # if statement
-                extraction_drbb(chrono_data, category, HEADER, eventspath,
+                extraction_dbb(chrono_data, category, HEADER, eventspath,
                                 flag=0, merge_decision=True, merge_rest=True)
             # For Remaining tasks
             else:
-                extraction_drbb(chrono_data, category, HEADER, eventspath,
+                extraction_dbb(chrono_data, category, HEADER, eventspath,
                                 flag=1, merge_decision=True, merge_rest=True)
