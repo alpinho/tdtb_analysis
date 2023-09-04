@@ -80,8 +80,8 @@ wb_dir   = 'surfaceWB';
 %     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [15, 16, 18, 20, 22, 23, 28, 29, 32, 34, 35, 38, 39, 40, 41, ...
-    42, 43, 44, 45, 46, 47];
+subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 16, 18, 20, 22, 23, 28, 29, 32, 34, ...
+    35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -1243,8 +1243,8 @@ switch what
         % Example usage:
         % msdtb_imana('GLM:grand_design_rwls', 'sn', [1], ...
         %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'},
-        %             'events_file_tag', 'splitdesign_events', ...
-        %             'output_folder', 'ffx_rwls_splitdesign')
+        %             'events_file_tag', 'drbb_events', ...
+        %             'output_folder', 'ffx_rwls_drbb')
         
         sn = subj_id;
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
@@ -1331,8 +1331,9 @@ switch what
                                 '%s%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
                                 prefix, subj_str{s}, ses, tasks{tk}, rf);
                             tsv_fname = sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_events.tsv', ...
-                                subj_str{s}, ses, tasks{tk}, rf);
+                                '%s_ses-%02d_task-%s_run-%02d_%s.tsv', ...
+                                subj_str{s}, ses, tasks{tk}, rf, ...
+                                events_file_tag);
                             run_path = fullfile(funcderiv_folder, run_fname);
                             if isfile(run_path)
                                 runs_list = [runs_list, run_path];
@@ -1463,7 +1464,7 @@ switch what
         % Example usage:
         % msdtb_imana('GLM:estimate_rwls', 'sn', [1], ...
         %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'}, ...
-        %             'output_folder', 'ffx_rwls_splitdesign')       
+        %             'output_folder', 'ffx_rwls_drbb')       
         
         sn       = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
