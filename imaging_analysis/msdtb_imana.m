@@ -171,6 +171,48 @@ contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                            
                     'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...     %23
                     'Decision', [0 0 0 0 0 0 1]; ...                              %24
                     };
+                
+contrasts_drbb = {'Encoding', [1 1 1 1 0 0]; ...                            %1
+                  'Auditory Encoding', [1 1 0 0 0 0]; ...                   %2
+                  'Visual Encoding', [0 0 1 1 0 0]; ...                     %3
+                  'Auditory vs Visual Encoding', [1 1 -1 -1 0 0]; ...       %4
+                  'Visual vs Auditory Encoding', [-1 -1 1 1 0 0]; ...       %5
+                  'Beat vs Interval', [1 -1 1 -1 0 0]; ...                  %6
+                  'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0]; ... %7
+                  'Visual Beat vs Visual Interval', [0 0 1 -1 0 0]; ...     %8
+                  'Interval vs Beat', [-1 1 -1 1 0 0]; ...                  %9
+                  'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0]; ... %10
+                  'Visual Interval vs Visual Beat', [0 0 -1 1 0 0]; ...     %11
+                  'Decision', [0 0 0 0 1 0]; ...                            %12
+                  'Response', [0 0 0 0 0 1]; ...                            %13
+                  };
+              
+contrasts_random_drbb = {'Encoding', [1 1 1 1 1 1 0 0]; ...                              %1
+                         'Auditory Encoding', [1 1 1 0 0 0 0 0]; ...                     %2
+                         'Visual Encoding', [0 0 0 1 1 1 0 0]; ...                       %3
+                         'Auditory vs Visual Encoding', [1 1 1 -1 -1 -1 0 0]; ...        %4
+                         'Visual vs Auditory Encoding', [-1 -1 -1 1 1 1 0 0]; ...        %5
+                         'Beat vs Interval', [1 -1 0 1 -1 0 0 0]; ...                    %6
+                         'Beat vs Random', [1 0 -1 1 0 -1 0 0]; ...                      %7
+                         'Random vs Beat', [-1 0 1 -1 0 1 0 0]; ...                      %8
+                         'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0 0]; ...   %9
+                         'Auditory Beat vs Auditory Random', [1 0 -1 0 0 0 0 0]; ...     %10
+                         'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0 0]; ...     %11
+                         'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0 0]; ...       %12
+                         'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0 0]; ...         %13
+                         'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0 0]; ...         %14
+                         'Interval vs Beat', [-1 1 0 -1 1 0 0 0]; ...                    %15
+                         'Interval vs Random', [0 1 -1 0 1 -1 0 0]; ...                  %16
+                         'Random vs Interval', [0 -1 1 0 -1 1 0 0]; ...                  %17
+                         'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0 0]; ...   %18
+                         'Auditory Interval vs Auditory Random', [0 1 -1 0 0 0 0 0]; ... %19
+                         'Auditory Random vs Auditory Interval', [0 -1 1 0 0 0 0 0]; ... %20
+                         'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0 0]; ...       %21
+                         'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0 0]; ...     %22
+                         'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0 0]; ...     %23
+                         'Decision', [0 0 0 0 0 0 1 0]; ...                              %24
+                         'Response', [0 0 0 0 0 0 0 1]; ...                              %25
+                        };
 
 %==============================================================================
 
@@ -1050,191 +1092,6 @@ switch what
             end % ses (original_events)
         end % s (sn)
         
-    case 'GLM:grand_design_standard' % make the design matrix for the glm
-        % models each condition as a separate regressors
-        % For conditions with multiple repetitions, one regressor
-        % represents all the instances
-        % msdtb_imana('GLM:grand_design_standard', 'sn', [1], ...
-        %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'},
-        %             'events_file_tag', 'splitdesign_events', ...
-        %             'output_folder', 'ffx_standard_splitdesign')
-        
-        sn = subj_id;
-        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        hrf_cutoff = 128; % for standard GLM in SPM
-        % hrf_cutoff = Inf; % for rwls
-        prefix = 'u'; % prefix of the preprocessed epi we want to use
-        events_file_tag = 'events';
-        output_folder = 'ffx_standard';
-        vararginoptions(varargin, {'sn', 'hrf_cutoff', 'design', ...
-            'events_file_tag', 'output_folder'});
-        
-        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
-        
-        % loop over subjects
-        for s = sn
-            deriv_subjdir = fullfile(base_dir, derivatives_dir, subj_str{s});
-            glms_folder = fullfile(deriv_subjdir, est_dir);
-            
-            % loop over design
-            for dg=1:length(design)
-                estimates_folder = fullfile(glms_folder, design{dg}, ...
-                    output_folder)
-
-                % Create estimates folder if does not exist or clean it
-                folder(estimates_folder)
-
-                J = []; % structure with SPM fields to make the design
-
-                J.timing.units   = 'secs';
-                J.timing.RT      = 1.2;
-                J.timing.fmri_t  = 16;
-                J.timing.fmri_t0 = 8;
-
-                J.fact             = struct('name', {}, 'levels', {});
-                J.bases.hrf.derivs = [0 0];
-                %J.bases.hrf.params = [4.5 11]; % set to [] if running wls
-                J.volt             = 1;
-                J.global           = 'None';
-                J.mask             = {char(fullfile(deriv_subjdir, ...
-                    'ses-01', func_dir, 'rmask_noskull.nii'))};
-                J.mthresh          = 1.;
-%                 J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
-%                     'ses-01', func_dir,'rmask_gray.nii'))}; % only for rwls
-                J.cvi              = 'fast';
-
-                J.dir = {estimates_folder};
-                
-                % Define tasks to be included in the design
-                if strcmp(design{dg}, 'allmain_tasks')
-                    tasks = {'prod', 'percep', 'ntfd'};
-                    ssn = ses_id; % list of sessions
-                elseif strcmp(design{dg}, 'rand_ntfd')
-                    tasks = {'ntfd'};
-                    ssn = [2];
-                else
-                    tasks = {design{dg}};
-                    ssn = ses_id; % list of sessions
-                end
-
-                % loop over sessions
-                count = 0;
-                for ses = ssn
-                % for ses = 2
-                    funcderiv_folder = fullfile(deriv_subjdir, ...
-                        ['ses-' num2str(ses, '%02d')], func_dir);
-
-                    % loop over tasks
-                    for tk=1:length(tasks)              
-                        % loop over runs
-                        if strcmp(design{dg}, 'rand_ntfd')
-                            start = 3;
-                            n_run = 4;
-                        else
-                            start = 1;
-                            n_run = 2;
-                        end
-                        % for r=2
-                        for r=start:n_run
-                            count = count + 1;
-                            fpath = fullfile(funcderiv_folder, ...
-                                sprintf(...
-                                '%s%s_ses-%02d_task-%s_run-%02d_bold.nii', ...
-                                prefix, subj_str{s}, ses, tasks{tk}, r));
-                            V = niftiinfo(fpath);
-                            numTRs = V.ImageSize(4);
-                            % fill in nifti image names for the current run
-                            N = cell(numTRs - numDummys, 1); % preallocating!
-                            for i = 1:(numTRs-numDummys)
-                                N{i} = fullfile(funcderiv_folder, ...
-                                    sprintf(...
-                                    '%s%s_ses-%02d_task-%s_run-%02d_bold.nii, %d', ...
-                                    prefix, subj_str{s}, ses, tasks{tk}, r, i));
-                            end % i (image numbers)
-
-                            % Load the scans
-                            J.sess(count).scans = N; % scans in the current runs
-
-                            J.sess(count).cond = struct('name', {}, ...
-                                'onset', {}, 'duration', {}, 'tmod', {}, ...
-                                'pmod', {}, 'orth', {});
-                            
-                            % Event Files
-                            % get the path to the tsv file
-                            tsv_file = fullfile(funcderiv_folder, sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_%s.tsv', ...
-                                subj_str{s}, ses, tasks{tk}, r, ...
-                                events_file_tag))
-
-                            % get the tsvfile for the current run
-                            D = struct([]); 
-                            D = tdfread(tsv_file,'\t');
-
-                            trial_names = {};
-                            trial_onsets = {};
-                            trial_durations = {};
-                            trial_names = cellstr(D.trial_type);
-                            trial_onsets = num2cell(D.onset);
-                            trial_durations = num2cell(D.duration);                    
-
-                            unique_names = {};
-                            unique_names = unique(trial_names).';
-                            % Remove Rest, since it will be modelled implicitly
-                            unique_names(ismember(unique_names, 'rest')) = [];
-                            % Define paradigm descriptors
-                            names = {};
-                            onsets = {};
-                            durations = {};
-
-                            % %%%%%%% Reorder regressors %%%%%%%
-                            names = reorder_regressors(unique_names, ...
-                                events_file_tag, design{dg});
-                            
-                            % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                            
-                            % Create onsets and duration cells
-                            for u = 1:length(names)
-                                indexes = [];
-                                indexes = find(strcmp(trial_names, names{u}));
-                                for idx = 1:length(indexes)
-                                    onsets{u}(idx) = trial_onsets{indexes(idx)};
-                                    durations{u}(idx) = ...
-                                        trial_durations{indexes(idx)};
-                                end
-                            end
-
-                            save(fullfile(localscratch, sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_events.mat', ...
-                                subj_str{s}, ses, tasks{tk}, r)), ...
-                                'names', 'onsets', 'durations'); 
-
-                            J.sess(count).multi = {...
-                                fullfile(localscratch, sprintf(...
-                                '%s_ses-%02d_task-%s_run-%02d_events.mat', ...
-                                subj_str{s}, ses, tasks{tk}, r))};
-
-                            J.sess(count).regress   = struct('name', {}, ...
-                                'val', {});
-                            J.sess(count).multi_reg = {''};
-                            J.sess(count).hpf       = hrf_cutoff; % set to 0'inf' if using J.cvi = 'FAST'. SPM HPF not applied
-
-                        end % r (n_run)
-                    end % tk (tasks)         
-                end % ses (ssn)
-            % FFX across specified runs and sessions            
-%             matlabbatch{1}.spm.stats.fmri_spec=J % standard GLM
-%             spm_jobman('run', matlabbatch); % standard GLM
-            
-            spm_run_fmri_spec(J); % standard GLM
-
-            end % dg (design)
-
-            % Remove *events.mat file from localscratch
-            if any(size(dir([localscratch '/*_events.mat']), 1))
-                delete([localscratch '/*_events.mat']);
-            end
-        end % sn (subject)     
-        
     case 'GLM:grand_design_rwls' % make the design matrix for the glm
         % models each condition as a separate regressors
         % For conditions with multiple repetitions, one regressor
@@ -1424,41 +1281,6 @@ switch what
                 delete([localscratch '/*_events.mat']);
             end
         end % sn (subject)     
-        
-    case 'GLM:estimate_standard' % estimate beta values
-        % Example usage:
-        % msdtb_imana('GLM:estimate_standard', 'sn', [1], ...
-        %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'}, ...
-        %             'output_folder', 'ffx_standard_splitdesign')  
-        
-        sn       = subj_id; % subject list
-        design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        output_folder = 'ffx_standard';
-        vararginoptions(varargin, {'sn', 'design', 'output_folder'});
-        
-        for s = sn
-            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, est_dir);            
-            % loop over designs
-            for dg=1:length(design)
-                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    output_folder);
-                % Delete previous estimates, if they exist
-                if any(size(dir([estdesign_folder '/*.nii']), 1))
-                    delete([estdesign_folder '/*.nii']);
-                end
-                % Load SPM.mat file with design and add path to store
-                % the new estimates
-                A = [];
-                A.spmmat = {fullfile(estdesign_folder, 'SPM.mat')};
-                A.write_residuals = 0;
-                A.method.Classical = 1;
-
-                % Add as input SPM.mat file to the rwls GLM 
-                matlabbatch{1}.spm.stats.fmri_est=A;
-                spm_jobman('run', matlabbatch);
-            end % dg (designs)
-        end % s (sn)   
 
     case 'GLM:estimate_rwls' % estimate beta values
         % Example usage:
@@ -1525,9 +1347,8 @@ switch what
         % Example usage:
         % msdtb_imana('GLM:individual_ffx_t', ...
         %             'design', {'rand_ntfd'}, ...
-        %             'contrast_prefix', {'Random NTFD: '}, ...
-        %             'contrasts_list', contrasts_random, ...
-        %             'output_folder', 'ffx_rwls_splitdesign')
+        %             'model_type', 'drbb', ...
+        %             'output_folder', 'ffx_rwls_drbb')
  
         contrasts_list = {};
         % Go to the folder of script
@@ -1538,23 +1359,34 @@ switch what
         sn = subj_id; % subject list
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'rand_ntfd'};              
+        % design = {'rand_ntfd'};
+        
+        model_type = 'dbb';
+        % model_type = 'drbb';
         
         output_folder = 'ffx_rwls';
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
-        vararginoptions(varargin, {'sn', 'design', 'contrast_prefix', ...
+        vararginoptions(varargin, {'sn', 'design', 'model_type', ...
             'output_folder'});
         
         contrasts_list = {};
         if isequal(design, {'prod', 'percep', 'ntfd', 'allmain_tasks'})
             contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
                 'AllTasks: '};
-            contrasts_list = contrasts;
+            if strcmp(model_type, 'dbb')
+                contrasts_list = contrasts;
+            elseif strcmp(model_type, 'drbb')
+                contrasts_list = contrasts_drbb;
+            end
         elseif isequal(design, {'rand_ntfd'})
             contrast_prefix = {'Random NTFD: '};
-            contrasts_list = contrasts_random;
+            if strcmp(model_type, 'dbb')
+                contrasts_list = contrasts_random;
+            elseif strcmp(model_type, 'drbb')
+                contrasts_list = contrasts_random_drbb;
+            end
         end
         
         for s = sn
@@ -1585,7 +1417,7 @@ switch what
         % Example usage: msdtb_imana(
         %                   'CON:norm_smooth', ...
         %                   'design', {'rand_ntfd'}, ...
-        %                   'input_folder', 'ffx_standard', ...
+        %                   'input_folder', 'ffx_rwls_drbb', ...
         %                   'file_type', 'spmT')     
         
         sn       = subj_id; % subject list
@@ -1859,9 +1691,7 @@ switch what
         
         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj)
         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
-                    'design', {'rand_ntfd'}, ...
-                    'contrast_prefix', {'Random NTFD: '}, ...
-                    'contrasts_scheme', 'random')
+                    'design', {'rand_ntfd'})
                 
         msdtb_imana('CON:norm_smooth', 'sn', sbj)
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'})
