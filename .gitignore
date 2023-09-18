@@ -1,9 +1,11 @@
 *.pdf
 *.asv
+*.png
 behavioral_analysis/production_results
 behavioral_analysis/perception_results
 behavioral_analysis/behavsess_results_3_4
 imaging_analysis/events
+imaging_analysis/atlases
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
