@@ -14,8 +14,11 @@ Compatibility: Python 3.10.10
 import os
 import numpy as np
 
+from scipy import ndimage
+
 from nilearn.plotting import plot_glass_brain
-from nilearn.image import load_img, get_data
+from nilearn.image import load_img, new_img_like
+
 from matplotlib import pyplot as plt
 
 
@@ -37,6 +40,26 @@ def plot_probmask(lh, rh, mask_description, output_file):
     fig.savefig(output_file, dpi=600)
 
 
+def binarize(mask_path, threshold = .8):
+
+    # Load
+    mask = load_img(mask_path)
+
+    # Threshold
+    thresholded_mask_val = mask.get_data()
+    thresholded_mask_val[thresholded_mask_val < threshold] = 0
+
+    # Binarization
+    bin_mask_val = (thresholded_mask_val != 0)
+
+    # Dilation
+    dil_bin_mask_val = ndimage.binary_dilation(bin_mask_val)
+    dil_bin_mask_val = dil_bin_mask_val.astype(int)
+    dil_bin_mask = new_img_like(mask, dil_bin_mask_val)
+
+    return dil_bin_mask
+
+
 # ############################# INPUTS ##################################
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
@@ -56,11 +79,21 @@ str_right_ln = os.path.join(
 atag_plots = os.path.join(atag, 'masks_plots')
 striatum_atag_ln_plot = os.path.join(atag_plots, 'striatum_atag_ln.png')
 
+striatum_atag_left_ln_plot = os.path.join(atag_plots, 'striatum_atag_lh_ln.png')
+
 
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
+
+    # Plot ATAG mask for striatum
     plot_probmask(str_left_ln, str_right_ln,
                   'Striatum: ATAG Linear normalized',
+                  striatum_atag_ln_plot)
+
+    # Binarize mask
+    str_atag_left_ln_mask = binarize(str_left_ln)
+    plot_probmask(str_left_ln, str_right_ln,
+                  'Striatum: ATAG Linear normalized left binarized',
                   striatum_atag_ln_plot)
 
