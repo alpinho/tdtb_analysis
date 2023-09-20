@@ -24,7 +24,8 @@ from matplotlib import pyplot as plt
 
 # ############################ FUNCTIONS ################################
 
-def plot_probmask(lh, rh, mask_description, output_file):
+def plot_probmask(lh, rh, mask_description, output_file, cb=True,
+                  color_map='viridis'):
 
     fig = plt.figure(figsize=(6, 2.5))
     # left, bottom, width, height
@@ -34,8 +35,9 @@ def plot_probmask(lh, rh, mask_description, output_file):
                                alpha=1., axes=axes, title=mask_description,
                                vmin=0., vmax=1., symmetric_cbar=False)
 
-    display.add_overlay(lh)
-    display.add_overlay(rh, colorbar=True)
+    cmap = plt.get_cmap(color_map)
+    display.add_overlay(lh, cmap=cmap)
+    display.add_overlay(rh, cmap=cmap, colorbar=cb)
 
     fig.savefig(output_file, dpi=600)
 
@@ -46,7 +48,7 @@ def binarize(mask_path, threshold = .8):
     mask = load_img(mask_path)
 
     # Threshold
-    thresholded_mask_val = mask.get_data()
+    thresholded_mask_val = mask.get_fdata()
     thresholded_mask_val[thresholded_mask_val < threshold] = 0
 
     # Binarization
@@ -95,5 +97,6 @@ if __name__ == '__main__':
     str_atag_rh_ln_bin = binarize(str_rh_ln)
     plot_probmask(str_atag_lh_ln_bin, str_atag_rh_ln_bin,
                   'Striatum: ATAG Linear normalized binarized',
-                  striatum_atag_ln_bin_plot)
+                  striatum_atag_ln_bin_plot, cb=False,
+                  color_map='viridis_r')
 
