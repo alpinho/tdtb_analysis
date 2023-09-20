@@ -71,15 +71,14 @@ atag = os.path.join(atlases_dir, 'atag')
 atag_masks = os.path.join(atag, 'Final_Neuroimage_2014_ATAG_prop_masks')
 atag_linear = os.path.join(atag_masks, 'Linear')
 atag_linear_norm = os.path.join(atag_linear, 'normalized')
-str_left_ln = os.path.join(
+str_lh_ln = os.path.join(
     atag_linear_norm, 'Linear_MP2RAGE_STR_interrater_prop_L_normalized.nii.gz')
-str_right_ln = os.path.join(
+str_rh_ln = os.path.join(
     atag_linear_norm, 'Linear_MP2RAGE_STR_interrater_prop_R_normalized.nii.gz')
 
 atag_plots = os.path.join(atag, 'masks_plots')
 striatum_atag_ln_plot = os.path.join(atag_plots, 'striatum_atag_ln.png')
-
-striatum_atag_left_ln_plot = os.path.join(atag_plots, 'striatum_atag_lh_ln.png')
+striatum_atag_ln_bin_plot = os.path.join(atag_plots, 'striatum_atag_bin_ln.png')
 
 
 # ############################## RUN ####################################
@@ -87,13 +86,14 @@ striatum_atag_left_ln_plot = os.path.join(atag_plots, 'striatum_atag_lh_ln.png')
 if __name__ == '__main__':
 
     # Plot ATAG mask for striatum
-    plot_probmask(str_left_ln, str_right_ln,
+    plot_probmask(str_lh_ln, str_rh_ln,
                   'Striatum: ATAG Linear normalized',
                   striatum_atag_ln_plot)
 
     # Binarize mask
-    str_atag_left_ln_mask = binarize(str_left_ln)
-    plot_probmask(str_left_ln, str_right_ln,
-                  'Striatum: ATAG Linear normalized left binarized',
-                  striatum_atag_ln_plot)
+    str_atag_lh_ln_bin = binarize(str_lh_ln)
+    str_atag_rh_ln_bin = binarize(str_rh_ln)
+    plot_probmask(str_atag_lh_ln_bin, str_atag_rh_ln_bin,
+                  'Striatum: ATAG Linear normalized binarized',
+                  striatum_atag_ln_bin_plot)
 
