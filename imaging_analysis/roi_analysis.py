@@ -14,7 +14,7 @@ Compatibility: Python 3.10.10
 import os
 import numpy as np
 
-from scipy import ndimage
+from scipy import ndimage, stats
 
 from nilearn.plotting import plot_glass_brain
 from nilearn.image import load_img, new_img_like, resample_to_img
@@ -25,8 +25,8 @@ from matplotlib import pyplot as plt
 
 # ############################ FUNCTIONS ################################
 
-def plot_probmask(lh, rh, mask_description, output_file, cb=True,
-                  color_map='viridis'):
+def plot_mask(lh, rh, mask_description, output_file, cb=True,
+              color_map='viridis'):
 
     fig = plt.figure(figsize=(6, 2.75))
     # left, bottom, width, height
@@ -67,6 +67,33 @@ def binarize(mask_path, threshold = .8):
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
+data_dir = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives'
+mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
+
+# SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21,
+#             22, 23, 26, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32,
+            34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+TASKS = ['prod', 'percep', 'ntfd', 'allmain_tasks']
+contrasts = {1: 'Encoding',
+             2: 'Auditory Encoding',
+             3: 'Visual Encoding',
+             4: 'Auditory vs. Visual Encoding',
+             5: 'Visual vs. Auditory Encoding',
+             6: 'Beat vs. Interval',
+             7: 'Auditory Beat vs. Auditory Interval',
+             8: 'Visual Beat vs. Visual Interval',
+             9: 'Interval vs. Beat',
+             10: 'Auditory Interval vs. Auditory Beat',
+             11: 'Visual Interval vs. Visual Beat',
+             12: 'Decision'}
+
+subjects_dir = [os.path.join(data_dir, 'sub-%02d') % sbj for sbj in SUBJECTS]
+estimates_dir = [os.path.join(subject_dir, 'estimates')
+                 for subject_dir in subjects_dir]
 
 # ATAG
 atag = os.path.join(atlases_dir, 'atag')
@@ -80,36 +107,97 @@ str_atag_rh_ln = os.path.join(
     atag_linear_norm, 'Linear_MP2RAGE_STR_interrater_prop_R_normalized.nii.gz')
 
 atag_plots = os.path.join(atag, 'masks_plots')
-striatum_atag_ln_plot = os.path.join(atag_plots, 'striatum_atag_ln.png')
-striatum_atag_ln_resampled_bin_plot = os.path.join(
+str_atag_ln_plot = os.path.join(atag_plots, 'striatum_atag_ln.png')
+str_atag_ln_resampled_bin_plot = os.path.join(
     atag_plots, 'striatum_atag_ln_resampled_bin.png')
+str_atag_lh_ln_roi = os.path.join(atag_plots, 'striatum_atag_lh_ln_roi.png')
+
+
 
 
 # ############################## RUN ####################################
-
+  
 if __name__ == '__main__':
 
     # Plot ATAG mask for striatum
-    plot_probmask(str_atag_lh_ln, str_atag_rh_ln,
-                  'Striatum: ATAG Linear normalized',
-                  striatum_atag_ln_plot)
+    # plot_mask(str_atag_lh_ln, str_atag_rh_ln,
+    #           'Striatum: ATAG Linear normalized',
+    #           str_atag_ln_plot)
 
     # Resample masks
-    con_beat_interval_path = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives/group/allmain_tasks/rfx_onesample_t_rwls/con_06_Beat_vs_Interval/con_0001.nii'
-    con_beat_interval = load_img(con_beat_interval_path)
-    resampled_str_atag_lh_ln = resample_to_img(str_atag_lh_ln,
-                                               con_beat_interval)
-    resampled_str_atag_rh_ln = resample_to_img(str_atag_rh_ln,
-                                               con_beat_interval)
+    resampled_str_atag_lh_ln = resample_to_img(str_atag_lh_ln, mask_gm)
+    resampled_str_atag_rh_ln = resample_to_img(str_atag_rh_ln, mask_gm)
 
     # Binarize masks
     str_atag_lh_ln_bin = binarize(resampled_str_atag_lh_ln)
     str_atag_rh_ln_bin = binarize(resampled_str_atag_rh_ln)
-    plot_probmask(str_atag_lh_ln_bin, str_atag_rh_ln_bin,
-                  'Striatum: ATAG Linear normalized binarized',
-                  striatum_atag_ln_resampled_bin_plot, cb=False,
-                  color_map='viridis_r')
+    # Plot
+    # plot_mask(str_atag_lh_ln_bin, str_atag_rh_ln_bin,
+    #           'Striatum: ATAG Linear normalized binarized',
+    #           str_atag_ln_resampled_bin_plot,
+    #           cb=False, color_map='viridis_r')
 
+    # Extract data from ROI
+    masker = NiftiLabelsMasker(labels_img=str_atag_lh_ln_bin, mask_img=mask_gm)
+    masker.fit()
 
+    # Load contrasts
+    # for task in TASKS:
 
+    # left, bottom, width, height
+    # ax = plt.axes([0., 0., 1., 1.])
+    contrasts_mean = []
+    pvalues = []
+    for key in contrasts.keys():
+        contrast_fname = 'wcon_%04d_desc-sm8gmmasked.nii' % key
+        print(contrast_fname)
+        masked_con = [os.path.join(estimate_dir, 'prod',
+                                   'masked_derivatives_rwls',
+                                   contrast_fname)
+                      for estimate_dir in estimates_dir]
+        print(np.array(masked_con))
 
+        # Extract mean average of contrasts effect-size in ROI...
+        # ... for every participant
+        mask_data = [masker.transform(mcon)[0][0] for mcon in masked_con]
+
+        # Compute mean
+        mean_roi = np.mean(mask_data)
+
+        # Compute stat
+        tstat, pval = stats.ttest_1samp(mask_data, popmean=0.,
+                                        alternative='greater')
+
+        contrasts_mean.append(mean_roi)
+        pvalues.append(pval)
+
+    fig = plt.figure(figsize=(12., 6))
+    cnames = list(contrasts.values())
+    y_pos = np.arange(len(cnames))
+    ax = plt.axes([.35, .1, .6, .85])
+
+    # * For "star" text_format: `[[1e-4, "****"], [1e-3, "***"],
+    #                         [1e-2, "**"], [0.05, "*"],
+    #                         [1, "ns"]]`.
+
+    pval_labels = []
+    for pval in pvalues:
+        if pval <= .0001:
+            pval_labels.append('****')
+        elif pval > .0001 and pval <= .001:
+            pval_labels.append('***')
+        elif pval > .001 and pval <= .01:
+            pval_labels.append('**')
+        elif pval > .01 and pval <= .05:
+            pval_labels.append('*')
+        else:
+            pval_labels.append('ns')
+
+    rects = ax.barh(y_pos, contrasts_mean, align='center')
+    ax.bar_label(rects, labels=pval_labels, padding=3)
+    ax.set_yticks(y_pos, labels=cnames, fontsize=16)
+    plt.xticks(fontsize=16)
+    # Hide the right and top spines
+    ax.spines[['right', 'top']].set_visible(False)
+    plt.title('Production', size=16, x=.5, fontweight='semibold')
+    fig.savefig(str_atag_lh_ln_roi, dpi=300)
