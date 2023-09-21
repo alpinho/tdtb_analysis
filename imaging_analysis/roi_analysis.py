@@ -17,7 +17,8 @@ import numpy as np
 from scipy import ndimage
 
 from nilearn.plotting import plot_glass_brain
-from nilearn.image import load_img, new_img_like
+from nilearn.image import load_img, new_img_like, resample_to_img
+from nilearn.input_data import NiftiMasker, NiftiLabelsMasker
 
 from matplotlib import pyplot as plt
 
@@ -27,7 +28,7 @@ from matplotlib import pyplot as plt
 def plot_probmask(lh, rh, mask_description, output_file, cb=True,
                   color_map='viridis'):
 
-    fig = plt.figure(figsize=(6, 2.5))
+    fig = plt.figure(figsize=(6, 2.75))
     # left, bottom, width, height
     axes = plt.axes([0., 0., 1., 1.])
 
@@ -73,14 +74,15 @@ atag = os.path.join(atlases_dir, 'atag')
 atag_masks = os.path.join(atag, 'Final_Neuroimage_2014_ATAG_prop_masks')
 atag_linear = os.path.join(atag_masks, 'Linear')
 atag_linear_norm = os.path.join(atag_linear, 'normalized')
-str_lh_ln = os.path.join(
+str_atag_lh_ln = os.path.join(
     atag_linear_norm, 'Linear_MP2RAGE_STR_interrater_prop_L_normalized.nii.gz')
-str_rh_ln = os.path.join(
+str_atag_rh_ln = os.path.join(
     atag_linear_norm, 'Linear_MP2RAGE_STR_interrater_prop_R_normalized.nii.gz')
 
 atag_plots = os.path.join(atag, 'masks_plots')
 striatum_atag_ln_plot = os.path.join(atag_plots, 'striatum_atag_ln.png')
-striatum_atag_ln_bin_plot = os.path.join(atag_plots, 'striatum_atag_bin_ln.png')
+striatum_atag_ln_resampled_bin_plot = os.path.join(
+    atag_plots, 'striatum_atag_ln_resampled_bin.png')
 
 
 # ############################## RUN ####################################
@@ -88,15 +90,26 @@ striatum_atag_ln_bin_plot = os.path.join(atag_plots, 'striatum_atag_bin_ln.png')
 if __name__ == '__main__':
 
     # Plot ATAG mask for striatum
-    plot_probmask(str_lh_ln, str_rh_ln,
+    plot_probmask(str_atag_lh_ln, str_atag_rh_ln,
                   'Striatum: ATAG Linear normalized',
                   striatum_atag_ln_plot)
 
-    # Binarize mask
-    str_atag_lh_ln_bin = binarize(str_lh_ln)
-    str_atag_rh_ln_bin = binarize(str_rh_ln)
+    # Resample masks
+    con_beat_interval_path = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives/group/allmain_tasks/rfx_onesample_t_rwls/con_06_Beat_vs_Interval/con_0001.nii'
+    con_beat_interval = load_img(con_beat_interval_path)
+    resampled_str_atag_lh_ln = resample_to_img(str_atag_lh_ln,
+                                               con_beat_interval)
+    resampled_str_atag_rh_ln = resample_to_img(str_atag_rh_ln,
+                                               con_beat_interval)
+
+    # Binarize masks
+    str_atag_lh_ln_bin = binarize(resampled_str_atag_lh_ln)
+    str_atag_rh_ln_bin = binarize(resampled_str_atag_rh_ln)
     plot_probmask(str_atag_lh_ln_bin, str_atag_rh_ln_bin,
                   'Striatum: ATAG Linear normalized binarized',
-                  striatum_atag_ln_bin_plot, cb=False,
+                  striatum_atag_ln_resampled_bin_plot, cb=False,
                   color_map='viridis_r')
+
+
+
 
