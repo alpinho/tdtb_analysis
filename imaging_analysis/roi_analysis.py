@@ -63,6 +63,26 @@ def binarize(mask_path, threshold = .8):
     return dil_bin_mask
 
 
+def pval_label_converter(pvalues):
+    # * For "star" text_format: `[[1e-4, "****"], [1e-3, "***"],
+    #                         [1e-2, "**"], [0.05, "*"],
+    #                         [1, "ns"]]`.
+    pval_labels = []
+    for pval in pvalues:
+        if pval <= .0001:
+            pval_labels.append('****')
+        elif pval > .0001 and pval <= .001:
+            pval_labels.append('***')
+        elif pval > .001 and pval <= .01:
+            pval_labels.append('**')
+        elif pval > .01 and pval <= .05:
+            pval_labels.append('*')
+        else:
+            pval_labels.append('ns')
+
+    return pval_labels
+
+
 # ############################# INPUTS ##################################
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
@@ -77,7 +97,9 @@ mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32,
             34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-TASKS = ['prod', 'percep', 'ntfd', 'allmain_tasks']
+tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
+         'allmain_tasks': 'All Tasks'}
+
 contrasts = {1: 'Encoding',
              2: 'Auditory Encoding',
              3: 'Visual Encoding',
@@ -95,40 +117,41 @@ subjects_dir = [os.path.join(data_dir, 'sub-%02d') % sbj for sbj in SUBJECTS]
 estimates_dir = [os.path.join(subject_dir, 'estimates')
                  for subject_dir in subjects_dir]
 
-# ATAG
+# ### ATAG ###
 atag = os.path.join(atlases_dir, 'atag')
 
 atag_masks = os.path.join(atag, 'Final_Neuroimage_2014_ATAG_prop_masks')
 atag_linear = os.path.join(atag_masks, 'Linear')
 atag_linear_norm = os.path.join(atag_linear, 'normalized')
+
+atag_plots = os.path.join(atag, 'masks_plots')
+
 str_atag_lh_ln = os.path.join(
     atag_linear_norm, 'Linear_MP2RAGE_STR_interrater_prop_L_normalized.nii.gz')
 str_atag_rh_ln = os.path.join(
     atag_linear_norm, 'Linear_MP2RAGE_STR_interrater_prop_R_normalized.nii.gz')
 
-atag_plots = os.path.join(atag, 'masks_plots')
 str_atag_ln_plot = os.path.join(atag_plots, 'striatum_atag_ln.png')
 str_atag_ln_resampled_bin_plot = os.path.join(
     atag_plots, 'striatum_atag_ln_resampled_bin.png')
-str_atag_lh_ln_roi = os.path.join(atag_plots, 'striatum_atag_lh_ln_roi.png')
-
-
-
+str_atag_ln_conmean = os.path.join(atag_plots, 'striatum_atag_ln_conmean.npy')
+str_atag_ln_pval = os.path.join(atag_plots, 'striatum_atag_ln_pval.npy')
+str_atag_ln_roi = os.path.join(atag_plots, 'striatum_atag_ln_roi.png')
 
 # ############################## RUN ####################################
   
 if __name__ == '__main__':
 
-    # Plot ATAG mask for striatum
+    # ## Plot ATAG mask for striatum
     # plot_mask(str_atag_lh_ln, str_atag_rh_ln,
     #           'Striatum: ATAG Linear normalized',
     #           str_atag_ln_plot)
 
-    # Resample masks
+    # ## Resample masks
     resampled_str_atag_lh_ln = resample_to_img(str_atag_lh_ln, mask_gm)
     resampled_str_atag_rh_ln = resample_to_img(str_atag_rh_ln, mask_gm)
 
-    # Binarize masks
+    # ## Binarize masks
     str_atag_lh_ln_bin = binarize(resampled_str_atag_lh_ln)
     str_atag_rh_ln_bin = binarize(resampled_str_atag_rh_ln)
     # Plot
@@ -137,67 +160,81 @@ if __name__ == '__main__':
     #           str_atag_ln_resampled_bin_plot,
     #           cb=False, color_map='viridis_r')
 
-    # Extract data from ROI
-    masker = NiftiLabelsMasker(labels_img=str_atag_lh_ln_bin, mask_img=mask_gm)
-    masker.fit()
+    # ## Extract data from ROIs in both hemispheres
+    rmasks = [str_atag_lh_ln_bin, str_atag_rh_ln_bin]
+    hemrois_contrasts_mean = []
+    hemrois_allpvalues = []
+    # # For each hemisphere
+    for rmask in rmasks:
+        masker = NiftiLabelsMasker(labels_img=rmask, mask_img=mask_gm)
+        masker.fit()
 
-    # Load contrasts
-    # for task in TASKS:
+        # # For each task design
+        allcontrasts_mean = []
+        allpvalues = []
+        for t, (tk, task) in enumerate(tasks.items()):
+            contrasts_mean = []
+            pvalues = []
 
-    # left, bottom, width, height
-    # ax = plt.axes([0., 0., 1., 1.])
-    contrasts_mean = []
-    pvalues = []
-    for key in contrasts.keys():
-        contrast_fname = 'wcon_%04d_desc-sm8gmmasked.nii' % key
-        print(contrast_fname)
-        masked_con = [os.path.join(estimate_dir, 'prod',
-                                   'masked_derivatives_rwls',
-                                   contrast_fname)
-                      for estimate_dir in estimates_dir]
-        print(np.array(masked_con))
+            # # For every contrast
+            for key in contrasts.keys():
+                contrast_fname = 'wcon_%04d_desc-sm8gmmasked.nii' % key
+                print(contrast_fname)
+                masked_con = [os.path.join(estimate_dir, tk,
+                                           'masked_derivatives_rwls',
+                                           contrast_fname)
+                              for estimate_dir in estimates_dir]
+                print(np.array(masked_con))
 
-        # Extract mean average of contrasts effect-size in ROI...
-        # ... for every participant
-        mask_data = [masker.transform(mcon)[0][0] for mcon in masked_con]
+                # Extract mean average of contrasts effect-size in ROI...
+                # ... for every participant
+                mask_data = [masker.transform(mcon)[0][0] for mcon in masked_con]
 
-        # Compute mean
-        mean_roi = np.mean(mask_data)
+                # Compute mean
+                mean_roi = np.mean(mask_data)
 
-        # Compute stat
-        tstat, pval = stats.ttest_1samp(mask_data, popmean=0.,
-                                        alternative='greater')
+                # Compute stat
+                tstat, pval = stats.ttest_1samp(mask_data, popmean=0.,
+                                                alternative='greater')
 
-        contrasts_mean.append(mean_roi)
-        pvalues.append(pval)
+                contrasts_mean.append(mean_roi)
+                pvalues.append(pval)
 
-    fig = plt.figure(figsize=(12., 6))
-    cnames = list(contrasts.values())
-    y_pos = np.arange(len(cnames))
-    ax = plt.axes([.35, .1, .6, .85])
+            allcontrasts_mean.append(contrasts_mean)
+            allpvalues.append(pvalues)
 
-    # * For "star" text_format: `[[1e-4, "****"], [1e-3, "***"],
-    #                         [1e-2, "**"], [0.05, "*"],
-    #                         [1, "ns"]]`.
+        hemrois_contrasts_mean.append(allcontrasts_mean)
+        hemrois_allpvalues.append(allpvalues)
 
-    pval_labels = []
-    for pval in pvalues:
-        if pval <= .0001:
-            pval_labels.append('****')
-        elif pval > .0001 and pval <= .001:
-            pval_labels.append('***')
-        elif pval > .001 and pval <= .01:
-            pval_labels.append('**')
-        elif pval > .01 and pval <= .05:
-            pval_labels.append('*')
+    # ## Save
+    np.save(str_atag_ln_conmean, hemrois_contrasts_mean, allow_pickle=False)
+    np.save(str_atag_ln_pval, hemrois_allpvalues, allow_pickle=False)
+
+    # ## Open and plot
+    allcontrasts_mean = np.load(str_atag_ln_conmean)
+    allpvalues = np.load(str_atag_ln_pval)
+
+    fig = plt.figure(figsize=(30, 25))
+    for r, roi in enumerate(allcontrasts_mean):
+        for c, cmean in enumerate(roi):
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.16 + r*.475, .73 - c*.23, .325, .18])
+            cnames = list(contrasts.values())
+            y_pos = np.arange(len(cnames))
+            pval_labels = pval_label_converter(allpvalues[r][c])
+            rects = ax.barh(y_pos, cmean, align='center')
+            ax.bar_label(rects, labels=pval_labels, padding=3)
+            ax.set_yticks(y_pos, labels=cnames, fontsize=16)
+            plt.xticks(fontsize=16)
+            # Hide the right and top spines
+            ax.spines[['right', 'top']].set_visible(False)
+            plt.title(list(tasks.values())[c], size=20, x=.5,
+                      fontweight='semibold')
+        if r == 0:
+            column_title = 'Left Hemisphere'
         else:
-            pval_labels.append('ns')
-
-    rects = ax.barh(y_pos, contrasts_mean, align='center')
-    ax.bar_label(rects, labels=pval_labels, padding=3)
-    ax.set_yticks(y_pos, labels=cnames, fontsize=16)
-    plt.xticks(fontsize=16)
-    # Hide the right and top spines
-    ax.spines[['right', 'top']].set_visible(False)
-    plt.title('Production', size=16, x=.5, fontweight='semibold')
-    fig.savefig(str_atag_lh_ln_roi, dpi=300)
+            column_title = 'Right Hemisphere'
+        fig.text(.25 + r*.5, .9425, column_title, ha='center',
+                 fontsize=24, weight='bold')
+    plt.suptitle('Striatum (ATAG-LN)', size=28, weight='bold', linespacing=.75)
+    fig.savefig(str_atag_ln_roi, dpi=300)
