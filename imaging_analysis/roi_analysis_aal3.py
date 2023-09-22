@@ -229,18 +229,33 @@ aal3_2mm = os.path.join(aal3_masks, 'AAL3v1.nii.gz')
 
 aal3_plot = os.path.join(aal3_plots, 'aal3.png')
 resampled_aal3_plot = os.path.join(aal3_plots, 'resampled_aal3.png')
+
 putamen_aal3_resampled_bin_plot = os.path.join(
     aal3_plots, 'putamen_aal3_resampled_bin.png')
 putamen_aal3_conmean = os.path.join(aal3_plots, 'putamen_aal3_conmean.npy')
 putamen_aal3_conpval = os.path.join(aal3_plots, 'putamen_aal3_pval.npy')
 putamen_aal3_roi = os.path.join(aal3_plots, 'putamen_aal3_roi.png')
 
+crus1_aal3_resampled_bin_plot = os.path.join(
+    aal3_plots, 'crus1_aal3_resampled_bin.png')
+crus1_aal3_conmean = os.path.join(aal3_plots, 'crus1_aal3_conmean.npy')
+crus1_aal3_conpval = os.path.join(aal3_plots, 'crus1_aal3_pval.npy')
+crus1_aal3_roi = os.path.join(aal3_plots, 'crus1_aal3_roi.png')
+
+cereb6_aal3_resampled_bin_plot = os.path.join(
+    aal3_plots, 'cereb6_aal3_resampled_bin.png')
+cereb6_aal3_conmean = os.path.join(aal3_plots, 'cereb6_aal3_conmean.npy')
+cereb6_aal3_conpval = os.path.join(aal3_plots, 'cereb6_aal3_pval.npy')
+cereb6_aal3_roi = os.path.join(aal3_plots, 'cereb6_aal3_roi.png')
+
 # ############################## RUN ####################################
   
 if __name__ == '__main__':
 
-    ## Plot ATAG mask for striatum
-    plot_mask(aal3_2mm, 'Putamen: AAL3 2mm', aal3_plot)
+    ## Plot AAL3 mask for Putamen
+    plot_mask(aal3_2mm, 'AAL3 2mm', aal3_plot)
+
+    # ######################### Putamen ##################################
 
     # ## Binarize masks
     putamen_aal3_lh_bin = binarize_equal(aal3_2mm, 77.)
@@ -269,3 +284,60 @@ if __name__ == '__main__':
     plot_roi_analyses(putamen_aal3_conmean, putamen_aal3_conpval,
                       'Putamen: AAL3', putamen_aal3_roi)
 
+    # ################## Cerebellum Crus I ##############################
+
+    # ## Binarize masks
+    crus1_aal3_lh_bin = binarize_equal(aal3_2mm, 95.)
+    crus1_aal3_rh_bin = binarize_equal(aal3_2mm, 96.)
+
+    # ## Resample masks
+    resampled_crus1_aal3_lh_bin = resample_to_img(crus1_aal3_lh_bin, mask_gm)
+    resampled_crus1_aal3_rh_bin = resample_to_img(crus1_aal3_rh_bin, mask_gm)
+
+    # ## Binarize again
+    rr_crus1_aal3_lh_bin = binarize_bigger(resampled_crus1_aal3_lh_bin,
+                                           threshold = 1.)
+    rr_crus1_aal3_rh_bin = binarize_bigger(resampled_crus1_aal3_rh_bin,
+                                           threshold = 1.)
+
+    # Plot
+    plot_mask(rr_crus1_aal3_lh_bin,
+              'Cerebellum Crus I: AAL3',
+              crus1_aal3_resampled_bin_plot,
+              rr_crus1_aal3_rh_bin,
+              cb=False, color_map='viridis_r')
+
+    # ## Extract data from ROIs in both hemispheres
+    rmasks = [rr_crus1_aal3_lh_bin, rr_crus1_aal3_rh_bin]
+    compute_rois(rmasks, crus1_aal3_conmean, crus1_aal3_conpval)
+    plot_roi_analyses(crus1_aal3_conmean, crus1_aal3_conpval,
+                      'Cerebellum Crus I: AAL3', crus1_aal3_roi)
+
+    # ################## Cerebellum VI ###############################
+
+    # ## Binarize masks
+    cereb6_aal3_lh_bin = binarize_equal(aal3_2mm, 103.)
+    cereb6_aal3_rh_bin = binarize_equal(aal3_2mm, 104.)
+
+    # ## Resample masks
+    resampled_cereb6_aal3_lh_bin = resample_to_img(cereb6_aal3_lh_bin, mask_gm)
+    resampled_cereb6_aal3_rh_bin = resample_to_img(cereb6_aal3_rh_bin, mask_gm)
+
+    # ## Binarize again
+    rr_cereb6_aal3_lh_bin = binarize_bigger(resampled_cereb6_aal3_lh_bin,
+                                            threshold = 1.)
+    rr_cereb6_aal3_rh_bin = binarize_bigger(resampled_cereb6_aal3_rh_bin,
+                                            threshold = 1.)
+
+    # Plot
+    plot_mask(rr_cereb6_aal3_lh_bin,
+              'Cerebellum VI: AAL3',
+              cereb6_aal3_resampled_bin_plot,
+              rr_cereb6_aal3_rh_bin,
+              cb=False, color_map='viridis_r')
+
+    # ## Extract data from ROIs in both hemispheres
+    rmasks = [rr_cereb6_aal3_lh_bin, rr_cereb6_aal3_rh_bin]
+    compute_rois(rmasks, cereb6_aal3_conmean, cereb6_aal3_conpval)
+    plot_roi_analyses(cereb6_aal3_conmean, cereb6_aal3_conpval,
+                      'Cerebellum VI: AAL3', cereb6_aal3_roi)
