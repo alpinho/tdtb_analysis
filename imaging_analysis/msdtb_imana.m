@@ -72,16 +72,15 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % List of all subjects
-% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
-%     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
-% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, ... 
-%     32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 16, 18, 20, 22, 23, 28, 29, 32, 34, ...
-    35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+subj_n = [21, 26];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -105,8 +104,10 @@ end
 %           [0.7 22.8 -36.9], ...       %sub-16   
 %           [2.2 29.3 19.0], ...        %sub-18
 %           [1.8 30.4 -24.3], ...       %sub-20
+%           [0.9 21.8 -10.5], ...       %sub-21
 %           [0.9 32.4 -25.0], ...       %sub-22
 %           [-2.5 25.9 -37.6], ...      %sub-23
+%           [5.7 26.9 -13.7], ...       %sub-26
 %           [3.5 25.9 -36.0], ...       %sub-28
 %           [1.6 20.0 -1.1], ...        %sub-29
 %           [4.5 22.3 -21.5], ...       %sub-32
@@ -125,8 +126,8 @@ end
 %           };
 
 loc_AC = {
-          [-0.3 19.5 17.6], ...         %sub-46
-          [4.8 32.2 -10.0], ...         %sub-47
+          [0.9 21.8 -10.5], ...         %sub-21
+          [5.7 26.9 -13.7], ...         %sub-26
           };
 
 numDummys = 0;
@@ -1829,8 +1830,8 @@ switch what
     case 'GROUP:onesample_t_design'
         % Example usage: msdtb_imana('GROUP:onesample_t_design', ...
         %                'design', {'rand_ntfd'}, ...
-        %                'input_folder', 'masked_derivatives_standard', ...
-        %                'output_folder', 'rfx_onesample_t_standard', ...
+        %                'input_folder', 'masked_derivatives_rwls_drbb', ...
+        %                'output_folder', 'rfx_onesample_t_drbb', ...
         %                'suffix', 'sm8gmmasked')
         
         sn       = subj_id; % subject list
@@ -1906,7 +1907,7 @@ switch what
     case 'GROUP:estimation'
         % Example usage: msdtb_imana('GROUP:estimation', ...
         %                            'design', {'rand_ntfd'}, ...
-        %                            'model', {'rfx_onesample_t_rwls_splitdesign'})
+        %                            'model', {'rfx_onesample_t_rwls_drbb'})
         
         sn       = subj_id; % subject list
         
@@ -1957,14 +1958,14 @@ switch what
         % Estimate rfx group tmaps
         % Example usage: msdtb_imana('GROUP:rfx_t', ...
         %                            'design', {'rand_ntfd'}, ...
-        %                            'model', {'rfx_onesample_t_rwls_splitdesign'})
+        %                            'model', {'rfx_onesample_t_rwls_drbb'})
         
         sn       = subj_id; % subject list
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        model = {'rfx_onesample_t_rwls'}; % or 'rfx_onesample_t_rwls_splitdesign'
+        model = {'rfx_onesample_t_rwls'}; % or 'rfx_onesample_t_rwls_drbb'
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
