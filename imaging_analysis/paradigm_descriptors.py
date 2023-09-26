@@ -454,7 +454,7 @@ def extraction_drbb(data, cat, header, events_dir, ttl = True, flag=0,
 #             32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Working list
-SUBJECTS = [4]
+SUBJECTS = [21, 26]
 
 CATEGORIES = ['Production', 'Perception', 'No-Temporal Feature Discrimination']
 MODALITIES = ['Auditory', 'Visual']
