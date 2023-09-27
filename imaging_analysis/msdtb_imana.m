@@ -80,7 +80,8 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [21, 26];
+subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, ...
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -1831,7 +1832,7 @@ switch what
         % Example usage: msdtb_imana('GROUP:onesample_t_design', ...
         %                'design', {'rand_ntfd'}, ...
         %                'input_folder', 'masked_derivatives_rwls_drbb', ...
-        %                'output_folder', 'rfx_onesample_t_drbb', ...
+        %                'output_folder', 'rfx_onesample_t_gm_drbb', ...
         %                'suffix', 'sm8gmmasked')
         
         sn       = subj_id; % subject list
@@ -1840,7 +1841,7 @@ switch what
         % design = {'rand_ntfd'};
         
         input_folder = 'masked_derivatives_rwls';
-        output_folder = 'rfx_onesample_t_rwls';
+        output_folder = 'rfx_onesample_t_rwls_wb';
         
         suffix = 'sm8wbmasked';
         
@@ -1907,14 +1908,14 @@ switch what
     case 'GROUP:estimation'
         % Example usage: msdtb_imana('GROUP:estimation', ...
         %                            'design', {'rand_ntfd'}, ...
-        %                            'model', {'rfx_onesample_t_rwls_drbb'})
+        %                            'model', {'rfx_onesample_t_rwls_gm_drbb'})
         
         sn       = subj_id; % subject list
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        model = {'rfx_onesample_t_rwls'}; % or 'rfx_onesample_t_rwls_splitdesign'
+        model = {'rfx_onesample_t_rwls_wb'};
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -1958,14 +1959,14 @@ switch what
         % Estimate rfx group tmaps
         % Example usage: msdtb_imana('GROUP:rfx_t', ...
         %                            'design', {'rand_ntfd'}, ...
-        %                            'model', {'rfx_onesample_t_rwls_drbb'})
+        %                            'model', {'rfx_onesample_t_rwls_gm_drbb'})
         
         sn       = subj_id; % subject list
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        model = {'rfx_onesample_t_rwls'}; % or 'rfx_onesample_t_rwls_drbb'
+        model = {'rfx_onesample_t_rwls_wb'}; % or 'rfx_onesample_t_rwls_gm_drbb'
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
