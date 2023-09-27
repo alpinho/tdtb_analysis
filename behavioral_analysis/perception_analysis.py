@@ -763,16 +763,20 @@ def threeway_repanova(df, this_dir, output_dir):
                           positions=np.arange(len(x))*2. - width,
                           widths=0.6,
                           flierprops={'marker': '', 'markersize': 5},
-                          patch_artist=True)
+                          patch_artist=True,
+                          medianprops = dict(color="black",linewidth=1.5))
         interval = ax.boxplot(dl_interval,
                               bootstrap=100,
                               positions=np.arange(len(x))*2. + width,
                               widths=0.6,
                               flierprops={'marker': '', 'markersize': 5},
-                              patch_artist=True)
+                              patch_artist=True,
+                              medianprops = dict(color="black",linewidth=1.5))
 
         # Fill boxes with colors
-        colors = ['b', 'y']
+        # colors = ['tab:blue', 'tab:orange']
+        colors = [[0.12156862745098039, 0.4666666666666667, 0.7058823529411765, 0.5],
+                  [1, 0.4980392156862745, 0.054901960784313725, 0.5]]
         for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
             patch1.set_facecolor(colors[0])
             patch2.set_facecolor(colors[1])
@@ -792,7 +796,7 @@ def threeway_repanova(df, this_dir, output_dir):
                       loc='upper right', frameon=False,
                       prop={'size': 12})
             # Title of each plot
-            ax.set_title('Auditory Conditions', fontweight='semibold',
+            ax.set_title('Auditory Perception', fontweight='semibold',
                          size=10, y=.95)
             # Set name for y-axis
             ax.set_ylabel('Group DL')
@@ -803,7 +807,7 @@ def threeway_repanova(df, this_dir, output_dir):
             # ... remove labels and ticks
             ax.axes.get_yaxis().set_visible(False)
             # Title of each plot
-            ax.set_title('Visual Conditions', fontweight='semibold', size=10,
+            ax.set_title('Visual Perception', fontweight='semibold', size=10,
                          y=.95)
 
         # Set limits of ticks in y axis
