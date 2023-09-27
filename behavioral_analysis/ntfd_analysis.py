@@ -919,6 +919,7 @@ def plot_pttest(data_audio, data_visual,
         d = {x: conditions, y: data_list}
         df = pd.DataFrame(data=d)
 
+        colors = ['tab:blue', 'tab:orange', 'tab:pink']
         # Create bar plot
         sns.barplot(ax=ax[m],
             x=x,
@@ -926,6 +927,7 @@ def plot_pttest(data_audio, data_visual,
             data=df,
             estimator=np.mean,
             ci=95, # 1.96 * standard error (95% confidence interval)
+                    palette=colors,
             errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
 
         # Annotate
