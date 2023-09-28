@@ -121,7 +121,7 @@ def compute_rois(rmasks, arr_conmean, arr_conpval):
 
             # # For every contrast
             for key in contrasts.keys():
-                contrast_fname = 'wcon_%04d_desc-sm8gmmasked.nii' % key
+                contrast_fname = 'wcon_%04d_desc-sm8wbmasked.nii' % key
                 print(contrast_fname)
                 masked_con = [os.path.join(estimate_dir, tk,
                                            'masked_derivatives_rwls',
@@ -155,7 +155,7 @@ def compute_rois(rmasks, arr_conmean, arr_conpval):
     np.save(arr_conpval, hemrois_allpvalues, allow_pickle=False)
 
 
-def plot_roi_analyses(arr_conmean, arr_conpval, roi_ref, output_file):
+def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
     # ## Open npy files and plot
     allcontrasts_mean = np.load(arr_conmean)
     allpvalues = np.load(arr_conpval)
@@ -182,6 +182,49 @@ def plot_roi_analyses(arr_conmean, arr_conpval, roi_ref, output_file):
             column_title = 'Right Hemisphere'
         fig.text(.25 + r*.5, .9425, column_title, ha='center',
                  fontsize=24, weight='bold')
+    plt.suptitle(roi_ref, size=28, weight='bold', linespacing=.75)
+    fig.savefig(output_file, dpi=300)
+
+
+def plot_roi_vertical(arr_conmean, arr_conpval, roi_ref, output_file):
+    # ## Open npy files and plot
+    allcontrasts_mean = np.load(arr_conmean).tolist()
+    allpvalues = np.load(arr_conpval).tolist()
+
+    fig = plt.figure(figsize=(30, 35))
+    # For each hemisphere
+    for r, roi in enumerate(allcontrasts_mean):
+        # For each task
+        for c, cmean in enumerate(roi):
+            # Filter conditions
+            filtered_idx = list(filtered_contrasts.keys())
+            filtered_cmean = [cmean[i] for i in filtered_idx]
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.16 + r*.475, .73 - c*.2, .15, .1])
+            cnames = list(filtered_contrasts.values())
+            x_pos = [.2, .35, .65, .8]
+            filtered_pvalues = [allpvalues[r][c][i] for i in filtered_idx]
+            pval_labels = pval_label_converter(filtered_pvalues)
+            rects = ax.bar(x_pos, filtered_cmean, align='center', width=.1,
+                           color=['mediumseagreen', 'gold', 'mediumseagreen', 'gold'])
+            # ax.bar_label(rects, labels=pval_labels, padding=3)
+            ax.set_xticks(x_pos, labels=cnames, fontsize=16, fontweight='semibold', rotation=45, ha='right')
+            ax.xaxis.set_tick_params(width=10.)
+            plt.yticks(fontsize=16, fontweight='semibold')
+            ax.set_ylim([-.24, .24])
+            ax.set_ylabel('Effect Size', fontweight='semibold', fontsize=20)
+            for axis in ['top','bottom','left','right']:
+                ax.spines[axis].set_linewidth(2)
+            # Hide the right and top spines
+            ax.spines[['right', 'top']].set_visible(False)
+            plt.title(list(tasks.values())[c], size=30, x=.5,
+                      fontweight='semibold')
+        if r == 0:
+            column_title = 'Left Hemisphere'
+        else:
+            column_title = 'Right Hemisphere'
+        fig.text(.25 + r*.5, .9425, column_title, ha='center',
+                 fontsize=30, weight='bold')
     plt.suptitle(roi_ref, size=28, weight='bold', linespacing=.75)
     fig.savefig(output_file, dpi=300)
 
@@ -216,6 +259,12 @@ contrasts = {1: 'Encoding',
              11: 'Visual Interval vs. Visual Beat',
              12: 'Decision'}
 
+filtered_contrasts = {
+             1: 'AE',
+             2: 'VE',
+             7: 'AB vs. AI',
+             8: 'VB vs. VI'}
+
 subjects_dir = [os.path.join(data_dir, 'sub-%02d') % sbj for sbj in SUBJECTS]
 estimates_dir = [os.path.join(subject_dir, 'estimates')
                  for subject_dir in subjects_dir]
@@ -235,18 +284,21 @@ putamen_aal3_resampled_bin_plot = os.path.join(
 putamen_aal3_conmean = os.path.join(aal3_plots, 'putamen_aal3_conmean.npy')
 putamen_aal3_conpval = os.path.join(aal3_plots, 'putamen_aal3_pval.npy')
 putamen_aal3_roi = os.path.join(aal3_plots, 'putamen_aal3_roi.png')
+putamen_aal3_roiv = os.path.join(aal3_plots, 'putamen_aal3_roi_vertical.png')
 
 crus1_aal3_resampled_bin_plot = os.path.join(
     aal3_plots, 'crus1_aal3_resampled_bin.png')
 crus1_aal3_conmean = os.path.join(aal3_plots, 'crus1_aal3_conmean.npy')
 crus1_aal3_conpval = os.path.join(aal3_plots, 'crus1_aal3_pval.npy')
 crus1_aal3_roi = os.path.join(aal3_plots, 'crus1_aal3_roi.png')
+crus1_aal3_roiv = os.path.join(aal3_plots, 'crus1_aal3_roi_vertical.png')
 
 cereb6_aal3_resampled_bin_plot = os.path.join(
     aal3_plots, 'cereb6_aal3_resampled_bin.png')
 cereb6_aal3_conmean = os.path.join(aal3_plots, 'cereb6_aal3_conmean.npy')
 cereb6_aal3_conpval = os.path.join(aal3_plots, 'cereb6_aal3_pval.npy')
 cereb6_aal3_roi = os.path.join(aal3_plots, 'cereb6_aal3_roi.png')
+cereb6_aal3_roiv = os.path.join(aal3_plots, 'cereb6_aal3_roi_vertical.png')
 
 # ############################## RUN ####################################
   
@@ -257,87 +309,120 @@ if __name__ == '__main__':
 
     # ######################### Putamen ##################################
 
-    # ## Binarize masks
-    putamen_aal3_lh_bin = binarize_equal(aal3_2mm, 77.)
-    putamen_aal3_rh_bin = binarize_equal(aal3_2mm, 78.)
+    # # ## Binarize masks
+    # putamen_aal3_lh_bin = binarize_equal(aal3_2mm, 77.)
+    # putamen_aal3_rh_bin = binarize_equal(aal3_2mm, 78.)
 
-    # ## Resample masks
-    resampled_putamen_aal3_lh_bin = resample_to_img(putamen_aal3_lh_bin,
-                                                    mask_gm)
-    resampled_putamen_aal3_rh_bin = resample_to_img(putamen_aal3_rh_bin,
-                                                    mask_gm)
+    # # ## Resample masks
+    # resampled_putamen_aal3_lh_bin = resample_to_img(putamen_aal3_lh_bin,
+    #                                                 mask_gm)
+    # resampled_putamen_aal3_rh_bin = resample_to_img(putamen_aal3_rh_bin,
+    #                                                 mask_gm)
 
-    # ## Binarize again
-    rr_putamen_aal3_lh_bin = binarize_bigger(resampled_putamen_aal3_lh_bin)
-    rr_putamen_aal3_rh_bin = binarize_bigger(resampled_putamen_aal3_rh_bin)
+    # # ## Binarize again
+    # rr_putamen_aal3_lh_bin = binarize_bigger(resampled_putamen_aal3_lh_bin)
+    # rr_putamen_aal3_rh_bin = binarize_bigger(resampled_putamen_aal3_rh_bin)
 
-    # Plot
-    plot_mask(rr_putamen_aal3_lh_bin,
-              'Putamen: AAL3',
-              putamen_aal3_resampled_bin_plot,
-              rr_putamen_aal3_rh_bin,
-              cb=False, color_map='viridis_r')
+    # # Plot
+    # plot_mask(rr_putamen_aal3_lh_bin,
+    #           'Putamen: AAL3',
+    #           putamen_aal3_resampled_bin_plot,
+    #           rr_putamen_aal3_rh_bin,
+    #           cb=False, color_map='viridis_r')
+
+    # # ## Save maks
+    # rr_putamen_aal3_lh_bin.to_filename(os.path.join(aal3_plots,
+    #                                                 'aal3_putamen_lh.nii.gz'))
+    # rr_putamen_aal3_rh_bin.to_filename(os.path.join(aal3_plots,
+    #                                                 'aal3_putamen_rh.nii.gz'))
 
     # ## Extract data from ROIs in both hemispheres
-    rmasks = [rr_putamen_aal3_lh_bin, rr_putamen_aal3_rh_bin]
-    compute_rois(rmasks, putamen_aal3_conmean, putamen_aal3_conpval)
-    plot_roi_analyses(putamen_aal3_conmean, putamen_aal3_conpval,
-                      'Putamen: AAL3', putamen_aal3_roi)
+    # rmasks = [rr_putamen_aal3_lh_bin, rr_putamen_aal3_rh_bin]
+    # compute_rois(rmasks, putamen_aal3_conmean, putamen_aal3_conpval)
+
+    # Plot
+    # plot_roi_horizontal(putamen_aal3_conmean, putamen_aal3_conpval,
+    #                     'Putamen: AAL3', putamen_aal3_roi)
+
+    plot_roi_vertical(putamen_aal3_conmean, putamen_aal3_conpval,
+                      'Putamen: AAL3', putamen_aal3_roiv)
 
     # ################## Cerebellum Crus I ##############################
 
-    # ## Binarize masks
-    crus1_aal3_lh_bin = binarize_equal(aal3_2mm, 95.)
-    crus1_aal3_rh_bin = binarize_equal(aal3_2mm, 96.)
+    # # ## Binarize masks
+    # crus1_aal3_lh_bin = binarize_equal(aal3_2mm, 95.)
+    # crus1_aal3_rh_bin = binarize_equal(aal3_2mm, 96.)
 
-    # ## Resample masks
-    resampled_crus1_aal3_lh_bin = resample_to_img(crus1_aal3_lh_bin, mask_gm)
-    resampled_crus1_aal3_rh_bin = resample_to_img(crus1_aal3_rh_bin, mask_gm)
+    # # ## Resample masks
+    # resampled_crus1_aal3_lh_bin = resample_to_img(crus1_aal3_lh_bin, mask_gm)
+    # resampled_crus1_aal3_rh_bin = resample_to_img(crus1_aal3_rh_bin, mask_gm)
 
-    # ## Binarize again
-    rr_crus1_aal3_lh_bin = binarize_bigger(resampled_crus1_aal3_lh_bin,
-                                           threshold = 1.)
-    rr_crus1_aal3_rh_bin = binarize_bigger(resampled_crus1_aal3_rh_bin,
-                                           threshold = 1.)
+    # # ## Binarize again
+    # rr_crus1_aal3_lh_bin = binarize_bigger(resampled_crus1_aal3_lh_bin,
+    #                                        threshold = 1.)
+    # rr_crus1_aal3_rh_bin = binarize_bigger(resampled_crus1_aal3_rh_bin,
+    #                                        threshold = 1.)
 
-    # Plot
-    plot_mask(rr_crus1_aal3_lh_bin,
-              'Cerebellum Crus I: AAL3',
-              crus1_aal3_resampled_bin_plot,
-              rr_crus1_aal3_rh_bin,
-              cb=False, color_map='viridis_r')
+    # # Plot
+    # plot_mask(rr_crus1_aal3_lh_bin,
+    #           'Cerebellum Crus I: AAL3',
+    #           crus1_aal3_resampled_bin_plot,
+    #           rr_crus1_aal3_rh_bin,
+    #           cb=False, color_map='viridis_r')
+
+    # # ## Save maks
+    # rr_crus1_aal3_lh_bin.to_filename(os.path.join(aal3_plots,
+    #                                               'aal3_crus1_lh.nii.gz'))
+    # rr_crus1_aal3_rh_bin.to_filename(os.path.join(aal3_plots,
+    #                                               'aal3_crus1_rh.nii.gz'))
 
     # ## Extract data from ROIs in both hemispheres
-    rmasks = [rr_crus1_aal3_lh_bin, rr_crus1_aal3_rh_bin]
-    compute_rois(rmasks, crus1_aal3_conmean, crus1_aal3_conpval)
-    plot_roi_analyses(crus1_aal3_conmean, crus1_aal3_conpval,
-                      'Cerebellum Crus I: AAL3', crus1_aal3_roi)
+    # rmasks = [rr_crus1_aal3_lh_bin, rr_crus1_aal3_rh_bin]
+    # compute_rois(rmasks, crus1_aal3_conmean, crus1_aal3_conpval)
+
+    # Plot
+    plot_roi_horizontal(crus1_aal3_conmean, crus1_aal3_conpval,
+                        'Cerebellum Crus I: AAL3', crus1_aal3_roi)
+
+    plot_roi_vertical(crus1_aal3_conmean, crus1_aal3_conpval,
+                      'Crus1: AAL3', crus1_aal3_roiv)
 
     # ################## Cerebellum VI ###############################
 
-    # ## Binarize masks
-    cereb6_aal3_lh_bin = binarize_equal(aal3_2mm, 103.)
-    cereb6_aal3_rh_bin = binarize_equal(aal3_2mm, 104.)
+    # # ## Binarize masks
+    # cereb6_aal3_lh_bin = binarize_equal(aal3_2mm, 103.)
+    # cereb6_aal3_rh_bin = binarize_equal(aal3_2mm, 104.)
 
-    # ## Resample masks
-    resampled_cereb6_aal3_lh_bin = resample_to_img(cereb6_aal3_lh_bin, mask_gm)
-    resampled_cereb6_aal3_rh_bin = resample_to_img(cereb6_aal3_rh_bin, mask_gm)
+    # # ## Resample masks
+    # resampled_cereb6_aal3_lh_bin = resample_to_img(cereb6_aal3_lh_bin, mask_gm)
+    # resampled_cereb6_aal3_rh_bin = resample_to_img(cereb6_aal3_rh_bin, mask_gm)
 
-    # ## Binarize again
-    rr_cereb6_aal3_lh_bin = binarize_bigger(resampled_cereb6_aal3_lh_bin,
-                                            threshold = 1.)
-    rr_cereb6_aal3_rh_bin = binarize_bigger(resampled_cereb6_aal3_rh_bin,
-                                            threshold = 1.)
+    # # ## Binarize again
+    # rr_cereb6_aal3_lh_bin = binarize_bigger(resampled_cereb6_aal3_lh_bin,
+    #                                         threshold = 1.)
+    # rr_cereb6_aal3_rh_bin = binarize_bigger(resampled_cereb6_aal3_rh_bin,
+    #                                         threshold = 1.)
 
-    # Plot
-    plot_mask(rr_cereb6_aal3_lh_bin,
-              'Cerebellum VI: AAL3',
-              cereb6_aal3_resampled_bin_plot,
-              rr_cereb6_aal3_rh_bin,
-              cb=False, color_map='viridis_r')
+    # # Plot
+    # plot_mask(rr_cereb6_aal3_lh_bin,
+    #           'Cerebellum VI: AAL3',
+    #           cereb6_aal3_resampled_bin_plot,
+    #           rr_cereb6_aal3_rh_bin,
+    #           cb=False, color_map='viridis_r')
+
+    # # ## Save maks
+    # rr_cereb6_aal3_lh_bin.to_filename(os.path.join(aal3_plots,
+    #                                                'aal3_cereb6_lh.nii.gz'))
+    # rr_cereb6_aal3_rh_bin.to_filename(os.path.join(aal3_plots,
+    #                                                'aal3_cereb6_rh.nii.gz'))
 
     # ## Extract data from ROIs in both hemispheres
-    rmasks = [rr_cereb6_aal3_lh_bin, rr_cereb6_aal3_rh_bin]
-    compute_rois(rmasks, cereb6_aal3_conmean, cereb6_aal3_conpval)
-    plot_roi_analyses(cereb6_aal3_conmean, cereb6_aal3_conpval,
-                      'Cerebellum VI: AAL3', cereb6_aal3_roi)
+    # rmasks = [rr_cereb6_aal3_lh_bin, rr_cereb6_aal3_rh_bin]
+    # compute_rois(rmasks, cereb6_aal3_conmean, cereb6_aal3_conpval)
+
+    # Plot
+    plot_roi_horizontal(cereb6_aal3_conmean, cereb6_aal3_conpval,
+                        'Cerebellum VI: AAL3', cereb6_aal3_roi)
+
+    plot_roi_vertical(cereb6_aal3_conmean, cereb6_aal3_conpval,
+                      'Cerebellum VI: AAL3', cereb6_aal3_roiv)
