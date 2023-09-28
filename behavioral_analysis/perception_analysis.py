@@ -738,37 +738,37 @@ def threeway_repanova(df, this_dir, output_dir):
     # Plot
     modalities = np.unique(df.Modality).tolist()
     conditions = np.unique(df.Condition).tolist()
-    standards = np.unique(df.Standard).tolist()
+    # standards = np.unique(df.Standard).tolist()
 
     for m, modality in enumerate(modalities):
         if modality == 'audio':
-            fig = plt.figure(figsize=(8, 4))
+            fig = plt.figure(figsize=(3.75, 4))
 
         # Define subplot of bar charts and its position in the fig
         # plt.axes([left, bottom, width, height])
-        ax = plt.axes([.075 + m*.45, .15, .43, .75])
+        ax = plt.axes([.175 + m*.425, .15, .39, .7])
 
-        x_labels = [str(st) for st in standards]
+        x_labels = [str(cd).capitalize() for cd in conditions]
         x = np.arange(len(x_labels))  # the label locations
-        width = 0.35  # the width of the bars
+        width = .275  # the width of the bars
 
-        dl_beat = [df[df.Modality==modality][df.Condition=='beat'][
-            df.Standard==st].DL.values.tolist() for st in standards]
+        dl_beat = df[df.Modality==modality][
+            df.Condition=='beat'].DL.values.tolist()
 
-        dl_interval = [df[df.Modality==modality][df.Condition=='interval'][
-            df.Standard==st].DL.values.tolist() for st in standards]
+        dl_interval = df[df.Modality==modality][
+            df.Condition=='interval'].DL.values.tolist()
 
         beat = ax.boxplot(dl_beat,
                           bootstrap=100,
-                          positions=np.arange(len(x))*2. - width,
-                          widths=0.6,
+                          positions=[.2],
+                          widths=width,
                           flierprops={'marker': '', 'markersize': 5},
                           patch_artist=True,
                           medianprops = dict(color="black",linewidth=1.5))
         interval = ax.boxplot(dl_interval,
                               bootstrap=100,
-                              positions=np.arange(len(x))*2. + width,
-                              widths=0.6,
+                              positions=[.8],
+                              widths=width,
                               flierprops={'marker': '', 'markersize': 5},
                               patch_artist=True,
                               medianprops = dict(color="black",linewidth=1.5))
@@ -782,7 +782,7 @@ def threeway_repanova(df, this_dir, output_dir):
             patch2.set_facecolor(colors[1])
 
         # Set ticks labels in x-axis
-        ax.set_xticks(x*2., x_labels)
+        ax.set_xticks([.2, .8], x_labels)
 
         # Hide the right and top spines
         ax.spines['right'].set_visible(False)
@@ -797,9 +797,9 @@ def threeway_repanova(df, this_dir, output_dir):
                       prop={'size': 12})
             # Title of each plot
             ax.set_title('Auditory Perception', fontweight='semibold',
-                         size=10, y=.95)
+                         size=9, y=.95)
             # Set name for y-axis
-            ax.set_ylabel('Group DL')
+            ax.set_ylabel('Group DL across Standards')
         # For the second plot
         else:
             # ... remove y frame on the left
@@ -807,23 +807,23 @@ def threeway_repanova(df, this_dir, output_dir):
             # ... remove labels and ticks
             ax.axes.get_yaxis().set_visible(False)
             # Title of each plot
-            ax.set_title('Visual Perception', fontweight='semibold', size=10,
+            ax.set_title('Visual Perception', fontweight='semibold', size=9,
                          y=.95)
 
         # Set limits of ticks in y axis
         plt.ylim([-.025, .25])
 
         # Set name for x-axis
-        fig.text(.45, .025, 'Standards (ms)', size=12)
+        fig.text(.435, .025, 'Conditions', size=12)
 
     # Title
     plt.suptitle(
-        'Descriptive Stats of Group DL for 3-way Repeated Measures ANOVA',
-        x=.5, y=.98, size=12, linespacing=.75)
+        'Descriptive Stats of Group DL across Standards for\n\n3-way' + \
+        ' Repeated Measures ANOVA',
+        x=.5, y=.98, size=10, linespacing=.75)
 
     # Save figure
     plt.savefig(os.path.join(output_folder, 'threeway_boxplot.pdf'))
-
 
 # %%
 # =========================== INPUTS ===================================
