@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: January 2023
-Last Update: September 2023
+Last Update: October 2023
 
 Compatibility: Python 3.10.4
 
@@ -454,7 +454,7 @@ def extraction_drbb(data, cat, header, events_dir, ttl = True, flag=0,
 #             32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Working list
-SUBJECTS = [21, 26]
+SUBJECTS = [26]
 
 CATEGORIES = ['Production', 'Perception', 'No-Temporal Feature Discrimination']
 MODALITIES = ['Auditory', 'Visual']
