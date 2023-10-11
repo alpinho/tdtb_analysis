@@ -1022,12 +1022,12 @@ switch what
         msdtb_imana('GROUP:mask')
 
     case 'GLM:copy_paradigm-descriptors'
-        % Example usage: msdtb_imana('GLM:copy_paradigm_descriptors', ...
+        % Example usage: msdtb_imana('GLM:copy_paradigm-descriptors', ...
         %                            'paradigm_type', 'drbb')
 
         sn  = subj_id;
 
-        paradigm_type = '';
+        paradigm_type = ''; % default: dbb
         % paradigm_type = 'drbb';
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
