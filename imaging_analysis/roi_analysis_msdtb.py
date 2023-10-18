@@ -201,15 +201,6 @@ def plot_roi_vertical(arr_conmean, arr_conpval, roi_ref, output_file):
 
 # ############################# INPUTS ##################################
 
-working_dir = os.path.dirname(os.path.abspath(__file__))
-atlases_dir = os.path.join(working_dir, 'atlases')
-
-hos_dir = os.path.join(atlases_dir, 'harvardoxford_subcortical')
-hos_putamen_lh_maskpath = os.path.join(hos_dir,
-                                       'hos_putamen_lh_mask.nii.gz')
-hos_putamen_rh_maskpath = os.path.join(hos_dir,
-                                       'hos_putamen_rh_mask.nii.gz')
-
 data_dir = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives'
 mask_wb = os.path.join(data_dir, 'group/anat/group_mask_noskull.nii')
 mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
@@ -252,7 +243,6 @@ estimates_dir = [os.path.join(subject_dir, 'estimates')
 wb_masking = 'wb'
 gm_masking = 'gm'
 
-
 con_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ wb_masking + \
     '/con_01_Encoding/con_0001.nii'
 con_path = os.path.join(data_dir, con_relative_path)
@@ -260,81 +250,173 @@ con_path = os.path.join(data_dir, con_relative_path)
 thresh_min = 0
 thresh_max = 1.
 
+##########################################################
+
+working_dir = os.path.dirname(os.path.abspath(__file__))
+atlases_dir = os.path.join(working_dir, 'atlases')
+fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
+
+hos_putamen_lh_maskpath = os.path.join(
+    fsl_dir, 'hos_putamen_lh_mask.nii.gz')
+hos_putamen_rh_maskpath = os.path.join(
+    fsl_dir, 'hos_putamen_rh_mask.nii.gz')
+
+mniflirt_cereb6_lh_maskpath = os.path.join(
+    fsl_dir, 'mniflirt_cereb6_lh_mask.nii.gz')
+mniflirt_cereb6_rh_maskpath = os.path.join(
+    fsl_dir, 'mniflirt_cereb6_rh_mask.nii.gz')
+
 msdtb_folder = os.path.join(atlases_dir, 'msdtb')
-msdtb_putamen_lh_mask_path = os.path.join(msdtb_folder,
-                                          'putamen_msdtb_mask_lh.nii.gz')
-msdtb_putamen_rh_mask_path = os.path.join(msdtb_folder,
-                                          'putamen_msdtb_mask_rh.nii.gz')
+
+msdtb_putamen_lh_maskpath = os.path.join(msdtb_folder,
+                                         'msdtb_putamen_mask_lh.nii.gz')
+msdtb_putamen_rh_maskpath = os.path.join(msdtb_folder,
+                                         'msdtb_putamen_mask_rh.nii.gz')
 msdtb_putamen_maskplot = os.path.join(msdtb_folder,
-                                      'putamen_msdtb_maskplot.png')
+                                      'msdtb_putamen_maskplot.png')
 msdtb_putamen_conmean = os.path.join(msdtb_folder,
                                      'msdtb_putamen_conmean.npy')
 msdtb_putamen_conpval = os.path.join(msdtb_folder,
                                      'msdtb_putamen_conpval.npy')
-putamen_msdtb_roiv = os.path.join(msdtb_folder,
-                                  'putamen_msdtb_roi_verticalbarplot.png')
+msdtb_putamen_roiv = os.path.join(msdtb_folder,
+                                  'msdtb_putamen_roi_verticalbarplot.png')
+
+msdtb_cereb6_lh_maskpath = os.path.join(msdtb_folder,
+                                        'msdtb_cereb6_mask_lh.nii.gz')
+msdtb_cereb6_rh_maskpath = os.path.join(msdtb_folder,
+                                        'msdtb_cereb6_mask_rh.nii.gz')
+msdtb_cereb6_maskplot = os.path.join(msdtb_folder,
+                                     'msdtb_cereb6_maskplot.png')
+msdtb_cereb6_conmean = os.path.join(msdtb_folder,
+                                    'msdtb_cereb6_conmean.npy')
+msdtb_cereb6_conpval = os.path.join(msdtb_folder,
+                                    'msdtb_cereb6_conpval.npy')
+msdtb_cereb6_roiv = os.path.join(msdtb_folder,
+                                 'msdtb_cereb6_roi_verticalbarplot.png')
 
 # ############################## RUN ####################################
   
 if __name__ == '__main__':
 
-    # # Load Encoding contrasts and Harvard-Oxford-Subcortical (HOS) masks
-    # con = load_img(con_path)
-    # hos_putamen_lh_mask = load_img(hos_putamen_lh_maskpath)
-    # hos_putamen_rh_mask = load_img(hos_putamen_rh_maskpath)
+    # Load Encoding Contrast
+    con = load_img(con_path)
 
-    # # Remove NaN's from contrast-of-interest
-    # con_val = con.get_fdata()
-    # con_val[np.isnan(con_val)] = 0
-    # new_con = new_img_like(con, con_val)
+    # Remove NaN's from contrast-of-interest
+    con_val = con.get_fdata()
+    con_val[np.isnan(con_val)] = 0
+    new_con = new_img_like(con, con_val)
 
-    # # Threshold contrast-of-interest
-    # thresholded_con_val = con_val
-    # thresholded_con_val[thresholded_con_val < thresh_min] = 0
-    # # thresholded_con_val[thresholded_con_val > thresh_max] = 0
+    # Threshold contrast-of-interest
+    thresholded_con_val = con_val
+    thresholded_con_val[thresholded_con_val < thresh_min] = 0
+    # thresholded_con_val[thresholded_con_val > thresh_max] = 0
 
-    # # Binarization of contrast-of-interest
-    # bin_con_val = (con_val != 0)
+    # Binarization of contrast-of-interest
+    bin_con_val = (con_val != 0)
 
-    # # Resample HOS masks
-    # hos_putamen_lh_rmask = resample_to_img(hos_putamen_lh_mask, new_con)
-    # hos_putamen_rh_rmask = resample_to_img(hos_putamen_rh_mask, new_con)
+    # # ###################### PUTAMEN ##################################
 
-    # # Get data from HOS masks
-    # hos_putamen_lh_val = hos_putamen_lh_rmask.get_fdata()
-    # hos_putamen_rh_val = hos_putamen_rh_rmask.get_fdata()
+    # Load Harvard-Oxford-Subcortical (HOS) masks
+    hos_putamen_lh_mask = load_img(hos_putamen_lh_maskpath)
+    hos_putamen_rh_mask = load_img(hos_putamen_rh_maskpath)
 
-    # # Intersection w/ HOS Putamen masks
-    # msdtb_putamen_lh_val = np.logical_and(
-    #     bin_con_val.astype(bool), hos_putamen_lh_val.astype(bool)).astype(int)
-    # msdtb_putamen_rh_val = np.logical_and(
-    #     bin_con_val.astype(bool), hos_putamen_rh_val.astype(bool)).astype(int)
+    # Remove NaN's from contrast-of-interest
+    con_val = con.get_fdata()
+    con_val[np.isnan(con_val)] = 0
+    new_con = new_img_like(con, con_val)
 
-    # # Create msdtb-Putamen masks
-    # msdtb_putamen_lh_mask = new_img_like(hos_putamen_lh_rmask,
-    #                                      msdtb_putamen_lh_val)
-    # msdtb_putamen_rh_mask = new_img_like(hos_putamen_rh_rmask,
-    #                                      msdtb_putamen_rh_val)
+    # Threshold contrast-of-interest
+    thresholded_con_val = con_val
+    thresholded_con_val[thresholded_con_val < thresh_min] = 0
+    # thresholded_con_val[thresholded_con_val > thresh_max] = 0
 
-    # # Save msdtb-Putamen masks
-    # msdtb_putamen_lh_mask.to_filename(msdtb_putamen_lh_mask_path)
-    # msdtb_putamen_rh_mask.to_filename(msdtb_putamen_rh_mask_path)
+    # Binarization of contrast-of-interest
+    bin_con_val = (con_val != 0)
 
-    # ## Plot msdtb-Putamen masks
-    # plot_mask(msdtb_putamen_lh_mask, 'Putamen', msdtb_putamen_maskplot,
-    #           mask2=msdtb_putamen_rh_mask)
+    # Resample HOS masks
+    hos_putamen_lh_rmask = resample_to_img(hos_putamen_lh_mask, new_con)
+    hos_putamen_rh_rmask = resample_to_img(hos_putamen_rh_mask, new_con)
 
-    # # ######################### Putamen ##################################
+    # Get data from HOS masks
+    hos_putamen_lh_val = hos_putamen_lh_rmask.get_fdata()
+    hos_putamen_rh_val = hos_putamen_rh_rmask.get_fdata()
 
-    # # ## Extract data from ROIs in both hemispheres
-    # putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
+    # Intersection w/ HOS Putamen masks
+    msdtb_putamen_lh_val = np.logical_and(
+        bin_con_val.astype(bool), hos_putamen_lh_val.astype(bool)).astype(int)
+    msdtb_putamen_rh_val = np.logical_and(
+        bin_con_val.astype(bool), hos_putamen_rh_val.astype(bool)).astype(int)
 
-    # compute_rois(putamen_masks, mask_wb, filtered_contrasts,
-    #              msdtb_putamen_conmean, msdtb_putamen_conpval)
+    # Create msdtb-Putamen masks
+    msdtb_putamen_lh_mask = new_img_like(hos_putamen_lh_rmask,
+                                         msdtb_putamen_lh_val)
+    msdtb_putamen_rh_mask = new_img_like(hos_putamen_rh_rmask,
+                                         msdtb_putamen_rh_val)
+
+    # Save msdtb-Putamen masks
+    msdtb_putamen_lh_mask.to_filename(msdtb_putamen_lh_maskpath)
+    msdtb_putamen_rh_mask.to_filename(msdtb_putamen_rh_maskpath)
+
+    ## Plot msdtb-Putamen masks
+    plot_mask(msdtb_putamen_lh_mask, 'Putamen', msdtb_putamen_maskplot,
+              mask2=msdtb_putamen_rh_mask)
+
+    # ## Extract data from ROIs in both hemispheres
+    putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
+
+    compute_rois(putamen_masks, mask_wb, filtered_contrasts,
+                 msdtb_putamen_conmean, msdtb_putamen_conpval)
+
+    ## Plot
+    # plot_roi_horizontal(putamen_aal3_conmean, putamen_aal3_conpval,
+    #                     'Putamen: AAL3', putamen_aal3_roi)
+    plot_roi_vertical(msdtb_putamen_conmean, msdtb_putamen_conpval,
+                      'Putamen', msdtb_putamen_roiv)
+
+    # # ###################### CEREBELLUM VI ############################
+
+    # Load MNIFlirt Cerebellum VI masks
+    mniflirt_cereb6_lh_mask = load_img(mniflirt_cereb6_lh_maskpath)
+    mniflirt_cereb6_rh_mask = load_img(mniflirt_cereb6_rh_maskpath)
+
+    # Resample HOS masks
+    mniflirt_cereb6_lh_rmask = resample_to_img(mniflirt_cereb6_lh_mask, new_con)
+    mniflirt_cereb6_rh_rmask = resample_to_img(mniflirt_cereb6_rh_mask, new_con)
+
+    # Get data from MNIFlirt Cerebellum masks
+    mniflirt_cereb6_lh_val = mniflirt_cereb6_lh_rmask.get_fdata()
+    mniflirt_cereb6_rh_val = mniflirt_cereb6_rh_rmask.get_fdata()
+
+    # Intersection w/ MNIFlirt Cerebellum masks
+    msdtb_cereb6_lh_val = np.logical_and(
+        bin_con_val.astype(bool),
+        mniflirt_cereb6_lh_val.astype(bool)).astype(int)
+    msdtb_cereb6_rh_val = np.logical_and(
+        bin_con_val.astype(bool),
+        mniflirt_cereb6_rh_val.astype(bool)).astype(int)
+
+    # Create msdtb-CerebellumVI masks
+    msdtb_cereb6_lh_mask = new_img_like(mniflirt_cereb6_lh_rmask,
+                                        msdtb_cereb6_lh_val)
+    msdtb_cereb6_rh_mask = new_img_like(mniflirt_cereb6_rh_rmask,
+                                        msdtb_cereb6_rh_val)
+
+    # Save msdtb-CerebellumVI masks
+    msdtb_cereb6_lh_mask.to_filename(msdtb_cereb6_lh_maskpath)
+    msdtb_cereb6_rh_mask.to_filename(msdtb_cereb6_rh_maskpath)
+
+    ## Plot msdtb-CerebellumVI masks
+    plot_mask(msdtb_cereb6_lh_mask, 'Cerebellum VI', msdtb_cereb6_maskplot,
+              mask2=msdtb_cereb6_rh_mask)
+
+    # ## Extract data from ROIs in both hemispheres
+    cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
+
+    compute_rois(cereb6_masks, mask_wb, filtered_contrasts,
+                 msdtb_cereb6_conmean, msdtb_cereb6_conpval)
 
     # Plot
     # plot_roi_horizontal(putamen_aal3_conmean, putamen_aal3_conpval,
     #                     'Putamen: AAL3', putamen_aal3_roi)
-
-    plot_roi_vertical(msdtb_putamen_conmean, msdtb_putamen_conpval,
-                      'Putamen', putamen_msdtb_roiv)
+    plot_roi_vertical(msdtb_cereb6_conmean, msdtb_cereb6_conpval,
+                      'Putamen', msdtb_cereb6_roiv)
