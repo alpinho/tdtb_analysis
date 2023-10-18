@@ -255,6 +255,7 @@ thresh_max = 1.
 working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
+msdtb_dir = os.path.join(atlases_dir, 'msdtb')
 
 hos_putamen_lh_maskpath = os.path.join(
     fsl_dir, 'hos_putamen_lh_mask.nii.gz')
@@ -266,32 +267,30 @@ mniflirt_cereb6_lh_maskpath = os.path.join(
 mniflirt_cereb6_rh_maskpath = os.path.join(
     fsl_dir, 'mniflirt_cereb6_rh_mask.nii.gz')
 
-msdtb_folder = os.path.join(atlases_dir, 'msdtb')
-
-msdtb_putamen_lh_maskpath = os.path.join(msdtb_folder,
+msdtb_putamen_lh_maskpath = os.path.join(msdtb_dir,
                                          'msdtb_putamen_mask_lh.nii.gz')
-msdtb_putamen_rh_maskpath = os.path.join(msdtb_folder,
+msdtb_putamen_rh_maskpath = os.path.join(msdtb_dir,
                                          'msdtb_putamen_mask_rh.nii.gz')
-msdtb_putamen_maskplot = os.path.join(msdtb_folder,
+msdtb_putamen_maskplot = os.path.join(msdtb_dir,
                                       'msdtb_putamen_maskplot.png')
-msdtb_putamen_conmean = os.path.join(msdtb_folder,
+msdtb_putamen_conmean = os.path.join(msdtb_dir,
                                      'msdtb_putamen_conmean.npy')
-msdtb_putamen_conpval = os.path.join(msdtb_folder,
+msdtb_putamen_conpval = os.path.join(msdtb_dir,
                                      'msdtb_putamen_conpval.npy')
-msdtb_putamen_roiv = os.path.join(msdtb_folder,
+msdtb_putamen_roiv = os.path.join(msdtb_dir,
                                   'msdtb_putamen_roi_verticalbarplot.png')
 
-msdtb_cereb6_lh_maskpath = os.path.join(msdtb_folder,
+msdtb_cereb6_lh_maskpath = os.path.join(msdtb_dir,
                                         'msdtb_cereb6_mask_lh.nii.gz')
-msdtb_cereb6_rh_maskpath = os.path.join(msdtb_folder,
+msdtb_cereb6_rh_maskpath = os.path.join(msdtb_dir,
                                         'msdtb_cereb6_mask_rh.nii.gz')
-msdtb_cereb6_maskplot = os.path.join(msdtb_folder,
+msdtb_cereb6_maskplot = os.path.join(msdtb_dir,
                                      'msdtb_cereb6_maskplot.png')
-msdtb_cereb6_conmean = os.path.join(msdtb_folder,
+msdtb_cereb6_conmean = os.path.join(msdtb_dir,
                                     'msdtb_cereb6_conmean.npy')
-msdtb_cereb6_conpval = os.path.join(msdtb_folder,
+msdtb_cereb6_conpval = os.path.join(msdtb_dir,
                                     'msdtb_cereb6_conpval.npy')
-msdtb_cereb6_roiv = os.path.join(msdtb_folder,
+msdtb_cereb6_roiv = os.path.join(msdtb_dir,
                                  'msdtb_cereb6_roi_verticalbarplot.png')
 
 # ############################## RUN ####################################
