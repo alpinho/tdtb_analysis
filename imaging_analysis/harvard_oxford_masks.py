@@ -30,10 +30,7 @@ def binarize_bigger(mask_path, threshold):
     # Binarization
     bin_mask_val = (thresholded_mask_val != 0)
 
-    # Dilation
-    # dil_bin_mask_val = ndimage.binary_dilation(bin_mask_val)
-    # dil_bin_mask_val = dil_bin_mask_val.astype(int)
-
+    # Create bin mask
     bin_mask = new_img_like(mask, bin_mask_val)
 
     return bin_mask
@@ -43,28 +40,44 @@ def binarize_bigger(mask_path, threshold):
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
-hos_dir = os.path.join(atlases_dir, 'harvardoxford_subcortical')
+fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 
 hos_putamen_lh_probmap = os.path.join(
-    hos_dir,
-    'harvardoxford-subcortical_prob_left_putamen.nii.gz')
+    fsl_dir, 'harvardoxford-subcortical_prob_left_putamen.nii.gz')
 hos_putamen_rh_probmap = os.path.join(
-    hos_dir,
-    'harvardoxford-subcortical_prob_right_putamen.nii.gz')
+    fsl_dir, 'harvardoxford-subcortical_prob_right_putamen.nii.gz')
+hos_putamen_lh_maskpath = os.path.join(
+    fsl_dir, 'hos_putamen_lh_mask.nii.gz')
+hos_putamen_rh_maskpath = os.path.join(
+    fsl_dir, 'hos_putamen_rh_mask.nii.gz')
 
-hos_putamen_lh_maskpath = os.path.join(hos_dir,
-                                       'hos_putamen_lh_mask.nii.gz')
-hos_putamen_rh_maskpath = os.path.join(hos_dir,
-                                       'hos_putamen_rh_mask.nii.gz')
+
+mniflirt_cereb6_lh_probmap = os.path.join(
+    fsl_dir, 'cerebellum_mniflirt_prob_leftVI.nii.gz')
+mniflirt_cereb6_rh_probmap = os.path.join(
+    fsl_dir, 'cerebellum_mniflirt_prob_rightVI.nii.gz')
+mniflirt_cereb6_lh_maskpath = os.path.join(
+    fsl_dir, 'mniflirt_cereb6_lh_mask.nii.gz')
+mniflirt_cereb6_rh_maskpath = os.path.join(
+    fsl_dir, 'mniflirt_cereb6_rh_mask.nii.gz')
 
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
 
+    # ######################## PUTAMEN ##################################
     hos_putamen_lh_bin = binarize_bigger(hos_putamen_lh_probmap, 50.)
     hos_putamen_rh_bin = binarize_bigger(hos_putamen_rh_probmap, 50.)
 
     # Save maks
     hos_putamen_lh_bin.to_filename(hos_putamen_lh_maskpath)
     hos_putamen_rh_bin.to_filename(hos_putamen_rh_maskpath)
+
+    # ##################### CEREBELLUM VI ###############################
+    mniflirt_cereb6_lh_bin = binarize_bigger(mniflirt_cereb6_lh_probmap, 50.)
+    mniflirt_cereb6_rh_bin = binarize_bigger(mniflirt_cereb6_rh_probmap, 50.)
+
+    # Save maks
+    mniflirt_cereb6_lh_bin.to_filename(mniflirt_cereb6_lh_maskpath)
+    mniflirt_cereb6_rh_bin.to_filename(mniflirt_cereb6_rh_maskpath)
 
