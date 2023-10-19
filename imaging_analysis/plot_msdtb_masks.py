@@ -1,5 +1,5 @@
 """
-This script plots contrasts in glass brains
+This script to plot msdtb masks
 
 Author: Ana Luisa Pinho
 
@@ -79,35 +79,10 @@ msdtb_cereb6_maskpath_plot = os.path.join(
 msdtb_cereb6_maskpath_glassbrain = os.path.join(
     msdtb_dir, 'msdtb_cereb6_maskgb.png')
 
-data_dir = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives'
-
-con_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_gm/con_01_Encoding/con_0001.nii'
-con_path = os.path.join(data_dir, con_relative_path)
-thresh_min = .25
-thresh_max = 1.
 
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
-    # # Load
-    # con = load_img(con_path)
-
-    # # Threshold
-    # thresholded_con_val = con.get_fdata()
-    # thresholded_con_val[thresholded_con_val < thresh_min] = 0
-    # thresholded_con_val[thresholded_con_val > thresh_max] = 0
-    # thresholded_con = new_img_like(con, thresholded_con_val)
-
-    # # # Plot
-    # figy = plot_stat_map(thresholded_con, display_mode='y', cut_coords=10,
-    #                      cmap='Purples', colorbar=True)
-    # figy.savefig('encoding_vs_rest_y.png', dpi=600)
-
-    # figz = plot_stat_map(thresholded_con, display_mode='z', cut_coords=10,
-    #                      cmap='Purples', colorbar=True)
-    # figz.savefig('encoding_vs_rest_z.png', dpi=600)
-    # plot_mask(thresholded_con, 'encoding_vs_rest.png', cb=True,
-    #           color_map='viridis')
 
     # Load
     msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
