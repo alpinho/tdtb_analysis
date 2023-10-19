@@ -25,6 +25,28 @@ from matplotlib import pyplot as plt
 
 # ############################ FUNCTIONS ################################
 
+
+def binarize_map(con_path, thresh_min, thresh_max=None):
+    # Load Encoding Map
+    con = load_img(con_path)
+
+    # Remove NaN's
+    con_val = con.get_fdata()
+    con_val[np.isnan(con_val)] = 0
+    new_con = new_img_like(con, con_val)
+
+    # Threshold
+    thresholded_con_val = con_val
+    thresholded_con_val[thresholded_con_val < thresh_min] = 0
+    if thresh_max is not None:
+        thresholded_con_val[thresholded_con_val > thresh_max] = 0
+
+    # Binarization
+    bin_con_val = (thresholded_con_val != 0)
+
+    return new_con, bin_con_val
+
+
 def plot_mask(mask1, mask_description, output_file, mask2=None, cb=True,
               color_map='viridis'):
 
@@ -146,7 +168,8 @@ def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
     fig.savefig(output_file, dpi=300)
 
 
-def plot_roi_vertical(arr_conmean, arr_conpval, roi_ref, output_file):
+def plot_roi_vertical(arr_conmean, arr_conpval, roi_ref, output_file,
+                      display_plabels=False):
     # ## Open npy files and plot
     allcontrasts_mean = np.load(arr_conmean).tolist()
     allpvalues = np.load(arr_conpval).tolist()
@@ -166,22 +189,24 @@ def plot_roi_vertical(arr_conmean, arr_conpval, roi_ref, output_file):
             # filtered_pvalues = [allpvalues[r][c][i] for i in filtered_idx]
 
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.16 + r*.475, .73 - c*.2, .15, .1])
+            ax = plt.axes([.16 + r*.475, .73 - c*.2, .1, .1])
             cnames = list(filtered_contrasts.values())
             # x_pos = [.2, .35, .65, .8]
-            x_pos = [.35, .65]
+            x_pos = [.435, .565]
             
             pval_labels = pval_label_converter(allpvalues[r][c])
-            color_code = ['mediumseagreen', 'gold']
+            color_code = ['mediumseagreen', 'goldenrod']
             colors = color_code * (len(cmean)//len(color_code))
             rects = ax.bar(x_pos, cmean, align='center', width=.1,
                            color=colors)
-            ax.bar_label(rects, labels=pval_labels, padding=3)
+            if display_plabels:
+                ax.bar_label(rects, labels=pval_labels, padding=3)
+
             ax.set_xticks(x_pos, labels=cnames, fontsize=16,
                           fontweight='semibold', rotation=45, ha='right')
             ax.xaxis.set_tick_params(width=10.)
             plt.yticks(fontsize=16, fontweight='semibold')
-            ax.set_ylim([-.05, .05])
+            ax.set_ylim([-.045, .055])
             ax.set_ylabel('Effect Size', fontweight='semibold', fontsize=20)
             for axis in ['top','bottom','left','right']:
                 ax.spines[axis].set_linewidth(2)
@@ -243,12 +268,17 @@ estimates_dir = [os.path.join(subject_dir, 'estimates')
 wb_masking = 'wb'
 gm_masking = 'gm'
 
-con_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ wb_masking + \
-    '/con_01_Encoding/con_0001.nii'
-con_path = os.path.join(data_dir, con_relative_path)
+relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ wb_masking + \
+    '/con_01_Encoding/'
 
-thresh_min = 0
-thresh_max = 1.
+con_relative_path = relative_path + 'con_0001.nii'
+con_path = os.path.join(data_dir, con_relative_path)
+con_thresh_min = 0
+con_thresh_max = 1.
+
+tmap_relative_path = relative_path + 'spmT_0001.nii'
+tmap_path = os.path.join(data_dir, tmap_relative_path)
+tmap_thresh_min = 3.385
 
 ##########################################################
 
@@ -297,21 +327,8 @@ msdtb_cereb6_roiv = os.path.join(msdtb_dir,
   
 if __name__ == '__main__':
 
-    # Load Encoding Contrast
-    con = load_img(con_path)
-
-    # Remove NaN's from contrast-of-interest
-    con_val = con.get_fdata()
-    con_val[np.isnan(con_val)] = 0
-    new_con = new_img_like(con, con_val)
-
-    # Threshold contrast-of-interest
-    thresholded_con_val = con_val
-    thresholded_con_val[thresholded_con_val < thresh_min] = 0
-    # thresholded_con_val[thresholded_con_val > thresh_max] = 0
-
-    # Binarization of contrast-of-interest
-    bin_con_val = (con_val != 0)
+    # Use Contrast or StatMap?
+    new_map, bin_map_val = binarize_map(tmap_path, tmap_thresh_min)
 
     # # ###################### PUTAMEN ##################################
 
@@ -319,22 +336,9 @@ if __name__ == '__main__':
     hos_putamen_lh_mask = load_img(hos_putamen_lh_maskpath)
     hos_putamen_rh_mask = load_img(hos_putamen_rh_maskpath)
 
-    # Remove NaN's from contrast-of-interest
-    con_val = con.get_fdata()
-    con_val[np.isnan(con_val)] = 0
-    new_con = new_img_like(con, con_val)
-
-    # Threshold contrast-of-interest
-    thresholded_con_val = con_val
-    thresholded_con_val[thresholded_con_val < thresh_min] = 0
-    # thresholded_con_val[thresholded_con_val > thresh_max] = 0
-
-    # Binarization of contrast-of-interest
-    bin_con_val = (con_val != 0)
-
     # Resample HOS masks
-    hos_putamen_lh_rmask = resample_to_img(hos_putamen_lh_mask, new_con)
-    hos_putamen_rh_rmask = resample_to_img(hos_putamen_rh_mask, new_con)
+    hos_putamen_lh_rmask = resample_to_img(hos_putamen_lh_mask, new_map)
+    hos_putamen_rh_rmask = resample_to_img(hos_putamen_rh_mask, new_map)
 
     # Get data from HOS masks
     hos_putamen_lh_val = hos_putamen_lh_rmask.get_fdata()
@@ -342,9 +346,9 @@ if __name__ == '__main__':
 
     # Intersection w/ HOS Putamen masks
     msdtb_putamen_lh_val = np.logical_and(
-        bin_con_val.astype(bool), hos_putamen_lh_val.astype(bool)).astype(int)
+        bin_map_val.astype(bool), hos_putamen_lh_val.astype(bool)).astype(int)
     msdtb_putamen_rh_val = np.logical_and(
-        bin_con_val.astype(bool), hos_putamen_rh_val.astype(bool)).astype(int)
+        bin_map_val.astype(bool), hos_putamen_rh_val.astype(bool)).astype(int)
 
     # Create msdtb-Putamen masks
     msdtb_putamen_lh_mask = new_img_like(hos_putamen_lh_rmask,
@@ -362,13 +366,10 @@ if __name__ == '__main__':
 
     # ## Extract data from ROIs in both hemispheres
     putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
-
     compute_rois(putamen_masks, mask_wb, filtered_contrasts,
                  msdtb_putamen_conmean, msdtb_putamen_conpval)
 
     ## Plot
-    # plot_roi_horizontal(putamen_aal3_conmean, putamen_aal3_conpval,
-    #                     'Putamen: AAL3', putamen_aal3_roi)
     plot_roi_vertical(msdtb_putamen_conmean, msdtb_putamen_conpval,
                       'Putamen', msdtb_putamen_roiv)
 
@@ -379,8 +380,10 @@ if __name__ == '__main__':
     mniflirt_cereb6_rh_mask = load_img(mniflirt_cereb6_rh_maskpath)
 
     # Resample HOS masks
-    mniflirt_cereb6_lh_rmask = resample_to_img(mniflirt_cereb6_lh_mask, new_con)
-    mniflirt_cereb6_rh_rmask = resample_to_img(mniflirt_cereb6_rh_mask, new_con)
+    mniflirt_cereb6_lh_rmask = resample_to_img(mniflirt_cereb6_lh_mask,
+                                               new_map)
+    mniflirt_cereb6_rh_rmask = resample_to_img(mniflirt_cereb6_rh_mask,
+                                               new_map)
 
     # Get data from MNIFlirt Cerebellum masks
     mniflirt_cereb6_lh_val = mniflirt_cereb6_lh_rmask.get_fdata()
@@ -388,10 +391,10 @@ if __name__ == '__main__':
 
     # Intersection w/ MNIFlirt Cerebellum masks
     msdtb_cereb6_lh_val = np.logical_and(
-        bin_con_val.astype(bool),
+        bin_map_val.astype(bool),
         mniflirt_cereb6_lh_val.astype(bool)).astype(int)
     msdtb_cereb6_rh_val = np.logical_and(
-        bin_con_val.astype(bool),
+        bin_map_val.astype(bool),
         mniflirt_cereb6_rh_val.astype(bool)).astype(int)
 
     # Create msdtb-CerebellumVI masks
@@ -410,12 +413,9 @@ if __name__ == '__main__':
 
     # ## Extract data from ROIs in both hemispheres
     cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
-
     compute_rois(cereb6_masks, mask_wb, filtered_contrasts,
                  msdtb_cereb6_conmean, msdtb_cereb6_conpval)
 
     # Plot
-    # plot_roi_horizontal(putamen_aal3_conmean, putamen_aal3_conpval,
-    #                     'Putamen: AAL3', putamen_aal3_roi)
     plot_roi_vertical(msdtb_cereb6_conmean, msdtb_cereb6_conpval,
-                      'Putamen', msdtb_cereb6_roiv)
+                      'Cerebelum VI', msdtb_cereb6_roiv)
