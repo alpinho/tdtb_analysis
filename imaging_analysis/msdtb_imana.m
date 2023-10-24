@@ -76,11 +76,11 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
-subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-% subj_n = [26];
+subj_n = [3];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -1375,6 +1375,91 @@ switch what
                 spm_jobman('run', matlabbatch);
             end
         end % s (subject)
+        
+    case 'GLM:calc_PSC'                           
+        % Calculate percent signal change for selected contrasts - based on betas
+        
+        % Example usage:
+        % msdtb_imana('GLM:calc_PSC', ...
+        %             'design', {'rand_ntfd'}, ...
+        %             'output_folder', 'ffx_rwls_drbb')
+        
+        sn = subj_id;
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        output_folder = 'ffx_rwls';
+        
+        % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
+        
+        sn = subj_id; % subject list
+        
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
+        
+        output_folder = 'ffx_rwls';
+        
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        vararginoptions(varargin, {'sn', 'design', 'output_folder'});
+
+        for s = sn
+            % Go to subject’s directory and load SPM info
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir);
+            
+            for dg=1:length(design)
+                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
+                    output_folder);
+                cd(fullfile(estdesign_folder));
+                
+                load SPM;
+                X=(SPM.xX.X(:,SPM.xX.iC)); % Design matrix - raw
+                h=median(max(X));        % Height of response;
+                P={};
+                numB=length(SPM.xX.iB);     % Partitions - runs
+                for p=SPM.xX.iB
+                    P{end+1,1}=fullfile(estdesign_folder, ...
+                        sprintf('beta_%4.4d.nii',p));  % get the intercepts and use them to calculate the baseline (mean images)
+                end
+                
+                t_con_name = extractfield(SPM.xCon, 'name');
+                % Create string with formula
+                con_div_intercepts = '';
+                for r=1:numB
+                    if r == numB
+                        con_div_intercepts = sprintf('i%d./((%si%d)/%d)', ...
+                            r+1, con_div_intercepts, r, numB);
+                    else
+                        con_div_intercepts = sprintf('%si%d+', ...
+                            con_div_intercepts, r);
+                    end
+                end
+                
+                for con=1:length(t_con_name)  % all contrasts
+                    P{numB+1,1}=fullfile(estdesign_folder, ...
+                        sprintf('con_%04d.nii', con));
+                    outname=fullfile(estdesign_folder, ...
+                        sprintf('psc_%04d.nii', con));
+                    formula=sprintf('100.*%f.*%s', h, con_div_intercepts);
+                    
+                    A = [];
+                    A.input = P;
+                    A.output = outname;
+                    A.outdir = {output_folder};
+                    A.expression = formula;
+                    A.var = struct('name', {}, 'value', {});
+                    A.options.dmtx = 0;
+                    A.options.mask = 0;
+                    A.options.interp = 1;
+                    A.options.dtype = 4;               
+
+                    matlabbatch{1}.spm.util.imcalc=A;
+                    spm_jobman('run', matlabbatch);
+
+                    fprintf('Contrast: %s\n', t_con_name{con});
+                end
+                fprintf('Subject %02d - Done\n', sn(s));
+            end
+        end
         
     case 'CON:norm_smooth'
         % Normalize and smooth individual contrasts or t-maps
