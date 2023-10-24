@@ -80,7 +80,8 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [3];
+subj_n = [4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -1457,7 +1458,7 @@ switch what
 
                     fprintf('Contrast: %s\n', t_con_name{con});
                 end
-                fprintf('Subject %02d - Done\n', sn(s));
+                fprintf('%s - Done\n', subj_str{s});
             end
         end
         
