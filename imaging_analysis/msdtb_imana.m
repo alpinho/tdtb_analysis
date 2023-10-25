@@ -80,7 +80,7 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
@@ -1479,7 +1479,7 @@ switch what
         
         input_folder = 'ffx_rwls';
         
-        file_type = 'con'; % the another one is 'spmT or ResMS'
+        file_type = 'con'; % the another one is 'spmT, ResMS or psc'
         smoothing_kernel = [8 8 8];
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1611,7 +1611,7 @@ switch what
         input_folder = 'ffx_rwls';
         output_folder = 'masked_derivatives_rwls';
         
-        file_type = 'con'; % the another one is 'spmT or ResMS'
+        file_type = 'con'; % the another one is 'spmT, ResMS or psc'
         smoothing_kernel = [8 8 8];
         
         masktag = 'wbmasked'; % whole-brain masking
@@ -1743,11 +1743,17 @@ switch what
         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
                     'design', {'rand_ntfd'})
                 
+        msdtb_imana('GLM:calc_PSC', 'sn', sbj)
+        msdtb_imana('GLM:calc_PSC', 'sn', sbj, 'design', {'rand_ntfd'})
+                
         msdtb_imana('CON:norm_smooth', 'sn', sbj)
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'})
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT')
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
             'file_type', 'spmT')
+        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'psc')
+        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'psc')
         
         msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
         msdtb_imana('GROUP:mask', 'sn', subj_id, ...
@@ -1758,6 +1764,9 @@ switch what
         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT')
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
             'file_type', 'spmT')
+        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'psc')
         
         msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked')
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
@@ -1766,6 +1775,10 @@ switch what
             'masktag', 'gmmasked')
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
             'file_type', 'spmT', 'masktag', 'gmmasked')
+        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', ...
+            'masktag', 'gmmasked')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'psc', 'masktag', 'gmmasked')
         
     case 'GROUP:mean_t1'
         % Example usage: msdtb_imana('ANAT:mean_t1')
