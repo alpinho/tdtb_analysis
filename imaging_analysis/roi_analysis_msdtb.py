@@ -400,57 +400,57 @@ msdtb_crus1_roiv = os.path.join(
   
 if __name__ == '__main__':
 
-    # # ######################## PUTAMEN ##################################
-    # Create Music-SDTB ROIs
-    create_msdtb_roi(tmap_path, tmap_thresh_min,
-                     hos_putamen_lh_maskpath, hos_putamen_rh_maskpath,
-                     msdtb_putamen_lh_maskpath, msdtb_putamen_rh_maskpath,
-                     map_thresh_max=None)
+    # # # ######################## PUTAMEN ##################################
+    # # Create Music-SDTB ROIs
+    # create_msdtb_roi(tmap_path, tmap_thresh_min,
+    #                  hos_putamen_lh_maskpath, hos_putamen_rh_maskpath,
+    #                  msdtb_putamen_lh_maskpath, msdtb_putamen_rh_maskpath,
+    #                  map_thresh_max=None)
+
+    # # ## Extract data from ROIs in both hemispheres
+    # msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
+    # msdtb_putamen_rh_mask = load_img(msdtb_putamen_rh_maskpath)
+    # putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
+    # compute_rois(putamen_masks, mask_wb, contrasts,
+    #              msdtb_putamen_conmean, msdtb_putamen_conpval, 'wcon')
+    # compute_rois(putamen_masks, mask_wb, contrasts,
+    #              msdtb_putamen_pscmean, msdtb_putamen_pscpval, 'wpsc')
+
+    # ## Plot
+    # plot_roi_horizontal(msdtb_putamen_conmean, msdtb_putamen_conpval,
+    #                     'Putamen', msdtb_putamen_con_roih)
+    # plot_roi_horizontal(msdtb_putamen_pscmean, msdtb_putamen_pscpval,
+    #                     'Putamen', msdtb_putamen_psc_roih)
+
+
+    # # # ###################### CEREBELLUM VI ############################
+
+    # # Create Music-SDTB ROIs
+    # create_msdtb_roi(tmap_path, tmap_thresh_min,
+    #                  mniflirt_cereb6_lh_maskpath, mniflirt_cereb6_rh_maskpath,
+    #                  msdtb_cereb6_lh_maskpath, msdtb_cereb6_rh_maskpath,
+    #                  map_thresh_max=None)
 
     # ## Extract data from ROIs in both hemispheres
-    msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
-    msdtb_putamen_rh_mask = load_img(msdtb_putamen_rh_maskpath)
-    putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
-    compute_rois(putamen_masks, mask_wb, contrasts,
-                 msdtb_putamen_conmean, msdtb_putamen_conpval, 'wcon')
-    compute_rois(putamen_masks, mask_wb, contrasts,
-                 msdtb_putamen_pscmean, msdtb_putamen_pscpval, 'wpsc')
+    # msdtb_cereb6_lh_mask = load_img(msdtb_cereb6_lh_maskpath)
+    # msdtb_cereb6_rh_mask = load_img(msdtb_cereb6_rh_maskpath)
+    # cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
+    # compute_rois(cereb6_masks, mask_wb, contrasts,
+    #              msdtb_cereb6_conmean, msdtb_cereb6_conpval, 'wcon')
+    # compute_rois(cereb6_masks, mask_wb, contrasts,
+    #              msdtb_cereb6_pscmean, msdtb_cereb6_pscpval, 'wpsc')
 
-    ## Plot
-    plot_roi_horizontal(msdtb_putamen_conmean, msdtb_putamen_conpval,
-                        'Putamen', msdtb_putamen_con_roih)
-    plot_roi_horizontal(msdtb_putamen_pscmean, msdtb_putamen_pscpval,
-                        'Putamen', msdtb_putamen_psc_roih)
-
-
-    # # ###################### CEREBELLUM VI ############################
-
-    # Create Music-SDTB ROIs
-    create_msdtb_roi(tmap_path, tmap_thresh_min,
-                     mniflirt_cereb6_lh_maskpath, mniflirt_cereb6_rh_maskpath,
-                     msdtb_cereb6_lh_maskpath, msdtb_cereb6_rh_maskpath,
-                     map_thresh_max=None)
-
-    ## Extract data from ROIs in both hemispheres
-    msdtb_cereb6_lh_mask = load_img(msdtb_cereb6_lh_maskpath)
-    msdtb_cereb6_rh_mask = load_img(msdtb_cereb6_rh_maskpath)
-    cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
-    compute_rois(cereb6_masks, mask_wb, contrasts,
-                 msdtb_cereb6_conmean, msdtb_cereb6_conpval, 'wcon')
-    compute_rois(cereb6_masks, mask_wb, contrasts,
-                 msdtb_cereb6_pscmean, msdtb_cereb6_pscpval, 'wpsc')
-
-    # Plot
-    plot_roi_horizontal(msdtb_cereb6_conmean, msdtb_cereb6_conpval,
-                        'Cerebellar Lobule VI', msdtb_cereb6_con_roih)
-    plot_roi_horizontal(msdtb_cereb6_pscmean, msdtb_cereb6_pscpval,
-                        'Cerebellar Lobule VI', msdtb_cereb6_psc_roih)
+    # # Plot
+    # plot_roi_horizontal(msdtb_cereb6_conmean, msdtb_cereb6_conpval,
+    #                     'Cerebellar Lobule VI', msdtb_cereb6_con_roih)
+    # plot_roi_horizontal(msdtb_cereb6_pscmean, msdtb_cereb6_pscpval,
+    #                     'Cerebellar Lobule VI', msdtb_cereb6_psc_roih)
 
 
     # ##################### CEREBELLUM CRUS I #############################
 
     # Create Music-SDTB ROIs
-    create_msdtb_roi(tmap_path, tmap_thresh_min,
+    create_msdtb_roi(tmap_path, 3.,
                      mniflirt_crus1_lh_maskpath, mniflirt_crus1_rh_maskpath,
                      msdtb_crus1_lh_maskpath, msdtb_crus1_rh_maskpath,
                      map_thresh_max=None)
