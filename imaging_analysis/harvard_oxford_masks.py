@@ -61,23 +61,40 @@ mniflirt_cereb6_lh_maskpath = os.path.join(
 mniflirt_cereb6_rh_maskpath = os.path.join(
     fsl_dir, 'mniflirt_cereb6_rh_mask.nii.gz')
 
+mniflirt_crus1_lh_probmap = os.path.join(
+    fsl_dir, 'cerebellum_mniflirt_prob_crusI.nii.gz')
+mniflirt_crus1_rh_probmap = os.path.join(
+    fsl_dir, 'cerebellum_mniflirt_prob_crusI.nii.gz')
+mniflirt_crus1_lh_maskpath = os.path.join(
+    fsl_dir, 'mniflirt_crus1_lh_mask.nii.gz')
+mniflirt_crus1_rh_maskpath = os.path.join(
+    fsl_dir, 'mniflirt_crus1_rh_mask.nii.gz')
+
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
 
-    # ######################## PUTAMEN ##################################
-    hos_putamen_lh_bin = binarize_bigger(hos_putamen_lh_probmap, 50.)
-    hos_putamen_rh_bin = binarize_bigger(hos_putamen_rh_probmap, 50.)
+    # # ######################## PUTAMEN ##################################
+    # hos_putamen_lh_bin = binarize_bigger(hos_putamen_lh_probmap, 50.)
+    # hos_putamen_rh_bin = binarize_bigger(hos_putamen_rh_probmap, 50.)
+
+    # # Save maks
+    # hos_putamen_lh_bin.to_filename(hos_putamen_lh_maskpath)
+    # hos_putamen_rh_bin.to_filename(hos_putamen_rh_maskpath)
+
+    # # ##################### CEREBELLUM VI ###############################
+    # mniflirt_cereb6_lh_bin = binarize_bigger(mniflirt_cereb6_lh_probmap, 50.)
+    # mniflirt_cereb6_rh_bin = binarize_bigger(mniflirt_cereb6_rh_probmap, 50.)
+
+    # # Save maks
+    # mniflirt_cereb6_lh_bin.to_filename(mniflirt_cereb6_lh_maskpath)
+    # mniflirt_cereb6_rh_bin.to_filename(mniflirt_cereb6_rh_maskpath)
+
+    # ##################### CEREBELLUM CRUS I #############################
+    mniflirt_crus1_lh_bin = binarize_bigger(mniflirt_crus1_lh_probmap, 50.)
+    mniflirt_crus1_rh_bin = binarize_bigger(mniflirt_crus1_rh_probmap, 50.)
 
     # Save maks
-    hos_putamen_lh_bin.to_filename(hos_putamen_lh_maskpath)
-    hos_putamen_rh_bin.to_filename(hos_putamen_rh_maskpath)
-
-    # ##################### CEREBELLUM VI ###############################
-    mniflirt_cereb6_lh_bin = binarize_bigger(mniflirt_cereb6_lh_probmap, 50.)
-    mniflirt_cereb6_rh_bin = binarize_bigger(mniflirt_cereb6_rh_probmap, 50.)
-
-    # Save maks
-    mniflirt_cereb6_lh_bin.to_filename(mniflirt_cereb6_lh_maskpath)
-    mniflirt_cereb6_rh_bin.to_filename(mniflirt_cereb6_rh_maskpath)
+    mniflirt_crus1_lh_bin.to_filename(mniflirt_crus1_lh_maskpath)
+    mniflirt_crus1_rh_bin.to_filename(mniflirt_crus1_rh_maskpath)
 
