@@ -80,7 +80,7 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
@@ -1454,11 +1454,11 @@ switch what
                     maxX=max(X);
                     if con < length(t_con_name)                      
                         maxX(step:step:end)=[]; % remove 'decision' peaks
-                        h=median(maxX);
+                        h=min(maxX);
                     else
                         decision_max=[];
                         decision_max=maxX(step:step:end);
-                        h=median(decision_max);
+                        h=min(decision_max);
                     end
                         
                     P{numB+1,1}=fullfile(estdesign_folder, ...
