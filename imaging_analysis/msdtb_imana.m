@@ -80,7 +80,7 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
@@ -1412,6 +1412,12 @@ switch what
                     output_folder);
                 cd(fullfile(estdesign_folder));
                 
+                % Delete pre-existing psc* files in the folder
+                if any(size(dir(...
+                        [estdesign_folder '/psc*.nii']), 1))
+                    delete([estdesign_folder '/psc*.nii']);
+                end
+                
                 load SPM;
                 X=(SPM.xX.X(:,SPM.xX.iC)); % Design matrix - raw
                                 
@@ -1459,11 +1465,6 @@ switch what
                         sprintf('con_%04d.nii', con));
                     outname=fullfile(estdesign_folder, ...
                         sprintf('psc_%04d.nii', con));
-                    
-                    % Delete pre-existing files... 
-                    if any(size(dir(outname), 1))
-                        delete(outname);
-                    end
                     
                     formula=sprintf('100.*%f.*%s', h, con_div_intercepts);
                     
@@ -1518,6 +1519,19 @@ switch what
             for dg=1:length(design)           
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
                     input_folder);
+                
+                % Delete pre-existing w* files of the same type in the
+                % folder
+                if any(size(dir(...
+                        [estdesign_folder '/w' file_type '*.nii']), 1))
+                    delete([estdesign_folder '/w' file_type '*.nii']);
+                end
+                % Delete pre-existing sw* files of the same type in the
+                % folder
+                if any(size(dir(...
+                        [estdesign_folder '/sw' file_type '*.nii']), 1))
+                    delete([estdesign_folder '/sw' file_type '*.nii']);
+                end
                 
                 confiles = {};
                 if strcmp(file_type, 'ResMS')
