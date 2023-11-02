@@ -25,10 +25,10 @@ def binarize_bigger(mask_path, threshold):
 
     # Threshold
     thresholded_mask_val = mask.get_fdata()
-    thresholded_mask_val[thresholded_mask_val < threshold] = 0
+    thresholded_mask_val[thresholded_mask_val < threshold] = 0.
 
     # Binarization
-    bin_mask_val = (thresholded_mask_val != 0)
+    bin_mask_val = (thresholded_mask_val != 0.)
 
     # Create bin mask
     bin_mask = new_img_like(mask, bin_mask_val)
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     mniflirt_cereb8a_lh_bin_val = mniflirt_cereb8a_lh_bin.get_fdata()
     combined_mask_lh_val = \
         mniflirt_cereb7b_lh_bin_val + mniflirt_cereb8a_lh_bin_val
-    combined_mask_lh_val[combined_mask_lh_val == 2] = 1
+    combined_mask_lh_val[combined_mask_lh_val == 2.] = 1.
     combined_mask_lh = new_img_like(
         mniflirt_cereb7b_lh_bin, combined_mask_lh_val)
 
@@ -149,7 +149,7 @@ if __name__ == '__main__':
     mniflirt_cereb8a_rh_bin_val = mniflirt_cereb8a_rh_bin.get_fdata()
     combined_mask_rh_val = \
         mniflirt_cereb7b_rh_bin_val + mniflirt_cereb8a_rh_bin_val
-    combined_mask_rh_val[combined_mask_rh_val == 2] = 1
+    combined_mask_rh_val[combined_mask_rh_val == 2.] = 1.
     combined_mask_rh = new_img_like(
         mniflirt_cereb7b_rh_bin, combined_mask_rh_val)
 
