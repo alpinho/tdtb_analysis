@@ -64,8 +64,10 @@ def create_msdtb_roi(map_path, map_thresh_min,
     atlas_rh_mask = load_img(atlas_rh_maskpath)
 
     # Resample atlas masks
-    atlas_lh_rmask = resample_to_img(atlas_lh_mask, new_map)
-    atlas_rh_rmask = resample_to_img(atlas_rh_mask, new_map)
+    atlas_lh_rmask = resample_to_img(atlas_lh_mask, new_map,
+                                     interpolation='nearest')
+    atlas_rh_rmask = resample_to_img(atlas_rh_mask, new_map,
+                                     interpolation='nearest')
 
     # Get data from atlas masks
     atlas_lh_val = atlas_lh_rmask.get_fdata()
@@ -503,19 +505,19 @@ if __name__ == '__main__':
                      msdtb_cereb7b8a_rh_maskpath,
                      map_thresh_max=None)
 
-    ## Extract data from ROIs in both hemispheres
-    msdtb_cereb7b8a_lh_mask = load_img(msdtb_cereb7b8a_lh_maskpath)
-    msdtb_cereb7b8a_rh_mask = load_img(msdtb_cereb7b8a_rh_maskpath)
-    cereb7b8a_masks = [msdtb_cereb7b8a_lh_mask, msdtb_cereb7b8a_rh_mask]
-    compute_rois(cereb7b8a_masks, mask_wb, contrasts,
-                 msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval, 'wcon')
-    compute_rois(cereb7b8a_masks, mask_wb, contrasts,
-                 msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval, 'wpsc')
+    # ## Extract data from ROIs in both hemispheres
+    # msdtb_cereb7b8a_lh_mask = load_img(msdtb_cereb7b8a_lh_maskpath)
+    # msdtb_cereb7b8a_rh_mask = load_img(msdtb_cereb7b8a_rh_maskpath)
+    # cereb7b8a_masks = [msdtb_cereb7b8a_lh_mask, msdtb_cereb7b8a_rh_mask]
+    # compute_rois(cereb7b8a_masks, mask_wb, contrasts,
+    #              msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval, 'wcon')
+    # compute_rois(cereb7b8a_masks, mask_wb, contrasts,
+    #              msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval, 'wpsc')
 
-    # Plot
-    plot_roi_horizontal(msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval,
-                        'Cerebellar Lobules VIIb-VIIIa',
-                        msdtb_cereb7b8a_con_roih)
-    plot_roi_horizontal(msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval,
-                        'Cerebellar Lobules VIIb-VIIIa',
-                        msdtb_cereb7b8a_psc_roih)
+    # # Plot
+    # plot_roi_horizontal(msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval,
+    #                     'Cerebellar Lobules VIIb-VIIIa',
+    #                     msdtb_cereb7b8a_con_roih)
+    # plot_roi_horizontal(msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval,
+    #                     'Cerebellar Lobules VIIb-VIIIa',
+    #                     msdtb_cereb7b8a_psc_roih)
