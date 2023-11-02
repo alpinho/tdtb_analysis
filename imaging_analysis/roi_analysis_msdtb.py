@@ -251,7 +251,12 @@ def plot_roi_vertical(arr_conmean, arr_conpval, roi_ref, output_file,
 
 # ############################# INPUTS ##################################
 
-data_dir = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives'
+if os.path.isdir('/home/analu/diedrichsen_data/data'):
+    base_dir = '/home/analu/diedrichsen_data/data'
+else:
+    base_dir = '/srv/diedrichsen/data'
+
+data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
 mask_wb = os.path.join(data_dir, 'group/anat/group_mask_noskull.nii')
 mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
 
