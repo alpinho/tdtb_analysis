@@ -321,6 +321,7 @@ tmap_thresh_min = 3.385
 working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
+nettekoven_dir = os.path.join(atlases_dir, 'nettekoven')
 msdtb_dir = os.path.join(atlases_dir, 'msdtb')
 
 hos_putamen_lh_maskpath = os.path.join(
@@ -342,6 +343,15 @@ mniflirt_cereb7b8a_lh_maskpath = os.path.join(
     fsl_dir, 'mniflirt_cereb7b8a_lh_mask.nii.gz')
 mniflirt_cereb7b8a_rh_maskpath = os.path.join(
     fsl_dir, 'mniflirt_cereb7b8a_rh_mask.nii.gz')
+
+atl_cerebd3s_lh_maskpath = os.path.join(
+    nettekoven_dir, 'd3ls_atl128_symmni_mask.nii.gz')
+atl_cerebd3s_rh_maskpath = os.path.join(
+    nettekoven_dir, 'd3rs_atl128_symmni_mask.nii.gz')
+atl_cerebd3i_lh_maskpath = os.path.join(
+    nettekoven_dir, 'd3li_atl128_symmni_mask.nii.gz')
+atl_cerebd3i_rh_maskpath = os.path.join(
+    nettekoven_dir, 'd3ri_atl128_symmni_mask.nii.gz')
 
 msdtb_putamen_lh_maskpath = os.path.join(msdtb_dir,
                                          'msdtb_putamen_mask_lh.nii.gz')
@@ -380,7 +390,6 @@ msdtb_cereb6_psc_roih = os.path.join(
     msdtb_dir, 'msdtb_cereb6_roi_psc_horizontalbarplot.png')
 msdtb_cereb6_roiv = os.path.join(
     msdtb_dir, 'msdtb_cereb6_roi_verticalbarplot.png')
-
 
 msdtb_crus1_lh_maskpath = os.path.join(msdtb_dir,
                                         'msdtb_crus1_mask_lh.nii.gz')
@@ -421,8 +430,48 @@ msdtb_cereb7b8a_roiv = os.path.join(
     msdtb_dir, 'msdtb_cereb7b8a_roi_verticalbarplot.png')
 
 
+msdtb_cerebd3s_lh_maskpath = os.path.join(msdtb_dir,
+                                          'msdtb_cerebd3s_mask_lh.nii.gz')
+msdtb_cerebd3s_rh_maskpath = os.path.join(msdtb_dir,
+                                          'msdtb_cerebd3s_mask_rh.nii.gz')
+msdtb_cerebd3s_conmean = os.path.join(msdtb_dir,
+                                      'msdtb_cerebd3s_conmean.npy')
+msdtb_cerebd3s_conpval = os.path.join(msdtb_dir,
+                                      'msdtb_cerebd3s_conpval.npy')
+msdtb_cerebd3s_pscmean = os.path.join(msdtb_dir,
+                                      'msdtb_cerebd3s_pscmean.npy')
+msdtb_cerebd3s_pscpval = os.path.join(msdtb_dir,
+                                      'msdtb_cerebd3s_pscpval.npy')
+msdtb_cerebd3s_con_roih = os.path.join(
+    msdtb_dir, 'msdtb_cerebd3s_roi_con_horizontalbarplot.png')
+msdtb_cerebd3s_psc_roih = os.path.join(
+    msdtb_dir, 'msdtb_cerebd3s_roi_psc_horizontalbarplot.png')
+msdtb_cerebd3s_roiv = os.path.join(
+    msdtb_dir, 'msdtb_cerebd3s_roi_verticalbarplot.png')
+
+
+msdtb_cerebd3i_lh_maskpath = os.path.join(msdtb_dir,
+                                          'msdtb_cerebd3i_mask_lh.nii.gz')
+msdtb_cerebd3i_rh_maskpath = os.path.join(msdtb_dir,
+                                          'msdtb_cerebd3i_mask_rh.nii.gz')
+msdtb_cerebd3i_conmean = os.path.join(msdtb_dir,
+                                      'msdtb_cerebd3i_conmean.npy')
+msdtb_cerebd3i_conpval = os.path.join(msdtb_dir,
+                                      'msdtb_cerebd3i_conpval.npy')
+msdtb_cerebd3i_pscmean = os.path.join(msdtb_dir,
+                                      'msdtb_cerebd3i_pscmean.npy')
+msdtb_cerebd3i_pscpval = os.path.join(msdtb_dir,
+                                      'msdtb_cerebd3i_pscpval.npy')
+msdtb_cerebd3i_con_roih = os.path.join(
+    msdtb_dir, 'msdtb_cerebd3i_roi_con_horizontalbarplot.png')
+msdtb_cerebd3i_psc_roih = os.path.join(
+    msdtb_dir, 'msdtb_cerebd3i_roi_psc_horizontalbarplot.png')
+msdtb_cerebd3i_roiv = os.path.join(
+    msdtb_dir, 'msdtb_cerebd3i_roi_verticalbarplot.png')
+
+
 # ############################## RUN ####################################
-  
+
 if __name__ == '__main__':
 
     # # # ######################## PUTAMEN ##################################
@@ -433,19 +482,19 @@ if __name__ == '__main__':
     #                  map_thresh_max=None)
 
     # # ## Extract data from ROIs in both hemispheres
-    # msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
-    # msdtb_putamen_rh_mask = load_img(msdtb_putamen_rh_maskpath)
-    # putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
+    msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
+    msdtb_putamen_rh_mask = load_img(msdtb_putamen_rh_maskpath)
+    putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
     # compute_rois(putamen_masks, mask_wb, contrasts,
     #              msdtb_putamen_conmean, msdtb_putamen_conpval, 'wcon')
-    # compute_rois(putamen_masks, mask_wb, contrasts,
-    #              msdtb_putamen_pscmean, msdtb_putamen_pscpval, 'wpsc')
+    compute_rois(putamen_masks, mask_wb, contrasts,
+                 msdtb_putamen_pscmean, msdtb_putamen_pscpval, 'wpsc')
 
     # ## Plot
     # plot_roi_horizontal(msdtb_putamen_conmean, msdtb_putamen_conpval,
     #                     'Putamen', msdtb_putamen_con_roih)
-    # plot_roi_horizontal(msdtb_putamen_pscmean, msdtb_putamen_pscpval,
-    #                     'Putamen', msdtb_putamen_psc_roih)
+    plot_roi_horizontal(msdtb_putamen_pscmean, msdtb_putamen_pscpval,
+                        'Putamen', msdtb_putamen_psc_roih)
 
 
     # # # ###################### CEREBELLUM VI ############################
@@ -457,19 +506,19 @@ if __name__ == '__main__':
     #                  map_thresh_max=None)
 
     # ## Extract data from ROIs in both hemispheres
-    # msdtb_cereb6_lh_mask = load_img(msdtb_cereb6_lh_maskpath)
-    # msdtb_cereb6_rh_mask = load_img(msdtb_cereb6_rh_maskpath)
-    # cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
+    msdtb_cereb6_lh_mask = load_img(msdtb_cereb6_lh_maskpath)
+    msdtb_cereb6_rh_mask = load_img(msdtb_cereb6_rh_maskpath)
+    cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
     # compute_rois(cereb6_masks, mask_wb, contrasts,
     #              msdtb_cereb6_conmean, msdtb_cereb6_conpval, 'wcon')
-    # compute_rois(cereb6_masks, mask_wb, contrasts,
-    #              msdtb_cereb6_pscmean, msdtb_cereb6_pscpval, 'wpsc')
+    compute_rois(cereb6_masks, mask_wb, contrasts,
+                 msdtb_cereb6_pscmean, msdtb_cereb6_pscpval, 'wpsc')
 
     # # Plot
     # plot_roi_horizontal(msdtb_cereb6_conmean, msdtb_cereb6_conpval,
     #                     'Cerebellar Lobule VI', msdtb_cereb6_con_roih)
-    # plot_roi_horizontal(msdtb_cereb6_pscmean, msdtb_cereb6_pscpval,
-    #                     'Cerebellar Lobule VI', msdtb_cereb6_psc_roih)
+    plot_roi_horizontal(msdtb_cereb6_pscmean, msdtb_cereb6_pscpval,
+                        'Cerebellar Lobule VI', msdtb_cereb6_psc_roih)
 
 
     # ##################### CEREBELLUM CRUS I #############################
@@ -481,19 +530,19 @@ if __name__ == '__main__':
     #                  map_thresh_max=None)
 
     ## Extract data from ROIs in both hemispheres
-    # msdtb_crus1_lh_mask = load_img(msdtb_crus1_lh_maskpath)
-    # msdtb_crus1_rh_mask = load_img(msdtb_crus1_rh_maskpath)
-    # crus1_masks = [msdtb_crus1_lh_mask, msdtb_crus1_rh_mask]
+    msdtb_crus1_lh_mask = load_img(msdtb_crus1_lh_maskpath)
+    msdtb_crus1_rh_mask = load_img(msdtb_crus1_rh_maskpath)
+    crus1_masks = [msdtb_crus1_lh_mask, msdtb_crus1_rh_mask]
     # compute_rois(crus1_masks, mask_wb, contrasts,
     #              msdtb_crus1_conmean, msdtb_crus1_conpval, 'wcon')
-    # compute_rois(crus1_masks, mask_wb, contrasts,
-    #              msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'wpsc')
+    compute_rois(crus1_masks, mask_wb, contrasts,
+                 msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'wpsc')
 
     # Plot
     # plot_roi_horizontal(msdtb_crus1_conmean, msdtb_crus1_conpval, 'Crus I',
     #                     msdtb_crus1_con_roih)
-    # plot_roi_horizontal(msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'Crus I',
-    #                     msdtb_crus1_psc_roih)
+    plot_roi_horizontal(msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'Crus I',
+                        msdtb_crus1_psc_roih)
 
     # ##################### CEREBELLUM 7b-8a #############################
 
@@ -505,19 +554,73 @@ if __name__ == '__main__':
                      msdtb_cereb7b8a_rh_maskpath,
                      map_thresh_max=None)
 
-    # ## Extract data from ROIs in both hemispheres
-    # msdtb_cereb7b8a_lh_mask = load_img(msdtb_cereb7b8a_lh_maskpath)
-    # msdtb_cereb7b8a_rh_mask = load_img(msdtb_cereb7b8a_rh_maskpath)
-    # cereb7b8a_masks = [msdtb_cereb7b8a_lh_mask, msdtb_cereb7b8a_rh_mask]
-    # compute_rois(cereb7b8a_masks, mask_wb, contrasts,
-    #              msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval, 'wcon')
-    # compute_rois(cereb7b8a_masks, mask_wb, contrasts,
-    #              msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval, 'wpsc')
+    ## Extract data from ROIs in both hemispheres
+    msdtb_cereb7b8a_lh_mask = load_img(msdtb_cereb7b8a_lh_maskpath)
+    msdtb_cereb7b8a_rh_mask = load_img(msdtb_cereb7b8a_rh_maskpath)
+    cereb7b8a_masks = [msdtb_cereb7b8a_lh_mask, msdtb_cereb7b8a_rh_mask]
+    compute_rois(cereb7b8a_masks, mask_wb, contrasts,
+                 msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval, 'wcon')
+    compute_rois(cereb7b8a_masks, mask_wb, contrasts,
+                 msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval, 'wpsc')
 
-    # # Plot
-    # plot_roi_horizontal(msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval,
-    #                     'Cerebellar Lobules VIIb-VIIIa',
-    #                     msdtb_cereb7b8a_con_roih)
-    # plot_roi_horizontal(msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval,
-    #                     'Cerebellar Lobules VIIb-VIIIa',
-    #                     msdtb_cereb7b8a_psc_roih)
+    # Plot
+    plot_roi_horizontal(msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval,
+                        'Cerebellar Lobules VIIb-VIIIa',
+                        msdtb_cereb7b8a_con_roih)
+    plot_roi_horizontal(msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval,
+                        'Cerebellar Lobules VIIb-VIIIa',
+                        msdtb_cereb7b8a_psc_roih)
+
+    # ##################### CEREBELLUM D3s #############################
+
+    # Create Music-SDTB ROIs
+    create_msdtb_roi(tmap_path, tmap_thresh_min,
+                     atl_cerebd3s_lh_maskpath,
+                     atl_cerebd3s_rh_maskpath,
+                     msdtb_cerebd3s_lh_maskpath,
+                     msdtb_cerebd3s_rh_maskpath,
+                     map_thresh_max=None)
+
+    ## Extract data from ROIs in both hemispheres
+    msdtb_cerebd3s_lh_mask = load_img(msdtb_cerebd3s_lh_maskpath)
+    msdtb_cerebd3s_rh_mask = load_img(msdtb_cerebd3s_rh_maskpath)
+    cerebd3s_masks = [msdtb_cerebd3s_lh_mask, msdtb_cerebd3s_rh_mask]
+    compute_rois(cerebd3s_masks, mask_wb, contrasts,
+                 msdtb_cerebd3s_conmean, msdtb_cerebd3s_conpval, 'wcon')
+    compute_rois(cerebd3s_masks, mask_wb, contrasts,
+                 msdtb_cerebd3s_pscmean, msdtb_cerebd3s_pscpval, 'wpsc')
+
+    # Plot
+    plot_roi_horizontal(msdtb_cerebd3s_conmean, msdtb_cerebd3s_conpval,
+                        'Cerebellum D3 Superior',
+                        msdtb_cerebd3s_con_roih)
+    plot_roi_horizontal(msdtb_cerebd3s_pscmean, msdtb_cerebd3s_pscpval,
+                        'Cerebellum D3 Superior',
+                        msdtb_cerebd3s_psc_roih)
+
+    # ##################### CEREBELLUM D3i #############################
+
+    # Create Music-SDTB ROIs
+    create_msdtb_roi(tmap_path, tmap_thresh_min,
+                     atl_cerebd3i_lh_maskpath,
+                     atl_cerebd3i_rh_maskpath,
+                     msdtb_cerebd3i_lh_maskpath,
+                     msdtb_cerebd3i_rh_maskpath,
+                     map_thresh_max=None)
+
+    ## Extract data from ROIs in both hemispheres
+    msdtb_cerebd3i_lh_mask = load_img(msdtb_cerebd3i_lh_maskpath)
+    msdtb_cerebd3i_rh_mask = load_img(msdtb_cerebd3i_rh_maskpath)
+    cerebd3i_masks = [msdtb_cerebd3i_lh_mask, msdtb_cerebd3i_rh_mask]
+    compute_rois(cerebd3i_masks, mask_wb, contrasts,
+                 msdtb_cerebd3i_conmean, msdtb_cerebd3i_conpval, 'wcon')
+    compute_rois(cerebd3i_masks, mask_wb, contrasts,
+                 msdtb_cerebd3i_pscmean, msdtb_cerebd3i_pscpval, 'wpsc')
+
+    # Plot
+    plot_roi_horizontal(msdtb_cerebd3i_conmean, msdtb_cerebd3i_conpval,
+                        'Cerebellum D3 Inferior',
+                        msdtb_cerebd3i_con_roih)
+    plot_roi_horizontal(msdtb_cerebd3i_pscmean, msdtb_cerebd3i_pscpval,
+                        'Cerebellum D3 Inferior',
+                        msdtb_cerebd3i_psc_roih)
