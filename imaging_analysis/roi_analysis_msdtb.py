@@ -47,10 +47,8 @@ def binarize_map(con_path, thresh_min, thresh_max=None):
     return new_con, bin_con_val
 
 
-def create_msdtb_roi(map_path, map_thresh_min,
-                     atlas_lh_maskpath, atlas_rh_maskpath,
-                     msdtb_lh_maskpath, msdtb_rh_maskpath,
-                     map_thresh_max=None):
+def create_roi_mask(map_path, map_thresh_min, atlas_maskpath, msdtb_maskpath,
+                    map_thresh_max=None):
 
     # Load contrast-of-interest
     if map_thresh_max is None:
@@ -60,32 +58,83 @@ def create_msdtb_roi(map_path, map_thresh_min,
                                             thresh_max=map_thresh_max)
 
     # Load masks generated from a selected atlas
-    atlas_lh_mask = load_img(atlas_lh_maskpath)
-    atlas_rh_mask = load_img(atlas_rh_maskpath)
+    atlas_mask = load_img(atlas_maskpath)
 
-    # Resample atlas masks
-    atlas_lh_rmask = resample_to_img(atlas_lh_mask, new_map,
-                                     interpolation='nearest')
-    atlas_rh_rmask = resample_to_img(atlas_rh_mask, new_map,
-                                     interpolation='nearest')
+    # Resample atlas mask
+    atlas_rmask = resample_to_img(atlas_mask, new_map,
+                                  interpolation='nearest')
 
-    # Get data from atlas masks
-    atlas_lh_val = atlas_lh_rmask.get_fdata()
-    atlas_rh_val = atlas_rh_rmask.get_fdata()
+    # Get data from atlas mask
+    atlas_val = atlas_rmask.get_fdata()
 
-    # Intersection of contrast-of-interest w/ atlas masks
-    msdtb_lh_val = np.logical_and(
-        bin_map_val.astype(bool), atlas_lh_val.astype(bool)).astype(int)
-    msdtb_rh_val = np.logical_and(
-        bin_map_val.astype(bool), atlas_rh_val.astype(bool)).astype(int)
+    # Intersection of contrast-of-interest w/ atlas mask
+    msdtb_val = np.logical_and(
+        bin_map_val.astype(bool), atlas_val.astype(bool)).astype(int)
 
-    # Create msdtb-Putamen masks
-    msdtb_lh_mask = new_img_like(atlas_lh_rmask, msdtb_lh_val)
-    msdtb_rh_mask = new_img_like(atlas_rh_rmask, msdtb_rh_val)
+    # Create msdtb-Putamen mask
+    msdtb_mask = new_img_like(atlas_rmask, msdtb_val)
 
-    # Save msdtb-Putamen masks
-    msdtb_lh_mask.to_filename(msdtb_lh_maskpath)
-    msdtb_rh_mask.to_filename(msdtb_rh_maskpath)
+    # Save msdtb-Putamen mask
+    msdtb_mask.to_filename(msdtb_maskpath)
+
+    return msdtb_mask
+
+
+def extract_roi(rmask, mask_type, contrasts, subjects_estimates_dir,
+                map_thresh_min, atlas_maskpath, individual_msdtb_maskpath,
+                arr_conmean, filetype):
+
+    # # For each task design
+    allcontrasts_mean = []
+    allpvalues = []
+    for t, (tk, task) in enumerate(tasks.items()):
+        contrasts_mean = []
+        pvalues = []
+
+        # # For every contrast
+        for key in contrasts.keys()[1:]:
+            contrast_fname = filetype + '_%04d_desc-sm8wbmasked.nii' % key
+
+            subjects_contrast_mean = []
+            # # For every subject
+            for subject_estimate_dir in subjects_estimates_dir:
+
+                # Create individual roi masks
+                individual_tmap_encoding = os.path.join(
+                    subject_estimate_dir,
+                    encoding_relative_path)
+
+                sub_rmask = create_roi_mask(
+                    individual_tmap_encoding, map_thresh_min,
+                    atlas_maskpath, individual_msdtb_maskpath)
+
+                # subrmask =  individual roi: intersection of quadrant mask with individual tmap
+                # mask_img = individual tmap
+                masker = NiftiLabelsMasker(
+                    labels_img=sub_rmask,
+                    mask_img=individual_tmap_encoding)
+                masker.fit()
+
+                masked_con = os.path.join(subject_estimate_dir, tk,
+                                            'masked_derivatives_rwls',
+                                            contrast_fname)
+                print(np.array(masked_con))
+
+                # Extract mean average of contrasts effect-size in ROI...
+                # ... for every participant
+                mask_data = masker.transform(masked_con)[0][0]
+
+                subjects_contrast_mean.append(mask_data)
+
+            # Compute the mean roi for a given contrast across subjects
+            mean_roi = np.mean(subjects_contrast_mean)
+            contrasts_mean.append(mean_roi)
+
+        # all designs
+        allcontrasts_mean.append(contrasts_mean)
+
+    # ## Save
+    np.save(arr_conmean, allcontrasts_mean, allow_pickle=False)
 
 
 def pval_label_converter(pvalues):
@@ -106,58 +155,6 @@ def pval_label_converter(pvalues):
             pval_labels.append('ns')
 
     return pval_labels
-
-
-def compute_rois(rmasks, mask_type, contrasts, arr_conmean, arr_conpval,
-                 filetype):
-    hemrois_contrasts_mean = []
-    hemrois_allpvalues = []
-    # # For each hemisphere
-    for rmask in rmasks:
-        masker = NiftiLabelsMasker(labels_img=rmask, mask_img=mask_type)
-        masker.fit()
-
-        # # For each task design
-        allcontrasts_mean = []
-        allpvalues = []
-        for t, (tk, task) in enumerate(tasks.items()):
-            contrasts_mean = []
-            pvalues = []
-
-            # # For every contrast
-            for key in contrasts.keys():
-                contrast_fname = filetype + '_%04d_desc-sm8wbmasked.nii' % key
-                print(contrast_fname)
-                masked_con = [os.path.join(estimate_dir, tk,
-                                           'masked_derivatives_rwls',
-                                           contrast_fname)
-                              for estimate_dir in estimates_dir]
-                print(np.array(masked_con))
-
-                # Extract mean average of contrasts effect-size in ROI...
-                # ... for every participant
-                mask_data = [masker.transform(mcon)[0][0]
-                             for mcon in masked_con]
-
-                # Compute mean
-                mean_roi = np.mean(mask_data)
-
-                # Compute stat
-                _, pval = stats.ttest_1samp(mask_data, popmean=0.,
-                                            alternative='greater')
-
-                contrasts_mean.append(mean_roi)
-                pvalues.append(pval)
-
-            allcontrasts_mean.append(contrasts_mean)
-            allpvalues.append(pvalues)
-
-        hemrois_contrasts_mean.append(allcontrasts_mean)
-        hemrois_allpvalues.append(allpvalues)
-
-    # ## Save
-    np.save(arr_conmean, hemrois_contrasts_mean, allow_pickle=False)
-    np.save(arr_conpval, hemrois_allpvalues, allow_pickle=False)
 
 
 def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
@@ -291,20 +288,23 @@ contrasts = {1: 'Encoding',
 #              9: 'AB vs. AI',
 #              10: 'VB vs. VI'}
 
-filtered_contrasts = {1: 'Encoding',
-                      4: 'Auditory vs. Visual Encoding',
-                      5: 'Visual vs. Auditory Encoding',
-                      8: 'Beat vs. Interval',
-                      9: 'Auditory Beat vs. Auditory Interval',
-                      10: 'Visual Beat vs. Visual Interval',
-                      11: 'Interval vs. Beat',
-                      12: 'Auditory Interval vs. Auditory Beat',
-                      13: 'Visual Interval vs. Visual Beat',
-                      14: 'Decision'}
+# filtered_contrasts = {1: 'Encoding',
+#                       4: 'Auditory vs. Visual Encoding',
+#                       5: 'Visual vs. Auditory Encoding',
+#                       8: 'Beat vs. Interval',
+#                       9: 'Auditory Beat vs. Auditory Interval',
+#                       10: 'Visual Beat vs. Visual Interval',
+#                       11: 'Interval vs. Beat',
+#                       12: 'Auditory Interval vs. Auditory Beat',
+#                       13: 'Visual Interval vs. Visual Beat',
+#                       14: 'Decision'}
 
-subjects_dir = [os.path.join(data_dir, 'sub-%02d') % sbj for sbj in SUBJECTS]
-estimates_dir = [os.path.join(subject_dir, 'estimates')
-                 for subject_dir in subjects_dir]
+filtered_contrasts = {1: 'Encoding',
+                      2: 'Auditory Encoding',
+                      3: 'Visual Encoding',
+                      6: 'Beat',
+                      7: 'Interval',
+                      14: 'Decision'}
 
 wb_masking = 'wb'
 gm_masking = 'gm'
@@ -319,7 +319,8 @@ con_thresh_max = 1.
 
 tmap_relative_path = relative_path + 'spmT_0001.nii'
 tmap_path = os.path.join(data_dir, tmap_relative_path)
-tmap_thresh_min = 3.385
+# tmap_thresh_min = 3.385
+tmap_thresh_min = 0.
 
 ##########################################################
 
@@ -328,11 +329,7 @@ atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 nettekoven_dir = os.path.join(atlases_dir, 'nettekoven')
 msdtb_dir = os.path.join(atlases_dir, 'msdtb')
-
-hos_putamen_lh_maskpath = os.path.join(
-    fsl_dir, 'hos_putamen_lh_mask.nii.gz')
-hos_putamen_rh_maskpath = os.path.join(
-    fsl_dir, 'hos_putamen_rh_mask.nii.gz')
+individual_rois_dir = os.path.join(msdtb_dir, 'individual_rois')
 
 mniflirt_cereb6_lh_maskpath = os.path.join(
     fsl_dir, 'mniflirt_cereb6_lh_mask.nii.gz')
@@ -358,10 +355,7 @@ atl_cerebd3i_lh_maskpath = os.path.join(
 atl_cerebd3i_rh_maskpath = os.path.join(
     nettekoven_dir, 'd3ri_atl128_symmni_mask.nii.gz')
 
-msdtb_putamen_lh_maskpath = os.path.join(msdtb_dir,
-                                         'msdtb_putamen_mask_lh.nii.gz')
-msdtb_putamen_rh_maskpath = os.path.join(msdtb_dir,
-                                         'msdtb_putamen_mask_rh.nii.gz')
+
 msdtb_putamen_conmean = os.path.join(msdtb_dir,
                                      'msdtb_putamen_conmean.npy')
 msdtb_putamen_conpval = os.path.join(msdtb_dir,
@@ -434,7 +428,6 @@ msdtb_cereb7b8a_psc_roih = os.path.join(
 msdtb_cereb7b8a_roiv = os.path.join(
     msdtb_dir, 'msdtb_cereb7b8a_roi_verticalbarplot.png')
 
-
 msdtb_cerebd3s_lh_maskpath = os.path.join(msdtb_dir,
                                           'msdtb_cerebd3s_mask_lh.nii.gz')
 msdtb_cerebd3s_rh_maskpath = os.path.join(msdtb_dir,
@@ -453,7 +446,6 @@ msdtb_cerebd3s_psc_roih = os.path.join(
     msdtb_dir, 'msdtb_cerebd3s_roi_psc_horizontalbarplot.png')
 msdtb_cerebd3s_roiv = os.path.join(
     msdtb_dir, 'msdtb_cerebd3s_roi_verticalbarplot.png')
-
 
 msdtb_cerebd3i_lh_maskpath = os.path.join(msdtb_dir,
                                           'msdtb_cerebd3i_mask_lh.nii.gz')
@@ -474,158 +466,181 @@ msdtb_cerebd3i_psc_roih = os.path.join(
 msdtb_cerebd3i_roiv = os.path.join(
     msdtb_dir, 'msdtb_cerebd3i_roi_verticalbarplot.png')
 
+ls_atl32_symmni_maskpath = os.path.join(
+    nettekoven_dir, 'ls_atl32_symmni_mask.nii.gz')
+rs_atl32_symmni_maskpath = os.path.join(
+    nettekoven_dir, 'rs_atl32_symmni_mask.nii.gz')
+li_atl32_symmni_maskpath = os.path.join(
+    nettekoven_dir, 'li_atl32_symmni_mask.nii.gz')
+ri_atl32_symmni_maskpath = os.path.join(
+    nettekoven_dir, 'ri_atl32_symmni_mask.nii.gz')
+
 
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
 
     # # # ######################## PUTAMEN ##################################
-    # # Create Music-SDTB ROIs
-    # create_msdtb_roi(tmap_path, tmap_thresh_min,
-    #                  hos_putamen_lh_maskpath, hos_putamen_rh_maskpath,
-    #                  msdtb_putamen_lh_maskpath, msdtb_putamen_rh_maskpath,
-    #                  map_thresh_max=None)
+    # # Create individual ROIs
+    for subject in SUBJECTS:
+        subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
+        estimates_dir = os.path.join(subject_dir, 'estimates')
+        subject_encoding_tmap = os.path.join(
+            estimates_dir,
+            'allmain_tasks',
+            'masked_derivatives_rwls',
+            'wspmT_0001_desc-sm8wbmasked.nii')
+        # For each hemisphere
+        for hem in ['lh', 'rh']:
+            hos_putamen_maskpath = os.path.join(
+                fsl_dir, 'hos_putamen_' + hem + '_mask.nii.gz')
+            individual_putamen_maskpath = os.path.join(
+                individual_rois_dir, 'putamen',
+                'putamen_mask_sub-%02d_' + hem + '.nii.gz') % subject
+            create_roi_mask(subject_encoding_tmap, tmap_thresh_min,
+                            hos_putamen_maskpath, individual_putamen_maskpath)
+
+    # # # ## Extract data from ROIs in both hemispheres
+    # msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
+    # msdtb_putamen_rh_mask = load_img(msdtb_putamen_rh_maskpath)
+    # putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
+    # # compute_rois(putamen_masks, mask_wb, contrasts,
+    # #              msdtb_putamen_conmean, msdtb_putamen_conpval, 'wcon')
+    # compute_rois(putamen_masks, mask_wb, contrasts,
+    #              msdtb_putamen_pscmean, msdtb_putamen_pscpval, 'wpsc',
+    #              estimates_dir)
+
+    # # ## Plot
+    # # plot_roi_horizontal(msdtb_putamen_conmean, msdtb_putamen_conpval,
+    # #                     'Putamen', msdtb_putamen_con_roih)
+    # plot_roi_horizontal(msdtb_putamen_pscmean, msdtb_putamen_pscpval,
+    #                     'Putamen', msdtb_putamen_psc_roih)
+
+
+    # # # # ###################### CEREBELLUM VI ############################
+
+    # # # Create Music-SDTB ROIs
+    # # create_msdtb_roi(tmap_path, tmap_thresh_min,
+    # #                  mniflirt_cereb6_lh_maskpath, mniflirt_cereb6_rh_maskpath,
+    # #                  msdtb_cereb6_lh_maskpath, msdtb_cereb6_rh_maskpath,
+    # #                  map_thresh_max=None)
 
     # # ## Extract data from ROIs in both hemispheres
-    msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
-    msdtb_putamen_rh_mask = load_img(msdtb_putamen_rh_maskpath)
-    putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
-    # compute_rois(putamen_masks, mask_wb, contrasts,
-    #              msdtb_putamen_conmean, msdtb_putamen_conpval, 'wcon')
-    compute_rois(putamen_masks, mask_wb, contrasts,
-                 msdtb_putamen_pscmean, msdtb_putamen_pscpval, 'wpsc')
+    # msdtb_cereb6_lh_mask = load_img(msdtb_cereb6_lh_maskpath)
+    # msdtb_cereb6_rh_mask = load_img(msdtb_cereb6_rh_maskpath)
+    # cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
+    # # compute_rois(cereb6_masks, mask_wb, contrasts,
+    # #              msdtb_cereb6_conmean, msdtb_cereb6_conpval, 'wcon')
+    # compute_rois(cereb6_masks, mask_wb, contrasts,
+    #              msdtb_cereb6_pscmean, msdtb_cereb6_pscpval, 'wpsc')
 
-    # ## Plot
-    # plot_roi_horizontal(msdtb_putamen_conmean, msdtb_putamen_conpval,
-    #                     'Putamen', msdtb_putamen_con_roih)
-    plot_roi_horizontal(msdtb_putamen_pscmean, msdtb_putamen_pscpval,
-                        'Putamen', msdtb_putamen_psc_roih)
+    # # # Plot
+    # # plot_roi_horizontal(msdtb_cereb6_conmean, msdtb_cereb6_conpval,
+    # #                     'Cerebellar Lobule VI', msdtb_cereb6_con_roih)
+    # plot_roi_horizontal(msdtb_cereb6_pscmean, msdtb_cereb6_pscpval,
+    #                     'Cerebellar Lobule VI', msdtb_cereb6_psc_roih)
 
 
-    # # # ###################### CEREBELLUM VI ############################
+    # # ##################### CEREBELLUM CRUS I #############################
+
+    # # Create Music-SDTB ROIs
+    # # create_msdtb_roi(tmap_path, 3.,
+    # #                  mniflirt_crus1_lh_maskpath, mniflirt_crus1_rh_maskpath,
+    # #                  msdtb_crus1_lh_maskpath, msdtb_crus1_rh_maskpath,
+    # #                  map_thresh_max=None)
+
+    # ## Extract data from ROIs in both hemispheres
+    # msdtb_crus1_lh_mask = load_img(msdtb_crus1_lh_maskpath)
+    # msdtb_crus1_rh_mask = load_img(msdtb_crus1_rh_maskpath)
+    # crus1_masks = [msdtb_crus1_lh_mask, msdtb_crus1_rh_mask]
+    # # compute_rois(crus1_masks, mask_wb, contrasts,
+    # #              msdtb_crus1_conmean, msdtb_crus1_conpval, 'wcon')
+    # compute_rois(crus1_masks, mask_wb, contrasts,
+    #              msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'wpsc')
+
+    # # Plot
+    # # plot_roi_horizontal(msdtb_crus1_conmean, msdtb_crus1_conpval, 'Crus I',
+    # #                     msdtb_crus1_con_roih)
+    # plot_roi_horizontal(msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'Crus I',
+    #                     msdtb_crus1_psc_roih)
+
+    # # ##################### CEREBELLUM 7b-8a #############################
 
     # # Create Music-SDTB ROIs
     # create_msdtb_roi(tmap_path, tmap_thresh_min,
-    #                  mniflirt_cereb6_lh_maskpath, mniflirt_cereb6_rh_maskpath,
-    #                  msdtb_cereb6_lh_maskpath, msdtb_cereb6_rh_maskpath,
+    #                  mniflirt_cereb7b8a_lh_maskpath,
+    #                  mniflirt_cereb7b8a_rh_maskpath,
+    #                  msdtb_cereb7b8a_lh_maskpath,
+    #                  msdtb_cereb7b8a_rh_maskpath,
     #                  map_thresh_max=None)
 
     # ## Extract data from ROIs in both hemispheres
-    msdtb_cereb6_lh_mask = load_img(msdtb_cereb6_lh_maskpath)
-    msdtb_cereb6_rh_mask = load_img(msdtb_cereb6_rh_maskpath)
-    cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
-    # compute_rois(cereb6_masks, mask_wb, contrasts,
-    #              msdtb_cereb6_conmean, msdtb_cereb6_conpval, 'wcon')
-    compute_rois(cereb6_masks, mask_wb, contrasts,
-                 msdtb_cereb6_pscmean, msdtb_cereb6_pscpval, 'wpsc')
+    # msdtb_cereb7b8a_lh_mask = load_img(msdtb_cereb7b8a_lh_maskpath)
+    # msdtb_cereb7b8a_rh_mask = load_img(msdtb_cereb7b8a_rh_maskpath)
+    # cereb7b8a_masks = [msdtb_cereb7b8a_lh_mask, msdtb_cereb7b8a_rh_mask]
+    # compute_rois(cereb7b8a_masks, mask_wb, contrasts,
+    #              msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval, 'wcon')
+    # compute_rois(cereb7b8a_masks, mask_wb, contrasts,
+    #              msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval, 'wpsc')
 
     # # Plot
-    # plot_roi_horizontal(msdtb_cereb6_conmean, msdtb_cereb6_conpval,
-    #                     'Cerebellar Lobule VI', msdtb_cereb6_con_roih)
-    plot_roi_horizontal(msdtb_cereb6_pscmean, msdtb_cereb6_pscpval,
-                        'Cerebellar Lobule VI', msdtb_cereb6_psc_roih)
+    # plot_roi_horizontal(msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval,
+    #                     'Cerebellar Lobules VIIb-VIIIa',
+    #                     msdtb_cereb7b8a_con_roih)
+    # plot_roi_horizontal(msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval,
+    #                     'Cerebellar Lobules VIIb-VIIIa',
+    #                     msdtb_cereb7b8a_psc_roih)
 
+    # # ##################### CEREBELLUM D3s #############################
 
-    # ##################### CEREBELLUM CRUS I #############################
-
-    # Create Music-SDTB ROIs
-    # create_msdtb_roi(tmap_path, 3.,
-    #                  mniflirt_crus1_lh_maskpath, mniflirt_crus1_rh_maskpath,
-    #                  msdtb_crus1_lh_maskpath, msdtb_crus1_rh_maskpath,
+    # # Create Music-SDTB ROIs
+    # create_msdtb_roi(tmap_path, tmap_thresh_min,
+    #                  atl_cerebd3s_lh_maskpath,
+    #                  atl_cerebd3s_rh_maskpath,
+    #                  msdtb_cerebd3s_lh_maskpath,
+    #                  msdtb_cerebd3s_rh_maskpath,
     #                  map_thresh_max=None)
 
-    ## Extract data from ROIs in both hemispheres
-    msdtb_crus1_lh_mask = load_img(msdtb_crus1_lh_maskpath)
-    msdtb_crus1_rh_mask = load_img(msdtb_crus1_rh_maskpath)
-    crus1_masks = [msdtb_crus1_lh_mask, msdtb_crus1_rh_mask]
-    # compute_rois(crus1_masks, mask_wb, contrasts,
-    #              msdtb_crus1_conmean, msdtb_crus1_conpval, 'wcon')
-    compute_rois(crus1_masks, mask_wb, contrasts,
-                 msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'wpsc')
+    # ## Extract data from ROIs in both hemispheres
+    # msdtb_cerebd3s_lh_mask = load_img(msdtb_cerebd3s_lh_maskpath)
+    # msdtb_cerebd3s_rh_mask = load_img(msdtb_cerebd3s_rh_maskpath)
+    # cerebd3s_masks = [msdtb_cerebd3s_lh_mask, msdtb_cerebd3s_rh_mask]
+    # compute_rois(cerebd3s_masks, mask_wb, contrasts,
+    #              msdtb_cerebd3s_conmean, msdtb_cerebd3s_conpval, 'wcon')
+    # compute_rois(cerebd3s_masks, mask_wb, contrasts,
+    #              msdtb_cerebd3s_pscmean, msdtb_cerebd3s_pscpval, 'wpsc')
 
-    # Plot
-    # plot_roi_horizontal(msdtb_crus1_conmean, msdtb_crus1_conpval, 'Crus I',
-    #                     msdtb_crus1_con_roih)
-    plot_roi_horizontal(msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'Crus I',
-                        msdtb_crus1_psc_roih)
+    # # Plot
+    # plot_roi_horizontal(msdtb_cerebd3s_conmean, msdtb_cerebd3s_conpval,
+    #                     'Cerebellum D3 Superior',
+    #                     msdtb_cerebd3s_con_roih)
+    # plot_roi_horizontal(msdtb_cerebd3s_pscmean, msdtb_cerebd3s_pscpval,
+    #                     'Cerebellum D3 Superior',
+    #                     msdtb_cerebd3s_psc_roih)
 
-    # ##################### CEREBELLUM 7b-8a #############################
+    # # ##################### CEREBELLUM D3i #############################
 
-    # Create Music-SDTB ROIs
-    create_msdtb_roi(tmap_path, tmap_thresh_min,
-                     mniflirt_cereb7b8a_lh_maskpath,
-                     mniflirt_cereb7b8a_rh_maskpath,
-                     msdtb_cereb7b8a_lh_maskpath,
-                     msdtb_cereb7b8a_rh_maskpath,
-                     map_thresh_max=None)
+    # # Create Music-SDTB ROIs
+    # create_msdtb_roi(tmap_path, tmap_thresh_min,
+    #                  atl_cerebd3i_lh_maskpath,
+    #                  atl_cerebd3i_rh_maskpath,
+    #                  msdtb_cerebd3i_lh_maskpath,
+    #                  msdtb_cerebd3i_rh_maskpath,
+    #                  map_thresh_max=None)
 
-    ## Extract data from ROIs in both hemispheres
-    msdtb_cereb7b8a_lh_mask = load_img(msdtb_cereb7b8a_lh_maskpath)
-    msdtb_cereb7b8a_rh_mask = load_img(msdtb_cereb7b8a_rh_maskpath)
-    cereb7b8a_masks = [msdtb_cereb7b8a_lh_mask, msdtb_cereb7b8a_rh_mask]
-    compute_rois(cereb7b8a_masks, mask_wb, contrasts,
-                 msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval, 'wcon')
-    compute_rois(cereb7b8a_masks, mask_wb, contrasts,
-                 msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval, 'wpsc')
+    # ## Extract data from ROIs in both hemispheres
+    # msdtb_cerebd3i_lh_mask = load_img(msdtb_cerebd3i_lh_maskpath)
+    # msdtb_cerebd3i_rh_mask = load_img(msdtb_cerebd3i_rh_maskpath)
+    # cerebd3i_masks = [msdtb_cerebd3i_lh_mask, msdtb_cerebd3i_rh_mask]
+    # compute_rois(cerebd3i_masks, mask_wb, contrasts,
+    #              msdtb_cerebd3i_conmean, msdtb_cerebd3i_conpval, 'wcon')
+    # compute_rois(cerebd3i_masks, mask_wb, contrasts,
+    #              msdtb_cerebd3i_pscmean, msdtb_cerebd3i_pscpval, 'wpsc')
 
-    # Plot
-    plot_roi_horizontal(msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval,
-                        'Cerebellar Lobules VIIb-VIIIa',
-                        msdtb_cereb7b8a_con_roih)
-    plot_roi_horizontal(msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval,
-                        'Cerebellar Lobules VIIb-VIIIa',
-                        msdtb_cereb7b8a_psc_roih)
-
-    # ##################### CEREBELLUM D3s #############################
-
-    # Create Music-SDTB ROIs
-    create_msdtb_roi(tmap_path, tmap_thresh_min,
-                     atl_cerebd3s_lh_maskpath,
-                     atl_cerebd3s_rh_maskpath,
-                     msdtb_cerebd3s_lh_maskpath,
-                     msdtb_cerebd3s_rh_maskpath,
-                     map_thresh_max=None)
-
-    ## Extract data from ROIs in both hemispheres
-    msdtb_cerebd3s_lh_mask = load_img(msdtb_cerebd3s_lh_maskpath)
-    msdtb_cerebd3s_rh_mask = load_img(msdtb_cerebd3s_rh_maskpath)
-    cerebd3s_masks = [msdtb_cerebd3s_lh_mask, msdtb_cerebd3s_rh_mask]
-    compute_rois(cerebd3s_masks, mask_wb, contrasts,
-                 msdtb_cerebd3s_conmean, msdtb_cerebd3s_conpval, 'wcon')
-    compute_rois(cerebd3s_masks, mask_wb, contrasts,
-                 msdtb_cerebd3s_pscmean, msdtb_cerebd3s_pscpval, 'wpsc')
-
-    # Plot
-    plot_roi_horizontal(msdtb_cerebd3s_conmean, msdtb_cerebd3s_conpval,
-                        'Cerebellum D3 Superior',
-                        msdtb_cerebd3s_con_roih)
-    plot_roi_horizontal(msdtb_cerebd3s_pscmean, msdtb_cerebd3s_pscpval,
-                        'Cerebellum D3 Superior',
-                        msdtb_cerebd3s_psc_roih)
-
-    # ##################### CEREBELLUM D3i #############################
-
-    # Create Music-SDTB ROIs
-    create_msdtb_roi(tmap_path, tmap_thresh_min,
-                     atl_cerebd3i_lh_maskpath,
-                     atl_cerebd3i_rh_maskpath,
-                     msdtb_cerebd3i_lh_maskpath,
-                     msdtb_cerebd3i_rh_maskpath,
-                     map_thresh_max=None)
-
-    ## Extract data from ROIs in both hemispheres
-    msdtb_cerebd3i_lh_mask = load_img(msdtb_cerebd3i_lh_maskpath)
-    msdtb_cerebd3i_rh_mask = load_img(msdtb_cerebd3i_rh_maskpath)
-    cerebd3i_masks = [msdtb_cerebd3i_lh_mask, msdtb_cerebd3i_rh_mask]
-    compute_rois(cerebd3i_masks, mask_wb, contrasts,
-                 msdtb_cerebd3i_conmean, msdtb_cerebd3i_conpval, 'wcon')
-    compute_rois(cerebd3i_masks, mask_wb, contrasts,
-                 msdtb_cerebd3i_pscmean, msdtb_cerebd3i_pscpval, 'wpsc')
-
-    # Plot
-    plot_roi_horizontal(msdtb_cerebd3i_conmean, msdtb_cerebd3i_conpval,
-                        'Cerebellum D3 Inferior',
-                        msdtb_cerebd3i_con_roih)
-    plot_roi_horizontal(msdtb_cerebd3i_pscmean, msdtb_cerebd3i_pscpval,
-                        'Cerebellum D3 Inferior',
-                        msdtb_cerebd3i_psc_roih)
+    # # Plot
+    # plot_roi_horizontal(msdtb_cerebd3i_conmean, msdtb_cerebd3i_conpval,
+    #                     'Cerebellum D3 Inferior',
+    #                     msdtb_cerebd3i_con_roih)
+    # plot_roi_horizontal(msdtb_cerebd3i_pscmean, msdtb_cerebd3i_pscpval,
+    #                     'Cerebellum D3 Inferior',
+    #                     msdtb_cerebd3i_psc_roih)
