@@ -25,15 +25,19 @@ from matplotlib import pyplot as plt
 
 # ############################ FUNCTIONS ################################
 
-
-def binarize_map(con_path, thresh_min, thresh_max=None):
+def nonan_map(con_path):
     # Load Encoding Map
     con = load_img(con_path)
 
     # Remove NaN's
     con_val = con.get_fdata()
     con_val[np.isnan(con_val)] = 0
-    new_con = new_img_like(con, con_val)
+    con_map = new_img_like(con, con_val)
+
+    return con_val, con_map
+
+
+def threshold_map(con_val, thresh_min, thresh_max=None):
 
     # Threshold
     thresholded_con_val = con_val
@@ -41,27 +45,30 @@ def binarize_map(con_path, thresh_min, thresh_max=None):
     if thresh_max is not None:
         thresholded_con_val[thresholded_con_val > thresh_max] = 0
 
-    # Binarization
-    bin_con_val = (thresholded_con_val != 0)
-
-    return new_con, bin_con_val
+    return thresholded_con_val
 
 
-def create_roi_mask(map_path, map_thresh_min, atlas_maskpath, msdtb_maskpath,
-                    map_thresh_max=None):
+def create_group_roimask(con_path, con_thresh_min, atlas_maskpath,
+                         msdtb_maskpath, con_thresh_max=None):
 
-    # Load contrast-of-interest
-    if map_thresh_max is None:
-        new_map, bin_map_val = binarize_map(map_path, map_thresh_min)
+    # Remove NaNs from contrast map
+    con_val, con_map = nonan_map(con_path)
+
+    # Threshold contrast map
+    if con_thresh_max is None:
+        thresholded_con_val = threshold_map(con_val, con_thresh_min)
     else:
-        new_map, bin_map_val = binarize_map(map_path, map_thresh_min,
-                                            thresh_max=map_thresh_max)
+        thresholded_con_val = threshold_map(con_val, con_thresh_min,
+                                            thresh_max=con_thresh_max)
+
+    # Binarize contrast map
+    bin_con_val = (thresholded_con_val != 0)
 
     # Load masks generated from a selected atlas
     atlas_mask = load_img(atlas_maskpath)
 
     # Resample atlas mask
-    atlas_rmask = resample_to_img(atlas_mask, new_map,
+    atlas_rmask = resample_to_img(atlas_mask, con_map,
                                   interpolation='nearest')
 
     # Get data from atlas mask
@@ -69,7 +76,7 @@ def create_roi_mask(map_path, map_thresh_min, atlas_maskpath, msdtb_maskpath,
 
     # Intersection of contrast-of-interest w/ atlas mask
     msdtb_val = np.logical_and(
-        bin_map_val.astype(bool), atlas_val.astype(bool)).astype(int)
+        bin_con_val.astype(bool), atlas_val.astype(bool)).astype(int)
 
     # Create msdtb-Putamen mask
     msdtb_mask = new_img_like(atlas_rmask, msdtb_val)
@@ -77,7 +84,41 @@ def create_roi_mask(map_path, map_thresh_min, atlas_maskpath, msdtb_maskpath,
     # Save msdtb-Putamen mask
     msdtb_mask.to_filename(msdtb_maskpath)
 
-    return msdtb_mask
+    return np.count_nonzero(msdtb_val)
+
+
+def create_individual_roimask(con_path, con_thresh_min, atlas_maskpath,
+                              msdtb_maskpath, n_voxels, con_thresh_max=None):
+
+    # Remove NaNs from contrast map
+    con_val, con_map = nonan_map(con_path)
+
+    # Threshold contrast map
+    if con_thresh_max is None:
+        thresholded_con_val = threshold_map(con_val, con_thresh_min)
+    else:
+        thresholded_con_val = threshold_map(con_val, con_thresh_min,
+                                            thresh_max=con_thresh_max)
+
+    # Load masks generated from a selected atlas
+    atlas_mask = load_img(atlas_maskpath)
+
+    # Resample atlas mask
+    atlas_rmask = resample_to_img(atlas_mask, con_map,
+                                  interpolation='nearest')
+
+    # Get data from atlas mask
+    atlas_val = atlas_rmask.get_fdata()
+
+    # Intersection of contrast-of-interest w/ atlas mask
+    msdtb_val = np.logical_and(
+        bin_con_val.astype(bool), atlas_val.astype(bool)).astype(int)
+
+    # Create msdtb-Putamen mask
+    msdtb_mask = new_img_like(atlas_rmask, msdtb_val)
+
+    # Save msdtb-Putamen mask
+    msdtb_mask.to_filename(msdtb_maskpath)
 
 
 def extract_roi(rmask, mask_type, contrasts, subjects_estimates_dir,
@@ -116,8 +157,8 @@ def extract_roi(rmask, mask_type, contrasts, subjects_estimates_dir,
                 masker.fit()
 
                 masked_con = os.path.join(subject_estimate_dir, tk,
-                                            'masked_derivatives_rwls',
-                                            contrast_fname)
+                                          'masked_derivatives_rwls',
+                                          contrast_fname)
                 print(np.array(masked_con))
 
                 # Extract mean average of contrasts effect-size in ROI...
@@ -309,18 +350,17 @@ filtered_contrasts = {1: 'Encoding',
 wb_masking = 'wb'
 gm_masking = 'gm'
 
-relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ wb_masking + \
-    '/con_01_Encoding/'
+group_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ \
+    wb_masking + '/con_01_Encoding/'
 
-con_relative_path = relative_path + 'con_0001.nii'
-con_path = os.path.join(data_dir, con_relative_path)
+gencoding_relative_path = group_relative_path + 'con_0001.nii'
+gencoding_path = os.path.join(data_dir, gencoding_relative_path)
 con_thresh_min = 0
 con_thresh_max = 1.
 
-tmap_relative_path = relative_path + 'spmT_0001.nii'
-tmap_path = os.path.join(data_dir, tmap_relative_path)
+group_tmap_relative_path = group_relative_path  + 'spmT_0001.nii'
+group_tmap_path = os.path.join(data_dir, group_tmap_relative_path)
 # tmap_thresh_min = 3.385
-tmap_thresh_min = 0.
 
 ##########################################################
 
@@ -329,6 +369,7 @@ atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 nettekoven_dir = os.path.join(atlases_dir, 'nettekoven')
 msdtb_dir = os.path.join(atlases_dir, 'msdtb')
+group_rois_dir = os.path.join(msdtb_dir, 'group_rois')
 individual_rois_dir = os.path.join(msdtb_dir, 'individual_rois')
 
 mniflirt_cereb6_lh_maskpath = os.path.join(
@@ -355,21 +396,20 @@ atl_cerebd3i_lh_maskpath = os.path.join(
 atl_cerebd3i_rh_maskpath = os.path.join(
     nettekoven_dir, 'd3ri_atl128_symmni_mask.nii.gz')
 
-
-msdtb_putamen_conmean = os.path.join(msdtb_dir,
-                                     'msdtb_putamen_conmean.npy')
-msdtb_putamen_conpval = os.path.join(msdtb_dir,
-                                     'msdtb_putamen_conpval.npy')
-msdtb_putamen_pscmean = os.path.join(msdtb_dir,
-                                     'msdtb_putamen_pscmean.npy')
-msdtb_putamen_pscpval = os.path.join(msdtb_dir,
-                                     'msdtb_putamen_pscpval.npy')
-msdtb_putamen_con_roih = os.path.join(msdtb_dir,
-                                  'msdtb_putamen_roi_con_horizontalbarplot.png')
-msdtb_putamen_psc_roih = os.path.join(msdtb_dir,
-                                  'msdtb_putamen_roi_psc_horizontalbarplot.png')
-msdtb_putamen_roiv = os.path.join(msdtb_dir,
-                                  'msdtb_putamen_roi_verticalbarplot.png')
+msdtb_putamen_conmean = os.path.join(
+    msdtb_dir, 'msdtb_putamen_conmean.npy')
+msdtb_putamen_conpval = os.path.join(
+    msdtb_dir, 'msdtb_putamen_conpval.npy')
+msdtb_putamen_pscmean = os.path.join(
+    msdtb_dir, 'msdtb_putamen_pscmean.npy')
+msdtb_putamen_pscpval = os.path.join(
+    msdtb_dir, 'msdtb_putamen_pscpval.npy')
+msdtb_putamen_con_roih = os.path.join(
+    msdtb_dir, 'msdtb_putamen_roi_con_horizontalbarplot.png')
+msdtb_putamen_psc_roih = os.path.join(
+    msdtb_dir, 'msdtb_putamen_roi_psc_horizontalbarplot.png')
+msdtb_putamen_roiv = os.path.join(
+    msdtb_dir, 'msdtb_putamen_roi_verticalbarplot.png')
 
 msdtb_cereb6_lh_maskpath = os.path.join(msdtb_dir,
                                         'msdtb_cereb6_mask_lh.nii.gz')
@@ -481,24 +521,32 @@ ri_atl32_symmni_maskpath = os.path.join(
 if __name__ == '__main__':
 
     # # # ######################## PUTAMEN ##################################
-    # # Create individual ROIs
-    for subject in SUBJECTS:
-        subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
-        estimates_dir = os.path.join(subject_dir, 'estimates')
-        subject_encoding_tmap = os.path.join(
-            estimates_dir,
-            'allmain_tasks',
-            'masked_derivatives_rwls',
-            'wspmT_0001_desc-sm8wbmasked.nii')
-        # For each hemisphere
-        for hem in ['lh', 'rh']:
-            hos_putamen_maskpath = os.path.join(
-                fsl_dir, 'hos_putamen_' + hem + '_mask.nii.gz')
+    # For each hemisphere
+    for hem in ['lh', 'rh']:
+        hos_putamen_maskpath = os.path.join(
+            fsl_dir, 'hos_putamen_' + hem + '_mask.nii.gz')
+        msdtb_putamen_maskpath = os.path.join(
+            group_rois_dir, 'msdtb_putamen_mask_' + hem + '.nii.gz')
+        cluster_size = create_group_roimask(group_tmap_path, 3.385,
+                                            hos_putamen_maskpath,
+                                            msdtb_putamen_maskpath,
+                                            map_thresh_max=None)
+        # # Create individual ROIs
+        for subject in SUBJECTS:
+            subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
+            estimates_dir = os.path.join(subject_dir, 'estimates')
+            subject_encoding_tmap = os.path.join(
+                estimates_dir,
+                'allmain_tasks',
+                'masked_derivatives_rwls',
+                'wspmT_0001_desc-sm8wbmasked.nii')
             individual_putamen_maskpath = os.path.join(
                 individual_rois_dir, 'putamen',
                 'putamen_mask_sub-%02d_' + hem + '.nii.gz') % subject
-            create_roi_mask(subject_encoding_tmap, tmap_thresh_min,
-                            hos_putamen_maskpath, individual_putamen_maskpath)
+            create_individual_roimask(subject_encoding_tmap, 0.,
+                                      hos_putamen_maskpath,
+                                      individual_putamen_maskpath,
+                                      cluster_size)
 
     # # # ## Extract data from ROIs in both hemispheres
     # msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
