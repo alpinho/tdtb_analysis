@@ -13,13 +13,12 @@ Compatibility: Python 3.10.10
 
 import os
 import numpy as np
+import pandas as pd
 
-from scipy import ndimage, stats
-
-from nilearn.plotting import plot_glass_brain
 from nilearn.image import load_img, new_img_like, resample_to_img
-from nilearn.input_data import NiftiMasker, NiftiLabelsMasker
+from nilearn.input_data import NiftiLabelsMasker
 
+import seaborn as sns
 from matplotlib import pyplot as plt
 
 
@@ -87,11 +86,12 @@ def create_group_roimask(con_path, con_thresh_min, atlas_maskpath,
     return np.count_nonzero(msdtb_val)
 
 
-def create_individual_roimask(con_path, con_thresh_min, atlas_maskpath,
-                              msdtb_maskpath, n_voxels, con_thresh_max=None):
+def create_individual_roimask(individual_con_path, con_thresh_min,
+                              atlas_maskpath, individual_roi_maskpath,
+                              n_voxels, con_thresh_max=None):
 
     # Remove NaNs from contrast map
-    con_val, con_map = nonan_map(con_path)
+    con_val, con_map = nonan_map(individual_con_path)
 
     # Threshold contrast map
     if con_thresh_max is None:
@@ -99,6 +99,9 @@ def create_individual_roimask(con_path, con_thresh_min, atlas_maskpath,
     else:
         thresholded_con_val = threshold_map(con_val, con_thresh_min,
                                             thresh_max=con_thresh_max)
+
+    # Binarize contrast map
+    bin_con_val = (thresholded_con_val != 0)
 
     # Load masks generated from a selected atlas
     atlas_mask = load_img(atlas_maskpath)
@@ -114,68 +117,53 @@ def create_individual_roimask(con_path, con_thresh_min, atlas_maskpath,
     msdtb_val = np.logical_and(
         bin_con_val.astype(bool), atlas_val.astype(bool)).astype(int)
 
-    # Create msdtb-Putamen mask
-    msdtb_mask = new_img_like(atlas_rmask, msdtb_val)
+    # Retain an ROI with the same size as the one found at the group level
+    individual_roi_val = np.multiply(thresholded_con_val, msdtb_val)
+    individual_thresh = np.sort(np.ravel(individual_roi_val))[n_voxels - 1]
+    individual_roi_val[individual_roi_val < individual_thresh] = 0
 
-    # Save msdtb-Putamen mask
-    msdtb_mask.to_filename(msdtb_maskpath)
+    # Binarize individual roi
+    bin_individual_roi_val = (individual_roi_val != 0)
+
+    # Create individual roi mask
+    individual_roi_mask = new_img_like(atlas_rmask, bin_individual_roi_val)
+
+    # Save individual roi mask
+    individual_roi_mask.to_filename(individual_roi_maskpath)
+
+    return individual_roi_mask
 
 
-def extract_roi(rmask, mask_type, contrasts, subjects_estimates_dir,
-                map_thresh_min, atlas_maskpath, individual_msdtb_maskpath,
-                arr_conmean, filetype):
+def extract_roi(rmask, contrasts, subject_estimates_dir, filetype):
 
     # # For each task design
-    allcontrasts_mean = []
-    allpvalues = []
+    allcontrasts_subject = []
     for t, (tk, task) in enumerate(tasks.items()):
-        contrasts_mean = []
-        pvalues = []
 
+        task_contrasts = []
         # # For every contrast
-        for key in contrasts.keys()[1:]:
+        for key in list(contrasts.keys())[1:]:
+
             contrast_fname = filetype + '_%04d_desc-sm8wbmasked.nii' % key
 
-            subjects_contrast_mean = []
-            # # For every subject
-            for subject_estimate_dir in subjects_estimates_dir:
+            masker = NiftiLabelsMasker(labels_img=rmask)
+            masker.fit()
 
-                # Create individual roi masks
-                individual_tmap_encoding = os.path.join(
-                    subject_estimate_dir,
-                    encoding_relative_path)
+            masked_con = os.path.join(subject_estimates_dir, tk,
+                                      'masked_derivatives_rwls',
+                                      contrast_fname)
+            print(np.array(masked_con))
 
-                sub_rmask = create_roi_mask(
-                    individual_tmap_encoding, map_thresh_min,
-                    atlas_maskpath, individual_msdtb_maskpath)
+            # Extract mean average of contrasts effect-size in ROI...
+            # ... for a certain participant
+            mask_data = masker.transform(masked_con)[0][0]
 
-                # subrmask =  individual roi: intersection of quadrant mask with individual tmap
-                # mask_img = individual tmap
-                masker = NiftiLabelsMasker(
-                    labels_img=sub_rmask,
-                    mask_img=individual_tmap_encoding)
-                masker.fit()
-
-                masked_con = os.path.join(subject_estimate_dir, tk,
-                                          'masked_derivatives_rwls',
-                                          contrast_fname)
-                print(np.array(masked_con))
-
-                # Extract mean average of contrasts effect-size in ROI...
-                # ... for every participant
-                mask_data = masker.transform(masked_con)[0][0]
-
-                subjects_contrast_mean.append(mask_data)
-
-            # Compute the mean roi for a given contrast across subjects
-            mean_roi = np.mean(subjects_contrast_mean)
-            contrasts_mean.append(mean_roi)
+            task_contrasts.append(mask_data)
 
         # all designs
-        allcontrasts_mean.append(contrasts_mean)
+        allcontrasts_subject.append(task_contrasts)
 
-    # ## Save
-    np.save(arr_conmean, allcontrasts_mean, allow_pickle=False)
+    return allcontrasts_subject
 
 
 def pval_label_converter(pvalues):
@@ -231,35 +219,50 @@ def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
     fig.savefig(output_file, dpi=300)
 
 
-def plot_roi_vertical(arr_conmean, arr_conpval, roi_ref, output_file,
-                      display_plabels=False):
+def plot_roi_vertical(arr_conmean):
     # ## Open npy files and plot
     allcontrasts_mean = np.load(arr_conmean).tolist()
-    allpvalues = np.load(arr_conpval).tolist()
 
-    print(allcontrasts_mean)
-    print(allpvalues)
+    # fig = plt.figure(figsize=(30, 35))
+    fig, ax = plt.subplots(len(allcontrasts_mean[0]), len(allcontrasts_mean))
 
-    fig = plt.figure(figsize=(30, 35))
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.12, right=.99, bottom=.15, wspace=.075)
+
     # For each hemisphere
     for r, roi in enumerate(allcontrasts_mean):
         # For each task
         for c, cmean in enumerate(roi):
 
-            # Filter conditions
-            # filtered_idx = list(filtered_contrasts.keys())
-            # filtered_cmean = [cmean[i-1] for i in filtered_idx]
-            # filtered_pvalues = [allpvalues[r][c][i] for i in filtered_idx]
-
             # plt.axes([left, bottom, width, height])
             ax = plt.axes([.16 + r*.475, .73 - c*.2, .1, .1])
+
+            # Names of Contrasts
             cnames = list(filtered_contrasts.values())
-            # x_pos = [.2, .35, .65, .8]
-            x_pos = [.495, .505]
-            color_code = ['mediumseagreen', 'goldenrod']
-            colors = color_code * (len(cmean)//len(color_code))
-            rects = ax.bar(x_pos, cmean, align='center', width=.009,
-                           color=colors)
+
+
+
+            d = {x: np.ravel(standard),
+            y: np.ravel(data_list),
+            z: np.ravel(conditions)}
+            df = pd.DataFrame(data=d)
+            # Create bar plot
+            sns.barplot(ax=ax[m][c],
+                x=x,
+                y=y,
+                hue=z,
+                data=df,
+                estimator=np.mean,
+                ci=95, # 1.96 * standard error (95% confidence interval)
+                errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+
+
+
 
             if display_plabels:
                 pval_labels = pval_label_converter(allpvalues[r][c])
@@ -277,6 +280,8 @@ def plot_roi_vertical(arr_conmean, arr_conpval, roi_ref, output_file,
             ax.spines[['right', 'top']].set_visible(False)
             plt.title(list(tasks.values())[c], size=30, x=.5,
                       fontweight='semibold')
+
+
         if r == 0:
             column_title = 'Left Hemisphere'
         else:
@@ -310,20 +315,20 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
 
-contrasts = {1: 'Encoding',
-             2: 'Auditory Encoding',
-             3: 'Visual Encoding',
-             4: 'Auditory vs. Visual Encoding',
-             5: 'Visual vs. Auditory Encoding',
-             6: 'Beat',
-             7: 'Interval',
-             8: 'Beat vs. Interval',
-             9: 'Auditory Beat vs. Auditory Interval',
-             10: 'Visual Beat vs. Visual Interval',
-             11: 'Interval vs. Beat',
-             12: 'Auditory Interval vs. Auditory Beat',
-             13: 'Visual Interval vs. Visual Beat',
-             14: 'Decision'}
+all_contrasts = {1: 'Encoding',
+                 2: 'Auditory Encoding',
+                 3: 'Visual Encoding',
+                 4: 'Auditory vs. Visual Encoding',
+                 5: 'Visual vs. Auditory Encoding',
+                 6: 'Beat',
+                 7: 'Interval',
+                 8: 'Beat vs. Interval',
+                 9: 'Auditory Beat vs. Auditory Interval',
+                 10: 'Visual Beat vs. Visual Interval',
+                 11: 'Interval vs. Beat',
+                 12: 'Auditory Interval vs. Auditory Beat',
+                 13: 'Visual Interval vs. Visual Beat',
+                 14: 'Decision'}
 
 # filtered_contrasts = {
 #              9: 'AB vs. AI',
@@ -522,16 +527,18 @@ if __name__ == '__main__':
 
     # # # ######################## PUTAMEN ##################################
     # For each hemisphere
+    contrasts_means_hems = []
     for hem in ['lh', 'rh']:
         hos_putamen_maskpath = os.path.join(
             fsl_dir, 'hos_putamen_' + hem + '_mask.nii.gz')
         msdtb_putamen_maskpath = os.path.join(
-            group_rois_dir, 'msdtb_putamen_mask_' + hem + '.nii.gz')
-        cluster_size = create_group_roimask(group_tmap_path, 3.385,
-                                            hos_putamen_maskpath,
-                                            msdtb_putamen_maskpath,
-                                            map_thresh_max=None)
+            group_rois_dir, 'putamen',
+            'msdtb_putamen_mask_' + hem + '.nii.gz')
+        cluster_size = create_group_roimask(
+            group_tmap_path, 3.385, hos_putamen_maskpath,
+            msdtb_putamen_maskpath)
         # # Create individual ROIs
+        subjects_contrasts = []
         for subject in SUBJECTS:
             subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
             estimates_dir = os.path.join(subject_dir, 'estimates')
@@ -543,26 +550,27 @@ if __name__ == '__main__':
             individual_putamen_maskpath = os.path.join(
                 individual_rois_dir, 'putamen',
                 'putamen_mask_sub-%02d_' + hem + '.nii.gz') % subject
-            create_individual_roimask(subject_encoding_tmap, 0.,
-                                      hos_putamen_maskpath,
-                                      individual_putamen_maskpath,
-                                      cluster_size)
+            irmask = create_individual_roimask(subject_encoding_tmap, 0.,
+                                               hos_putamen_maskpath,
+                                               individual_putamen_maskpath,
+                                               cluster_size)
+            subject_estimates_dir = os.path.join(data_dir, 'sub-%02d' % subject,
+                                                 'estimates')
+            subject_contrasts = extract_roi(irmask, filtered_contrasts,
+                                            subject_estimates_dir, 'wpsc')
 
-    # # # ## Extract data from ROIs in both hemispheres
-    # msdtb_putamen_lh_mask = load_img(msdtb_putamen_lh_maskpath)
-    # msdtb_putamen_rh_mask = load_img(msdtb_putamen_rh_maskpath)
-    # putamen_masks = [msdtb_putamen_lh_mask, msdtb_putamen_rh_mask]
-    # # compute_rois(putamen_masks, mask_wb, contrasts,
-    # #              msdtb_putamen_conmean, msdtb_putamen_conpval, 'wcon')
-    # compute_rois(putamen_masks, mask_wb, contrasts,
-    #              msdtb_putamen_pscmean, msdtb_putamen_pscpval, 'wpsc',
-    #              estimates_dir)
+            # shape (subjects, tasks, contrasts)
+            subjects_contrasts.append(subject_contrasts)
 
-    # # ## Plot
-    # # plot_roi_horizontal(msdtb_putamen_conmean, msdtb_putamen_conpval,
-    # #                     'Putamen', msdtb_putamen_con_roih)
-    # plot_roi_horizontal(msdtb_putamen_pscmean, msdtb_putamen_pscpval,
-    #                     'Putamen', msdtb_putamen_psc_roih)
+        contrasts_means = np.mean(subjects_contrasts, axis=0)
+
+    contrasts_means_hems.append(contrasts_means)
+
+    ## Save
+    np.save(msdtb_putamen_conmean, contrasts_means_hems, allow_pickle=False)
+
+    # Plot
+    plot_roi_vertical(msdtb_putamen_conmean)
 
 
     # # # # ###################### CEREBELLUM VI ############################
