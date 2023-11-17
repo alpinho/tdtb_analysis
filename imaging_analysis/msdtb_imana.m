@@ -72,16 +72,15 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % List of all subjects
-% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
 % subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % Working list of subjects
-subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [4];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -141,14 +140,17 @@ contrasts = {'Encoding', [1 1 1 1 0]; ...                            %1
              'Beat', [1 0 1 0 0]; ...                                %6
              'Interval', [0 1 0 1 0]; ...                            %7
              'Beat vs Interval', [1 -1 1 -1 0]; ...                  %8
-             'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %9
-             'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %10
-             'Interval vs Beat', [-1 1 -1 1 0]; ...                  %11
-             'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %12
-             'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %13
-             'Decision', [0 0 0 0 1]; ...                            %14
+             'Interval vs Beat', [-1 1 -1 1 0]; ...                  %9
+             'Auditory Beat', [1 0 0 0 0]; ...                       %10
+             'Auditory Interval', [0 1 0 0 0]; ...                   %11
+             'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ... %12
+             'Auditory Interval vs Auditory Beat', [-1 1 0 0 0]; ... %13
+             'Visual Beat', [0 0 1 0 0]; ...                         %14
+             'Visual Interval', [0 0 0 1 0]; ...                     %15
+             'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %16            
+             'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %17
+             'Decision', [0 0 0 0 1]; ...                            %18
              };
-
          
 contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                              %1
                     'Auditory Encoding', [1 1 1 0 0 0 0]; ...                     %2
@@ -159,24 +161,30 @@ contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                            
                     'Interval', [0 1 0 0 1 0 0]; ...                              %7
                     'Random', [0 0 1 0 0 1 0]; ...                                %8
                     'Beat vs Interval', [1 -1 0 1 -1 0 0]; ...                    %9
-                    'Beat vs Random', [1 0 -1 1 0 -1 0]; ...                      %10
-                    'Random vs Beat', [-1 0 1 -1 0 1 0]; ...                      %11
-                    'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0]; ...   %12
-                    'Auditory Beat vs Auditory Random', [1 0 -1 0 0 0 0]; ...     %13
-                    'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0]; ...     %14
-                    'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0]; ...       %15
-                    'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0]; ...         %16
-                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...         %17
-                    'Interval vs Beat', [-1 1 0 -1 1 0 0]; ...                    %18
-                    'Interval vs Random', [0 1 -1 0 1 -1 0]; ...                  %19
-                    'Random vs Interval', [0 -1 1 0 -1 1 0]; ...                  %20
-                    'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0]; ...   %21
+                    'Interval vs Beat', [-1 1 0 -1 1 0 0]; ...                    %10
+                    'Beat vs Random', [1 0 -1 1 0 -1 0]; ...                      %11
+                    'Random vs Beat', [-1 0 1 -1 0 1 0]; ...                      %12
+                    'Interval vs Random', [0 1 -1 0 1 -1 0]; ...                  %13
+                    'Random vs Interval', [0 -1 1 0 -1 1 0]; ...                  %14
+                    'Auditory Beat', [1 0 0 0 0 0 0]; ...                         %15
+                    'Auditory Interval', [0 1 0 0 0 0 0]; ...                     %16
+                    'Auditory Random', [0 0 1 0 0 0 0]; ...                       %17
+                    'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0]; ...   %18
+                    'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0]; ...   %19
+                    'Auditory Beat vs Auditory Random', [1 0 -1 0 0 0 0]; ...     %20
+                    'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0]; ...     %21
                     'Auditory Interval vs Auditory Random', [0 1 -1 0 0 0 0]; ... %22
                     'Auditory Random vs Auditory Interval', [0 -1 1 0 0 0 0]; ... %23
-                    'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0]; ...       %24
-                    'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0]; ...     %25
-                    'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...     %26
-                    'Decision', [0 0 0 0 0 0 1]; ...                              %27
+                    'Visual Beat', [0 0 0 1 0 0 0]; ...                           %24
+                    'Visual Interval', [0 0 0 0 1 0 0]; ...                       %25
+                    'Visual Random', [0 0 0 0 0 1 0]; ...                         %26
+                    'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0]; ...       %27
+                    'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0]; ...       %28
+                    'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0]; ...         %29
+                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...         %30                    
+                    'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0]; ...     %31
+                    'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...     %32
+                    'Decision', [0 0 0 0 0 0 1]; ...                              %33
                     };
 
 %==============================================================================
