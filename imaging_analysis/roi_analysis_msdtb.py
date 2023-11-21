@@ -83,25 +83,14 @@ def create_group_roimask(con_path, con_thresh_min, atlas_maskpath,
     # Save msdtb-Putamen mask
     msdtb_mask.to_filename(msdtb_maskpath)
 
-    return np.count_nonzero(msdtb_val)
+    return msdtb_mask, np.count_nonzero(msdtb_val)
 
 
-def create_individual_roimask(individual_con_path, con_thresh_min,
-                              atlas_maskpath, individual_roi_maskpath,
-                              n_voxels, con_thresh_max=None):
+def create_individual_roimask(individual_con_path, atlas_maskpath,
+                              gmask, n_voxels, individual_roi_maskpath):
 
     # Remove NaNs from contrast map
     con_val, con_map = nonan_map(individual_con_path)
-
-    # Threshold contrast map
-    if con_thresh_max is None:
-        thresholded_con_val = threshold_map(con_val, con_thresh_min)
-    else:
-        thresholded_con_val = threshold_map(con_val, con_thresh_min,
-                                            thresh_max=con_thresh_max)
-
-    # Binarize contrast map
-    bin_con_val = (thresholded_con_val != 0)
 
     # Load masks generated from a selected atlas
     atlas_mask = load_img(atlas_maskpath)
@@ -113,22 +102,36 @@ def create_individual_roimask(individual_con_path, con_thresh_min,
     # Get data from atlas mask
     atlas_val = atlas_rmask.get_fdata()
 
-    # Intersection of contrast-of-interest w/ atlas mask
-    msdtb_val = np.logical_and(
-        bin_con_val.astype(bool), atlas_val.astype(bool)).astype(int)
+    # Intersection of contrast map w/ atlas mask
+    bin_msdtb_val = np.logical_and(
+        con_val.astype(bool), atlas_val.astype(bool)).astype(int)
 
     # Retain an ROI with the same size as the one found at the group level
-    individual_roi_val = np.multiply(thresholded_con_val, msdtb_val)
-    individual_thresh = np.sort(np.ravel(individual_roi_val))[n_voxels - 1]
+    individual_roi_val = np.where(bin_msdtb_val, con_val, 0)
+    individual_thresh = np.sort(
+        np.ravel(individual_roi_val))[::-1][n_voxels - 1]
     individual_roi_val[individual_roi_val < individual_thresh] = 0
 
-    # Binarize individual roi
-    bin_individual_roi_val = (individual_roi_val != 0)
+    # Test whether individual has equal or bigger size than group mask
+    # If yes,
+    if individual_thresh:
+        # Binarize individual ROI
+        bin_individual_roi_val = (individual_roi_val != 0)
+        # Create individual ROI mask
+        individual_roi_mask = new_img_like(atlas_rmask, bin_individual_roi_val)
+    else:
+        # Individual mask is equal to group mask, yet only if ...
+        # all voxels bigger than 0 from the individual contrast ...
+        # are included
+        gmask_val = gmask.get_fdata()
+        gi_roi_val = np.where(gmask_val, con_val, 0)
+        gi_thresh = np.sort(np.ravel(gi_roi_val))[::-1][n_voxels - 1]
+        gi_roi_val[gi_roi_val < gi_thresh] = 0
+        assert np.count_nonzero(gi_roi_val) == \
+            np.count_nonzero(individual_roi_val)
+        individual_roi_mask = gmask
 
-    # Create individual roi mask
-    individual_roi_mask = new_img_like(atlas_rmask, bin_individual_roi_val)
-
-    # Save individual roi mask
+    # Save individual ROI mask
     individual_roi_mask.to_filename(individual_roi_maskpath)
 
     return individual_roi_mask
@@ -164,6 +167,69 @@ def extract_roi(rmask, contrasts, subject_estimates_dir, filetype):
         allcontrasts_subject.append(task_contrasts)
 
     return allcontrasts_subject
+
+
+def roicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
+                      contrasts_dic, contype):
+
+    roi_dir = os.path.join(main_dir, region, atlas)
+    individual_roi_dir = os.path.join(roi_dir, 'individual_rois')
+    if not os.path.exists(individual_roi_dir):
+        os.makedirs(individual_roi_dir)
+
+    # For each hemisphere
+    roi_hems = []
+    for hem in ['lh', 'rh']:
+        atlasreg_maskpath = os.path.join(
+            atlas_dir, atlas + '_' + region + '_' + hem + '_mask.nii.gz')
+        # Intersection of atlas w/ thresholded encoding group tmap
+        gencoding_atlasreg_maskpath = os.path.join(
+            roi_dir,
+            'gmsdtb-' + atlas + '_' + roi + '_mask_' + hem + '.nii.gz')
+        gmask, cluster_size = create_group_roimask(
+            group_tmap_path, gthresh, atlasreg_maskpath,
+            gencoding_atlasreg_maskpath)
+
+        # For each subject
+        subjects_roi = []
+        for subject in SUBJECTS:
+            # Create individual ROIs
+            subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
+            estimates_dir = os.path.join(subject_dir, 'estimates')
+            tasks_roi = []
+            for task in tasks.keys():
+                subject_encoding_tmap = os.path.join(
+                    estimates_dir, task, 'masked_derivatives_rwls',
+                    'wspmT_0001_desc-sm8wbmasked.nii')
+                iencoding_atlasreg_maskpath = os.path.join(
+                    individual_roi_dir,
+                    roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
+                irmask = create_individual_roimask(
+                    subject_encoding_tmap, atlasreg_maskpath,
+                    gmask, cluster_size, iencoding_atlasreg_maskpath)
+                # Extract individual ROIs
+                subject_estimates_dir = os.path.join(
+                    data_dir, 'sub-%02d' % subject, 'estimates')
+                subject_contrasts = extract_roi(
+                    irmask, contrasts_dic, subject_estimates_dir, contype)
+                # ... and append: shape (tasks, contrasts)
+                tasks_roi.append(subject_contrasts)
+
+            # Append: shape (subjects, tasks, contrasts)
+            subjects_roi.append(tasks_roi)
+        0/0
+        # Change shape: (tasks, contrasts, subjects)
+        roi = np.swapaxes(subjects_roi, 0, 2)
+        # ... and append: shape (hemisphere, tasks, contrasts, subjects)
+        roi_hems.append(roi)
+
+    # Save
+    outpath = os.path.join(roi_dir, region + '_' + contype[1:] + '.npy')
+    if os.path.exists(outpath):
+        os.remove(outpath)
+    np.save(outpath, roi_hems, allow_pickle=False)
+
+    return roi_hems
 
 
 def pval_label_converter(pvalues):
@@ -309,8 +375,10 @@ mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
 #             44, 45, 46, 47]
 
 # Subjects without pilot
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+SUBJECTS = [22]
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
@@ -318,39 +386,34 @@ tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
 all_contrasts = {1: 'Encoding',
                  2: 'Auditory Encoding',
                  3: 'Visual Encoding',
-                 4: 'Auditory vs. Visual Encoding',
-                 5: 'Visual vs. Auditory Encoding',
+                 4: 'Auditory vs Visual Encoding',
+                 5: 'Visual vs Auditory Encoding',
                  6: 'Beat',
                  7: 'Interval',
-                 8: 'Beat vs. Interval',
-                 9: 'Auditory Beat vs. Auditory Interval',
-                 10: 'Visual Beat vs. Visual Interval',
-                 11: 'Interval vs. Beat',
-                 12: 'Auditory Interval vs. Auditory Beat',
-                 13: 'Visual Interval vs. Visual Beat',
-                 14: 'Decision'}
-
-# filtered_contrasts = {
-#              9: 'AB vs. AI',
-#              10: 'VB vs. VI'}
+                 8: 'Beat vs Interval',
+                 9: 'Interval vs Beat',
+                 10: 'Auditory Beat',
+                 11: 'Auditory Interval',
+                 12: 'Auditory Beat vs Auditory Interval',
+                 13: 'Auditory Interval vs Auditory Beat',
+                 14: 'Visual Beat',
+                 15: 'Visual Interval',
+                 16: 'Visual Beat vs Visual Interval',
+                 17: 'Visual Interval vs Visual Beat',
+                 18: 'Decision'}
 
 # filtered_contrasts = {1: 'Encoding',
-#                       4: 'Auditory vs. Visual Encoding',
-#                       5: 'Visual vs. Auditory Encoding',
-#                       8: 'Beat vs. Interval',
-#                       9: 'Auditory Beat vs. Auditory Interval',
-#                       10: 'Visual Beat vs. Visual Interval',
-#                       11: 'Interval vs. Beat',
-#                       12: 'Auditory Interval vs. Auditory Beat',
-#                       13: 'Visual Interval vs. Visual Beat',
-#                       14: 'Decision'}
+#                       2: 'Auditory Encoding',
+#                       3: 'Visual Encoding',
+#                       6: 'Beat',
+#                       7: 'Interval',
+#                       10: 'Auditory Beat',
+#                       11: 'Auditory Interval',
+#                       14: 'Visual Beat',
+#                       15: 'Visual Interval'}
 
 filtered_contrasts = {1: 'Encoding',
-                      2: 'Auditory Encoding',
-                      3: 'Visual Encoding',
-                      6: 'Beat',
-                      7: 'Interval',
-                      14: 'Decision'}
+                      15: 'Visual Interval'}
 
 wb_masking = 'wb'
 gm_masking = 'gm'
@@ -370,45 +433,13 @@ group_tmap_path = os.path.join(data_dir, group_tmap_relative_path)
 ##########################################################
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
+
 atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 nettekoven_dir = os.path.join(atlases_dir, 'nettekoven')
-msdtb_dir = os.path.join(atlases_dir, 'msdtb')
-group_rois_dir = os.path.join(msdtb_dir, 'group_rois')
-individual_rois_dir = os.path.join(msdtb_dir, 'individual_rois')
 
-mniflirt_cereb6_lh_maskpath = os.path.join(
-    fsl_dir, 'mniflirt_cereb6_lh_mask.nii.gz')
-mniflirt_cereb6_rh_maskpath = os.path.join(
-    fsl_dir, 'mniflirt_cereb6_rh_mask.nii.gz')
+msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
-mniflirt_crus1_lh_maskpath = os.path.join(
-    fsl_dir, 'mniflirt_crus1_lh_mask.nii.gz')
-mniflirt_crus1_rh_maskpath = os.path.join(
-    fsl_dir, 'mniflirt_crus1_rh_mask.nii.gz')
-
-mniflirt_cereb7b8a_lh_maskpath = os.path.join(
-    fsl_dir, 'mniflirt_cereb7b8a_lh_mask.nii.gz')
-mniflirt_cereb7b8a_rh_maskpath = os.path.join(
-    fsl_dir, 'mniflirt_cereb7b8a_rh_mask.nii.gz')
-
-atl_cerebd3s_lh_maskpath = os.path.join(
-    nettekoven_dir, 'd3ls_atl128_symmni_mask.nii.gz')
-atl_cerebd3s_rh_maskpath = os.path.join(
-    nettekoven_dir, 'd3rs_atl128_symmni_mask.nii.gz')
-atl_cerebd3i_lh_maskpath = os.path.join(
-    nettekoven_dir, 'd3li_atl128_symmni_mask.nii.gz')
-atl_cerebd3i_rh_maskpath = os.path.join(
-    nettekoven_dir, 'd3ri_atl128_symmni_mask.nii.gz')
-
-msdtb_putamen_conmean = os.path.join(
-    msdtb_dir, 'msdtb_putamen_conmean.npy')
-msdtb_putamen_conpval = os.path.join(
-    msdtb_dir, 'msdtb_putamen_conpval.npy')
-msdtb_putamen_pscmean = os.path.join(
-    msdtb_dir, 'msdtb_putamen_pscmean.npy')
-msdtb_putamen_pscpval = os.path.join(
-    msdtb_dir, 'msdtb_putamen_pscpval.npy')
 msdtb_putamen_con_roih = os.path.join(
     msdtb_dir, 'msdtb_putamen_roi_con_horizontalbarplot.png')
 msdtb_putamen_psc_roih = os.path.join(
@@ -416,18 +447,6 @@ msdtb_putamen_psc_roih = os.path.join(
 msdtb_putamen_roiv = os.path.join(
     msdtb_dir, 'msdtb_putamen_roi_verticalbarplot.png')
 
-msdtb_cereb6_lh_maskpath = os.path.join(msdtb_dir,
-                                        'msdtb_cereb6_mask_lh.nii.gz')
-msdtb_cereb6_rh_maskpath = os.path.join(msdtb_dir,
-                                        'msdtb_cereb6_mask_rh.nii.gz')
-msdtb_cereb6_conmean = os.path.join(msdtb_dir,
-                                    'msdtb_cereb6_conmean.npy')
-msdtb_cereb6_conpval = os.path.join(msdtb_dir,
-                                    'msdtb_cereb6_conpval.npy')
-msdtb_cereb6_pscmean = os.path.join(msdtb_dir,
-                                    'msdtb_cereb6_pscmean.npy')
-msdtb_cereb6_pscpval = os.path.join(msdtb_dir,
-                                    'msdtb_cereb6_pscpval.npy')
 msdtb_cereb6_con_roih = os.path.join(
     msdtb_dir, 'msdtb_cereb6_roi_con_horizontalbarplot.png')
 msdtb_cereb6_psc_roih = os.path.join(
@@ -435,18 +454,6 @@ msdtb_cereb6_psc_roih = os.path.join(
 msdtb_cereb6_roiv = os.path.join(
     msdtb_dir, 'msdtb_cereb6_roi_verticalbarplot.png')
 
-msdtb_crus1_lh_maskpath = os.path.join(msdtb_dir,
-                                        'msdtb_crus1_mask_lh.nii.gz')
-msdtb_crus1_rh_maskpath = os.path.join(msdtb_dir,
-                                        'msdtb_crus1_mask_rh.nii.gz')
-msdtb_crus1_conmean = os.path.join(msdtb_dir,
-                                    'msdtb_crus1_conmean.npy')
-msdtb_crus1_conpval = os.path.join(msdtb_dir,
-                                    'msdtb_crus1_conpval.npy')
-msdtb_crus1_pscmean = os.path.join(msdtb_dir,
-                                    'msdtb_crus1_pscmean.npy')
-msdtb_crus1_pscpval = os.path.join(msdtb_dir,
-                                    'msdtb_crus1_pscpval.npy')
 msdtb_crus1_con_roih = os.path.join(
     msdtb_dir, 'msdtb_crus1_roi_con_horizontalbarplot.png')
 msdtb_crus1_psc_roih = os.path.join(
@@ -454,18 +461,6 @@ msdtb_crus1_psc_roih = os.path.join(
 msdtb_crus1_roiv = os.path.join(
     msdtb_dir, 'msdtb_crus1_roi_verticalbarplot.png')
 
-msdtb_cereb7b8a_lh_maskpath = os.path.join(msdtb_dir,
-                                           'msdtb_cereb7b8a_mask_lh.nii.gz')
-msdtb_cereb7b8a_rh_maskpath = os.path.join(msdtb_dir,
-                                           'msdtb_cereb7b8a_mask_rh.nii.gz')
-msdtb_cereb7b8a_conmean = os.path.join(msdtb_dir,
-                                       'msdtb_cereb7b8a_conmean.npy')
-msdtb_cereb7b8a_conpval = os.path.join(msdtb_dir,
-                                       'msdtb_cereb7b8a_conpval.npy')
-msdtb_cereb7b8a_pscmean = os.path.join(msdtb_dir,
-                                       'msdtb_cereb7b8a_pscmean.npy')
-msdtb_cereb7b8a_pscpval = os.path.join(msdtb_dir,
-                                       'msdtb_cereb7b8a_pscpval.npy')
 msdtb_cereb7b8a_con_roih = os.path.join(
     msdtb_dir, 'msdtb_cereb7b8a_roi_con_horizontalbarplot.png')
 msdtb_cereb7b8a_psc_roih = os.path.join(
@@ -473,18 +468,6 @@ msdtb_cereb7b8a_psc_roih = os.path.join(
 msdtb_cereb7b8a_roiv = os.path.join(
     msdtb_dir, 'msdtb_cereb7b8a_roi_verticalbarplot.png')
 
-msdtb_cerebd3s_lh_maskpath = os.path.join(msdtb_dir,
-                                          'msdtb_cerebd3s_mask_lh.nii.gz')
-msdtb_cerebd3s_rh_maskpath = os.path.join(msdtb_dir,
-                                          'msdtb_cerebd3s_mask_rh.nii.gz')
-msdtb_cerebd3s_conmean = os.path.join(msdtb_dir,
-                                      'msdtb_cerebd3s_conmean.npy')
-msdtb_cerebd3s_conpval = os.path.join(msdtb_dir,
-                                      'msdtb_cerebd3s_conpval.npy')
-msdtb_cerebd3s_pscmean = os.path.join(msdtb_dir,
-                                      'msdtb_cerebd3s_pscmean.npy')
-msdtb_cerebd3s_pscpval = os.path.join(msdtb_dir,
-                                      'msdtb_cerebd3s_pscpval.npy')
 msdtb_cerebd3s_con_roih = os.path.join(
     msdtb_dir, 'msdtb_cerebd3s_roi_con_horizontalbarplot.png')
 msdtb_cerebd3s_psc_roih = os.path.join(
@@ -492,18 +475,6 @@ msdtb_cerebd3s_psc_roih = os.path.join(
 msdtb_cerebd3s_roiv = os.path.join(
     msdtb_dir, 'msdtb_cerebd3s_roi_verticalbarplot.png')
 
-msdtb_cerebd3i_lh_maskpath = os.path.join(msdtb_dir,
-                                          'msdtb_cerebd3i_mask_lh.nii.gz')
-msdtb_cerebd3i_rh_maskpath = os.path.join(msdtb_dir,
-                                          'msdtb_cerebd3i_mask_rh.nii.gz')
-msdtb_cerebd3i_conmean = os.path.join(msdtb_dir,
-                                      'msdtb_cerebd3i_conmean.npy')
-msdtb_cerebd3i_conpval = os.path.join(msdtb_dir,
-                                      'msdtb_cerebd3i_conpval.npy')
-msdtb_cerebd3i_pscmean = os.path.join(msdtb_dir,
-                                      'msdtb_cerebd3i_pscmean.npy')
-msdtb_cerebd3i_pscpval = os.path.join(msdtb_dir,
-                                      'msdtb_cerebd3i_pscpval.npy')
 msdtb_cerebd3i_con_roih = os.path.join(
     msdtb_dir, 'msdtb_cerebd3i_roi_con_horizontalbarplot.png')
 msdtb_cerebd3i_psc_roih = os.path.join(
@@ -520,57 +491,23 @@ li_atl32_symmni_maskpath = os.path.join(
 ri_atl32_symmni_maskpath = os.path.join(
     nettekoven_dir, 'ri_atl32_symmni_mask.nii.gz')
 
+putamen_dic = {'hos': 'putamen'}
+cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
+                  'nettekoven_symmni128': 'd3s', 'nettekoven_symmni128': 'd3i'}
+
 
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
 
     # # # ######################## PUTAMEN ##################################
-    # For each hemisphere
-    contrasts_means_hems = []
-    for hem in ['lh', 'rh']:
-        hos_putamen_maskpath = os.path.join(
-            fsl_dir, 'hos_putamen_' + hem + '_mask.nii.gz')
-        msdtb_putamen_maskpath = os.path.join(
-            group_rois_dir, 'putamen',
-            'msdtb_putamen_mask_' + hem + '.nii.gz')
-        cluster_size = create_group_roimask(
-            group_tmap_path, 3.385, hos_putamen_maskpath,
-            msdtb_putamen_maskpath)
-        # # Create individual ROIs
-        subjects_contrasts = []
-        for subject in SUBJECTS:
-            subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
-            estimates_dir = os.path.join(subject_dir, 'estimates')
-            subject_encoding_tmap = os.path.join(
-                estimates_dir,
-                'allmain_tasks',
-                'masked_derivatives_rwls',
-                'wspmT_0001_desc-sm8wbmasked.nii')
-            individual_putamen_maskpath = os.path.join(
-                individual_rois_dir, 'putamen',
-                'putamen_mask_sub-%02d_' + hem + '.nii.gz') % subject
-            irmask = create_individual_roimask(subject_encoding_tmap, 0.,
-                                               hos_putamen_maskpath,
-                                               individual_putamen_maskpath,
-                                               cluster_size)
-            subject_estimates_dir = os.path.join(data_dir, 'sub-%02d' % subject,
-                                                 'estimates')
-            subject_contrasts = extract_roi(irmask, filtered_contrasts,
-                                            subject_estimates_dir, 'wpsc')
 
-            # shape (subjects, tasks, contrasts)
-            subjects_contrasts.append(subject_contrasts)
-
-        contrasts_means = np.mean(subjects_contrasts, axis=0)
-
-    contrasts_means_hems.append(contrasts_means)
-
-    ## Save
-    np.save(msdtb_putamen_conmean, contrasts_means_hems, allow_pickle=False)
+    # ROI extraction using Harvard-Oxford Subcortical atlas
+    roicon_estimation(msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', 3.385,
+                      filtered_contrasts, 'wpsc')
 
     # Plot
-    plot_roi_vertical(msdtb_putamen_conmean)
+    # plot_roi_vertical(msdtb_putamen_conmean)
 
 
     # # # # ###################### CEREBELLUM VI ############################
