@@ -15,6 +15,9 @@ import os
 import numpy as np
 import pandas as pd
 
+from scipy.ndimage import binary_dilation, binary_erosion
+from scipy.special import comb
+
 from nilearn.image import load_img, new_img_like, resample_to_img
 from nilearn.input_data import NiftiLabelsMasker
 
@@ -45,6 +48,31 @@ def threshold_map(con_val, thresh_min, thresh_max=None):
         thresholded_con_val[thresholded_con_val > thresh_max] = 0
 
     return thresholded_con_val
+
+
+def binary_dilation_with_limit(image, target_count, gmask):
+    s1, s2, s3 = np.random.choice(
+        np.random.permutation(np.random.permutation(np.arange(1, 10))), 3)
+    dilated_image = binary_dilation(image, mask=gmask,
+                                    structure=np.ones((s1, s2, s3)))
+
+    current_count = np.count_nonzero(dilated_image)
+
+    while current_count != target_count:
+        s1, s2, s3 = np.random.choice(
+            np.random.permutation(np.random.permutation(np.arange(1, 10))), 3)
+        if current_count < target_count:
+            dilated_image = binary_dilation(dilated_image, mask=gmask,
+                                            structure=np.ones((s1, s2, s3)))
+        elif current_count > target_count:
+            dilated_image = binary_erosion(dilated_image, mask=gmask,
+                                           structure=np.ones((s1, s2, s3)))
+        else:
+            pass
+        print(current_count)
+        current_count = np.count_nonzero(dilated_image)
+
+    return dilated_image
 
 
 def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
@@ -89,6 +117,8 @@ def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
 def create_individual_roimask(individual_con_path, atlas_maskpath,
                               gmask, n_voxels, individual_roi_maskpath):
 
+    print(individual_con_path)
+
     # Remove NaNs from contrast map
     con_val, con_map = nonan_map(individual_con_path)
 
@@ -112,24 +142,27 @@ def create_individual_roimask(individual_con_path, atlas_maskpath,
         np.ravel(individual_roi_val))[::-1][n_voxels - 1]
     individual_roi_val[individual_roi_val < individual_thresh] = 0
 
-    # Test whether individual has equal or bigger size than group mask
-    # If yes,
-    if individual_thresh:
-        # Binarize individual ROI
-        bin_individual_roi_val = (individual_roi_val != 0)
-        # Create individual ROI mask
-        individual_roi_mask = new_img_like(atlas_rmask, bin_individual_roi_val)
-    else:
-        # Individual mask is equal to group mask, yet only if ...
-        # all voxels bigger than 0 from the individual contrast ...
-        # are included
-        gmask_val = gmask.get_fdata()
-        gi_roi_val = np.where(gmask_val, con_val, 0)
-        gi_thresh = np.sort(np.ravel(gi_roi_val))[::-1][n_voxels - 1]
-        gi_roi_val[gi_roi_val < gi_thresh] = 0
-        assert np.count_nonzero(gi_roi_val) == \
-            np.count_nonzero(individual_roi_val)
+    # Binarize individual ROI
+    bin_individual_roi_val = (individual_roi_val != 0)
+
+    # Test whether binary is empty
+    if not np.count_nonzero(bin_individual_roi_val):
+        print(np.count_nonzero(bin_individual_roi_val))
         individual_roi_mask = gmask
+    else:
+        # Test whether individual has equal or bigger size than group mask
+        # If not,
+        if not individual_thresh:
+            # Do dilation restricted to n_voxels
+            gmask_val = gmask.get_fdata()
+            dilated_mask_val = binary_dilation_with_limit(
+                bin_individual_roi_val, n_voxels, gmask_val)
+            print('Dilation performed! ', np.count_nonzero(dilated_mask_val))
+            individual_roi_mask = new_img_like(atlas_rmask, dilated_mask_val)
+        else:
+            print(np.count_nonzero(bin_individual_roi_val))
+            individual_roi_mask = new_img_like(atlas_rmask,
+                                               bin_individual_roi_val)
 
     # Save individual ROI mask
     individual_roi_mask.to_filename(individual_roi_maskpath)
@@ -151,7 +184,7 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
         masked_con = os.path.join(subject_estimates_dir, task,
                                   'masked_derivatives_rwls',
                                   contrast_fname)
-        print(np.array(masked_con))
+        # print(np.array(masked_con))
 
         # Extract mean average of contrasts effect-size in ROI...
         # ... for a certain participant
@@ -379,10 +412,10 @@ mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
 #             44, 45, 46, 47]
 
 # Subjects without pilot
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-SUBJECTS = [22]
+# SUBJECTS = [29]
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
