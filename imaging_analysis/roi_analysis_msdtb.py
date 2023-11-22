@@ -137,89 +137,86 @@ def create_individual_roimask(individual_con_path, atlas_maskpath,
     return individual_roi_mask
 
 
-def extract_roi(rmask, contrasts, subject_estimates_dir, filetype):
+def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
 
-    # # For each task design
-    allcontrasts_subject = []
-    for t, (tk, task) in enumerate(tasks.items()):
+    # # For every contrast
+    task_contrasts = []
+    for key in list(contrasts.keys())[1:]:
 
-        task_contrasts = []
-        # # For every contrast
-        for key in list(contrasts.keys())[1:]:
+        contrast_fname = filetype + '_%04d_desc-sm8wbmasked.nii' % key
 
-            contrast_fname = filetype + '_%04d_desc-sm8wbmasked.nii' % key
+        masker = NiftiLabelsMasker(labels_img=rmask)
+        masker.fit()
 
-            masker = NiftiLabelsMasker(labels_img=rmask)
-            masker.fit()
+        masked_con = os.path.join(subject_estimates_dir, task,
+                                  'masked_derivatives_rwls',
+                                  contrast_fname)
+        print(np.array(masked_con))
 
-            masked_con = os.path.join(subject_estimates_dir, tk,
-                                      'masked_derivatives_rwls',
-                                      contrast_fname)
-            print(np.array(masked_con))
+        # Extract mean average of contrasts effect-size in ROI...
+        # ... for a certain participant
+        mask_data = masker.transform(masked_con)[0][0]
 
-            # Extract mean average of contrasts effect-size in ROI...
-            # ... for a certain participant
-            mask_data = masker.transform(masked_con)[0][0]
+        task_contrasts.append(mask_data)
 
-            task_contrasts.append(mask_data)
-
-        # all designs
-        allcontrasts_subject.append(task_contrasts)
-
-    return allcontrasts_subject
+    return task_contrasts
 
 
-def roicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
-                      contrasts_dic, contype):
+def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
+                       contrasts_dic, contype):
 
     roi_dir = os.path.join(main_dir, region, atlas)
+    group_roi_dir = os.path.join(roi_dir, 'group_rois')
     individual_roi_dir = os.path.join(roi_dir, 'individual_rois')
-    if not os.path.exists(individual_roi_dir):
-        os.makedirs(individual_roi_dir)
 
-    # For each hemisphere
+    if not os.path.exists(group_roi_dir):
+        os.makedirs(group_roi_dir)
+        os.mkdir(individual_roi_dir)
+
+    # ### For each hemisphere ###
     roi_hems = []
     for hem in ['lh', 'rh']:
         atlasreg_maskpath = os.path.join(
             atlas_dir, atlas + '_' + region + '_' + hem + '_mask.nii.gz')
         # Intersection of atlas w/ thresholded encoding group tmap
         gencoding_atlasreg_maskpath = os.path.join(
-            roi_dir,
+            group_roi_dir,
             'gmsdtb-' + atlas + '_' + roi + '_mask_' + hem + '.nii.gz')
         gmask, cluster_size = create_group_roimask(
             group_tmap_path, gthresh, atlasreg_maskpath,
             gencoding_atlasreg_maskpath)
 
-        # For each subject
-        subjects_roi = []
+        # ### For each subject ###
+        subjects_alltaskcon = []
         for subject in SUBJECTS:
-            # Create individual ROIs
             subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
             estimates_dir = os.path.join(subject_dir, 'estimates')
-            tasks_roi = []
+            iencoding_atlasreg_maskpath = os.path.join(
+                individual_roi_dir,
+                roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
+
+            # Create individual ROIs
+            subject_encoding_tmap = os.path.join(
+                estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
+                'wspmT_0001_desc-sm8wbmasked.nii')
+            irmask = create_individual_roimask(
+                subject_encoding_tmap, atlasreg_maskpath,
+                gmask, cluster_size, iencoding_atlasreg_maskpath)
+
+            # ### For each task ###
+            itasks_contrasts = []
             for task in tasks.keys():
-                subject_encoding_tmap = os.path.join(
-                    estimates_dir, task, 'masked_derivatives_rwls',
-                    'wspmT_0001_desc-sm8wbmasked.nii')
-                iencoding_atlasreg_maskpath = os.path.join(
-                    individual_roi_dir,
-                    roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
-                irmask = create_individual_roimask(
-                    subject_encoding_tmap, atlasreg_maskpath,
-                    gmask, cluster_size, iencoding_atlasreg_maskpath)
                 # Extract individual ROIs
-                subject_estimates_dir = os.path.join(
-                    data_dir, 'sub-%02d' % subject, 'estimates')
-                subject_contrasts = extract_roi(
-                    irmask, contrasts_dic, subject_estimates_dir, contype)
+                itask_contrasts = extract_roi(
+                    irmask, task, contrasts_dic, estimates_dir, contype)
                 # ... and append: shape (tasks, contrasts)
-                tasks_roi.append(subject_contrasts)
+                itasks_contrasts.append(itask_contrasts)
 
             # Append: shape (subjects, tasks, contrasts)
-            subjects_roi.append(tasks_roi)
-        0/0
+            subjects_alltaskcon.append(itasks_contrasts)
+
         # Change shape: (tasks, contrasts, subjects)
-        roi = np.swapaxes(subjects_roi, 0, 2)
+        roi = np.moveaxis(subjects_alltaskcon, 0, -1)
         # ... and append: shape (hemisphere, tasks, contrasts, subjects)
         roi_hems.append(roi)
 
@@ -402,17 +399,14 @@ all_contrasts = {1: 'Encoding',
                  17: 'Visual Interval vs Visual Beat',
                  18: 'Decision'}
 
-# filtered_contrasts = {1: 'Encoding',
-#                       2: 'Auditory Encoding',
-#                       3: 'Visual Encoding',
-#                       6: 'Beat',
-#                       7: 'Interval',
-#                       10: 'Auditory Beat',
-#                       11: 'Auditory Interval',
-#                       14: 'Visual Beat',
-#                       15: 'Visual Interval'}
-
 filtered_contrasts = {1: 'Encoding',
+                      2: 'Auditory Encoding',
+                      3: 'Visual Encoding',
+                      6: 'Beat',
+                      7: 'Interval',
+                      10: 'Auditory Beat',
+                      11: 'Auditory Interval',
+                      14: 'Visual Beat',
                       15: 'Visual Interval'}
 
 wb_masking = 'wb'
@@ -503,8 +497,8 @@ if __name__ == '__main__':
     # # # ######################## PUTAMEN ##################################
 
     # ROI extraction using Harvard-Oxford Subcortical atlas
-    roicon_estimation(msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', 3.385,
-                      filtered_contrasts, 'wpsc')
+    iroicon_estimation(msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', 3.385,
+                       filtered_contrasts, 'wpsc')
 
     # Plot
     # plot_roi_vertical(msdtb_putamen_conmean)
