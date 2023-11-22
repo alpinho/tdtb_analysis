@@ -16,7 +16,6 @@ import numpy as np
 import pandas as pd
 
 from scipy.ndimage import binary_dilation, binary_erosion
-from scipy.special import comb
 
 from nilearn.image import load_img, new_img_like, resample_to_img
 from nilearn.input_data import NiftiLabelsMasker
