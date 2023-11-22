@@ -47,8 +47,8 @@ def threshold_map(con_val, thresh_min, thresh_max=None):
     return thresholded_con_val
 
 
-def create_group_roimask(con_path, con_thresh_min, atlas_maskpath,
-                         msdtb_maskpath, con_thresh_max=None):
+def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
+                         con_thresh_min=3.385, con_thresh_max=None):
 
     # Remove NaNs from contrast map
     con_val, con_map = nonan_map(con_path)
@@ -162,31 +162,42 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
     return task_contrasts
 
 
-def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
-                       contrasts_dic, contype):
+def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
+                       contype):
 
     roi_dir = os.path.join(main_dir, region, atlas)
     group_roi_dir = os.path.join(roi_dir, 'group_rois')
-    iroi_dir = os.path.join(roi_dir, 'iroi_analysis', 'individual_rois')
+    iroicon_dir = os.path.join(roi_dir, 'iroi_analysis')
+    iroimasks_dir = os.path.join(iroicon_dir, 'individual_rois')
 
     if not os.path.exists(group_roi_dir):
         os.makedirs(group_roi_dir)
 
-    if not os.path.exists(iroi_dir):
-        os.makedirs(iroi_dir)
+    if not os.path.exists(iroicon_dir):
+        os.mkdir(iroicon_dir)
+
+    if not os.path.exists(iroimasks_dir):
+        os.mkdir(iroimasks_dir)
 
     # ### For each hemisphere ###
     roi_hems = []
     for hem in ['lh', 'rh']:
         atlasreg_maskpath = os.path.join(
             atlas_dir, atlas + '_' + region + '_' + hem + '_mask.nii.gz')
+
         # Intersection of atlas w/ thresholded encoding group tmap
         gencoding_atlasreg_maskpath = os.path.join(
             group_roi_dir,
             'gmsdtb-' + atlas + '_' + roi + '_mask_' + hem + '.nii.gz')
-        gmask, cluster_size = create_group_roimask(
-            group_tmap_path, gthresh, atlasreg_maskpath,
-            gencoding_atlasreg_maskpath)
+
+        if os.path.isfile(gencoding_atlasreg_maskpath):
+            gmask = load_img(gencoding_atlasreg_maskpath)
+            cluster_size = np.count_nonzero(gmask.get_fdata())
+        else:
+            gmask, cluster_size = create_group_roimask(
+                group_tmap_path,
+                atlasreg_maskpath,
+                gencoding_atlasreg_maskpath)
 
         # ### For each subject ###
         subjects_alltaskcon = []
@@ -194,7 +205,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
             subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
             estimates_dir = os.path.join(subject_dir, 'estimates')
             iencoding_atlasreg_maskpath = os.path.join(
-                iroi_dir, roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
+                iroimasks_dir,
+                roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
 
             # Create individual ROIs
             subject_encoding_tmap = os.path.join(
@@ -222,7 +234,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
         roi_hems.append(tasks_allconsubjects)
 
     # Save
-    outpath = os.path.join(roi_dir, region + '_' + contype[1:] + '.npy')
+    outpath = os.path.join(iroicon_dir, region + '_' + contype[1:] + '.npy')
     if os.path.exists(outpath):
         os.remove(outpath)
     np.save(outpath, roi_hems, allow_pickle=False)
@@ -309,8 +321,6 @@ def plot_roi_vertical(arr_conmean):
             # Names of Contrasts
             cnames = list(filtered_contrasts.values())
 
-
-
             d = {x: np.ravel(standard),
             y: np.ravel(data_list),
             z: np.ravel(conditions)}
@@ -324,9 +334,6 @@ def plot_roi_vertical(arr_conmean):
                 estimator=np.mean,
                 ci=95, # 1.96 * standard error (95% confidence interval)
                 errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
-
-
-
 
             if display_plabels:
                 pval_labels = pval_label_converter(allpvalues[r][c])
@@ -344,7 +351,6 @@ def plot_roi_vertical(arr_conmean):
             ax.spines[['right', 'top']].set_visible(False)
             plt.title(list(tasks.values())[c], size=30, x=.5,
                       fontweight='semibold')
-
 
         if r == 0:
             column_title = 'Left Hemisphere'
@@ -416,14 +422,11 @@ gm_masking = 'gm'
 group_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ \
     wb_masking + '/con_01_Encoding/'
 
-gencoding_relative_path = group_relative_path + 'con_0001.nii'
-gencoding_path = os.path.join(data_dir, gencoding_relative_path)
-con_thresh_min = 0
-con_thresh_max = 1.
+group_con_relative_path = group_relative_path + 'con_0001.nii'
+group_con_path = os.path.join(data_dir, group_con_relative_path)
 
 group_tmap_relative_path = group_relative_path  + 'spmT_0001.nii'
 group_tmap_path = os.path.join(data_dir, group_tmap_relative_path)
-# tmap_thresh_min = 3.385
 
 ##########################################################
 
@@ -435,60 +438,16 @@ nettekoven_dir = os.path.join(atlases_dir, 'nettekoven')
 
 msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
-msdtb_putamen_con_roih = os.path.join(
-    msdtb_dir, 'msdtb_putamen_roi_con_horizontalbarplot.png')
-msdtb_putamen_psc_roih = os.path.join(
-    msdtb_dir, 'msdtb_putamen_roi_psc_horizontalbarplot.png')
-msdtb_putamen_roiv = os.path.join(
-    msdtb_dir, 'msdtb_putamen_roi_verticalbarplot.png')
+# msdtb_putamen_con_roih = os.path.join(
+#     msdtb_dir, 'msdtb_putamen_roi_con_horizontalbarplot.png')
+# msdtb_putamen_psc_roih = os.path.join(
+#     msdtb_dir, 'msdtb_putamen_roi_psc_horizontalbarplot.png')
+# msdtb_putamen_roiv = os.path.join(
+#     msdtb_dir, 'msdtb_putamen_roi_verticalbarplot.png')
 
-msdtb_cereb6_con_roih = os.path.join(
-    msdtb_dir, 'msdtb_cereb6_roi_con_horizontalbarplot.png')
-msdtb_cereb6_psc_roih = os.path.join(
-    msdtb_dir, 'msdtb_cereb6_roi_psc_horizontalbarplot.png')
-msdtb_cereb6_roiv = os.path.join(
-    msdtb_dir, 'msdtb_cereb6_roi_verticalbarplot.png')
-
-msdtb_crus1_con_roih = os.path.join(
-    msdtb_dir, 'msdtb_crus1_roi_con_horizontalbarplot.png')
-msdtb_crus1_psc_roih = os.path.join(
-    msdtb_dir, 'msdtb_crus1_roi_psc_horizontalbarplot.png')
-msdtb_crus1_roiv = os.path.join(
-    msdtb_dir, 'msdtb_crus1_roi_verticalbarplot.png')
-
-msdtb_cereb7b8a_con_roih = os.path.join(
-    msdtb_dir, 'msdtb_cereb7b8a_roi_con_horizontalbarplot.png')
-msdtb_cereb7b8a_psc_roih = os.path.join(
-    msdtb_dir, 'msdtb_cereb7b8a_roi_psc_horizontalbarplot.png')
-msdtb_cereb7b8a_roiv = os.path.join(
-    msdtb_dir, 'msdtb_cereb7b8a_roi_verticalbarplot.png')
-
-msdtb_cerebd3s_con_roih = os.path.join(
-    msdtb_dir, 'msdtb_cerebd3s_roi_con_horizontalbarplot.png')
-msdtb_cerebd3s_psc_roih = os.path.join(
-    msdtb_dir, 'msdtb_cerebd3s_roi_psc_horizontalbarplot.png')
-msdtb_cerebd3s_roiv = os.path.join(
-    msdtb_dir, 'msdtb_cerebd3s_roi_verticalbarplot.png')
-
-msdtb_cerebd3i_con_roih = os.path.join(
-    msdtb_dir, 'msdtb_cerebd3i_roi_con_horizontalbarplot.png')
-msdtb_cerebd3i_psc_roih = os.path.join(
-    msdtb_dir, 'msdtb_cerebd3i_roi_psc_horizontalbarplot.png')
-msdtb_cerebd3i_roiv = os.path.join(
-    msdtb_dir, 'msdtb_cerebd3i_roi_verticalbarplot.png')
-
-ls_atl32_symmni_maskpath = os.path.join(
-    nettekoven_dir, 'ls_atl32_symmni_mask.nii.gz')
-rs_atl32_symmni_maskpath = os.path.join(
-    nettekoven_dir, 'rs_atl32_symmni_mask.nii.gz')
-li_atl32_symmni_maskpath = os.path.join(
-    nettekoven_dir, 'li_atl32_symmni_mask.nii.gz')
-ri_atl32_symmni_maskpath = os.path.join(
-    nettekoven_dir, 'ri_atl32_symmni_mask.nii.gz')
-
-putamen_dic = {'hos': 'putamen'}
-cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
-                  'nettekoven_symmni128': 'd3s', 'nettekoven_symmni128': 'd3i'}
+# putamen_dic = {'hos': 'putamen'}
+# cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
+#                   'nettekoven_symmni128': 'd3s', 'nettekoven_symmni128': 'd3i'}
 
 
 # ############################## RUN ####################################
@@ -498,7 +457,7 @@ if __name__ == '__main__':
     # # # ######################## PUTAMEN ##################################
 
     # ROI extraction using Harvard-Oxford Subcortical atlas
-    iroicon_estimation(msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', 3.385,
+    iroicon_estimation(msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen',
                        filtered_contrasts, 'wpsc')
 
     # Plot
