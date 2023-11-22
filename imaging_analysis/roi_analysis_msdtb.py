@@ -167,11 +167,13 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
 
     roi_dir = os.path.join(main_dir, region, atlas)
     group_roi_dir = os.path.join(roi_dir, 'group_rois')
-    individual_roi_dir = os.path.join(roi_dir, 'individual_rois')
+    iroi_dir = os.path.join(roi_dir, 'iroi_analysis', 'individual_rois')
 
     if not os.path.exists(group_roi_dir):
         os.makedirs(group_roi_dir)
-        os.mkdir(individual_roi_dir)
+
+    if not os.path.exists(iroi_dir):
+        os.makedirs(iroi_dir)
 
     # ### For each hemisphere ###
     roi_hems = []
@@ -192,8 +194,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
             subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
             estimates_dir = os.path.join(subject_dir, 'estimates')
             iencoding_atlasreg_maskpath = os.path.join(
-                individual_roi_dir,
-                roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
+                iroi_dir, roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
 
             # Create individual ROIs
             subject_encoding_tmap = os.path.join(
@@ -216,9 +217,9 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, gthresh,
             subjects_alltaskcon.append(itasks_contrasts)
 
         # Change shape: (tasks, contrasts, subjects)
-        roi = np.moveaxis(subjects_alltaskcon, 0, -1)
+        tasks_allconsubjects = np.moveaxis(subjects_alltaskcon, 0, -1)
         # ... and append: shape (hemisphere, tasks, contrasts, subjects)
-        roi_hems.append(roi)
+        roi_hems.append(tasks_allconsubjects)
 
     # Save
     outpath = os.path.join(roi_dir, region + '_' + contype[1:] + '.npy')
