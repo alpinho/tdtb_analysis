@@ -338,9 +338,9 @@ def plot_roi_vertical(arr_conmean):
 
     # Names of Contrasts
     cnames = list(filtered_contrasts.values())[1:]
+    n_pairs = len(np.arange(len(cnames))[::2])
 
-    # fig = plt.figure(figsize=(30, 35))
-    fig, ax = plt.subplots(1, 1)
+    fig, ax = plt.subplots(1, n_pairs)
 
     # left   # the left side of the subplots of the figure
     # right  # the right side of the subplots of the figure
@@ -350,55 +350,67 @@ def plot_roi_vertical(arr_conmean):
     # hspace # the amount of height reserved for white space between subplots
     plt.subplots_adjust(left=.12, right=.99, bottom=.15, wspace=.075)
 
-    con1 = arr_conmean[0][0][0]
-    con2 = arr_conmean[0][0][1]
-    data_list = con1 +con2
+    for c, cpair in enumerate(np.arange(len(cnames))[::2]):
+        con1 = arr_conmean[0][0][cpair]
+        con2 = arr_conmean[0][0][cpair+1]
+        data_list = con1 +con2
 
-    cname1 = cnames[0]
-    cname2 = cnames[1]
-    cname = np.append(np.repeat(cname1, len(con1)),
-                      np.repeat(cname2, len(con2))).tolist()
+        cname1 = cnames[c]
+        cname2 = cnames[c+1]
+        cname = np.append(np.repeat(cname1, len(con1)),
+                        np.repeat(cname2, len(con2))).tolist()
 
-    x = 'Contrasts Names'
-    y = 'Mean of %BOLD change'
-    # Long data frame
-    d = {x: cname,
-         y: data_list}
-    df = pd.DataFrame(data=d)
-    # Create bar plot
-    g = sns.barplot(ax=ax,
-                    x=x,
-                    y=y,
-                    data=df,
-                    palette=[sns.color_palette("colorblind")[2],
-                             sns.color_palette("colorblind")[8]],
-                    estimator=np.mean,
-                    ci=95, # errorbar=('ci', 95), # 1.96 * standard error (95% confidence interval)
-                    errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+        x = 'Contrasts Names'
+        y = 'Mean of %BOLD change'
+        # Long data frame
+        d = {x: cname,
+            y: data_list}
+        df = pd.DataFrame(data=d)
+        # Create bar plot
+        b = sns.barplot(ax=ax[c],
+                        x=x,
+                        y=y,
+                        data=df,
+                        palette=[sns.color_palette("colorblind")[2],
+                                sns.color_palette("colorblind")[8]],
+                        estimator=np.mean,
+                        ci=95, # errorbar=('ci', 95), # 1.96 * standard error (95% confidence interval)
+                        errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
 
-    # Compute p-value
-    # _, pvalue = ttest_rel(con1, con2, alternative='greater')
-    # _, pvalue = ttest_rel(con1, con2, alternative='less')
-    _, pvalue = ttest_rel(con1, con2, alternative='two-sided')
-    print(pvalue)
+        # Compute p-value
+        _, pvalue = ttest_rel(con1, con2, alternative='greater')
+        # _, pvalue = ttest_rel(con1, con2, alternative='less')
+        # _, pvalue = ttest_rel(con1, con2, alternative='two-sided')
+        print(pvalue)
 
-    # Annotate
-    pair = tuple([[(cname1), (cname2)]])
-    annotator = Annotator(ax, pair, data=df, x=x, y=y)
-    annotator.configure(test=None,
-                        text_format="star", # text_format="simple"
-                        # test_short_name="pttest", # if former is "simple"
-                        fontsize=10.)
+        # Annotate
+        pair = tuple([[(cname1), (cname2)]])
+        annotator = Annotator(ax[c], pair, data=df, x=x, y=y)
+        annotator.configure(test=None,
+                            text_format="star", # text_format="simple"
+                            # test_short_name="pttest", # if former is "simple"
+                            fontsize=10.)
 
-    annotator.set_pvalues([pvalue])
-    annotator.annotate()
+        annotator.set_pvalues([pvalue])
+        annotator.annotate()
 
-    # Remove x-label
-    g.set(xlabel=None)
+        # Remove x-label
+        b.set(xlabel=None)
 
-    # Hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
+        # Rotate xtick labels
+        ax[c].set_xticklabels(ax[c].get_xticklabels(), rotation=20, ha='right',
+                              fontsize=8)
+
+        # Hide the right and top spines
+        ax[c].spines['right'].set_visible(False)
+        ax[c].spines['top'].set_visible(False)
+
+        if c > 0:
+            # ... remove y labels and y ticks
+            ax[c].axes.get_yaxis().set_visible(False)
+            # ... remove y frame
+            ax[c].spines['left'].set_visible(False)
+
 
     output_folder = os.path.join(msdtb_dir, 'putamen/hos/iroi_analysis')
     fname = 'putamen_psc'
