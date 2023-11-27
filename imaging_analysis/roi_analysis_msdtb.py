@@ -7,7 +7,7 @@ Author: Ana Luisa Pinho
 Created: October 2023
 Last update: November 2023
 
-Compatibility: Python 3.10.10
+Compatibility: Python 3.10.8
 
 """
 
@@ -16,11 +16,13 @@ import numpy as np
 import pandas as pd
 
 from scipy.ndimage import binary_dilation, binary_erosion
+from scipy.stats import ttest_rel
 
 from nilearn.image import load_img, new_img_like, resample_to_img
 from nilearn.input_data import NiftiLabelsMasker
 
 import seaborn as sns
+from statannotations.Annotator import Annotator
 from matplotlib import pyplot as plt
 
 
@@ -144,7 +146,7 @@ def create_individual_roimask(individual_con_path, atlas_maskpath,
     # Binarize individual ROI
     bin_individual_roi_val = (individual_roi_val != 0)
 
-    # Test whether binary is empty
+    # Test whether binarized roi is empty
     if not np.count_nonzero(bin_individual_roi_val):
         print(np.count_nonzero(bin_individual_roi_val))
         individual_roi_mask = gmask
@@ -173,6 +175,7 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
 
     # # For every contrast
     task_contrasts = []
+    # Do not count w/ Encoding contrast
     for key in list(contrasts.keys())[1:]:
 
         contrast_fname = filetype + '_%04d_desc-sm8wbmasked.nii' % key
@@ -328,11 +331,16 @@ def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
 
 
 def plot_roi_vertical(arr_conmean):
-    # ## Open npy files and plot
-    allcontrasts_mean = np.load(arr_conmean).tolist()
+    # input shape: (hemisphere, tasks, contrasts, subjects)
+    if isinstance(arr_conmean, str):
+        # ## Open npy files and plot
+        arr_conmean = np.load(arr_conmean).tolist()
+
+    # Names of Contrasts
+    cnames = list(filtered_contrasts.values())[1:]
 
     # fig = plt.figure(figsize=(30, 35))
-    fig, ax = plt.subplots(len(allcontrasts_mean[0]), len(allcontrasts_mean))
+    fig, ax = plt.subplots(1, 1)
 
     # left   # the left side of the subplots of the figure
     # right  # the right side of the subplots of the figure
@@ -342,57 +350,60 @@ def plot_roi_vertical(arr_conmean):
     # hspace # the amount of height reserved for white space between subplots
     plt.subplots_adjust(left=.12, right=.99, bottom=.15, wspace=.075)
 
-    # For each hemisphere
-    for r, roi in enumerate(allcontrasts_mean):
-        # For each task
-        for c, cmean in enumerate(roi):
+    con1 = arr_conmean[0][0][0]
+    con2 = arr_conmean[0][0][1]
+    data_list = con1 +con2
 
-            # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.16 + r*.475, .73 - c*.2, .1, .1])
+    cname1 = cnames[0]
+    cname2 = cnames[1]
+    cname = np.append(np.repeat(cname1, len(con1)),
+                      np.repeat(cname2, len(con2))).tolist()
 
-            # Names of Contrasts
-            cnames = list(filtered_contrasts.values())
+    x = 'Contrasts Names'
+    y = 'Mean of %BOLD change'
+    # Long data frame
+    d = {x: cname,
+         y: data_list}
+    df = pd.DataFrame(data=d)
+    # Create bar plot
+    g = sns.barplot(ax=ax,
+                    x=x,
+                    y=y,
+                    data=df,
+                    palette=[sns.color_palette("colorblind")[2],
+                             sns.color_palette("colorblind")[8]],
+                    estimator=np.mean,
+                    ci=95, # errorbar=('ci', 95), # 1.96 * standard error (95% confidence interval)
+                    errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
 
-            d = {x: np.ravel(standard),
-            y: np.ravel(data_list),
-            z: np.ravel(conditions)}
-            df = pd.DataFrame(data=d)
-            # Create bar plot
-            sns.barplot(ax=ax[m][c],
-                x=x,
-                y=y,
-                hue=z,
-                data=df,
-                estimator=np.mean,
-                ci=95, # 1.96 * standard error (95% confidence interval)
-                errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+    # Compute p-value
+    # _, pvalue = ttest_rel(con1, con2, alternative='greater')
+    # _, pvalue = ttest_rel(con1, con2, alternative='less')
+    _, pvalue = ttest_rel(con1, con2, alternative='two-sided')
+    print(pvalue)
 
-            if display_plabels:
-                pval_labels = pval_label_converter(allpvalues[r][c])
-                ax.bar_label(rects, labels=pval_labels, padding=3)
+    # Annotate
+    pair = tuple([[(cname1), (cname2)]])
+    annotator = Annotator(ax, pair, data=df, x=x, y=y)
+    annotator.configure(test=None,
+                        text_format="star", # text_format="simple"
+                        # test_short_name="pttest", # if former is "simple"
+                        fontsize=10.)
 
-            ax.set_xticks(x_pos, labels=cnames, fontsize=16,
-                          fontweight='semibold', rotation=45, ha='right')
-            ax.xaxis.set_tick_params(width=10.)
-            plt.yticks(fontsize=16, fontweight='semibold')
-            ax.set_ylim([-.05, .06])
-            ax.set_ylabel('Effect Size', fontweight='semibold', fontsize=20)
-            for axis in ['top','bottom','left','right']:
-                ax.spines[axis].set_linewidth(2)
-            # Hide the right and top spines
-            ax.spines[['right', 'top']].set_visible(False)
-            plt.title(list(tasks.values())[c], size=30, x=.5,
-                      fontweight='semibold')
+    annotator.set_pvalues([pvalue])
+    annotator.annotate()
 
-        if r == 0:
-            column_title = 'Left Hemisphere'
-        else:
-            column_title = 'Right Hemisphere'
-        fig.text(.25 + r*.5, .9425, column_title, ha='center',
-                 fontsize=30, weight='bold')
-    plt.suptitle(roi_ref, size=28, weight='bold', linespacing=.75)
-    fig.savefig(output_file, dpi=300)
+    # Remove x-label
+    g.set(xlabel=None)
 
+    # Hide the right and top spines
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+
+    output_folder = os.path.join(msdtb_dir, 'putamen/hos/iroi_analysis')
+    fname = 'putamen_psc'
+    # Save figure
+    plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
 # ############################# INPUTS ##################################
 
@@ -489,11 +500,14 @@ if __name__ == '__main__':
     # # # ######################## PUTAMEN ##################################
 
     # ROI extraction using Harvard-Oxford Subcortical atlas
-    iroicon_estimation(msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen',
-                       filtered_contrasts, 'wpsc')
+    # putamen_hos_rois = iroicon_estimation(
+    #     msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', filtered_contrasts,
+    #     'wpsc')
 
     # Plot
-    # plot_roi_vertical(msdtb_putamen_conmean)
+    putamen_hos_rois = os.path.join(msdtb_dir,
+                                    'putamen/hos/iroi_analysis/putamen_psc.npy')
+    plot_roi_vertical(putamen_hos_rois)
 
 
     # # # # ###################### CEREBELLUM VI ############################
