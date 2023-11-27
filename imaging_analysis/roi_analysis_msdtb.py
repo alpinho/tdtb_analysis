@@ -350,13 +350,13 @@ def plot_roi_vertical(arr_conmean):
     # hspace # the amount of height reserved for white space between subplots
     plt.subplots_adjust(left=.12, right=.99, bottom=.15, wspace=.075)
 
-    for c, cpair in enumerate(np.arange(len(cnames))[::2]):
-        con1 = arr_conmean[0][0][cpair]
-        con2 = arr_conmean[0][0][cpair+1]
+    for c, cidx in enumerate(np.arange(len(cnames))[::2]):
+        con1 = arr_conmean[0][0][cidx]
+        con2 = arr_conmean[0][0][cidx+1]
         data_list = con1 +con2
 
-        cname1 = cnames[c]
-        cname2 = cnames[c+1]
+        cname1 = cnames[cidx]
+        cname2 = cnames[cidx+1]
         cname = np.append(np.repeat(cname1, len(con1)),
                         np.repeat(cname2, len(con2))).tolist()
 
@@ -364,7 +364,7 @@ def plot_roi_vertical(arr_conmean):
         y = 'Mean of %BOLD change'
         # Long data frame
         d = {x: cname,
-            y: data_list}
+             y: data_list}
         df = pd.DataFrame(data=d)
         # Create bar plot
         b = sns.barplot(ax=ax[c],
@@ -410,6 +410,9 @@ def plot_roi_vertical(arr_conmean):
             ax[c].axes.get_yaxis().set_visible(False)
             # ... remove y frame
             ax[c].spines['left'].set_visible(False)
+
+        # Title
+        plt.title('Production', size=14, x=-1.25, fontweight='bold')
 
 
     output_folder = os.path.join(msdtb_dir, 'putamen/hos/iroi_analysis')
