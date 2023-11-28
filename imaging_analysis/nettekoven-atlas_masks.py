@@ -58,7 +58,7 @@ def create_cerebellum_quadrants(lutfile, atlas_path, tag, quadrant_path):
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
-nettekoven_dir = os.path.join(atlases_dir, 'nettekoven')
+nettekoven_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 
 atl32_symmni_path = os.path.join(
     nettekoven_dir, 'atl-NettekovenSym32_space-MNI152NLin2009cSymC_dseg.nii')
