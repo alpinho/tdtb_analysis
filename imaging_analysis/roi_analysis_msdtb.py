@@ -218,7 +218,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
     roi_hems = []
     for hem in ['lh', 'rh']:
         atlasreg_maskpath = os.path.join(
-            atlas_dir, atlas + '_' + region + '_' + hem + '_mask.nii.gz')
+            atlas_dir, atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
 
         # Intersection of atlas w/ thresholded encoding group tmap
         gencoding_atlasreg_maskpath = os.path.join(
@@ -269,7 +269,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
         roi_hems.append(tasks_allconsubjects)
 
     # Save
-    outpath = os.path.join(iroicon_dir, region + '_' + contype[1:] + '.npy')
+    outpath = os.path.join(iroicon_dir, roi + '_' + contype[1:] + '.npy')
     if os.path.exists(outpath):
         os.remove(outpath)
     np.save(outpath, roi_hems, allow_pickle=False)
@@ -330,7 +330,7 @@ def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
     fig.savefig(output_file, dpi=300)
 
 
-def plot_roi_vertical(arr_conmean, roi, atlas, ianalysis, effect_type,
+def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
                       hypothesis='greater'):
     # input shape: (hemisphere, tasks, contrasts, subjects)
     if isinstance(arr_conmean, str):
@@ -439,7 +439,7 @@ def plot_roi_vertical(arr_conmean, roi, atlas, ianalysis, effect_type,
         plt.suptitle(roi.capitalize(), x=.5, y=.97, size=18, linespacing=.75,
                      fontweight='bold')
 
-        output_folder = os.path.join(msdtb_dir, roi, atlas, ianalysis)
+        output_folder = os.path.join(msdtb_dir, region, atlas, ianalysis)
         fname = roi + '_' + effect_type + '_' + hypothesis
         # Save figure
         plt.savefig(os.path.join(output_folder, fname + '.pdf'))
@@ -550,19 +550,22 @@ if __name__ == '__main__':
     # # # # ###################### CEREBELLUM VI ############################
 
     # Extraction of individual ROIs using MNIFLIRT atlas
-    putamen_hos_rois = iroicon_estimation(
-        msdtb_dir, fsl_dir, 'mniflirt', 'cerebellum', 'cereb6',
-        filtered_contrasts, 'wpsc')
+    # cerebellum_mniflirt_rois = iroicon_estimation(
+    #     msdtb_dir, fsl_dir, 'mniflirt', 'cerebellum', 'cereb6',
+    #     filtered_contrasts, 'wpsc')
 
     # Plot
     cerebellum_mniflirt_rois = os.path.join(
         msdtb_dir, 'cerebellum/mniflirt/iroi_analysis/cereb6_psc.npy')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'mniflirt',
-                      'iroi_analysis', 'psc', hypothesis='greater')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'mniflirt',
-                      'iroi_analysis', 'psc', hypothesis='less')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'mniflirt',
-                      'iroi_analysis', 'psc', hypothesis='two-sided')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
+                      'mniflirt', 'iroi_analysis', 'psc',
+                      hypothesis='greater')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
+                      'mniflirt', 'iroi_analysis', 'psc',
+                      hypothesis='less')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
+                      'mniflirt', 'iroi_analysis', 'psc',
+                      hypothesis='two-sided')
 
     # # # Create Music-SDTB ROIs
     # # create_msdtb_roi(tmap_path, tmap_thresh_min,
