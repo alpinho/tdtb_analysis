@@ -119,11 +119,14 @@ def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
     return msdtb_mask, np.count_nonzero(msdtb_val)
 
 
-def create_individual_roimask(individual_con_path, atlas_maskpath,
-                              gmask, n_voxels, individual_roi_maskpath):
+def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
+                    iroi_maskpath, gcon_path=None, weights=None):
     """
     Create individual ROIs: intersection between the
     unthresholded, individual encoding and a pre-specified atlas mask.
+
+    This individual encoding map can be weight-averaged with the
+    group encoding map, prior to the intersection
 
     The cluster size of the intersection has the same number of voxels
     as the group ROI mask produced by :func:`create_group_roimask`.
@@ -132,57 +135,63 @@ def create_individual_roimask(individual_con_path, atlas_maskpath,
     dilation towards the group mask is performed.
     """
 
-    print(individual_con_path)
+    print(icon_path)
 
-    # Remove NaNs from contrast map
-    con_val, con_map = nonan_map(individual_con_path)
+    # Load and remove NaNs from contrast map
+    icon_val, icon_map = nonan_map(icon_path)
 
     # Load masks generated from a selected atlas
     atlas_mask = load_img(atlas_maskpath)
 
     # Resample atlas mask
-    atlas_rmask = resample_to_img(atlas_mask, con_map,
+    atlas_rmask = resample_to_img(atlas_mask, icon_map,
                                   interpolation='nearest')
 
     # Get data from atlas mask
     atlas_val = atlas_rmask.get_fdata()
+
+    # If we want to average individual contrast with group contrast...
+    if gcon_path is not None:
+        gcon_val, _ = nonan_map(gcon_path)
+        con_val = np.average(np.array([icon_val, gcon_val]), axis=0,
+                             weights=weights)
+    else:
+        con_val = icon_val
 
     # Intersection of contrast map w/ atlas mask
     bin_msdtb_val = np.logical_and(
         con_val.astype(bool), atlas_val.astype(bool)).astype(int)
 
     # Retain an ROI with the same size as the one found at the group level
-    individual_roi_val = np.where(bin_msdtb_val, con_val, 0)
-    individual_thresh = np.sort(
-        np.ravel(individual_roi_val))[::-1][n_voxels - 1]
-    individual_roi_val[individual_roi_val < individual_thresh] = 0
+    iroi_val = np.where(bin_msdtb_val, con_val, 0)
+    ithresh = np.sort(np.ravel(iroi_val))[::-1][n_voxels - 1]
+    iroi_val[iroi_val < ithresh] = 0
 
     # Binarize individual ROI
-    bin_individual_roi_val = (individual_roi_val != 0)
+    bin_iroi_val = (iroi_val != 0)
 
     # Test whether binarized roi is empty
-    if not np.count_nonzero(bin_individual_roi_val):
-        print(np.count_nonzero(bin_individual_roi_val))
-        individual_roi_mask = gmask
+    if not np.count_nonzero(bin_iroi_val):
+        print(np.count_nonzero(bin_iroi_val))
+        iroi_mask = gmask
     else:
         # Test whether individual has equal or bigger size than group mask
         # If not,
-        if not individual_thresh:
+        if not ithresh:
             # Do dilation restricted to n_voxels
             gmask_val = gmask.get_fdata()
             dilated_mask_val = binary_dilation_with_limit(
-                bin_individual_roi_val, n_voxels, gmask_val)
+                bin_iroi_val, n_voxels, gmask_val)
             print('Dilation performed! ', np.count_nonzero(dilated_mask_val))
-            individual_roi_mask = new_img_like(atlas_rmask, dilated_mask_val)
+            iroi_mask = new_img_like(atlas_rmask, dilated_mask_val)
         else:
-            print(np.count_nonzero(bin_individual_roi_val))
-            individual_roi_mask = new_img_like(atlas_rmask,
-                                               bin_individual_roi_val)
+            print(np.count_nonzero(bin_iroi_val))
+            iroi_mask = new_img_like(atlas_rmask, bin_iroi_val)
 
     # Save individual ROI mask
-    individual_roi_mask.to_filename(individual_roi_maskpath)
+    iroi_mask.to_filename(iroi_maskpath)
 
-    return individual_roi_mask
+    return iroi_mask
 
 
 def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
@@ -212,7 +221,7 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
 
 
 def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
-                       contype):
+                       contype, method='individual', weights=None):
 
     roi_dir = os.path.join(main_dir, region, atlas)
     group_roi_dir = os.path.join(roi_dir, 'group_rois')
@@ -253,17 +262,37 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
         for subject in SUBJECTS:
             subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
             estimates_dir = os.path.join(subject_dir, 'estimates')
-            iencoding_atlasreg_maskpath = os.path.join(
-                iroimasks_dir,
-                roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
+            if method == 'individual':
+                iencoding_atlasreg_maskpath = os.path.join(
+                    iroimasks_dir,
+                    roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
+            else:
+                assert method == 'weighted-average'
+                iencoding_atlasreg_maskpath = os.path.join(
+                    iroimasks_dir,
+                    'avg_' + roi + '_mask_sub-%02d_' + hem + \
+                    '.nii.gz') % subject
 
             # Create individual ROIs
             subject_encoding_tmap = os.path.join(
                 estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
                 'wspmT_0001_desc-sm8wbmasked.nii')
-            irmask = create_individual_roimask(
-                subject_encoding_tmap, atlasreg_maskpath,
-                gmask, cluster_size, iencoding_atlasreg_maskpath)
+            if method == 'individual':
+                irmask = create_iroimask(
+                    subject_encoding_tmap, atlasreg_maskpath, gmask, cluster_size,
+                    iencoding_atlasreg_maskpath)
+            else:
+                assert method == 'weighted-average'
+                if weights is None:
+                    irmask = create_iroimask(
+                        subject_encoding_tmap, atlasreg_maskpath, gmask,
+                        cluster_size, iencoding_atlasreg_maskpath,
+                        gcon_path=group_tmap_path)
+                else:
+                    irmask = create_iroimask(
+                        subject_encoding_tmap, atlasreg_maskpath, gmask,
+                        cluster_size, iencoding_atlasreg_maskpath,
+                        gcon_path=group_tmap_path, weights=weights)
 
             # ### For each task ###
             itasks_contrasts = []
@@ -283,7 +312,12 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
         roi_hems.append(tasks_allconsubjects)
 
     # Save
-    outpath = os.path.join(iroicon_dir, roi + '_' + contype[1:] + '.npy')
+    if method == 'individual':
+        outpath = os.path.join(iroicon_dir, roi + '_' + contype[1:] + '.npy')
+    else:
+        assert method == 'weighted-average'
+        outpath = os.path.join(
+            iroicon_dir, 'avg_' + roi + '_' + contype[1:] + '.npy')
     if os.path.exists(outpath):
         os.remove(outpath)
     np.save(outpath, roi_hems, allow_pickle=False)
@@ -544,20 +578,40 @@ if __name__ == '__main__':
 
     # # # ######################## PUTAMEN ##################################
 
+    # ************************* Individual ROIS *****************************
+
     # Extraction of individual ROIs  using Harvard-Oxford Subcortical atlas
-    # putamen_hos_rois = iroicon_estimation(
+    # putamen_hos_irois = iroicon_estimation(
     #     msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', filtered_contrasts,
     #     'wpsc')
 
     # Plot
-    # putamen_hos_rois = os.path.join(
+    # putamen_hos_irois = os.path.join(
     #     msdtb_dir, 'putamen/hos/iroi_analysis/putamen_psc.npy')
-    # plot_roi_vertical(putamen_hos_rois, 'putamen', 'hos', 'iroi_analysis',
-    #                   'psc', hypothesis='greater')
-    # plot_roi_vertical(putamen_hos_rois, 'putamen', 'hos', 'iroi_analysis',
-    #                   'psc', hypothesis='less')
-    # plot_roi_vertical(putamen_hos_rois, 'putamen', 'hos', 'iroi_analysis',
-    #                   'psc', hypothesis='two-sided')
+    # plot_roi_vertical(putamen_hos_irois, 'putamen', 'putamen', 'hos',
+    #                   'iroi_analysis', 'psc', hypothesis='greater')
+    # plot_roi_vertical(putamen_hos_irois, 'putamen', 'putamen', 'hos',
+    #                   'iroi_analysis', 'psc', hypothesis='less')
+    # plot_roi_vertical(putamen_hos_irois, 'putamen', 'putamen', 'hos',
+    #                   'iroi_analysis', 'psc', hypothesis='two-sided')
+
+    # ***************** Individual weight-averaged ROIS *****************
+
+    # Extraction of individual ROIs  using Harvard-Oxford Subcortical atlas
+    putamen_hos_arois = iroicon_estimation(
+        msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', filtered_contrasts,
+        'wpsc', method='weighted-average')
+
+    # Plot
+    # putamen_hos_arois = os.path.join(
+    #     msdtb_dir, 'putamen/hos/iroi_analysis/putamen_psc.npy')
+    plot_roi_vertical(putamen_hos_arois, 'putamen', 'putamen', 'hos',
+                      'iroi_analysis', 'psc', hypothesis='greater')
+    plot_roi_vertical(putamen_hos_arois, 'putamen', 'putamen', 'hos',
+                      'iroi_analysis', 'psc', hypothesis='less')
+    plot_roi_vertical(putamen_hos_arois, 'putamen', 'putamen', 'hos',
+                      'iroi_analysis', 'psc', hypothesis='two-sided')
+
 
     # # # # ###################### CEREBELLUM VI ############################
 
@@ -621,40 +675,40 @@ if __name__ == '__main__':
 
     # # ##################### CEREBELLUM D3s #############################
 
-    # Extraction of individual ROIs using MNIFLIRT atlas
-    cerebellum_nettekoven_symmni128_rois = iroicon_estimation(
-        msdtb_dir, nettekoven_dir, 'nettekoven_symmni128', 'cerebellum',
-        'd3s', filtered_contrasts, 'wpsc')
+    # # Extraction of individual ROIs using MNIFLIRT atlas
+    # cerebellum_nettekoven_symmni128_rois = iroicon_estimation(
+    #     msdtb_dir, nettekoven_dir, 'nettekoven_symmni128', 'cerebellum',
+    #     'd3s', filtered_contrasts, 'wpsc')
 
-    # Plot
-    # cerebellum_mniflirt_rois = os.path.join(
-    #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/d3s_psc.npy')
-    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
-                      'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
-                      hypothesis='greater')
-    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
-                      'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
-                      hypothesis='less')
-    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
-                      'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
-                      hypothesis='two-sided')
+    # # Plot
+    # # cerebellum_mniflirt_rois = os.path.join(
+    # #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/d3s_psc.npy')
+    # plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+    #                   'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+    #                   hypothesis='greater')
+    # plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+    #                   'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+    #                   hypothesis='less')
+    # plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+    #                   'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+    #                   hypothesis='two-sided')
 
     # # ##################### CEREBELLUM D3i #############################
 
-    # Extraction of individual ROIs using MNIFLIRT atlas
-    cerebellum_nettekoven_symmni128_rois = iroicon_estimation(
-        msdtb_dir, nettekoven_dir, 'nettekoven_symmni128', 'cerebellum',
-        'd3i', filtered_contrasts, 'wpsc')
+    # # Extraction of individual ROIs using MNIFLIRT atlas
+    # cerebellum_nettekoven_symmni128_rois = iroicon_estimation(
+    #     msdtb_dir, nettekoven_dir, 'nettekoven_symmni128', 'cerebellum',
+    #     'd3i', filtered_contrasts, 'wpsc')
 
-    # Plot
-    # cerebellum_mniflirt_rois = os.path.join(
-    #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/d3i_psc.npy')
-    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
-                      'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
-                      hypothesis='greater')
-    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
-                      'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
-                      hypothesis='less')
-    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
-                      'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
-                      hypothesis='two-sided')
+    # # Plot
+    # # cerebellum_mniflirt_rois = os.path.join(
+    # #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/d3i_psc.npy')
+    # plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+    #                   'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+    #                   hypothesis='greater')
+    # plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+    #                   'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+    #                   hypothesis='less')
+    # plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+    #                   'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+    #                   hypothesis='two-sided')
