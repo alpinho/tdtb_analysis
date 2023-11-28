@@ -53,7 +53,7 @@ def threshold_map(con_val, thresh_min, thresh_max=None):
 
 def binary_dilation_with_limit(image, target_count, gmask):
     s1, s2, s3 = np.random.choice(
-        np.random.permutation(np.random.permutation(np.arange(1, 10))), 3)
+        np.random.permutation(np.random.permutation(np.arange(1, 20))), 3)
     dilated_image = binary_dilation(image, mask=gmask,
                                     structure=np.ones((s1, s2, s3)))
 
@@ -61,7 +61,7 @@ def binary_dilation_with_limit(image, target_count, gmask):
 
     while current_count != target_count:
         s1, s2, s3 = np.random.choice(
-            np.random.permutation(np.random.permutation(np.arange(1, 10))), 3)
+            np.random.permutation(np.random.permutation(np.arange(1, 20))), 3)
         if current_count < target_count:
             dilated_image = binary_dilation(dilated_image, mask=gmask,
                                             structure=np.ones((s1, s2, s3)))
@@ -78,6 +78,10 @@ def binary_dilation_with_limit(image, target_count, gmask):
 
 def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
                          con_thresh_min=3.385, con_thresh_max=None):
+    """
+    Compute group ROI: intersection of group encoding map
+    thresholded to p < .001 with a pre-specified atlas.
+    """
 
     # Remove NaNs from contrast map
     con_val, con_map = nonan_map(con_path)
@@ -117,6 +121,16 @@ def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
 
 def create_individual_roimask(individual_con_path, atlas_maskpath,
                               gmask, n_voxels, individual_roi_maskpath):
+    """
+    Create individual ROIs: intersection between the
+    unthresholded, individual encoding and a pre-specified atlas mask.
+
+    The cluster size of the intersection has the same number of voxels
+    as the group ROI mask produced by :func:`create_group_roimask`.
+    To this end, the voxels displaying larger activity are considered.
+    If the intersection results in a cluster size smaller than the group,
+    dilation towards the group mask is performed.
+    """
 
     print(individual_con_path)
 
@@ -516,14 +530,13 @@ working_dir = os.path.dirname(os.path.abspath(__file__))
 
 atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
-nettekoven_dir = os.path.join(atlases_dir, 'nettekoven')
+nettekoven_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 
 msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
 # putamen_dic = {'hos': 'putamen'}
 # cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
 #                   'nettekoven_symmni128': 'd3s', 'nettekoven_symmni128': 'd3i'}
-
 
 # ############################## RUN ####################################
 
@@ -588,99 +601,60 @@ if __name__ == '__main__':
 
     # # ##################### CEREBELLUM 7b-8a #############################
 
-    # Extraction of individual ROIs using MNIFLIRT atlas
-    cerebellum_mniflirt_rois = iroicon_estimation(
-        msdtb_dir, fsl_dir, 'mniflirt', 'cerebellum', 'cereb7b8a',
-        filtered_contrasts, 'wpsc')
-
-    # Plot
-    cerebellum_mniflirt_rois = os.path.join(
-        msdtb_dir, 'cerebellum/mniflirt/iroi_analysis/cereb7b8a_psc.npy')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
-                      'mniflirt', 'iroi_analysis', 'psc',
-                      hypothesis='greater')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
-                      'mniflirt', 'iroi_analysis', 'psc',
-                      hypothesis='less')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
-                      'mniflirt', 'iroi_analysis', 'psc',
-                      hypothesis='two-sided')
-
-    # # Create Music-SDTB ROIs
-    # create_msdtb_roi(tmap_path, tmap_thresh_min,
-    #                  mniflirt_cereb7b8a_lh_maskpath,
-    #                  mniflirt_cereb7b8a_rh_maskpath,
-    #                  msdtb_cereb7b8a_lh_maskpath,
-    #                  msdtb_cereb7b8a_rh_maskpath,
-    #                  map_thresh_max=None)
-
-    # ## Extract data from ROIs in both hemispheres
-    # msdtb_cereb7b8a_lh_mask = load_img(msdtb_cereb7b8a_lh_maskpath)
-    # msdtb_cereb7b8a_rh_mask = load_img(msdtb_cereb7b8a_rh_maskpath)
-    # cereb7b8a_masks = [msdtb_cereb7b8a_lh_mask, msdtb_cereb7b8a_rh_mask]
-    # compute_rois(cereb7b8a_masks, mask_wb, contrasts,
-    #              msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval, 'wcon')
-    # compute_rois(cereb7b8a_masks, mask_wb, contrasts,
-    #              msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval, 'wpsc')
+    # # Extraction of individual ROIs using MNIFLIRT atlas
+    # cerebellum_mniflirt_rois = iroicon_estimation(
+    #     msdtb_dir, fsl_dir, 'mniflirt', 'cerebellum', 'cereb7b8a',
+    #     filtered_contrasts, 'wpsc')
 
     # # Plot
-    # plot_roi_horizontal(msdtb_cereb7b8a_conmean, msdtb_cereb7b8a_conpval,
-    #                     'Cerebellar Lobules VIIb-VIIIa',
-    #                     msdtb_cereb7b8a_con_roih)
-    # plot_roi_horizontal(msdtb_cereb7b8a_pscmean, msdtb_cereb7b8a_pscpval,
-    #                     'Cerebellar Lobules VIIb-VIIIa',
-    #                     msdtb_cereb7b8a_psc_roih)
+    # cerebellum_mniflirt_rois = os.path.join(
+    #     msdtb_dir, 'cerebellum/mniflirt/iroi_analysis/cereb7b8a_psc.npy')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='greater')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='less')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='two-sided')
 
     # # ##################### CEREBELLUM D3s #############################
 
-    # # Create Music-SDTB ROIs
-    # create_msdtb_roi(tmap_path, tmap_thresh_min,
-    #                  atl_cerebd3s_lh_maskpath,
-    #                  atl_cerebd3s_rh_maskpath,
-    #                  msdtb_cerebd3s_lh_maskpath,
-    #                  msdtb_cerebd3s_rh_maskpath,
-    #                  map_thresh_max=None)
+    # Extraction of individual ROIs using MNIFLIRT atlas
+    cerebellum_nettekoven_symmni128_rois = iroicon_estimation(
+        msdtb_dir, nettekoven_dir, 'nettekoven_symmni128', 'cerebellum',
+        'd3s', filtered_contrasts, 'wpsc')
 
-    # ## Extract data from ROIs in both hemispheres
-    # msdtb_cerebd3s_lh_mask = load_img(msdtb_cerebd3s_lh_maskpath)
-    # msdtb_cerebd3s_rh_mask = load_img(msdtb_cerebd3s_rh_maskpath)
-    # cerebd3s_masks = [msdtb_cerebd3s_lh_mask, msdtb_cerebd3s_rh_mask]
-    # compute_rois(cerebd3s_masks, mask_wb, contrasts,
-    #              msdtb_cerebd3s_conmean, msdtb_cerebd3s_conpval, 'wcon')
-    # compute_rois(cerebd3s_masks, mask_wb, contrasts,
-    #              msdtb_cerebd3s_pscmean, msdtb_cerebd3s_pscpval, 'wpsc')
-
-    # # Plot
-    # plot_roi_horizontal(msdtb_cerebd3s_conmean, msdtb_cerebd3s_conpval,
-    #                     'Cerebellum D3 Superior',
-    #                     msdtb_cerebd3s_con_roih)
-    # plot_roi_horizontal(msdtb_cerebd3s_pscmean, msdtb_cerebd3s_pscpval,
-    #                     'Cerebellum D3 Superior',
-    #                     msdtb_cerebd3s_psc_roih)
+    # Plot
+    # cerebellum_mniflirt_rois = os.path.join(
+    #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/d3s_psc.npy')
+    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+                      'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+                      hypothesis='greater')
+    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+                      'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+                      hypothesis='less')
+    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+                      'd3s', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+                      hypothesis='two-sided')
 
     # # ##################### CEREBELLUM D3i #############################
 
-    # # Create Music-SDTB ROIs
-    # create_msdtb_roi(tmap_path, tmap_thresh_min,
-    #                  atl_cerebd3i_lh_maskpath,
-    #                  atl_cerebd3i_rh_maskpath,
-    #                  msdtb_cerebd3i_lh_maskpath,
-    #                  msdtb_cerebd3i_rh_maskpath,
-    #                  map_thresh_max=None)
+    # Extraction of individual ROIs using MNIFLIRT atlas
+    cerebellum_nettekoven_symmni128_rois = iroicon_estimation(
+        msdtb_dir, nettekoven_dir, 'nettekoven_symmni128', 'cerebellum',
+        'd3i', filtered_contrasts, 'wpsc')
 
-    # ## Extract data from ROIs in both hemispheres
-    # msdtb_cerebd3i_lh_mask = load_img(msdtb_cerebd3i_lh_maskpath)
-    # msdtb_cerebd3i_rh_mask = load_img(msdtb_cerebd3i_rh_maskpath)
-    # cerebd3i_masks = [msdtb_cerebd3i_lh_mask, msdtb_cerebd3i_rh_mask]
-    # compute_rois(cerebd3i_masks, mask_wb, contrasts,
-    #              msdtb_cerebd3i_conmean, msdtb_cerebd3i_conpval, 'wcon')
-    # compute_rois(cerebd3i_masks, mask_wb, contrasts,
-    #              msdtb_cerebd3i_pscmean, msdtb_cerebd3i_pscpval, 'wpsc')
-
-    # # Plot
-    # plot_roi_horizontal(msdtb_cerebd3i_conmean, msdtb_cerebd3i_conpval,
-    #                     'Cerebellum D3 Inferior',
-    #                     msdtb_cerebd3i_con_roih)
-    # plot_roi_horizontal(msdtb_cerebd3i_pscmean, msdtb_cerebd3i_pscpval,
-    #                     'Cerebellum D3 Inferior',
-    #                     msdtb_cerebd3i_psc_roih)
+    # Plot
+    # cerebellum_mniflirt_rois = os.path.join(
+    #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/d3i_psc.npy')
+    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+                      'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+                      hypothesis='greater')
+    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+                      'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+                      hypothesis='less')
+    plot_roi_vertical(cerebellum_nettekoven_symmni128_rois, 'cerebellum',
+                      'd3i', 'nettekoven_symmni128', 'iroi_analysis', 'psc',
+                      hypothesis='two-sided')
