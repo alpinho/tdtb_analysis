@@ -344,111 +344,101 @@ def plot_roi_vertical(arr_conmean):
     cnames = list(filtered_contrasts.values())[1:]
     n_pairs = len(np.arange(len(cnames))[::2])
 
-    # fig = plt.figure(figsize=(24, 12))
-    # fig, ax = plt.subplots(n_tasks, n_pairs)
+    for h, hem in enumerate(['Left Hemisphere', 'Right Hemisphere']):
+        for t, tname in enumerate(tnames):
+            if h==0 and t == 0:
+                fig = plt.figure(figsize=(12, 12))
 
-    # left   # the left side of the subplots of the figure
-    # right  # the right side of the subplots of the figure
-    # bottom # the bottom of the subplots of the figure
-    # top    # the top of the subplots of the figure
-    # wspace # the amount of width reserved for blank space between subplots
-    # hspace # the amount of height reserved for white space between subplots
-    # plt.subplots_adjust(left=.1, right=.99, top=1., bottom=.05, wspace=.075)
+            for c, cidx in enumerate(np.arange(len(cnames))[::2]):
 
-    for t, tname in enumerate(tnames):
-        if t == 0:
-            fig = plt.figure(figsize=(12, 12))
+                # Define subplot of bar charts and its position in the fig
+                # plt.axes([left, bottom, width, height])
+                ax = plt.axes([.07 + h*.49 + c*.11, .675 - t*.2, .1, .15])
 
-        for c, cidx in enumerate(np.arange(len(cnames))[::2]):
+                con1 = arr_conmean[h][t][cidx]
+                con2 = arr_conmean[h][t][cidx+1]
+                data_list = con1 +con2
 
-            # Define subplot of bar charts and its position in the fig
-            # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.07 + c*.11, .675 - t*.2, .1, .15])
+                cname1 = cnames[cidx]
+                cname2 = cnames[cidx+1]
+                cname = np.append(np.repeat(cname1, len(con1)),
+                                np.repeat(cname2, len(con2))).tolist()
 
-            con1 = arr_conmean[0][t][cidx]
-            con2 = arr_conmean[0][t][cidx+1]
-            data_list = con1 +con2
+                x = 'Contrasts Names'
+                y = 'Mean of %BOLD change'
+                # Long data frame
+                d = {x: cname,
+                    y: data_list}
+                df = pd.DataFrame(data=d)
+                # Create bar plot
+                b = sns.barplot(ax=ax,
+                                x=x,
+                                y=y,
+                                data=df,
+                                palette=[sns.color_palette("colorblind")[2],
+                                        sns.color_palette("colorblind")[8]],
+                                estimator=np.mean,
+                                ci=95, # errorbar=('ci', 95), # 1.96 * standard error (95% confidence interval)
+                                errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
 
-            cname1 = cnames[cidx]
-            cname2 = cnames[cidx+1]
-            cname = np.append(np.repeat(cname1, len(con1)),
-                            np.repeat(cname2, len(con2))).tolist()
+                # Compute p-value
+                _, pvalue = ttest_rel(con1, con2, alternative='greater')
+                # _, pvalue = ttest_rel(con1, con2, alternative='less')
+                # _, pvalue = ttest_rel(con1, con2, alternative='two-sided')
+                print(pvalue)
 
-            x = 'Contrasts Names'
-            y = 'Mean of %BOLD change'
-            # Long data frame
-            d = {x: cname,
-                 y: data_list}
-            df = pd.DataFrame(data=d)
-            # Create bar plot
-            b = sns.barplot(ax=ax,
-                            x=x,
-                            y=y,
-                            data=df,
-                            palette=[sns.color_palette("colorblind")[2],
-                                     sns.color_palette("colorblind")[8]],
-                            estimator=np.mean,
-                            ci=95, # errorbar=('ci', 95), # 1.96 * standard error (95% confidence interval)
-                            errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
+                # Annotate
+                pair = tuple([[(cname1), (cname2)]])
+                annotator = Annotator(ax, pair, data=df, x=x, y=y)
+                annotator.configure(test=None,
+                                    text_format="star", # text_format="simple"
+                                    # test_short_name="pttest", # if former is "simple"
+                                    fontsize=10.)
 
-            # Compute p-value
-            _, pvalue = ttest_rel(con1, con2, alternative='greater')
-            # _, pvalue = ttest_rel(con1, con2, alternative='less')
-            # _, pvalue = ttest_rel(con1, con2, alternative='two-sided')
-            print(pvalue)
+                annotator.set_pvalues([pvalue])
+                annotator.annotate()
 
-            # Annotate
-            pair = tuple([[(cname1), (cname2)]])
-            annotator = Annotator(ax, pair, data=df, x=x, y=y)
-            annotator.configure(test=None,
-                                text_format="star", # text_format="simple"
-                                # test_short_name="pttest", # if former is "simple"
-                                fontsize=10.)
+                # Remove x-label of axis
+                b.set(xlabel=None)
 
-            annotator.set_pvalues([pvalue])
-            annotator.annotate()
+                # Rotate xtick labels
+                ax.set_xticklabels(ax.get_xticklabels(), rotation=20,
+                                    ha='right', fontsize=8)
 
-            # Remove x-label of axis
-            b.set(xlabel=None)
+                # Hide the right and top spines
+                ax.spines['right'].set_visible(False)
+                ax.spines['top'].set_visible(False)
 
-            # Rotate xtick labels
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=20,
-                                  ha='right', fontsize=8)
+                if t != len(tnames)-1:
+                    # ... remove x labels but keep ticks
+                    plt.gca().set_xticklabels([])
 
-            # Hide the right and top spines
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-
-            if t != len(tnames)-1:
-                # ... remove x labels but keep ticks
-                plt.gca().set_xticklabels([])
-
-            if c > 0:
-                # ... remove y labels and y ticks
-                ax.axes.get_yaxis().set_visible(False)
-                # ... remove y frame
-                ax.spines['left'].set_visible(False)
-            else:
-                # Title
-                plt.title(tname, size=12, x=2., fontweight='bold')
-                # Customize labe of y-axis
-                if t != 2:
-                    # Remove y-label of axis
-                    b.set(ylabel=None)
+                if c > 0:
+                    # ... remove y labels and y ticks
+                    ax.axes.get_yaxis().set_visible(False)
+                    # ... remove y frame
+                    ax.spines['left'].set_visible(False)
                 else:
-                    b.yaxis.set_label_coords(-.4, 1.2)
-                
-                if t==0:
-                    # Title of figure
-                    plt.text(1.8, 1.15, 'Left Hemisphere', fontsize=14,
-                             fontweight='bold')
+                    # Title
+                    plt.title(tname, size=12, x=2., fontweight='bold')
+                    # Customize label of y-axis
+                    if (h == 0 and t != 2) or h > 0:
+                        # Remove y-label of axis
+                        b.set(ylabel=None)
+                    else:
+                        b.yaxis.set_label_coords(-.4, 1.2)
 
-            # Set limits of ticks in y axis
-            plt.ylim([0., .8])
+                    if t==0:
+                        # Title of figure
+                        plt.text(1.8 + h*.09, 1.15, hem, fontsize=14,
+                                 fontweight='bold')
+
+                # Set limits of ticks in y axis
+                plt.ylim([0., .8])
 
         # Title of figure
         plt.suptitle('Putamen', x=.5, y=.97, size=18, linespacing=.75,
-                     fontweight='bold')
+                    fontweight='bold')
 
         output_folder = os.path.join(msdtb_dir, 'putamen/hos/iroi_analysis')
         fname = 'putamen_psc'
