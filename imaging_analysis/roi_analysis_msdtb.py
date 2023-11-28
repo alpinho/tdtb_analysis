@@ -330,7 +330,8 @@ def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
     fig.savefig(output_file, dpi=300)
 
 
-def plot_roi_vertical(arr_conmean):
+def plot_roi_vertical(arr_conmean, roi, atlas, ianalysis, effect_type,
+                      hypothesis='greater'):
     # input shape: (hemisphere, tasks, contrasts, subjects)
     if isinstance(arr_conmean, str):
         # ## Open npy files and plot
@@ -382,9 +383,7 @@ def plot_roi_vertical(arr_conmean):
                                 errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
 
                 # Compute p-value
-                _, pvalue = ttest_rel(con1, con2, alternative='greater')
-                # _, pvalue = ttest_rel(con1, con2, alternative='less')
-                # _, pvalue = ttest_rel(con1, con2, alternative='two-sided')
+                _, pvalue = ttest_rel(con1, con2, alternative=hypothesis)
                 print(pvalue)
 
                 # Annotate
@@ -437,11 +436,11 @@ def plot_roi_vertical(arr_conmean):
                 plt.ylim([0., .8])
 
         # Title of figure
-        plt.suptitle('Putamen', x=.5, y=.97, size=18, linespacing=.75,
-                    fontweight='bold')
+        plt.suptitle(roi.capitalize(), x=.5, y=.97, size=18, linespacing=.75,
+                     fontweight='bold')
 
-        output_folder = os.path.join(msdtb_dir, 'putamen/hos/iroi_analysis')
-        fname = 'putamen_psc'
+        output_folder = os.path.join(msdtb_dir, roi, atlas, ianalysis)
+        fname = roi + '_' + effect_type + '_' + hypothesis
         # Save figure
         plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
@@ -521,13 +520,6 @@ nettekoven_dir = os.path.join(atlases_dir, 'nettekoven')
 
 msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
-# msdtb_putamen_con_roih = os.path.join(
-#     msdtb_dir, 'msdtb_putamen_roi_con_horizontalbarplot.png')
-# msdtb_putamen_psc_roih = os.path.join(
-#     msdtb_dir, 'msdtb_putamen_roi_psc_horizontalbarplot.png')
-# msdtb_putamen_roiv = os.path.join(
-#     msdtb_dir, 'msdtb_putamen_roi_verticalbarplot.png')
-
 # putamen_dic = {'hos': 'putamen'}
 # cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
 #                   'nettekoven_symmni128': 'd3s', 'nettekoven_symmni128': 'd3i'}
@@ -539,18 +531,38 @@ if __name__ == '__main__':
 
     # # # ######################## PUTAMEN ##################################
 
-    # ROI extraction using Harvard-Oxford Subcortical atlas
+    # Extraction of individual ROIs  using Harvard-Oxford Subcortical atlas
     # putamen_hos_rois = iroicon_estimation(
     #     msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', filtered_contrasts,
     #     'wpsc')
 
     # Plot
-    putamen_hos_rois = os.path.join(msdtb_dir,
-                                    'putamen/hos/iroi_analysis/putamen_psc.npy')
-    plot_roi_vertical(putamen_hos_rois)
+    # putamen_hos_rois = os.path.join(
+    #     msdtb_dir, 'putamen/hos/iroi_analysis/putamen_psc.npy')
+    # plot_roi_vertical(putamen_hos_rois, 'putamen', 'hos', 'iroi_analysis',
+    #                   'psc', hypothesis='greater')
+    # plot_roi_vertical(putamen_hos_rois, 'putamen', 'hos', 'iroi_analysis',
+    #                   'psc', hypothesis='less')
+    # plot_roi_vertical(putamen_hos_rois, 'putamen', 'hos', 'iroi_analysis',
+    #                   'psc', hypothesis='two-sided')
 
 
     # # # # ###################### CEREBELLUM VI ############################
+
+    # Extraction of individual ROIs using MNIFLIRT atlas
+    putamen_hos_rois = iroicon_estimation(
+        msdtb_dir, fsl_dir, 'mniflirt', 'cerebellum', 'cereb6',
+        filtered_contrasts, 'wpsc')
+
+    # Plot
+    cerebellum_mniflirt_rois = os.path.join(
+        msdtb_dir, 'cerebellum/mniflirt/iroi_analysis/cereb6_psc.npy')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'mniflirt',
+                      'iroi_analysis', 'psc', hypothesis='greater')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'mniflirt',
+                      'iroi_analysis', 'psc', hypothesis='less')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'mniflirt',
+                      'iroi_analysis', 'psc', hypothesis='two-sided')
 
     # # # Create Music-SDTB ROIs
     # # create_msdtb_roi(tmap_path, tmap_thresh_min,
