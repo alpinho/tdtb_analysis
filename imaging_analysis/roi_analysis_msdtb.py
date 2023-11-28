@@ -546,7 +546,6 @@ if __name__ == '__main__':
     # plot_roi_vertical(putamen_hos_rois, 'putamen', 'hos', 'iroi_analysis',
     #                   'psc', hypothesis='two-sided')
 
-
     # # # # ###################### CEREBELLUM VI ############################
 
     # Extraction of individual ROIs using MNIFLIRT atlas
@@ -566,28 +565,6 @@ if __name__ == '__main__':
     plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
                       'mniflirt', 'iroi_analysis', 'psc',
                       hypothesis='two-sided')
-
-    # # # Create Music-SDTB ROIs
-    # # create_msdtb_roi(tmap_path, tmap_thresh_min,
-    # #                  mniflirt_cereb6_lh_maskpath, mniflirt_cereb6_rh_maskpath,
-    # #                  msdtb_cereb6_lh_maskpath, msdtb_cereb6_rh_maskpath,
-    # #                  map_thresh_max=None)
-
-    # # ## Extract data from ROIs in both hemispheres
-    # msdtb_cereb6_lh_mask = load_img(msdtb_cereb6_lh_maskpath)
-    # msdtb_cereb6_rh_mask = load_img(msdtb_cereb6_rh_maskpath)
-    # cereb6_masks = [msdtb_cereb6_lh_mask, msdtb_cereb6_rh_mask]
-    # # compute_rois(cereb6_masks, mask_wb, contrasts,
-    # #              msdtb_cereb6_conmean, msdtb_cereb6_conpval, 'wcon')
-    # compute_rois(cereb6_masks, mask_wb, contrasts,
-    #              msdtb_cereb6_pscmean, msdtb_cereb6_pscpval, 'wpsc')
-
-    # # # Plot
-    # # plot_roi_horizontal(msdtb_cereb6_conmean, msdtb_cereb6_conpval,
-    # #                     'Cerebellar Lobule VI', msdtb_cereb6_con_roih)
-    # plot_roi_horizontal(msdtb_cereb6_pscmean, msdtb_cereb6_pscpval,
-    #                     'Cerebellar Lobule VI', msdtb_cereb6_psc_roih)
-
 
     # # ##################### CEREBELLUM CRUS I #############################
 
