@@ -264,7 +264,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
             subjects_alltaskcon.append(itasks_contrasts)
 
         # Change shape: (tasks, contrasts, subjects)
-        tasks_allconsubjects = np.moveaxis(subjects_alltaskcon, 0, -1)
+        tasks_allconsubjects = np.moveaxis(subjects_alltaskcon, 0, -1).tolist()
         # ... and append: shape (hemisphere, tasks, contrasts, subjects)
         roi_hems.append(tasks_allconsubjects)
 
@@ -358,18 +358,18 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
 
                 con1 = arr_conmean[h][t][cidx]
                 con2 = arr_conmean[h][t][cidx+1]
-                data_list = con1 +con2
+                data_list = np.append(con1, con2).tolist()
 
                 cname1 = cnames[cidx]
                 cname2 = cnames[cidx+1]
                 cname = np.append(np.repeat(cname1, len(con1)),
-                                np.repeat(cname2, len(con2))).tolist()
+                                  np.repeat(cname2, len(con2))).tolist()
 
                 x = 'Contrasts Names'
                 y = 'Mean of %BOLD change'
                 # Long data frame
                 d = {x: cname,
-                    y: data_list}
+                     y: data_list}
                 df = pd.DataFrame(data=d)
                 # Create bar plot
                 b = sns.barplot(ax=ax,
@@ -377,7 +377,7 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
                                 y=y,
                                 data=df,
                                 palette=[sns.color_palette("colorblind")[2],
-                                        sns.color_palette("colorblind")[8]],
+                                         sns.color_palette("colorblind")[8]],
                                 estimator=np.mean,
                                 ci=95, # errorbar=('ci', 95), # 1.96 * standard error (95% confidence interval)
                                 errcolor="black", errwidth=1.5, capsize = 0.2, alpha=0.5)
@@ -554,42 +554,57 @@ if __name__ == '__main__':
     #     filtered_contrasts, 'wpsc')
 
     # Plot
-    cerebellum_mniflirt_rois = os.path.join(
-        msdtb_dir, 'cerebellum/mniflirt/iroi_analysis/cereb6_psc.npy')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
-                      'mniflirt', 'iroi_analysis', 'psc',
-                      hypothesis='greater')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
-                      'mniflirt', 'iroi_analysis', 'psc',
-                      hypothesis='less')
-    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
-                      'mniflirt', 'iroi_analysis', 'psc',
-                      hypothesis='two-sided')
+    # cerebellum_mniflirt_rois = os.path.join(
+    #     msdtb_dir, 'cerebellum/mniflirt/iroi_analysis/cereb6_psc.npy')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='greater')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='less')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb6',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='two-sided')
 
     # # ##################### CEREBELLUM CRUS I #############################
 
-    # # Create Music-SDTB ROIs
-    # # create_msdtb_roi(tmap_path, 3.,
-    # #                  mniflirt_crus1_lh_maskpath, mniflirt_crus1_rh_maskpath,
-    # #                  msdtb_crus1_lh_maskpath, msdtb_crus1_rh_maskpath,
-    # #                  map_thresh_max=None)
+    # Extraction of individual ROIs using MNIFLIRT atlas
+    # cerebellum_mniflirt_rois = iroicon_estimation(
+    #     msdtb_dir, fsl_dir, 'mniflirt', 'cerebellum', 'crus1',
+    #     filtered_contrasts, 'wpsc')
 
-    # ## Extract data from ROIs in both hemispheres
-    # msdtb_crus1_lh_mask = load_img(msdtb_crus1_lh_maskpath)
-    # msdtb_crus1_rh_mask = load_img(msdtb_crus1_rh_maskpath)
-    # crus1_masks = [msdtb_crus1_lh_mask, msdtb_crus1_rh_mask]
-    # # compute_rois(crus1_masks, mask_wb, contrasts,
-    # #              msdtb_crus1_conmean, msdtb_crus1_conpval, 'wcon')
-    # compute_rois(crus1_masks, mask_wb, contrasts,
-    #              msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'wpsc')
-
-    # # Plot
-    # # plot_roi_horizontal(msdtb_crus1_conmean, msdtb_crus1_conpval, 'Crus I',
-    # #                     msdtb_crus1_con_roih)
-    # plot_roi_horizontal(msdtb_crus1_pscmean, msdtb_crus1_pscpval, 'Crus I',
-    #                     msdtb_crus1_psc_roih)
+    # Plot
+    # cerebellum_mniflirt_rois = os.path.join(
+    #     msdtb_dir, 'cerebellum/mniflirt/iroi_analysis/crus1_psc.npy')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'crus1',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='greater')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'crus1',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='less')
+    # plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'crus1',
+    #                   'mniflirt', 'iroi_analysis', 'psc',
+    #                   hypothesis='two-sided')
 
     # # ##################### CEREBELLUM 7b-8a #############################
+
+    # Extraction of individual ROIs using MNIFLIRT atlas
+    cerebellum_mniflirt_rois = iroicon_estimation(
+        msdtb_dir, fsl_dir, 'mniflirt', 'cerebellum', 'cereb7b8a',
+        filtered_contrasts, 'wpsc')
+
+    # Plot
+    cerebellum_mniflirt_rois = os.path.join(
+        msdtb_dir, 'cerebellum/mniflirt/iroi_analysis/cereb7b8a_psc.npy')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
+                      'mniflirt', 'iroi_analysis', 'psc',
+                      hypothesis='greater')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
+                      'mniflirt', 'iroi_analysis', 'psc',
+                      hypothesis='less')
+    plot_roi_vertical(cerebellum_mniflirt_rois, 'cerebellum', 'cereb7b8a',
+                      'mniflirt', 'iroi_analysis', 'psc',
+                      hypothesis='two-sided')
 
     # # Create Music-SDTB ROIs
     # create_msdtb_roi(tmap_path, tmap_thresh_min,
