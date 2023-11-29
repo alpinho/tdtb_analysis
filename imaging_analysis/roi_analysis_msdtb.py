@@ -119,6 +119,11 @@ def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
     # Intersection of contrast-of-interest w/ atlas mask
     msdtb_val = np.logical_and(
         bin_con_val.astype(bool), atlas_val.astype(bool)).astype(int)
+    n_voxels = np.count_nonzero(msdtb_val)
+
+    if not n_voxels:
+        raise ValueError('N_voxels = 0 ! There is no intersection between' + \
+                         'thresholded, group encoding map and atlas-roi mask.')
 
     # Create msdtb-Putamen mask
     msdtb_mask = new_img_like(atlas_rmask, msdtb_val)
@@ -595,30 +600,30 @@ if __name__ == '__main__':
 
     # # # # ###################### CEREBELLUM VI ############################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using MNIFLIRT atlas
-        cereb6_mniflirt_rois = iroicon_estimation(
-            msdtb_dir, fsl_dir,
-            'mniflirt', 'cerebellum', 'cereb6',
-            filtered_contrasts, 'wpsc', tag, wpair)
+    #     # Extraction of individual ROIs using MNIFLIRT atlas
+    #     cereb6_mniflirt_rois = iroicon_estimation(
+    #         msdtb_dir, fsl_dir,
+    #         'mniflirt', 'cerebellum', 'cereb6',
+    #         filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Plot
-        # cereb6_mniflirt_rois = os.path.join(
-        #     msdtb_dir,
-        #     'cerebellum/mniflirt/iroi_analysis', tag + '_cereb6_psc.npy')
-        plot_roi_vertical(
-            cereb6_mniflirt_rois,
-            'cerebellum', 'cereb6', 'mniflirt',
-            'iroi_analysis', 'psc', tag, hypothesis='greater')
-        plot_roi_vertical(
-            cereb6_mniflirt_rois,
-            'cerebellum', 'cereb6', 'mniflirt',
-            'iroi_analysis', 'psc', tag, hypothesis='less')
-        plot_roi_vertical(
-            cereb6_mniflirt_rois,
-            'cerebellum', 'cereb6', 'mniflirt',
-            'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+    #     # Plot
+    #     # cereb6_mniflirt_rois = os.path.join(
+    #     #     msdtb_dir,
+    #     #     'cerebellum/mniflirt/iroi_analysis', tag + '_cereb6_psc.npy')
+    #     plot_roi_vertical(
+    #         cereb6_mniflirt_rois,
+    #         'cerebellum', 'cereb6', 'mniflirt',
+    #         'iroi_analysis', 'psc', tag, hypothesis='greater')
+    #     plot_roi_vertical(
+    #         cereb6_mniflirt_rois,
+    #         'cerebellum', 'cereb6', 'mniflirt',
+    #         'iroi_analysis', 'psc', tag, hypothesis='less')
+    #     plot_roi_vertical(
+    #         cereb6_mniflirt_rois,
+    #         'cerebellum', 'cereb6', 'mniflirt',
+    #         'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
     # # ##################### CEREBELLUM CRUS I #############################
 
@@ -649,81 +654,81 @@ if __name__ == '__main__':
 
     # # ##################### CEREBELLUM 7b-8a #############################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using MNIFLIRT atlas
-        cereb7b8a_mniflirt_rois = iroicon_estimation(
-            msdtb_dir, fsl_dir,
-            'mniflirt', 'cerebellum', 'cereb7b8a',
-            filtered_contrasts, 'wpsc', tag, wpair)
+    #     # Extraction of individual ROIs using MNIFLIRT atlas
+    #     cereb7b8a_mniflirt_rois = iroicon_estimation(
+    #         msdtb_dir, fsl_dir,
+    #         'mniflirt', 'cerebellum', 'cereb7b8a',
+    #         filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Plot
-        # cereb7b8a_mniflirt_rois = os.path.join(
-        #     msdtb_dir,
-        #     'cerebellum/mniflirt/iroi_analysis', tag + '_cereb7b8a_psc.npy')
-        plot_roi_vertical(
-            cereb7b8a_mniflirt_rois,
-            'cerebellum', 'cereb7b8a', 'mniflirt',
-            'iroi_analysis', 'psc', tag, hypothesis='greater')
-        plot_roi_vertical(
-            cereb7b8a_mniflirt_rois,
-            'cerebellum', 'cereb7b8a', 'mniflirt',
-            'iroi_analysis', 'psc', tag, hypothesis='less')
-        plot_roi_vertical(
-            cereb7b8a_mniflirt_rois,
-            'cerebellum', 'cereb7b8a', 'mniflirt',
-            'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+    #     # Plot
+    #     # cereb7b8a_mniflirt_rois = os.path.join(
+    #     #     msdtb_dir,
+    #     #     'cerebellum/mniflirt/iroi_analysis', tag + '_cereb7b8a_psc.npy')
+    #     plot_roi_vertical(
+    #         cereb7b8a_mniflirt_rois,
+    #         'cerebellum', 'cereb7b8a', 'mniflirt',
+    #         'iroi_analysis', 'psc', tag, hypothesis='greater')
+    #     plot_roi_vertical(
+    #         cereb7b8a_mniflirt_rois,
+    #         'cerebellum', 'cereb7b8a', 'mniflirt',
+    #         'iroi_analysis', 'psc', tag, hypothesis='less')
+    #     plot_roi_vertical(
+    #         cereb7b8a_mniflirt_rois,
+    #         'cerebellum', 'cereb7b8a', 'mniflirt',
+    #         'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
     # # ##################### CEREBELLUM D3s #############################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using Nettekoven Symmni128 atlas
-        d3s_nettekoven_symmni128_rois = iroicon_estimation(
-            msdtb_dir, nettekoven_dir,
-            'nettekoven_symmni128', 'cerebellum', 'd3s',
-            filtered_contrasts, 'wpsc', tag, wpair)
+    #     # Extraction of individual ROIs using Nettekoven Symmni128 atlas
+    #     d3s_nettekoven_symmni128_rois = iroicon_estimation(
+    #         msdtb_dir, nettekoven_dir,
+    #         'nettekoven_symmni128', 'cerebellum', 'd3s',
+    #         filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Plot
-        # d3s_nettekoven_symmni128_rois = os.path.join(
-        #     msdtb_dir,
-        #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_d3s_psc.npy')
-        plot_roi_vertical(
-            d3s_nettekoven_symmni128_rois,
-            'cerebellum', 'd3s', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='greater')
-        plot_roi_vertical(
-            d3s_nettekoven_symmni128_rois,
-            'cerebellum', 'd3s', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='less')
-        plot_roi_vertical(
-            d3s_nettekoven_symmni128_rois,
-            'cerebellum', 'd3s', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+    #     # Plot
+    #     # d3s_nettekoven_symmni128_rois = os.path.join(
+    #     #     msdtb_dir,
+    #     #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_d3s_psc.npy')
+    #     plot_roi_vertical(
+    #         d3s_nettekoven_symmni128_rois,
+    #         'cerebellum', 'd3s', 'nettekoven_symmni128',
+    #         'iroi_analysis', 'psc', tag, hypothesis='greater')
+    #     plot_roi_vertical(
+    #         d3s_nettekoven_symmni128_rois,
+    #         'cerebellum', 'd3s', 'nettekoven_symmni128',
+    #         'iroi_analysis', 'psc', tag, hypothesis='less')
+    #     plot_roi_vertical(
+    #         d3s_nettekoven_symmni128_rois,
+    #         'cerebellum', 'd3s', 'nettekoven_symmni128',
+    #         'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
     # # ##################### CEREBELLUM D3i #############################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using Nettekoven Symmni128 atlas
-        d3i_nettekoven_symmni128_rois = iroicon_estimation(
-            msdtb_dir, nettekoven_dir,
-            'nettekoven_symmni128', 'cerebellum', 'd3i',
-            filtered_contrasts, 'wpsc', tag, wpair)
+    #     # Extraction of individual ROIs using Nettekoven Symmni128 atlas
+    #     d3i_nettekoven_symmni128_rois = iroicon_estimation(
+    #         msdtb_dir, nettekoven_dir,
+    #         'nettekoven_symmni128', 'cerebellum', 'd3i',
+    #         filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Plot
-        # d3i_nettekoven_symmni128_rois = os.path.join(
-        #     msdtb_dir,
-        #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_d3i_psc.npy')
-        plot_roi_vertical(
-            d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'd3i', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='greater')
-        plot_roi_vertical(
-            d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'd3i', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='less')
-        plot_roi_vertical(
-            d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'd3i', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+    #     # Plot
+    #     # d3i_nettekoven_symmni128_rois = os.path.join(
+    #     #     msdtb_dir,
+    #     #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_d3i_psc.npy')
+    #     plot_roi_vertical(
+    #         d3i_nettekoven_symmni128_rois,
+    #         'cerebellum', 'd3i', 'nettekoven_symmni128',
+    #         'iroi_analysis', 'psc', tag, hypothesis='greater')
+    #     plot_roi_vertical(
+    #         d3i_nettekoven_symmni128_rois,
+    #         'cerebellum', 'd3i', 'nettekoven_symmni128',
+    #         'iroi_analysis', 'psc', tag, hypothesis='less')
+    #     plot_roi_vertical(
+    #         d3i_nettekoven_symmni128_rois,
+    #         'cerebellum', 'd3i', 'nettekoven_symmni128',
+    #         'iroi_analysis', 'psc', tag, hypothesis='two-sided')
