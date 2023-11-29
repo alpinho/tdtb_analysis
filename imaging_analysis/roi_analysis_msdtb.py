@@ -53,15 +53,18 @@ def threshold_map(con_val, thresh_min, thresh_max=None):
 
 def binary_dilation_with_limit(image, target_count, gmask):
     s1, s2, s3 = np.random.choice(
-        np.random.permutation(np.random.permutation(np.arange(1, 20))), 3)
+        np.random.permutation(np.random.permutation(np.arange(1, 30))), 3)
     dilated_image = binary_dilation(image, mask=gmask,
                                     structure=np.ones((s1, s2, s3)))
 
     current_count = np.count_nonzero(dilated_image)
 
+    n_iter = 0
+    flag = 0
     while current_count != target_count:
+        n_iter += 1
         s1, s2, s3 = np.random.choice(
-            np.random.permutation(np.random.permutation(np.arange(1, 20))), 3)
+            np.random.permutation(np.random.permutation(np.arange(1, 30))), 3)
         if current_count < target_count:
             dilated_image = binary_dilation(dilated_image, mask=gmask,
                                             structure=np.ones((s1, s2, s3)))
@@ -72,6 +75,13 @@ def binary_dilation_with_limit(image, target_count, gmask):
             pass
         print(current_count)
         current_count = np.count_nonzero(dilated_image)
+
+        if n_iter == 100:
+            flag += 1
+            target_count += 1
+            n_iter = 0
+
+        print('Number of iterations: ', flag*100 + n_iter)
 
     return dilated_image
 
@@ -138,25 +148,22 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
     print(icon_path)
 
     # Load and remove NaNs from contrast map
-    icon_val, icon_map = nonan_map(icon_path)
+    icon_val, _ = nonan_map(icon_path)
+    gcon_val, gcon_map = nonan_map(gcon_path)
 
     # Load masks generated from a selected atlas
     atlas_mask = load_img(atlas_maskpath)
 
     # Resample atlas mask
-    atlas_rmask = resample_to_img(atlas_mask, icon_map,
+    atlas_rmask = resample_to_img(atlas_mask, gcon_map,
                                   interpolation='nearest')
 
     # Get data from atlas mask
     atlas_val = atlas_rmask.get_fdata()
 
-    # If we want to average individual contrast with group contrast...
-    if gcon_path is not None:
-        gcon_val, _ = nonan_map(gcon_path)
-        con_val = np.average(np.array([icon_val, gcon_val]), axis=0,
-                             weights=weights)
-    else:
-        con_val = icon_val
+    # Average individual contrast with group contrast...
+    con_val = np.average(np.array([icon_val, gcon_val]), axis=0,
+                         weights=weights)
 
     # Intersection of contrast map w/ atlas mask
     bin_msdtb_val = np.logical_and(
@@ -171,12 +178,14 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
     bin_iroi_val = (iroi_val != 0)
 
     # Test whether binarized roi is empty
+    # If it is empty, take group mask
     if not np.count_nonzero(bin_iroi_val):
-        print(np.count_nonzero(bin_iroi_val))
+        print('Binarized ROI is empty. Taking the group mask.')
         iroi_mask = gmask
+    # If it is not empty
     else:
         # Test whether individual has equal or bigger size than group mask
-        # If not,
+        # If not, do dilation
         if not ithresh:
             # Do dilation restricted to n_voxels
             gmask_val = gmask.get_fdata()
@@ -184,12 +193,14 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
                 bin_iroi_val, n_voxels, gmask_val)
             print('Dilation performed! ', np.count_nonzero(dilated_mask_val))
             iroi_mask = new_img_like(atlas_rmask, dilated_mask_val)
+        # Do intersection
         else:
             print(np.count_nonzero(bin_iroi_val))
             iroi_mask = new_img_like(atlas_rmask, bin_iroi_val)
 
     # Save individual ROI mask
-    iroi_mask.to_filename(iroi_maskpath)
+    if weights != (0,1):
+        iroi_mask.to_filename(iroi_maskpath)
 
     return iroi_mask
 
@@ -221,7 +232,7 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
 
 
 def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
-                       contype, method='individual', weights=None):
+                       contype, prefix, weights=None):
 
     roi_dir = os.path.join(main_dir, region, atlas)
     group_roi_dir = os.path.join(roi_dir, 'group_rois')
@@ -262,37 +273,19 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
         for subject in SUBJECTS:
             subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
             estimates_dir = os.path.join(subject_dir, 'estimates')
-            if method == 'individual':
-                iencoding_atlasreg_maskpath = os.path.join(
-                    iroimasks_dir,
-                    roi + '_mask_sub-%02d_' + hem + '.nii.gz') % subject
-            else:
-                assert method == 'weighted-average'
-                iencoding_atlasreg_maskpath = os.path.join(
-                    iroimasks_dir,
-                    'avg_' + roi + '_mask_sub-%02d_' + hem + \
-                    '.nii.gz') % subject
+            iencoding_atlasreg_maskpath = os.path.join(
+                iroimasks_dir,
+                prefix + '_' + roi + '_mask_sub-%02d_' + hem + \
+                '.nii.gz') % subject
 
             # Create individual ROIs
             subject_encoding_tmap = os.path.join(
                 estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
                 'wspmT_0001_desc-sm8wbmasked.nii')
-            if method == 'individual':
-                irmask = create_iroimask(
-                    subject_encoding_tmap, atlasreg_maskpath, gmask, cluster_size,
-                    iencoding_atlasreg_maskpath)
-            else:
-                assert method == 'weighted-average'
-                if weights is None:
-                    irmask = create_iroimask(
-                        subject_encoding_tmap, atlasreg_maskpath, gmask,
-                        cluster_size, iencoding_atlasreg_maskpath,
-                        gcon_path=group_tmap_path)
-                else:
-                    irmask = create_iroimask(
-                        subject_encoding_tmap, atlasreg_maskpath, gmask,
-                        cluster_size, iencoding_atlasreg_maskpath,
-                        gcon_path=group_tmap_path, weights=weights)
+            irmask = create_iroimask(
+                subject_encoding_tmap, atlasreg_maskpath, gmask,
+                cluster_size, iencoding_atlasreg_maskpath,
+                gcon_path=group_tmap_path, weights=weights)
 
             # ### For each task ###
             itasks_contrasts = []
@@ -312,12 +305,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
         roi_hems.append(tasks_allconsubjects)
 
     # Save
-    if method == 'individual':
-        outpath = os.path.join(iroicon_dir, roi + '_' + contype[1:] + '.npy')
-    else:
-        assert method == 'weighted-average'
-        outpath = os.path.join(
-            iroicon_dir, 'avg_' + roi + '_' + contype[1:] + '.npy')
+    outpath = os.path.join(
+        iroicon_dir, prefix + '_' + roi + '_' + contype[1:] + '.npy')
     if os.path.exists(outpath):
         os.remove(outpath)
     np.save(outpath, roi_hems, allow_pickle=False)
@@ -379,7 +368,7 @@ def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
 
 
 def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
-                      hypothesis='greater'):
+                      prefix, hypothesis='greater'):
     # input shape: (hemisphere, tasks, contrasts, subjects)
     if isinstance(arr_conmean, str):
         # ## Open npy files and plot
@@ -488,7 +477,7 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
                      fontweight='bold')
 
         output_folder = os.path.join(msdtb_dir, region, atlas, ianalysis)
-        fname = roi + '_' + effect_type + '_' + hypothesis
+        fname = prefix + '_' + roi + '_' + effect_type + '_' + hypothesis
         # Save figure
         plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
@@ -512,7 +501,7 @@ mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# SUBJECTS = [29]
+# SUBJECTS = [26]
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
@@ -572,45 +561,32 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 # cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
 #                   'nettekoven_symmni128': 'd3s', 'nettekoven_symmni128': 'd3i'}
 
+tags = ['i', 'a', 'g']
+weights_list = [(1.,0.), (.5,.5), (0.,1.)]
+
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
 
     # # # ######################## PUTAMEN ##################################
 
-    # ************************* Individual ROIS *****************************
+    for tag, wpair in zip(tags, weights_list):
 
-    # Extraction of individual ROIs  using Harvard-Oxford Subcortical atlas
-    # putamen_hos_irois = iroicon_estimation(
-    #     msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', filtered_contrasts,
-    #     'wpsc')
+        # Extraction of individual ROIs...
+        # ... using Harvard-Oxford Subcortical atlas
+        putamen_hos_rois = iroicon_estimation(
+            msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen',
+            filtered_contrasts, 'wpsc', tag, wpair)
 
-    # Plot
-    # putamen_hos_irois = os.path.join(
-    #     msdtb_dir, 'putamen/hos/iroi_analysis/putamen_psc.npy')
-    # plot_roi_vertical(putamen_hos_irois, 'putamen', 'putamen', 'hos',
-    #                   'iroi_analysis', 'psc', hypothesis='greater')
-    # plot_roi_vertical(putamen_hos_irois, 'putamen', 'putamen', 'hos',
-    #                   'iroi_analysis', 'psc', hypothesis='less')
-    # plot_roi_vertical(putamen_hos_irois, 'putamen', 'putamen', 'hos',
-    #                   'iroi_analysis', 'psc', hypothesis='two-sided')
-
-    # ***************** Individual weight-averaged ROIS *****************
-
-    # Extraction of individual ROIs  using Harvard-Oxford Subcortical atlas
-    putamen_hos_arois = iroicon_estimation(
-        msdtb_dir, fsl_dir, 'hos', 'putamen', 'putamen', filtered_contrasts,
-        'wpsc', method='weighted-average')
-
-    # Plot
-    # putamen_hos_arois = os.path.join(
-    #     msdtb_dir, 'putamen/hos/iroi_analysis/putamen_psc.npy')
-    plot_roi_vertical(putamen_hos_arois, 'putamen', 'putamen', 'hos',
-                      'iroi_analysis', 'psc', hypothesis='greater')
-    plot_roi_vertical(putamen_hos_arois, 'putamen', 'putamen', 'hos',
-                      'iroi_analysis', 'psc', hypothesis='less')
-    plot_roi_vertical(putamen_hos_arois, 'putamen', 'putamen', 'hos',
-                      'iroi_analysis', 'psc', hypothesis='two-sided')
+        # Plot
+        # putamen_hos_rois = os.path.join(
+        #     msdtb_dir, 'putamen/hos/iroi_analysis', tag + '_putamen_psc.npy')
+        plot_roi_vertical(putamen_hos_rois, 'putamen', 'putamen', 'hos',
+                          'iroi_analysis', 'psc', tag, hypothesis='greater')
+        plot_roi_vertical(putamen_hos_rois, 'putamen', 'putamen', 'hos',
+                          'iroi_analysis', 'psc', tag, hypothesis='less')
+        plot_roi_vertical(putamen_hos_rois, 'putamen', 'putamen', 'hos',
+                          'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
 
     # # # # ###################### CEREBELLUM VI ############################
