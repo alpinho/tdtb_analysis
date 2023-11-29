@@ -30,11 +30,6 @@ def binarize(mask_path, threshold = .8):
     # Binarization
     bin_mask_val = (thresholded_mask_val != 0)
 
-    # # Dilation
-    # dil_bin_mask_val = ndimage.binary_dilation(bin_mask_val)
-    # dil_bin_mask_val = dil_bin_mask_val.astype(int)
-    # dil_bin_mask = new_img_like(mask, dil_bin_mask_val)
-
     # Convert in Niimg file
     bin_mask = new_img_like(mask, bin_mask_val)
 
