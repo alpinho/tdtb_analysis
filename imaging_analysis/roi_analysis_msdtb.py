@@ -383,7 +383,7 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
     n_tasks = len(tnames)
 
     # Names of Contrasts
-    cnames = list(filtered_contrasts.values())[1:]
+    cnames = list(filtered_contrasts.values())
     n_pairs = len(np.arange(len(cnames))[::2])
 
     for h, hem in enumerate(['Left Hemisphere', 'Right Hemisphere']):
