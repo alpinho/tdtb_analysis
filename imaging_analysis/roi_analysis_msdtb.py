@@ -581,20 +581,20 @@ if __name__ == '__main__':
         # ... using Harvard-Oxford Subcortical atlas
         putamen_hos_rois = iroicon_estimation(
             msdtb_dir, atag_dir,
-            'atag_linear', 'striatum', 'putamen',
+            'atag_linear', 'striatum', 'striatum',
             filtered_contrasts, 'wpsc', tag, wpair)
 
         # Plot
         # putamen_hos_rois = os.path.join(
-        #     msdtb_dir, 'putamen/hos/iroi_analysis', tag + '_putamen_psc.npy')
+        #     msdtb_dir, 'putamen/hos/iroi_analysis', tag + '_striatum_psc.npy')
         plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'putamen', 'atag',
+                          'striatum', 'striatum', 'atag',
                           'iroi_analysis', 'psc', tag, hypothesis='greater')
         plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'putamen', 'atag',
+                          'striatum', 'striatum', 'atag',
                           'iroi_analysis', 'psc', tag, hypothesis='less')
         plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'putamen', 'atag',
+                          'striatum', 'striatum', 'atag',
                           'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
 
