@@ -588,13 +588,13 @@ if __name__ == '__main__':
         # putamen_hos_rois = os.path.join(
         #     msdtb_dir, 'putamen/hos/iroi_analysis', tag + '_striatum_psc.npy')
         plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'striatum', 'atag',
+                          'striatum', 'striatum', 'atag_linear',
                           'iroi_analysis', 'psc', tag, hypothesis='greater')
         plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'striatum', 'atag',
+                          'striatum', 'striatum', 'atag_linear',
                           'iroi_analysis', 'psc', tag, hypothesis='less')
         plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'striatum', 'atag',
+                          'striatum', 'striatum', 'atag_linear',
                           'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
 
