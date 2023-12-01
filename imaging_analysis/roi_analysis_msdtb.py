@@ -529,12 +529,7 @@ all_contrasts = {1: 'Encoding',
                  17: 'Visual Interval vs Visual Beat',
                  18: 'Decision'}
 
-filtered_contrasts = {1: 'Encoding',
-                      2: 'Auditory Encoding',
-                      3: 'Visual Encoding',
-                      6: 'Beat',
-                      7: 'Interval',
-                      10: 'Auditory Beat',
+filtered_contrasts = {10: 'Auditory Beat',
                       11: 'Auditory Interval',
                       14: 'Visual Beat',
                       15: 'Visual Interval'}
@@ -614,15 +609,15 @@ if __name__ == '__main__':
         #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_s_psc.npy')
         plot_roi_vertical(
             d3s_nettekoven_symmni128_rois,
-            'cerebellum', 's', 'nettekoven_symmni128',
+            'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
             'iroi_analysis', 'psc', tag, hypothesis='greater')
         plot_roi_vertical(
             d3s_nettekoven_symmni128_rois,
-            'cerebellum', 's', 'nettekoven_symmni128',
+            'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
             'iroi_analysis', 'psc', tag, hypothesis='less')
         plot_roi_vertical(
             d3s_nettekoven_symmni128_rois,
-            'cerebellum', 's', 'nettekoven_symmni128',
+            'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
             'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
     # # ##################### CEREBELLUM i #############################
@@ -641,13 +636,13 @@ if __name__ == '__main__':
         #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_i_psc.npy')
         plot_roi_vertical(
             d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'i', 'nettekoven_symmni128',
+            'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
             'iroi_analysis', 'psc', tag, hypothesis='greater')
         plot_roi_vertical(
             d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'i', 'nettekoven_symmni128',
+            'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
             'iroi_analysis', 'psc', tag, hypothesis='less')
         plot_roi_vertical(
             d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'i', 'nettekoven_symmni128',
+            'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
             'iroi_analysis', 'psc', tag, hypothesis='two-sided')
