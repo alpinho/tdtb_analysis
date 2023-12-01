@@ -213,8 +213,7 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
 
     # # For every contrast
     task_contrasts = []
-    # Do not count w/ Encoding contrast
-    for key in list(contrasts.keys())[1:]:
+    for key in list(contrasts.keys()):
 
         contrast_fname = filetype + '_%04d_desc-sm8wbmasked.nii' % key
 
