@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: November 2023
+Last update: December 2023
 
 Compatibility: Python 3.10.8
 
