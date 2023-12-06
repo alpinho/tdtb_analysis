@@ -23,6 +23,8 @@ from nilearn.input_data import NiftiLabelsMasker
 
 import seaborn as sns
 from statannotations.Annotator import Annotator
+from statsmodels.stats.anova import AnovaRM
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from matplotlib import pyplot as plt
 
 
@@ -370,6 +372,114 @@ def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
     fig.savefig(output_file, dpi=300)
 
 
+def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
+
+    # input shape: (hemisphere, tasks, contrasts, subjects)
+    if isinstance(data, str):
+        # ## Open npy files and plot
+        data = np.load(data)
+
+    subjects = ['sub-%02d' % s for s in n_subjects]
+    category = [[contrast[s+1:] for s, char in enumerate(contrast[:-1])
+                 if char == ' '][0] for contrast in contrasts]
+    modality = [[contrast[:s] for s, char in enumerate(contrast[:-1])
+                 if char == ' '][0] for contrast in contrasts]
+
+    # ## Subjects column
+    subjects_col = np.tile(
+        subjects,
+        data.shape[2] * data.shape[1] * data.shape[0])
+    # ## Category column
+    category_rep = np.repeat(category, len(subjects))
+    category_col = np.tile(
+        category_rep, data.shape[1] * data.shape[0])
+    # ## Modality column
+    modality_rep = np.repeat(modality, len(subjects))
+    modality_col = np.tile(
+        modality_rep, data.shape[1] * data.shape[0])
+    # ## Tasks column
+    tasks_rep = np.repeat(tasks, len(modality_rep))
+    tasks_col = np.tile(tasks_rep, data.shape[0])
+    # ## Hemispheres column
+    hem_col = np.repeat(hemispheres, len(tasks_rep))
+
+    # ## Data column
+    data_col = np.ravel(data)
+    table = np.vstack((data_col, subjects_col, category_col, modality_col,
+                       tasks_col, hem_col)).T
+
+    # ## Build dataframe
+    df = pd.DataFrame(table,
+                      columns=['PSC', 'Subject',
+                               'Category', 'Modality', 'Task',
+                               'Hemisphere'])
+
+    # Save dataframe
+    df.to_csv(outpath)
+
+    return df
+
+
+def threeway_rmanova(df, output_dir, prefix, roi):
+    """
+    Compute 2 X 2 X 3 RM-ANOVA
+
+    shape of the data: (hemispheres, tasks, contrasts, subjects)
+    """
+    # If path is given, open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df)
+
+    # Remove 'All Tasks from Dataframe'
+    df = df[df.Task != 'All Tasks']
+
+    # Convert PSC entries to numeric type
+    df['PSC'] = df['PSC'].apply(pd.to_numeric)
+
+    # For each hemisphere:
+    for hem in ['lh', 'rh']:
+        db = pd.DataFrame()
+        db = df[df.Hemisphere == hem]
+
+        # Create AnovaRM object
+        model = AnovaRM(data=db, depvar='PSC', subject='Subject',
+                        within=['Category', 'Modality', 'Task'])
+
+        # Run the 3-way repeated measures ANOVA
+        results = model.fit()
+
+        # Perform pairwise Tukey HSD tests
+        phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+        phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+        phoc_task = pairwise_tukeyhsd(db['PSC'], db['Task'], alpha=.05)
+
+        # Create output_dir, if it does not exist
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+
+        # Save results in a TSV file...
+        flabel = prefix + '_' + roi + '_' + hem + '_'
+
+        # ... for ANOVA
+        results.anova_table.to_csv(
+            os.path.join(output_dir, flabel + 'anova.tsv'),
+            sep='\t')
+
+        # ... and for posthoc
+        phoc_flabel = flabel + 'posthoc_'
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+            fc.write(phoc_category.summary().as_csv(sep='\t'))
+
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+            fm.write(phoc_modality.summary().as_csv(sep='\t'))
+
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'task.tsv'), 'w') as ft:
+            ft.write(phoc_task.summary().as_csv(sep='\t'))
+
+
 def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
                       prefix, hypothesis='greater'):
     # input shape: (hemisphere, tasks, contrasts, subjects)
@@ -442,7 +552,7 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
 
                 # Rotate xtick labels
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=20,
-                                    ha='right', fontsize=8)
+                                   ha='right', fontsize=8)
 
                 # Hide the right and top spines
                 ax.spines['right'].set_visible(False)
@@ -483,6 +593,7 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
         fname = prefix + '_' + roi + '_' + effect_type + '_' + hypothesis
         # Save figure
         plt.savefig(os.path.join(output_folder, fname + '.pdf'))
+
 
 # ############################# INPUTS ##################################
 
@@ -571,77 +682,140 @@ if __name__ == '__main__':
 
     for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs...
+        # # Extraction of individual ROIs...
         # ... using Harvard-Oxford Subcortical atlas
-        putamen_hos_rois = iroicon_estimation(
-            msdtb_dir, atag_dir,
-            'atag_linear', 'striatum', 'striatum',
-            filtered_contrasts, 'wpsc', tag, wpair)
+        # putamen_hos_rois = iroicon_estimation(
+        #     msdtb_dir, atag_dir,
+        #     'atag_linear', 'striatum', 'striatum',
+        #     filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Plot
-        # putamen_hos_rois = os.path.join(
-        #     msdtb_dir, 'putamen/hos/iroi_analysis', tag + '_striatum_psc.npy')
-        plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'striatum', 'atag_linear',
-                          'iroi_analysis', 'psc', tag, hypothesis='greater')
-        plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'striatum', 'atag_linear',
-                          'iroi_analysis', 'psc', tag, hypothesis='less')
-        plot_roi_vertical(putamen_hos_rois,
-                          'striatum', 'striatum', 'atag_linear',
-                          'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+        # Open ROI file
+        striatum_atag_linear_rois = os.path.join(
+            msdtb_dir, 'striatum/atag_linear/iroi_analysis',
+            tag + '_striatum_psc.npy')
+
+        # Run ANOVA
+        striatum_atag_linear_dfpath = os.path.join(
+            msdtb_dir, 'striatum/atag_linear/iroi_analysis/',
+            tag + '_striatum_df.csv')
+        striatum_atag_linear_df = dataframe(
+            striatum_atag_linear_rois,
+            ['lh', 'rh'],
+            list(tasks.values()),
+            list(filtered_contrasts.values()),
+            SUBJECTS,
+            striatum_atag_linear_dfpath)
+        striatum_anova_path = os.path.join(
+            msdtb_dir, 'striatum/atag_linear/iroi_analysis/anova')
+
+        threeway_rmanova(striatum_atag_linear_df, striatum_anova_path,
+                         tag, 'striatum')
+
+        # # Plot
+        # plot_roi_vertical(putamen_hos_rois,
+        #                   'striatum', 'striatum', 'atag_linear',
+        #                   'iroi_analysis', 'psc', tag, hypothesis='greater')
+        # plot_roi_vertical(putamen_hos_rois,
+        #                   'striatum', 'striatum', 'atag_linear',
+        #                   'iroi_analysis', 'psc', tag, hypothesis='less')
+        # plot_roi_vertical(putamen_hos_rois,
+        #                   'striatum', 'striatum', 'atag_linear',
+        #                   'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
 
     # # ##################### CEREBELLUM s #############################
 
     for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using Nettekoven Symmni128 atlas
-        d3s_nettekoven_symmni128_rois = iroicon_estimation(
-            msdtb_dir, nettekoven_dir,
-            'nettekoven_symmni128', 'cerebellum', 's',
-            filtered_contrasts, 'wpsc', tag, wpair)
+        # # Extraction of individual ROIs using Nettekoven Symmni128 atlas
+        # cs_nettekoven_symmni128_rois = iroicon_estimation(
+        #     msdtb_dir, nettekoven_dir,
+        #     'nettekoven_symmni128', 'cerebellum', 's',
+        #     filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Plot
+        # Open ROI file
+        cs_nettekoven_symmni128_rois = os.path.join(
+            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
+            tag + '_cerebellum-s_psc.npy')
+
+        # Run ANOVA
+        cs_nettekoven_symmni128_dfpath = os.path.join(
+            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
+            tag + '_cerebellum-s_df.csv')
+        cs_nettekoven_symmni128_df = dataframe(
+            cs_nettekoven_symmni128_rois,
+            ['lh', 'rh'],
+            list(tasks.values()),
+            list(filtered_contrasts.values()),
+            SUBJECTS,
+            cs_nettekoven_symmni128_dfpath)
+        cs_anova_path = os.path.join(
+            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/anova')
+        threeway_rmanova(cs_nettekoven_symmni128_df, cs_anova_path, tag,
+                         'cerebellum-s')
+
+        # # Plot
         # d3s_nettekoven_symmni128_rois = os.path.join(
         #     msdtb_dir,
         #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_s_psc.npy')
-        plot_roi_vertical(
-            d3s_nettekoven_symmni128_rois,
-            'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='greater')
-        plot_roi_vertical(
-            d3s_nettekoven_symmni128_rois,
-            'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='less')
-        plot_roi_vertical(
-            d3s_nettekoven_symmni128_rois,
-            'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+        # plot_roi_vertical(
+        #     d3s_nettekoven_symmni128_rois,
+        #     'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
+        #     'iroi_analysis', 'psc', tag, hypothesis='greater')
+        # plot_roi_vertical(
+        #     d3s_nettekoven_symmni128_rois,
+        #     'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
+        #     'iroi_analysis', 'psc', tag, hypothesis='less')
+        # plot_roi_vertical(
+        #     d3s_nettekoven_symmni128_rois,
+        #     'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
+        #     'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+
 
     # # ##################### CEREBELLUM i #############################
 
     for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using Nettekoven Symmni128 atlas
-        d3i_nettekoven_symmni128_rois = iroicon_estimation(
-            msdtb_dir, nettekoven_dir,
-            'nettekoven_symmni128', 'cerebellum', 'i',
-            filtered_contrasts, 'wpsc', tag, wpair)
+        # # Extraction of individual ROIs using Nettekoven Symmni128 atlas
+        # d3i_nettekoven_symmni128_rois = iroicon_estimation(
+        #     msdtb_dir, nettekoven_dir,
+        #     'nettekoven_symmni128', 'cerebellum', 'i',
+        #     filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Plot
+        # Open ROI file
+        ci_nettekoven_symmni128_rois = os.path.join(
+            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
+            tag + '_cerebellum-i_psc.npy')
+
+        # Run ANOVA
+        ci_nettekoven_symmni128_dfpath = os.path.join(
+            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
+            tag + '_cerebellum-i_df.csv')
+        ci_nettekoven_symmni128_df = dataframe(
+            ci_nettekoven_symmni128_rois,
+            ['lh', 'rh'],
+            list(tasks.values()),
+            list(filtered_contrasts.values()),
+            SUBJECTS,
+            ci_nettekoven_symmni128_dfpath)
+        ci_anova_path = os.path.join(
+            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/anova')
+        threeway_rmanova(ci_nettekoven_symmni128_df, ci_anova_path, tag,
+                         'cerebellum-i')
+
+        # # Plot
         # d3i_nettekoven_symmni128_rois = os.path.join(
         #     msdtb_dir,
         #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_i_psc.npy')
-        plot_roi_vertical(
-            d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='greater')
-        plot_roi_vertical(
-            d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='less')
-        plot_roi_vertical(
-            d3i_nettekoven_symmni128_rois,
-            'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
-            'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+        # plot_roi_vertical(
+        #     d3i_nettekoven_symmni128_rois,
+        #     'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
+        #     'iroi_analysis', 'psc', tag, hypothesis='greater')
+        # plot_roi_vertical(
+        #     d3i_nettekoven_symmni128_rois,
+        #     'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
+        #     'iroi_analysis', 'psc', tag, hypothesis='less')
+        # plot_roi_vertical(
+        #     d3i_nettekoven_symmni128_rois,
+        #     'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
+        #     'iroi_analysis', 'psc', tag, hypothesis='two-sided')
