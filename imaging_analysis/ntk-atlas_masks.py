@@ -66,13 +66,13 @@ ntk128_symmni_lutpath = os.path.join(
     ntk_dir, 'atl-NettekovenSym128.lut')
 
 ntk128_symmni_s_lh_maskpath = os.path.join(
-    ntk_dir, 'ntk_symmni128_s_lh_mask.nii.gz')
+    ntk_dir, 'ntk_symmni128_cereb-s_lh_mask.nii.gz')
 ntk128_symmni_s_rh_maskpath = os.path.join(
-    ntk_dir, 'ntk_symmni128_s_rh_mask.nii.gz')
+    ntk_dir, 'ntk_symmni128_cereb-s_rh_mask.nii.gz')
 ntk128_symmni_i_lh_maskpath = os.path.join(
-    ntk_dir, 'ntk_symmni128_i_lh_mask.nii.gz')
+    ntk_dir, 'ntk_symmni128_cereb-i_lh_mask.nii.gz')
 ntk128_symmni_i_rh_maskpath = os.path.join(
-    ntk_dir, 'ntk_symmni128_i_rh_mask.nii.gz')
+    ntk_dir, 'ntk_symmni128_cereb-i_rh_mask.nii.gz')
 
 # ############################## RUN ####################################
 
