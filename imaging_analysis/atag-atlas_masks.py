@@ -18,7 +18,7 @@ from nilearn.image import load_img, new_img_like
 # ############################ FUNCTIONS ################################
 
 
-def binarize(mask_path, threshold = .8):
+def binarize(mask_path, threshold):
 
     # Load
     mask = load_img(mask_path)
@@ -61,8 +61,8 @@ atag_linear_norm_striatum_rh_maskpath = os.path.join(
 if __name__ == '__main__':
 
     # Binarize masks
-    str_atag_lh_ln_bin = binarize(atag_linear_norm_striatum_lh)
-    str_atag_rh_ln_bin = binarize(atag_linear_norm_striatum_rh)
+    str_atag_lh_ln_bin = binarize(atag_linear_norm_striatum_lh, .5)
+    str_atag_rh_ln_bin = binarize(atag_linear_norm_striatum_rh, .5)
 
     # Save masks
     str_atag_lh_ln_bin.to_filename(atag_linear_norm_striatum_lh_maskpath)
