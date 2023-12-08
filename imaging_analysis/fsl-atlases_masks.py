@@ -4,7 +4,7 @@ This script creates masks from Harvard-Oxford subcortical atlas.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: November 2023
+Last update: December 2023
 
 Compatibility: Python 3.10.10
 
@@ -18,7 +18,7 @@ from nilearn.image import load_img, new_img_like
 
 # ############################ FUNCTIONS ################################
 
-def binarize_bigger(mask_path, threshold):
+def binarize(mask_path, threshold):
 
     # Load
     mask = load_img(mask_path)
@@ -97,40 +97,40 @@ mniflirt_cereb7b8a_rh_maskpath = os.path.join(
 if __name__ == '__main__':
 
     # # ######################## PUTAMEN ##################################
-    hos_putamen_lh_bin = binarize_bigger(hos_putamen_lh_probmap, 50.)
-    hos_putamen_rh_bin = binarize_bigger(hos_putamen_rh_probmap, 50.)
+    hos_putamen_lh_bin = binarize(hos_putamen_lh_probmap, 50.)
+    hos_putamen_rh_bin = binarize(hos_putamen_rh_probmap, 50.)
 
     # Save maks
     hos_putamen_lh_bin.to_filename(hos_putamen_lh_maskpath)
     hos_putamen_rh_bin.to_filename(hos_putamen_rh_maskpath)
 
     # # ##################### CEREBELLUM VI ###############################
-    mniflirt_cereb6_lh_bin = binarize_bigger(mniflirt_cereb6_lh_probmap, 50.)
-    mniflirt_cereb6_rh_bin = binarize_bigger(mniflirt_cereb6_rh_probmap, 50.)
+    mniflirt_cereb6_lh_bin = binarize(mniflirt_cereb6_lh_probmap, 50.)
+    mniflirt_cereb6_rh_bin = binarize(mniflirt_cereb6_rh_probmap, 50.)
 
     # Save maks
     mniflirt_cereb6_lh_bin.to_filename(mniflirt_cereb6_lh_maskpath)
     mniflirt_cereb6_rh_bin.to_filename(mniflirt_cereb6_rh_maskpath)
 
     # # ##################### CEREBELLUM CRUS I ###########################
-    mniflirt_crus1_lh_bin = binarize_bigger(mniflirt_crus1_lh_probmap, 50.)
-    mniflirt_crus1_rh_bin = binarize_bigger(mniflirt_crus1_rh_probmap, 50.)
+    mniflirt_crus1_lh_bin = binarize(mniflirt_crus1_lh_probmap, 50.)
+    mniflirt_crus1_rh_bin = binarize(mniflirt_crus1_rh_probmap, 50.)
 
     # Save maks
     mniflirt_crus1_lh_bin.to_filename(mniflirt_crus1_lh_maskpath)
     mniflirt_crus1_rh_bin.to_filename(mniflirt_crus1_rh_maskpath)
 
     # ###################### CEREBELLUM VIIb ##############################
-    mniflirt_cereb7b_lh_bin = binarize_bigger(mniflirt_cereb7b_lh_probmap, 45.)
-    mniflirt_cereb7b_rh_bin = binarize_bigger(mniflirt_cereb7b_rh_probmap, 45.)
+    mniflirt_cereb7b_lh_bin = binarize(mniflirt_cereb7b_lh_probmap, 45.)
+    mniflirt_cereb7b_rh_bin = binarize(mniflirt_cereb7b_rh_probmap, 45.)
 
     # Save maks
     mniflirt_cereb7b_lh_bin.to_filename(mniflirt_cereb7b_lh_maskpath)
     mniflirt_cereb7b_rh_bin.to_filename(mniflirt_cereb7b_rh_maskpath)
 
     # ##################### CEREBELLUM VIIIa ##############################
-    mniflirt_cereb8a_lh_bin = binarize_bigger(mniflirt_cereb8a_lh_probmap, 45.)
-    mniflirt_cereb8a_rh_bin = binarize_bigger(mniflirt_cereb8a_rh_probmap, 45.)
+    mniflirt_cereb8a_lh_bin = binarize(mniflirt_cereb8a_lh_probmap, 45.)
+    mniflirt_cereb8a_rh_bin = binarize(mniflirt_cereb8a_rh_probmap, 45.)
 
     # Save maks
     mniflirt_cereb8a_lh_bin.to_filename(mniflirt_cereb8a_lh_maskpath)
