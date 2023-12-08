@@ -42,13 +42,6 @@ working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
 data_dir = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives'
 
-# SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21,
-#             22, 23, 26, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-#             44, 45, 46, 47]
-
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29, 32,
-            34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-
 # ### AAL3 ###
 aal3 = os.path.join(atlases_dir, 'aal3')
 aal3_outputs = os.path.join(aal3, 'outputs')
