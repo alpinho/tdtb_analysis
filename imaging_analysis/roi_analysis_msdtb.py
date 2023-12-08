@@ -277,7 +277,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
         # Intersection of atlas w/ thresholded encoding group tmap
         gencoding_atlasreg_maskpath = os.path.join(
             group_roi_dir,
-            'gmsdtb-' + atlas + '_' + roi + '_mask_' + hem + '.nii.gz')
+            'g_msdtb_' + atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
 
         if os.path.isfile(gencoding_atlasreg_maskpath):
             gmask = load_img(gencoding_atlasreg_maskpath)
@@ -295,8 +295,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
             estimates_dir = os.path.join(subject_dir, 'estimates')
             iencoding_atlasreg_maskpath = os.path.join(
                 iroimasks_dir,
-                prefix + '_' + roi + '_mask_sub-%02d_' + hem + \
-                '.nii.gz') % subject
+                prefix + '_sub-%02d_' + roi + '_' + hem +  \
+                '_mask.nii.gz') % subject
 
             # Create individual ROIs
             subject_encoding_tmap = os.path.join(
@@ -399,7 +399,7 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
                  if char == ' '][0] for contrast in contrasts]
     modality = [[contrast[:s] for s, char in enumerate(contrast[:-1])
                  if char == ' '][0] for contrast in contrasts]
-    
+
     # ## Subjects column
     subjects_col = np.tile(
         subjects,
@@ -689,13 +689,13 @@ working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 atag_dir = os.path.join(atlases_dir, 'atag_atlas')
-nettekoven_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
+ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 
 msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
 # putamen_dic = {'hos': 'putamen'}
 # cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
-#                   'nettekoven_symmni128': 'd3s', 'nettekoven_symmni128': 'd3i'}
+#                   'ntk_symmni128': 'd3s', 'ntk_symmni128': 'd3i'}
 
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
@@ -706,43 +706,43 @@ if __name__ == '__main__':
 
     # # # #################### STRIATUM #################################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
         # # Extraction of individual ROIs...
-        # ... using Harvard-Oxford Subcortical atlas
-        # putamen_hos_rois = iroicon_estimation(
+        # # ... using Harvard-Oxford Subcortical atlas
+        # str_hos_rois = iroicon_estimation(
         #     msdtb_dir, atag_dir,
-        #     'atag_linear', 'striatum', 'striatum',
+        #     'atag-lnorm', 'striatum', 'str',
         #     filtered_contrasts, 'wpsc', tag, wpair)
 
-        # # Overlay Individualized Masks
-        # if tag != 'g':
-        #     imasks_folder = os.path.join(
-        #         msdtb_dir,
-        #         'striatum/atag_linear/iroi_analysis/individual_rois')
-        #     overlay_masks(imasks_folder, 'striatum', tag)
+    #     # Overlay Individualized Masks
+    #     if tag != 'g':
+    #         imasks_folder = os.path.join(
+    #             msdtb_dir,
+    #             'striatum/atag_linear/iroi_analysis/individual_rois')
+    #         overlay_masks(imasks_folder, 'striatum', tag)
 
-        # Open ROI file
-        striatum_atag_linear_rois = os.path.join(
-            msdtb_dir, 'striatum/atag_linear/iroi_analysis',
-            tag + '_striatum_psc.npy')
+    #     # Open ROI file
+    #     striatum_atag_linear_rois = os.path.join(
+    #         msdtb_dir, 'striatum/atag_linear/iroi_analysis',
+    #         tag + '_striatum_psc.npy')
 
-        # Run ANOVA
-        striatum_atag_linear_dfpath = os.path.join(
-            msdtb_dir, 'striatum/atag_linear/iroi_analysis/',
-            tag + '_striatum_df.csv')
-        striatum_atag_linear_df = dataframe(
-            striatum_atag_linear_rois,
-            ['lh', 'rh'],
-            list(tasks.values()),
-            list(filtered_contrasts.values()),
-            SUBJECTS,
-            striatum_atag_linear_dfpath)
-        striatum_anova_path = os.path.join(
-            msdtb_dir, 'striatum/atag_linear/iroi_analysis/anova')
+    #     # Run ANOVA
+    #     striatum_atag_linear_dfpath = os.path.join(
+    #         msdtb_dir, 'striatum/atag_linear/iroi_analysis/',
+    #         tag + '_striatum_df.csv')
+    #     striatum_atag_linear_df = dataframe(
+    #         striatum_atag_linear_rois,
+    #         ['lh', 'rh'],
+    #         list(tasks.values()),
+    #         list(filtered_contrasts.values()),
+    #         SUBJECTS,
+    #         striatum_atag_linear_dfpath)
+    #     striatum_anova_path = os.path.join(
+    #         msdtb_dir, 'striatum/atag_linear/iroi_analysis/anova')
 
-        threeway_rmanova(striatum_atag_linear_df, striatum_anova_path,
-                         tag, 'striatum')
+    #     threeway_rmanova(striatum_atag_linear_df, striatum_anova_path,
+    #                      tag, 'striatum')
 
         # # Plot
         # plot_roi_vertical(putamen_hos_rois,
@@ -756,15 +756,15 @@ if __name__ == '__main__':
         #                   'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
 
-    # # ##################### CEREBELLUM s #############################
+    # # ##################### CEREBELLUM-s #############################
 
     for tag, wpair in zip(tags, weights_list):
 
-        # # Extraction of individual ROIs using Nettekoven Symmni128 atlas
-        # cs_nettekoven_symmni128_rois = iroicon_estimation(
-        #     msdtb_dir, nettekoven_dir,
-        #     'nettekoven_symmni128', 'cerebellum', 's',
-        #     filtered_contrasts, 'wpsc', tag, wpair)
+        # Extraction of individual ROIs using Nettekoven Symmni128 atlas
+        cs_ntk_symmni128_rois = iroicon_estimation(
+            msdtb_dir, ntk_dir,
+            'ntk_symmni128', 'cerebellum', 'cereb-s',
+            filtered_contrasts, 'wpsc', tag, wpair)
 
         # # Overlay Individualized Masks
         # if tag != 'g':
@@ -774,97 +774,97 @@ if __name__ == '__main__':
         #         'individual_rois')
         #     overlay_masks(imasks_folder, 's', tag)
 
-        # Open ROI file
-        cs_nettekoven_symmni128_rois = os.path.join(
-            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
-            tag + '_cerebellum-s_psc.npy')
+        # # Open ROI file
+        # cs_ntk_symmni128_rois = os.path.join(
+        #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
+        #     tag + '_cerebellum-s_psc.npy')
 
-        # Run ANOVA
-        cs_nettekoven_symmni128_dfpath = os.path.join(
-            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
-            tag + '_cerebellum-s_df.csv')
-        cs_nettekoven_symmni128_df = dataframe(
-            cs_nettekoven_symmni128_rois,
-            ['lh', 'rh'],
-            list(tasks.values()),
-            list(filtered_contrasts.values()),
-            SUBJECTS,
-            cs_nettekoven_symmni128_dfpath)
-        cs_anova_path = os.path.join(
-            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/anova')
-        threeway_rmanova(cs_nettekoven_symmni128_df, cs_anova_path, tag,
-                         'cerebellum-s')
+        # # Run ANOVA
+        # cs_ntk_symmni128_dfpath = os.path.join(
+        #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
+        #     tag + '_cerebellum-s_df.csv')
+        # cs_ntk_symmni128_df = dataframe(
+        #     cs_ntk_symmni128_rois,
+        #     ['lh', 'rh'],
+        #     list(tasks.values()),
+        #     list(filtered_contrasts.values()),
+        #     SUBJECTS,
+        #     cs_ntk_symmni128_dfpath)
+        # cs_anova_path = os.path.join(
+        #     msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/anova')
+        # threeway_rmanova(cs_ntk_symmni128_df, cs_anova_path, tag,
+        #                  'cerebellum-s')
 
         # # Plot
-        # d3s_nettekoven_symmni128_rois = os.path.join(
+        # d3s_ntk_symmni128_rois = os.path.join(
         #     msdtb_dir,
-        #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_s_psc.npy')
+        #     'cerebellum/ntk_dir/iroi_analysis', tag + '_s_psc.npy')
         # plot_roi_vertical(
-        #     d3s_nettekoven_symmni128_rois,
-        #     'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
+        #     d3s_ntk_symmni128_rois,
+        #     'cerebellum', 'cerebellum-s', 'ntk_symmni128',
         #     'iroi_analysis', 'psc', tag, hypothesis='greater')
         # plot_roi_vertical(
-        #     d3s_nettekoven_symmni128_rois,
-        #     'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
+        #     d3s_ntk_symmni128_rois,
+        #     'cerebellum', 'cerebellum-s', 'ntk_symmni128',
         #     'iroi_analysis', 'psc', tag, hypothesis='less')
         # plot_roi_vertical(
-        #     d3s_nettekoven_symmni128_rois,
-        #     'cerebellum', 'cerebellum-s', 'nettekoven_symmni128',
+        #     d3s_ntk_symmni128_rois,
+        #     'cerebellum', 'cerebellum-s', 'ntk_symmni128',
         #     'iroi_analysis', 'psc', tag, hypothesis='two-sided')
 
 
-    # # ##################### CEREBELLUM i #############################
+    # # ##################### CEREBELLUM-i #############################
 
     for tag, wpair in zip(tags, weights_list):
 
-        # # Extraction of individual ROIs using Nettekoven Symmni128 atlas
-        # ci_nettekoven_symmni128_rois = iroicon_estimation(
-        #     msdtb_dir, nettekoven_dir,
-        #     'nettekoven_symmni128', 'cerebellum', 'i',
-        #     filtered_contrasts, 'wpsc', tag, wpair)
+        # Extraction of individual ROIs using Nettekoven Symmni128 atlas
+        ci_ntk_symmni128_rois = iroicon_estimation(
+            msdtb_dir, ntk_dir,
+            'ntk_symmni128', 'cerebellum', 'cereb-i',
+            filtered_contrasts, 'wpsc', tag, wpair)
 
-        # # Overlay Individualized Masks
-        # if tag != 'g':
-        #     imasks_folder = os.path.join(
-        #         msdtb_dir,
-        #         'cerebellum/nettekoven_symmni128/iroi_analysis/' + \
-        #         'individual_rois')
-        #     overlay_masks(imasks_folder, 'i', tag)
+    #     # Overlay Individualized Masks
+    #     if tag != 'g':
+    #         imasks_folder = os.path.join(
+    #             msdtb_dir,
+    #             'cerebellum/nettekoven_symmni128/iroi_analysis/' + \
+    #             'individual_rois')
+    #         overlay_masks(imasks_folder, 'i', tag)
 
-        # Open ROI file
-        ci_nettekoven_symmni128_rois = os.path.join(
-            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
-            tag + '_cerebellum-i_psc.npy')
+    #     # Open ROI file
+    #     ci_ntk_symmni128_rois = os.path.join(
+    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
+    #         tag + '_cerebellum-i_psc.npy')
 
-        # Run ANOVA
-        ci_nettekoven_symmni128_dfpath = os.path.join(
-            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
-            tag + '_cerebellum-i_df.csv')
-        ci_nettekoven_symmni128_df = dataframe(
-            ci_nettekoven_symmni128_rois,
-            ['lh', 'rh'],
-            list(tasks.values()),
-            list(filtered_contrasts.values()),
-            SUBJECTS,
-            ci_nettekoven_symmni128_dfpath)
-        ci_anova_path = os.path.join(
-            msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/anova')
-        threeway_rmanova(ci_nettekoven_symmni128_df, ci_anova_path, tag,
-                         'cerebellum-i')
+    #     # Run ANOVA
+    #     ci_ntk_symmni128_dfpath = os.path.join(
+    #         msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis',
+    #         tag + '_cerebellum-i_df.csv')
+    #     ci_ntk_symmni128_df = dataframe(
+    #         ci_ntk_symmni128_rois,
+    #         ['lh', 'rh'],
+    #         list(tasks.values()),
+    #         list(filtered_contrasts.values()),
+    #         SUBJECTS,
+    #         ci_ntk_symmni128_dfpath)
+    #     ci_anova_path = os.path.join(
+    #         msdtb_dir, 'cerebellum/nettekoven_symmni128/iroi_analysis/anova')
+    #     threeway_rmanova(ci_ntk_symmni128_df, ci_anova_path, tag,
+    #                      'cerebellum-i')
 
         # # Plot
-        # d3i_nettekoven_symmni128_rois = os.path.join(
+        # d3i_ntk_symmni128_rois = os.path.join(
         #     msdtb_dir,
         #     'cerebellum/nettekoven_dir/iroi_analysis', tag + '_i_psc.npy')
         # plot_roi_vertical(
-        #     d3i_nettekoven_symmni128_rois,
-        #     'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
+        #     d3i_ntk_symmni128_rois,
+        #     'cerebellum', 'cerebellum-i', 'ntk_symmni128',
         #     'iroi_analysis', 'psc', tag, hypothesis='greater')
         # plot_roi_vertical(
-        #     d3i_nettekoven_symmni128_rois,
-        #     'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
+        #     d3i_ntk_symmni128_rois,
+        #     'cerebellum', 'cerebellum-i', 'ntk_symmni128',
         #     'iroi_analysis', 'psc', tag, hypothesis='less')
         # plot_roi_vertical(
-        #     d3i_nettekoven_symmni128_rois,
-        #     'cerebellum', 'cerebellum-i', 'nettekoven_symmni128',
+        #     d3i_ntk_symmni128_rois,
+        #     'cerebellum', 'cerebellum-i', 'ntk_symmni128',
         #     'iroi_analysis', 'psc', tag, hypothesis='two-sided')
