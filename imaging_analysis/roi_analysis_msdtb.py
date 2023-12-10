@@ -480,12 +480,11 @@ def threeway_rmanova(df, output_dir, prefix, roi):
             os.mkdir(output_dir)
 
         # Save results in a TSV file...
-        flabel = prefix + '_' + roi + '_' + hem + '_'
+        flabel = prefix + '_' + roi + '_' + hem + '_3w_'
 
         # ... for ANOVA
         results.anova_table.to_csv(
-            os.path.join(output_dir, flabel + 'anova.tsv'),
-            sep='\t')
+            os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
 
         # ... and for posthoc
         phoc_flabel = flabel + 'posthoc_'
@@ -504,6 +503,142 @@ def threeway_rmanova(df, output_dir, prefix, roi):
         with open(os.path.join(
                 output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
             fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
+
+
+def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
+    """
+    Compute 2 X 2 X 3 RM-ANOVA
+
+    shape of the data: (hemispheres, tasks, contrasts, subjects)
+    """
+    # If path is given, open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df)
+
+    # Remove 'All Tasks from Dataframe'
+    # df = df[df.Task != 'All Tasks']
+
+    # Remove Column of Contrasts
+    df = df.drop(['Contrast'], axis=1)
+
+    # Convert PSC entries to numeric type
+    df['PSC'] = df['PSC'].apply(pd.to_numeric)
+
+    # Tasks
+    # ttags = list(tasks_dic.keys())[:-1]
+    # tasks_list = list(tasks_dic.values())[:-1]
+    ttags = list(tasks_dic.keys())
+    tasks_list = list(tasks_dic.values())
+
+    # For each task:
+    for ttag, task in zip(ttags, tasks_list):
+        # For each hemisphere:
+        for hem in ['lh', 'rh']:
+            db = pd.DataFrame()
+            db = df[df.Task == task][df.Hemisphere == hem]
+
+            # Create AnovaRM object
+            model = AnovaRM(data=db, depvar='PSC', subject='Subject',
+                            within=['Category', 'Modality'])
+
+            # Run the 2-way repeated measures ANOVA
+            results = model.fit()
+
+            # Perform pairwise Tukey HSD tests
+            phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+            phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+            # phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
+
+            # Create output_dir, if it does not exist
+            if not os.path.exists(output_dir):
+                os.mkdir(output_dir)
+
+            # Save results in a TSV file...
+            flabel = prefix + '_' + roi + '_' + hem + '_2w-' + ttag + '_'
+
+            # ... for ANOVA
+            results.anova_table.to_csv(
+                os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
+
+            # ... and for posthoc
+            phoc_flabel = flabel + 'posthoc_'
+            with open(os.path.join(
+                    output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+                fc.write(phoc_category.summary().as_csv(sep='\t'))
+
+            with open(os.path.join(
+                    output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+                fm.write(phoc_modality.summary().as_csv(sep='\t'))
+
+            # with open(os.path.join(
+            #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
+            #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
+
+
+def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
+    """
+    Compute 2 X 2 X 3 RM-ANOVA
+
+    shape of the data: (hemispheres, tasks, contrasts, subjects)
+    """
+    # If path is given, open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df).reset_index()
+
+    # Remove Column of Tasks and Contrasts
+    df = df.drop(['Task'], axis=1)
+    df = df.drop(['Contrast'], axis=1)
+
+    # Convert PSC entries to numeric type
+    df['PSC'] = df['PSC'].apply(pd.to_numeric)
+
+    # For each hemisphere:
+    for hem in ['lh', 'rh']:
+        db = pd.DataFrame()
+        db = df[df.Hemisphere == hem]
+
+        # Averaged PSC across Tasks, i.e. grouped by Category and Modality ...
+        # ... and averaged afterwards
+        db = db.groupby(['Category','Modality', 'Subject']).mean().reset_index()
+
+        db.to_csv('test.csv', sep='\t', index=False)
+
+        # Create AnovaRM object
+        model = AnovaRM(data=db, depvar='PSC', subject='Subject',
+                        within=['Category', 'Modality'])
+
+        # Run the 3-way repeated measures ANOVA
+        results = model.fit()
+
+        # Perform pairwise Tukey HSD tests
+        phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+        phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+        # phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
+
+        # Create output_dir, if it does not exist
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+
+        # Save results in a TSV file...
+        flabel = prefix + '_' + roi + '_' + hem + '_2w-taskcollapsed_'
+
+        # ... for ANOVA
+        results.anova_table.to_csv(
+            os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
+
+        # ... and for posthoc
+        phoc_flabel = flabel + 'posthoc_'
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+            fc.write(phoc_category.summary().as_csv(sep='\t'))
+
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+            fm.write(phoc_modality.summary().as_csv(sep='\t'))
+
+        # with open(os.path.join(
+        #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
+        #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
 
 
 def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
@@ -708,113 +843,122 @@ if __name__ == '__main__':
 
     for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using ATAG atlas
-        str_atag_lnorm_rois = iroicon_estimation(
-            msdtb_dir, atag_dir,
-            'atag-lnorm', 'striatum', 'str',
-            filtered_contrasts, 'wpsc', tag, wpair)
+        # # Extraction of individual ROIs using ATAG atlas
+        # str_atag_lnorm_rois = iroicon_estimation(
+        #     msdtb_dir, atag_dir, 'atag-lnorm', 'striatum', 'str',
+        #     filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Overlay Individualized Masks
-        if tag != 'g':
-            imasks_folder = os.path.join(
-                msdtb_dir,
-                'striatum/atag-lnorm/iroi_analysis/individual_rois')
-            overlay_masks(imasks_folder, tag, 'str')
+        # # Define output-dir path
+        str_outdir = os.path.join(msdtb_dir, 'striatum/atag-lnorm')
 
-        # Open ROI file
-        str_atag_lnorm_rois = os.path.join(
-            msdtb_dir, 'striatum/atag-lnorm/iroi_analysis',
-            tag + '_str_psc.npy')
+        # # Overlay Individualized Masks
+        # if tag != 'g':
+        #     imasks_dir = os.path.join(
+        #         str_outpath, 'iroi_analysis/individual_rois')
+        #     overlay_masks(imasks_dir, tag, 'str')
 
-        # Run ANOVA
-        str_atag_lnorm_dfpath = os.path.join(
-            msdtb_dir, 'striatum/atag-lnorm/iroi_analysis',
-            tag + '_str_df.csv')
-        str_atag_lnorm_df = dataframe(
-            str_atag_lnorm_rois,
-            ['lh', 'rh'],
-            list(tasks.values()),
-            list(filtered_contrasts.values()),
-            SUBJECTS,
-            str_atag_lnorm_dfpath)
-        str_anova_path = os.path.join(
-            msdtb_dir, 'striatum/atag-lnorm/iroi_analysis/anova')
+        # # Open ROI file and create dataframe
+        # str_atag_lnorm_rois = os.path.join(
+        #     str_outpath, 'iroi_analysis', tag + '_str_psc.npy')
+        # str_atag_lnorm_dfpath = os.path.join(
+        #     str_outpath, 'iroi_analysis', tag + '_str_df.csv')
+        # str_atag_lnorm_df = dataframe(
+        #     str_atag_lnorm_rois,
+        #     ['lh', 'rh'],
+        #     list(tasks.values()),
+        #     list(filtered_contrasts.values()),
+        #     SUBJECTS,
+        #     str_atag_lnorm_dfpath)
 
-        threeway_rmanova(str_atag_lnorm_df, str_anova_path, tag, 'str')
+        # ## Run ANOVAs
+        str_anovas_dir = os.path.join(str_outdir, 'anovas')
+        str_anova_dfpath = os.path.join(str_anovas_dir, tag + '_str_df.csv')
+        # 3-way RM-ANOVA
+        str_3anova_dir = os.path.join(str_anovas_dir, '3way-anova')
+        threeway_rmanova(str_anova_dfpath, str_3anova_dir, tag, 'str')
+        # 2-way RM-ANOVA per task
+        str_t2anova_path = os.path.join(str_anovas_dir, '2way-anova_task')
+        twoway_rmanova_task(str_anova_dfpath, tasks, str_t2anova_path, tag,
+                            'str')
+
+        # 2-way RM-ANOVA collapsed across tasks
+        str_c2anova_path = os.path.join(str_anovas_dir,
+                                        '2way-anova_grouped-tasks')
+        twoway_rmanova_gtasks(str_anova_dfpath, str_c2anova_path, tag, 'str')
 
 
     # # ##################### CEREBELLUM-s #############################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using Nettekoven-SymMNI128
-        cs_ntk_symmni128_rois = iroicon_estimation(
-            msdtb_dir, ntk_dir,
-            'ntk_symmni128', 'cerebellum', 'cereb-s',
-            filtered_contrasts, 'wpsc', tag, wpair)
+    #     # Extraction of individual ROIs using Nettekoven-SymMNI128
+    #     cs_ntk_symmni128_rois = iroicon_estimation(
+    #         msdtb_dir, ntk_dir,
+    #         'ntk_symmni128', 'cerebellum', 'cereb-s',
+    #         filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Overlay Individualized Masks
-        if tag != 'g':
-            imasks_folder = os.path.join(
-                msdtb_dir,
-                'cerebellum/ntk_symmni128/iroi_analysis/individual_rois')
-            overlay_masks(imasks_folder, tag, 'cereb-s')
+    #     # Overlay Individualized Masks
+    #     if tag != 'g':
+    #         imasks_dir = os.path.join(
+    #             msdtb_dir,
+    #             'cerebellum/ntk_symmni128/iroi_analysis/individual_rois')
+    #         overlay_masks(imasks_dir, tag, 'cereb-s')
 
-        # Open ROI file
-        cs_ntk_symmni128_rois = os.path.join(
-            msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
-            tag + '_cereb-s_psc.npy')
+    #     # Open ROI file and create dataframe
+    #     cs_ntk_symmni128_rois = os.path.join(
+    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
+    #         tag + '_cereb-s_psc.npy')
+    #     cs_ntk_symmni128_dfpath = os.path.join(
+    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
+    #         tag + '_cereb-s_df.csv')
+    #     cs_ntk_symmni128_df = dataframe(
+    #         cs_ntk_symmni128_rois,
+    #         ['lh', 'rh'],
+    #         list(tasks.values()),
+    #         list(filtered_contrasts.values()),
+    #         SUBJECTS,
+    #         cs_ntk_symmni128_dfpath)
 
-        # Run ANOVA
-        cs_ntk_symmni128_dfpath = os.path.join(
-            msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
-            tag + '_cereb-s_df.csv')
-        cs_ntk_symmni128_df = dataframe(
-            cs_ntk_symmni128_rois,
-            ['lh', 'rh'],
-            list(tasks.values()),
-            list(filtered_contrasts.values()),
-            SUBJECTS,
-            cs_ntk_symmni128_dfpath)
-        cs_anova_path = os.path.join(
-            msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis/anova')
+    #     # Run ANOVAs
+    #     cs_anova_path = os.path.join(
+    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis/anova')
 
-        threeway_rmanova(cs_ntk_symmni128_df, cs_anova_path, tag, 'cereb-s')
+    #     threeway_rmanova(cs_ntk_symmni128_df, cs_anova_path, tag, 'cereb-s')
 
     # # ##################### CEREBELLUM-i #############################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using Nettekoven-SymMNI128
-        ci_ntk_symmni128_rois = iroicon_estimation(
-            msdtb_dir, ntk_dir,
-            'ntk_symmni128', 'cerebellum', 'cereb-i',
-            filtered_contrasts, 'wpsc', tag, wpair)
+    #     # Extraction of individual ROIs using Nettekoven-SymMNI128
+    #     ci_ntk_symmni128_rois = iroicon_estimation(
+    #         msdtb_dir, ntk_dir,
+    #         'ntk_symmni128', 'cerebellum', 'cereb-i',
+    #         filtered_contrasts, 'wpsc', tag, wpair)
 
-        # Overlay Individualized Masks
-        if tag != 'g':
-            imasks_folder = os.path.join(
-                msdtb_dir,
-                'cerebellum/ntk_symmni128/iroi_analysis/individual_rois')
-            overlay_masks(imasks_folder, tag, 'cereb-i')
+    #     # Overlay Individualized Masks
+    #     if tag != 'g':
+    #         imasks_dir = os.path.join(
+    #             msdtb_dir,
+    #             'cerebellum/ntk_symmni128/iroi_analysis/individual_rois')
+    #         overlay_masks(imasks_dir, tag, 'cereb-i')
 
-        # Open ROI file
-        ci_ntk_symmni128_rois = os.path.join(
-            msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
-            tag + '_cereb-i_psc.npy')
+    #     # Open ROI file and create dataframes
+    #     ci_ntk_symmni128_rois = os.path.join(
+    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
+    #         tag + '_cereb-i_psc.npy')
+    #     ci_ntk_symmni128_dfpath = os.path.join(
+    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
+    #         tag + '_cereb-i_df.csv')
+    #     ci_ntk_symmni128_df = dataframe(
+    #         ci_ntk_symmni128_rois,
+    #         ['lh', 'rh'],
+    #         list(tasks.values()),
+    #         list(filtered_contrasts.values()),
+    #         SUBJECTS,
+    #         ci_ntk_symmni128_dfpath)
 
-        # Run ANOVA
-        ci_ntk_symmni128_dfpath = os.path.join(
-            msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
-            tag + '_cereb-i_df.csv')
-        ci_ntk_symmni128_df = dataframe(
-            ci_ntk_symmni128_rois,
-            ['lh', 'rh'],
-            list(tasks.values()),
-            list(filtered_contrasts.values()),
-            SUBJECTS,
-            ci_ntk_symmni128_dfpath)
-        ci_anova_path = os.path.join(
-            msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis/anova')
+    #     # Run ANOVAs
+    #     ci_anova_path = os.path.join(
+    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis/anova')
 
-        threeway_rmanova(ci_ntk_symmni128_df, ci_anova_path, tag, 'cereb-i')
+    #     threeway_rmanova(ci_ntk_symmni128_df, ci_anova_path, tag, 'cereb-i')
