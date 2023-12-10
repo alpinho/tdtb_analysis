@@ -212,17 +212,17 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
     return iroi_mask
 
 
-def overlay_masks(masks_dir, roi, mask_type):
+def overlay_masks(masks_dir, mask_type, roi):
 
     for hem in ['lh', 'rh']:
-        string = mask_type + '_' + roi + '_mask_sub-*_' + hem + '*.nii.gz'
+        string = mask_type + '_sub-*_' + roi + '_' + hem + '_mask.nii.gz'
         paths = glob.glob(os.path.join(masks_dir, string))
         images = [load_img(path) for path in paths]
         images_val = [image.get_fdata().tolist() for image in images]
         mask_sum_val = np.sum(images_val, axis=0)
         mask_norm_val = mask_sum_val / len(images_val)
         mask_norm = new_img_like(images[0], mask_norm_val)
-        mask_name = mask_type + '_' + roi + '_mask_' + hem + '.nii.gz'
+        mask_name = mask_type + '_' + roi + '_' + hem + '_mask.nii.gz'
         mask_norm.to_filename(os.path.join(masks_dir, mask_name))
 
 
@@ -706,65 +706,53 @@ if __name__ == '__main__':
 
     # # # #################### STRIATUM #################################
 
-    # for tag, wpair in zip(tags, weights_list):
+    for tag, wpair in zip(tags, weights_list):
 
-        # # Extraction of individual ROIs...
-        # # ... using Harvard-Oxford Subcortical atlas
-        # str_hos_rois = iroicon_estimation(
+        # Extraction of individual ROIs...
+        # ... using Harvard-Oxford Subcortical atlas
+        # str_atag_lnorm_rois = iroicon_estimation(
         #     msdtb_dir, atag_dir,
         #     'atag-lnorm', 'striatum', 'str',
         #     filtered_contrasts, 'wpsc', tag, wpair)
 
-    #     # Overlay Individualized Masks
-    #     if tag != 'g':
-    #         imasks_folder = os.path.join(
-    #             msdtb_dir,
-    #             'striatum/atag_linear/iroi_analysis/individual_rois')
-    #         overlay_masks(imasks_folder, 'striatum', tag)
+        # Overlay Individualized Masks
+        if tag != 'g':
+            imasks_folder = os.path.join(
+                msdtb_dir,
+                'striatum/atag-lnorm/iroi_analysis/individual_rois')
+            overlay_masks(imasks_folder, tag, 'str')
 
-    #     # Open ROI file
-    #     striatum_atag_linear_rois = os.path.join(
-    #         msdtb_dir, 'striatum/atag_linear/iroi_analysis',
-    #         tag + '_striatum_psc.npy')
+        # Open ROI file
+        str_atag_lnorm_rois = os.path.join(
+            msdtb_dir, 'striatum/atag-lnorm/iroi_analysis',
+            tag + '_str_psc.npy')
 
-    #     # Run ANOVA
-    #     striatum_atag_linear_dfpath = os.path.join(
-    #         msdtb_dir, 'striatum/atag_linear/iroi_analysis/',
-    #         tag + '_striatum_df.csv')
-    #     striatum_atag_linear_df = dataframe(
-    #         striatum_atag_linear_rois,
-    #         ['lh', 'rh'],
-    #         list(tasks.values()),
-    #         list(filtered_contrasts.values()),
-    #         SUBJECTS,
-    #         striatum_atag_linear_dfpath)
-    #     striatum_anova_path = os.path.join(
-    #         msdtb_dir, 'striatum/atag_linear/iroi_analysis/anova')
+        # Run ANOVA
+        str_atag_lnorm_dfpath = os.path.join(
+            msdtb_dir, 'striatum/atag-lnorm/iroi_analysis/',
+            tag + '_str_df.csv')
+        str_atag_lnorm_df = dataframe(
+            str_atag_lnorm_rois,
+            ['lh', 'rh'],
+            list(tasks.values()),
+            list(filtered_contrasts.values()),
+            SUBJECTS,
+            str_atag_lnorm_dfpath)
+        str_anova_path = os.path.join(
+            msdtb_dir, 'striatum/atag-lnorm/iroi_analysis/anova')
 
-    #     threeway_rmanova(striatum_atag_linear_df, striatum_anova_path,
-    #                      tag, 'striatum')
-
-        # # Plot
-        # plot_roi_vertical(putamen_hos_rois,
-        #                   'striatum', 'striatum', 'atag_linear',
-        #                   'iroi_analysis', 'psc', tag, hypothesis='greater')
-        # plot_roi_vertical(putamen_hos_rois,
-        #                   'striatum', 'striatum', 'atag_linear',
-        #                   'iroi_analysis', 'psc', tag, hypothesis='less')
-        # plot_roi_vertical(putamen_hos_rois,
-        #                   'striatum', 'striatum', 'atag_linear',
-        #                   'iroi_analysis', 'psc', tag, hypothesis='two-sided')
+        threeway_rmanova(str_atag_lnorm_df, str_anova_path, tag, 'str')
 
 
     # # ##################### CEREBELLUM-s #############################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using Nettekoven Symmni128 atlas
-        cs_ntk_symmni128_rois = iroicon_estimation(
-            msdtb_dir, ntk_dir,
-            'ntk_symmni128', 'cerebellum', 'cereb-s',
-            filtered_contrasts, 'wpsc', tag, wpair)
+    #     # Extraction of individual ROIs using Nettekoven Symmni128 atlas
+    #     cs_ntk_symmni128_rois = iroicon_estimation(
+    #         msdtb_dir, ntk_dir,
+    #         'ntk_symmni128', 'cerebellum', 'cereb-s',
+    #         filtered_contrasts, 'wpsc', tag, wpair)
 
         # # Overlay Individualized Masks
         # if tag != 'g':
@@ -815,13 +803,13 @@ if __name__ == '__main__':
 
     # # ##################### CEREBELLUM-i #############################
 
-    for tag, wpair in zip(tags, weights_list):
+    # for tag, wpair in zip(tags, weights_list):
 
-        # Extraction of individual ROIs using Nettekoven Symmni128 atlas
-        ci_ntk_symmni128_rois = iroicon_estimation(
-            msdtb_dir, ntk_dir,
-            'ntk_symmni128', 'cerebellum', 'cereb-i',
-            filtered_contrasts, 'wpsc', tag, wpair)
+    #     # Extraction of individual ROIs using Nettekoven Symmni128 atlas
+    #     ci_ntk_symmni128_rois = iroicon_estimation(
+    #         msdtb_dir, ntk_dir,
+    #         'ntk_symmni128', 'cerebellum', 'cereb-i',
+    #         filtered_contrasts, 'wpsc', tag, wpair)
 
     #     # Overlay Individualized Masks
     #     if tag != 'g':
