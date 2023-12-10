@@ -60,29 +60,29 @@ working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 
-ntk128_symmni_path = os.path.join(
+ntk_symmni128_path = os.path.join(
     ntk_dir, 'atl-NettekovenSym128_space-MNI152NLin2009cSymC_dseg.nii')
-ntk128_symmni_lutpath = os.path.join(
+ntk_symmni128_lutpath = os.path.join(
     ntk_dir, 'atl-NettekovenSym128.lut')
 
-ntk128_symmni_s_lh_maskpath = os.path.join(
+ntk_symmni128_s_lh_maskpath = os.path.join(
     ntk_dir, 'ntk_symmni128_cereb-s_lh_mask.nii.gz')
-ntk128_symmni_s_rh_maskpath = os.path.join(
+ntk_symmni128_s_rh_maskpath = os.path.join(
     ntk_dir, 'ntk_symmni128_cereb-s_rh_mask.nii.gz')
-ntk128_symmni_i_lh_maskpath = os.path.join(
+ntk_symmni128_i_lh_maskpath = os.path.join(
     ntk_dir, 'ntk_symmni128_cereb-i_lh_mask.nii.gz')
-ntk128_symmni_i_rh_maskpath = os.path.join(
+ntk_symmni128_i_rh_maskpath = os.path.join(
     ntk_dir, 'ntk_symmni128_cereb-i_rh_mask.nii.gz')
 
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
 
-    create_cerebellum_quadrants(ntk128_symmni_lutpath, ntk128_symmni_path,
-                                'Ls', ntk128_symmni_s_lh_maskpath)
-    create_cerebellum_quadrants(ntk128_symmni_lutpath, ntk128_symmni_path,
-                                'Rs', ntk128_symmni_s_rh_maskpath)
-    create_cerebellum_quadrants(ntk128_symmni_lutpath, ntk128_symmni_path,
-                                'Li', ntk128_symmni_i_lh_maskpath)
-    create_cerebellum_quadrants(ntk128_symmni_lutpath, ntk128_symmni_path,
-                                'Ri', ntk128_symmni_i_rh_maskpath)
+    create_cerebellum_quadrants(ntk_symmni128_lutpath, ntk_symmni128_path,
+                                'Ls', ntk_symmni128_s_lh_maskpath)
+    create_cerebellum_quadrants(ntk_symmni128_lutpath, ntk_symmni128_path,
+                                'Rs', ntk_symmni128_s_rh_maskpath)
+    create_cerebellum_quadrants(ntk_symmni128_lutpath, ntk_symmni128_path,
+                                'Li', ntk_symmni128_i_lh_maskpath)
+    create_cerebellum_quadrants(ntk_symmni128_lutpath, ntk_symmni128_path,
+                                'Ri', ntk_symmni128_i_rh_maskpath)
