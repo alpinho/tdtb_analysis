@@ -215,6 +215,11 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
 def overlay_masks(pdir, mask_type, roi):
 
     masks_dir = os.path.join(pdir, 'individual_roi_masks')
+    output_dir = os.path.joint(pdir, 'overlaid_masks')
+
+    # Create output_dir, if it does not exist
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
 
     for hem in ['lh', 'rh']:
         string = mask_type + '_sub-*_' + roi + '_' + hem + '_mask.nii.gz'
@@ -225,7 +230,7 @@ def overlay_masks(pdir, mask_type, roi):
         mask_norm_val = mask_sum_val / len(images_val)
         mask_norm = new_img_like(images[0], mask_norm_val)
         mask_name = mask_type + '_' + roi + '_' + hem + '_mask.nii.gz'
-        mask_norm.to_filename(os.path.join(masks_dir, mask_name))
+        mask_norm.to_filename(os.path.join(output_dir, mask_name))
 
 
 def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
@@ -379,6 +384,10 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
                       columns=['PSC', 'Subject', 'Contrast',
                                'Category', 'Modality', 'Task',
                                'Hemisphere'])
+
+    # Create output_dir, if it does not exist
+    if not os.path.exists(outpath):
+        os.mkdir(outpath)
 
     # Save dataframe
     df.to_csv(outpath, index=False)
