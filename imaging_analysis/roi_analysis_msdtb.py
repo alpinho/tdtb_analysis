@@ -255,18 +255,18 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
                        contype, prefix, weights=None):
 
     roi_dir = os.path.join(main_dir, region, atlas)
-    group_roi_dir = os.path.join(roi_dir, 'group_rois')
-    iroicon_dir = os.path.join(roi_dir, 'iroi_analysis')
-    iroimasks_dir = os.path.join(iroicon_dir, 'individual_rois')
+    groi_dir = os.path.join(roi_dir, 'group_roi_masks')
+    iroi_dir = os.path.join(roi_dir, 'individual_roi_masks')
+    roiextr_dir = os.path.join(roi_dir, 'rois_extraction')
 
-    if not os.path.exists(group_roi_dir):
-        os.makedirs(group_roi_dir)
+    if not os.path.exists(groi_dir):
+        os.makedirs(groi_dir)
 
-    if not os.path.exists(iroicon_dir):
-        os.mkdir(iroicon_dir)
+    if not os.path.exists(iroi_dir):
+        os.mkdir(iroi_dir)
 
-    if not os.path.exists(iroimasks_dir):
-        os.mkdir(iroimasks_dir)
+    if not os.path.exists(roiextr_dir):
+        os.mkdir(roiextr_dir)
 
     # ### For each hemisphere ###
     roi_hems = []
@@ -276,7 +276,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
 
         # Intersection of atlas w/ thresholded encoding group tmap
         gencoding_atlasreg_maskpath = os.path.join(
-            group_roi_dir,
+            groi_dir,
             'g_msdtb_' + atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
 
         if os.path.isfile(gencoding_atlasreg_maskpath):
@@ -294,7 +294,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
             subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
             estimates_dir = os.path.join(subject_dir, 'estimates')
             iencoding_atlasreg_maskpath = os.path.join(
-                iroimasks_dir,
+                iroi_dir,
                 prefix + '_sub-%02d_' + roi + '_' + hem +  \
                 '_mask.nii.gz') % subject
 
@@ -326,73 +326,16 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
 
     # Save
     outpath = os.path.join(
-        iroicon_dir, prefix + '_' + roi + '_' + contype[1:] + '.npy')
+        roiextr_dir, prefix + '_' + roi + '_' + contype[1:] + '.npy')
     if os.path.exists(outpath):
         os.remove(outpath)
     np.save(outpath, roi_hems, allow_pickle=False)
 
-    return roi_hems
-
-
-def pval_label_converter(pvalues):
-    # * For "star" text_format: `[[1e-4, "****"], [1e-3, "***"],
-    #                         [1e-2, "**"], [0.05, "*"],
-    #                         [1, "ns"]]`.
-    pval_labels = []
-    for pval in pvalues:
-        if pval <= .0001:
-            pval_labels.append('****')
-        elif pval > .0001 and pval <= .001:
-            pval_labels.append('***')
-        elif pval > .001 and pval <= .01:
-            pval_labels.append('**')
-        elif pval > .01 and pval <= .05:
-            pval_labels.append('*')
-        else:
-            pval_labels.append('ns')
-
-    return pval_labels
-
-
-def plot_roi_horizontal(arr_conmean, arr_conpval, roi_ref, output_file):
-    # ## Open npy files and plot
-    allcontrasts_mean = np.load(arr_conmean)
-    allpvalues = np.load(arr_conpval)
-
-    fig = plt.figure(figsize=(30, 25))
-    # For each hemisphere
-    for r, roi in enumerate(allcontrasts_mean):
-        # For each task
-        for c, cmean in enumerate(roi):
-            # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.16 + r*.475, .73 - c*.23, .325, .18])
-            cnames = list(contrasts.values())
-            y_pos = np.arange(len(cnames))
-            pval_labels = pval_label_converter(allpvalues[r][c])
-            rects = ax.barh(y_pos, cmean, align='center')
-            ax.bar_label(rects, labels=pval_labels, padding=3)
-            ax.set_yticks(y_pos, labels=cnames, fontsize=16)
-            plt.xticks(fontsize=16)
-            # Hide the right and top spines
-            ax.spines[['right', 'top']].set_visible(False)
-            plt.title(list(tasks.values())[c], size=20, x=.5,
-                      fontweight='semibold')
-        if r == 0:
-            column_title = 'Left Hemisphere'
-        else:
-            column_title = 'Right Hemisphere'
-        fig.text(.25 + r*.5, .9425, column_title, ha='center',
-                 fontsize=24, weight='bold')
-    plt.suptitle(roi_ref, size=28, weight='bold', linespacing=.75)
-    fig.savefig(output_file, dpi=300)
-
 
 def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
-
-    # input shape: (hemisphere, tasks, contrasts, subjects)
-    if isinstance(data, str):
-        # ## Open npy files and plot
-        data = np.load(data)
+    # input data shape: (hemisphere, tasks, contrasts, subjects)
+    # ## Open npy file
+    data = np.load(data)
 
     subjects = ['sub-%02d' % s for s in n_subjects]
     category = [[contrast[s+1:] for s, char in enumerate(contrast[:-1])
@@ -436,7 +379,7 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
                                'Hemisphere'])
 
     # Save dataframe
-    df.to_csv(outpath)
+    df.to_csv(outpath, index=False)
 
     return df
 
@@ -447,9 +390,8 @@ def threeway_rmanova(df, output_dir, prefix, roi):
 
     shape of the data: (hemispheres, tasks, contrasts, subjects)
     """
-    # If path is given, open dataframe
-    if isinstance(df, str):
-        df = pd.read_csv(df)
+    # Open dataframe
+    df = pd.read_csv(df)
 
     # Remove 'All Tasks from Dataframe'
     df = df[df.Task != 'All Tasks']
@@ -511,12 +453,8 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
 
     shape of the data: (hemispheres, tasks, contrasts, subjects)
     """
-    # If path is given, open dataframe
-    if isinstance(df, str):
-        df = pd.read_csv(df)
-
-    # Remove 'All Tasks from Dataframe'
-    # df = df[df.Task != 'All Tasks']
+    # Open dataframe
+    df = pd.read_csv(df)
 
     # Remove Column of Contrasts
     df = df.drop(['Contrast'], axis=1)
@@ -525,8 +463,6 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
     df['PSC'] = df['PSC'].apply(pd.to_numeric)
 
     # Tasks
-    # ttags = list(tasks_dic.keys())[:-1]
-    # tasks_list = list(tasks_dic.values())[:-1]
     ttags = list(tasks_dic.keys())
     tasks_list = list(tasks_dic.values())
 
@@ -581,9 +517,11 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
 
     shape of the data: (hemispheres, tasks, contrasts, subjects)
     """
-    # If path is given, open dataframe
-    if isinstance(df, str):
-        df = pd.read_csv(df).reset_index()
+    # Open dataframe
+    df = pd.read_csv(df)
+
+    # Remove 'All Tasks from Dataframe'
+    df = df[df.Task != 'All Tasks']
 
     # Remove Column of Tasks and Contrasts
     df = df.drop(['Task'], axis=1)
@@ -600,8 +538,6 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
         # Averaged PSC across Tasks, i.e. grouped by Category and Modality ...
         # ... and averaged afterwards
         db = db.groupby(['Category','Modality', 'Subject']).mean().reset_index()
-
-        db.to_csv('test.csv', sep='\t', index=False)
 
         # Create AnovaRM object
         model = AnovaRM(data=db, depvar='PSC', subject='Subject',
@@ -620,7 +556,7 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
             os.mkdir(output_dir)
 
         # Save results in a TSV file...
-        flabel = prefix + '_' + roi + '_' + hem + '_2w-taskcollapsed_'
+        flabel = prefix + '_' + roi + '_' + hem + '_2w-taskavg_'
 
         # ... for ANOVA
         results.anova_table.to_csv(
@@ -639,6 +575,26 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
         # with open(os.path.join(
         #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
         #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
+
+
+def pval_label_converter(pvalues):
+    # * For "star" text_format: `[[1e-4, "****"], [1e-3, "***"],
+    #                         [1e-2, "**"], [0.05, "*"],
+    #                         [1, "ns"]]`.
+    pval_labels = []
+    for pval in pvalues:
+        if pval <= .0001:
+            pval_labels.append('****')
+        elif pval > .0001 and pval <= .001:
+            pval_labels.append('***')
+        elif pval > .001 and pval <= .01:
+            pval_labels.append('**')
+        elif pval > .01 and pval <= .05:
+            pval_labels.append('*')
+        else:
+            pval_labels.append('ns')
+
+    return pval_labels
 
 
 def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
@@ -832,6 +788,10 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 # cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
 #                   'ntk_symmni128': 'd3s', 'ntk_symmni128': 'd3i'}
 
+atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
+region_names = ['striatum', 'cerebellum', 'cerebellum']
+roi_names = ['str', 'cereb-s', 'cereb-i']
+
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
 
@@ -839,126 +799,48 @@ weights_list = [(1.,0.), (.5,.5), (0.,1.)]
 
 if __name__ == '__main__':
 
-    # # # #################### STRIATUM #################################
+    for atlas_name, region_name, roi_name in zip(
+            atlas_names, region_names, roi_names):
+        for tag, wpair in zip(tags, weights_list):
 
-    for tag, wpair in zip(tags, weights_list):
+            # Extraction of individual ROIs using ATAG atlas
+            iroicon_estimation(
+                msdtb_dir, atag_dir, atlas_name, region_name, roi_name,
+                filtered_contrasts, 'wpsc', tag, wpair)
 
-        # # Extraction of individual ROIs using ATAG atlas
-        # str_atag_lnorm_rois = iroicon_estimation(
-        #     msdtb_dir, atag_dir, 'atag-lnorm', 'striatum', 'str',
-        #     filtered_contrasts, 'wpsc', tag, wpair)
+            # # Define output-dir path
+            outdir = os.path.join(msdtb_dir, region_name, atlas_name)
 
-        # # Define output-dir path
-        str_outdir = os.path.join(msdtb_dir, 'striatum/atag-lnorm')
+            # Overlay Individualized Masks
+            if tag != 'g':
+                imasks_dir = os.path.join(outdir, 'individual_rois')
+                overlay_masks(imasks_dir, tag, roi_name)
 
-        # # Overlay Individualized Masks
-        # if tag != 'g':
-        #     imasks_dir = os.path.join(
-        #         str_outpath, 'iroi_analysis/individual_rois')
-        #     overlay_masks(imasks_dir, tag, 'str')
+            # Open ROI file and create dataframe
+            rois_path = os.path.join(
+                outdir, 'rois_extraction', tag + '_' + roi_name + '_psc.npy')
+            anovas_dir = os.path.join(outdir, 'anovas')
+            df_path = os.path.join(
+                anovas_dir, tag + '_' + roi_name + '_df.csv')
+            str_atag_lnorm_df = dataframe(
+                rois_path,
+                ['lh', 'rh'],
+                list(tasks.values()),
+                list(filtered_contrasts.values()),
+                SUBJECTS,
+                df_path)
 
-        # # Open ROI file and create dataframe
-        # str_atag_lnorm_rois = os.path.join(
-        #     str_outpath, 'iroi_analysis', tag + '_str_psc.npy')
-        # str_atag_lnorm_dfpath = os.path.join(
-        #     str_outpath, 'iroi_analysis', tag + '_str_df.csv')
-        # str_atag_lnorm_df = dataframe(
-        #     str_atag_lnorm_rois,
-        #     ['lh', 'rh'],
-        #     list(tasks.values()),
-        #     list(filtered_contrasts.values()),
-        #     SUBJECTS,
-        #     str_atag_lnorm_dfpath)
-
-        # ## Run ANOVAs
-        str_anovas_dir = os.path.join(str_outdir, 'anovas')
-        str_anova_dfpath = os.path.join(str_anovas_dir, tag + '_str_df.csv')
-        # 3-way RM-ANOVA
-        str_3anova_dir = os.path.join(str_anovas_dir, '3way-anova')
-        threeway_rmanova(str_anova_dfpath, str_3anova_dir, tag, 'str')
-        # 2-way RM-ANOVA per task
-        str_t2anova_path = os.path.join(str_anovas_dir, '2way-anova_task')
-        twoway_rmanova_task(str_anova_dfpath, tasks, str_t2anova_path, tag,
-                            'str')
-
-        # 2-way RM-ANOVA collapsed across tasks
-        str_c2anova_path = os.path.join(str_anovas_dir,
-                                        '2way-anova_grouped-tasks')
-        twoway_rmanova_gtasks(str_anova_dfpath, str_c2anova_path, tag, 'str')
-
-
-    # # ##################### CEREBELLUM-s #############################
-
-    # for tag, wpair in zip(tags, weights_list):
-
-    #     # Extraction of individual ROIs using Nettekoven-SymMNI128
-    #     cs_ntk_symmni128_rois = iroicon_estimation(
-    #         msdtb_dir, ntk_dir,
-    #         'ntk_symmni128', 'cerebellum', 'cereb-s',
-    #         filtered_contrasts, 'wpsc', tag, wpair)
-
-    #     # Overlay Individualized Masks
-    #     if tag != 'g':
-    #         imasks_dir = os.path.join(
-    #             msdtb_dir,
-    #             'cerebellum/ntk_symmni128/iroi_analysis/individual_rois')
-    #         overlay_masks(imasks_dir, tag, 'cereb-s')
-
-    #     # Open ROI file and create dataframe
-    #     cs_ntk_symmni128_rois = os.path.join(
-    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
-    #         tag + '_cereb-s_psc.npy')
-    #     cs_ntk_symmni128_dfpath = os.path.join(
-    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
-    #         tag + '_cereb-s_df.csv')
-    #     cs_ntk_symmni128_df = dataframe(
-    #         cs_ntk_symmni128_rois,
-    #         ['lh', 'rh'],
-    #         list(tasks.values()),
-    #         list(filtered_contrasts.values()),
-    #         SUBJECTS,
-    #         cs_ntk_symmni128_dfpath)
-
-    #     # Run ANOVAs
-    #     cs_anova_path = os.path.join(
-    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis/anova')
-
-    #     threeway_rmanova(cs_ntk_symmni128_df, cs_anova_path, tag, 'cereb-s')
-
-    # # ##################### CEREBELLUM-i #############################
-
-    # for tag, wpair in zip(tags, weights_list):
-
-    #     # Extraction of individual ROIs using Nettekoven-SymMNI128
-    #     ci_ntk_symmni128_rois = iroicon_estimation(
-    #         msdtb_dir, ntk_dir,
-    #         'ntk_symmni128', 'cerebellum', 'cereb-i',
-    #         filtered_contrasts, 'wpsc', tag, wpair)
-
-    #     # Overlay Individualized Masks
-    #     if tag != 'g':
-    #         imasks_dir = os.path.join(
-    #             msdtb_dir,
-    #             'cerebellum/ntk_symmni128/iroi_analysis/individual_rois')
-    #         overlay_masks(imasks_dir, tag, 'cereb-i')
-
-    #     # Open ROI file and create dataframes
-    #     ci_ntk_symmni128_rois = os.path.join(
-    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
-    #         tag + '_cereb-i_psc.npy')
-    #     ci_ntk_symmni128_dfpath = os.path.join(
-    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis',
-    #         tag + '_cereb-i_df.csv')
-    #     ci_ntk_symmni128_df = dataframe(
-    #         ci_ntk_symmni128_rois,
-    #         ['lh', 'rh'],
-    #         list(tasks.values()),
-    #         list(filtered_contrasts.values()),
-    #         SUBJECTS,
-    #         ci_ntk_symmni128_dfpath)
-
-    #     # Run ANOVAs
-    #     ci_anova_path = os.path.join(
-    #         msdtb_dir, 'cerebellum/ntk_symmni128/iroi_analysis/anova')
-
-    #     threeway_rmanova(ci_ntk_symmni128_df, ci_anova_path, tag, 'cereb-i')
+            # ## Run ANOVAs
+            # 3-way RM-ANOVA
+            three_anova_dir = os.path.join(anovas_dir, '3way-anova')
+            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+            # 2-way RM-ANOVA per task
+            two_anova_task_dir = os.path.join(
+                anovas_dir, '2way-anova_task')
+            twoway_rmanova_task(
+                df_path, tasks, two_anova_task_dir, tag, roi_name)
+            # 2-way RM-ANOVA collapsed across tasks
+            two_anova_taskavg_dir = os.path.join(
+                anovas_dir, '2way-anova_grouped-tasks')
+            twoway_rmanova_gtasks(
+                df_path, two_anova_taskavg_dir, tag, roi_name)
