@@ -215,7 +215,7 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
 def overlay_masks(pdir, mask_type, roi):
 
     masks_dir = os.path.join(pdir, 'individual_roi_masks')
-    output_dir = os.path.joint(pdir, 'overlaid_masks')
+    output_dir = os.path.join(pdir, 'overlaid_masks')
 
     # Create output_dir, if it does not exist
     if not os.path.exists(output_dir):
