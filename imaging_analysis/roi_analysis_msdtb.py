@@ -393,8 +393,6 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
     # Save dataframe
     df.to_csv(outpath, index=False)
 
-    return df
-
 
 def threeway_rmanova(df, output_dir, prefix, roi):
     """
@@ -788,6 +786,9 @@ ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 
 msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
+# ############################## RUN ####################################
+
+atlas_dirnames = [atag_dir, ntk_dir, ntk_dir]
 atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
 region_names = ['striatum', 'cerebellum', 'cerebellum']
 roi_names = ['str', 'cereb-s', 'cereb-i']
@@ -795,17 +796,15 @@ roi_names = ['str', 'cereb-s', 'cereb-i']
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
 
-# ############################## RUN ####################################
-
 if __name__ == '__main__':
 
-    for atlas_name, region_name, roi_name in zip(
-            atlas_names, region_names, roi_names):
+    for atlas_dirname, atlas_name, region_name, roi_name in zip(
+            atlas_dirnames, atlas_names, region_names, roi_names):
         for tag, wpair in zip(tags, weights_list):
 
             # Extraction of individual ROIs using ATAG atlas
             iroicon_estimation(
-                msdtb_dir, atag_dir, atlas_name, region_name, roi_name,
+                msdtb_dir, atlas_dirname, atlas_name, region_name, roi_name,
                 filtered_contrasts, 'wpsc', tag, wpair)
 
             # # Define output-dir path
@@ -821,13 +820,12 @@ if __name__ == '__main__':
             anovas_dir = os.path.join(outdir, 'anovas')
             df_path = os.path.join(
                 anovas_dir, tag + '_' + roi_name + '_df.csv')
-            str_atag_lnorm_df = dataframe(
-                rois_path,
-                ['lh', 'rh'],
-                list(tasks.values()),
-                list(filtered_contrasts.values()),
-                SUBJECTS,
-                df_path)
+            dataframe(rois_path,
+                      ['lh', 'rh'],
+                      list(tasks.values()),
+                      list(filtered_contrasts.values()),
+                      SUBJECTS,
+                      df_path)
 
             # ## Run ANOVAs
             # 3-way RM-ANOVA
