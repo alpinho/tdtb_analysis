@@ -212,7 +212,9 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
     return iroi_mask
 
 
-def overlay_masks(masks_dir, mask_type, roi):
+def overlay_masks(pdir, mask_type, roi):
+
+    masks_dir = os.path.join(pdir, 'individual_roi_masks')
 
     for hem in ['lh', 'rh']:
         string = mask_type + '_sub-*_' + roi + '_' + hem + '_mask.nii.gz'
@@ -410,10 +412,10 @@ def threeway_rmanova(df, output_dir, prefix, roi):
         results = model.fit()
 
         # Perform pairwise Tukey HSD tests
-        phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
-        phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
-        phoc_task = pairwise_tukeyhsd(db['PSC'], db['Task'], alpha=.05)
-        phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
+        # phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+        # phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+        # phoc_task = pairwise_tukeyhsd(db['PSC'], db['Task'], alpha=.05)
+        # phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
 
         # Create output_dir, if it does not exist
         if not os.path.exists(output_dir):
@@ -427,22 +429,22 @@ def threeway_rmanova(df, output_dir, prefix, roi):
             os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
 
         # ... and for posthoc
-        phoc_flabel = flabel + 'posthoc_'
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
-            fc.write(phoc_category.summary().as_csv(sep='\t'))
+        # phoc_flabel = flabel + 'posthoc_'
+        # with open(os.path.join(
+        #         output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+        #     fc.write(phoc_category.summary().as_csv(sep='\t'))
 
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
-            fm.write(phoc_modality.summary().as_csv(sep='\t'))
+        # with open(os.path.join(
+        #         output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+        #     fm.write(phoc_modality.summary().as_csv(sep='\t'))
 
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'task.tsv'), 'w') as ft:
-            ft.write(phoc_task.summary().as_csv(sep='\t'))
+        # with open(os.path.join(
+        #         output_dir, phoc_flabel + 'task.tsv'), 'w') as ft:
+        #     ft.write(phoc_task.summary().as_csv(sep='\t'))
 
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
-            fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
+        # with open(os.path.join(
+        #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
+        #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
 
 
 def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
@@ -477,8 +479,8 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
             results = model.fit()
 
             # Perform pairwise Tukey HSD tests
-            phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
-            phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+            # phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+            # phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
             # phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
 
             # Create output_dir, if it does not exist
@@ -493,15 +495,14 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
                 os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
 
             # ... and for posthoc
-            phoc_flabel = flabel + 'posthoc_'
-            with open(os.path.join(
-                    output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
-                fc.write(phoc_category.summary().as_csv(sep='\t'))
+            # phoc_flabel = flabel + 'posthoc_'
+            # with open(os.path.join(
+            #         output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+            #     fc.write(phoc_category.summary().as_csv(sep='\t'))
 
-            with open(os.path.join(
-                    output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
-                fm.write(phoc_modality.summary().as_csv(sep='\t'))
-
+            # with open(os.path.join(
+            #         output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+            #     fm.write(phoc_modality.summary().as_csv(sep='\t'))
             # with open(os.path.join(
             #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
             #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
@@ -541,8 +542,8 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
         results = model.fit()
 
         # Perform pairwise Tukey HSD tests
-        phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
-        phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+        # phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+        # phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
         # phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
 
         # Create output_dir, if it does not exist
@@ -557,15 +558,14 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
             os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
 
         # ... and for posthoc
-        phoc_flabel = flabel + 'posthoc_'
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
-            fc.write(phoc_category.summary().as_csv(sep='\t'))
+        # phoc_flabel = flabel + 'posthoc_'
+        # with open(os.path.join(
+        #         output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+        #     fc.write(phoc_category.summary().as_csv(sep='\t'))
 
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
-            fm.write(phoc_modality.summary().as_csv(sep='\t'))
-
+        # with open(os.path.join(
+        #         output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+        #     fm.write(phoc_modality.summary().as_csv(sep='\t'))
         # with open(os.path.join(
         #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
         #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
@@ -803,8 +803,7 @@ if __name__ == '__main__':
 
             # Overlay Individualized Masks
             if tag != 'g':
-                imasks_dir = os.path.join(outdir, 'individual_rois')
-                overlay_masks(imasks_dir, tag, roi_name)
+                overlay_masks(outdir, tag, roi_name)
 
             # Open ROI file and create dataframe
             rois_path = os.path.join(
