@@ -385,9 +385,10 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
                                'Category', 'Modality', 'Task',
                                'Hemisphere'])
 
-    # Create output_dir, if it does not exist
-    if not os.path.exists(outpath):
-        os.mkdir(outpath)
+    # Create outdir, if it does not exist
+    outdir = os.path.dirname(outpath)
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
 
     # Save dataframe
     df.to_csv(outpath, index=False)
