@@ -387,8 +387,6 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
 def threeway_rmanova(df, output_dir, prefix, roi):
     """
     Compute 2 X 2 X 3 RM-ANOVA
-
-    shape of the data: (hemispheres, tasks, contrasts, subjects)
     """
     # Open dataframe
     df = pd.read_csv(df)
@@ -449,9 +447,7 @@ def threeway_rmanova(df, output_dir, prefix, roi):
 
 def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
     """
-    Compute 2 X 2 X 3 RM-ANOVA
-
-    shape of the data: (hemispheres, tasks, contrasts, subjects)
+    Compute 2 X 2 ANOVA per task
     """
     # Open dataframe
     df = pd.read_csv(df)
@@ -513,9 +509,7 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
 
 def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
     """
-    Compute 2 X 2 X 3 RM-ANOVA
-
-    shape of the data: (hemispheres, tasks, contrasts, subjects)
+    Compute 2 X 2 RM-ANOVA across all tasks
     """
     # Open dataframe
     df = pd.read_csv(df)
@@ -783,10 +777,6 @@ atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 
 msdtb_dir = os.path.join(working_dir, 'roi_analyses')
-
-# putamen_dic = {'hos': 'putamen'}
-# cerebellum_dic = {'mniflirt': 'cereb6', 'mniflirt': 'cereb7b8a', 'mniflirt': 'crus1',
-#                   'ntk_symmni128': 'd3s', 'ntk_symmni128': 'd3i'}
 
 atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
 region_names = ['striatum', 'cerebellum', 'cerebellum']
