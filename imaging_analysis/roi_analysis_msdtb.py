@@ -783,15 +783,21 @@ atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
+hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 
 msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
 # ############################## RUN ####################################
 
-atlas_dirnames = [atag_dir, ntk_dir, ntk_dir]
-atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
-region_names = ['striatum', 'cerebellum', 'cerebellum']
-roi_names = ['str', 'cereb-s', 'cereb-i']
+# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir]
+# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
+# region_names = ['striatum', 'cerebellum', 'cerebellum']
+# roi_names = ['str', 'cereb-s', 'cereb-i']
+
+atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir]
+atlas_names = ['hmat', 'hmat', 'hmat']
+region_names = ['motor_area', 'motor_area', 'motor_area']
+roi_names = ['pmd', 'sma', 'presma']
 
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
