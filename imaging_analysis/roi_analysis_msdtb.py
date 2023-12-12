@@ -391,7 +391,7 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
         os.mkdir(outdir)
 
     # Save dataframe
-    df.to_csv(outpath, index=False)
+    df.to_csv(outpath, index=False, sep='\t')
 
 
 def threeway_rmanova(df, output_dir, prefix, roi):
@@ -399,9 +399,9 @@ def threeway_rmanova(df, output_dir, prefix, roi):
     Compute 2 X 2 X 3 RM-ANOVA
     """
     # Open dataframe
-    df = pd.read_csv(df)
+    df = pd.read_csv(df, sep='\t')
 
-    # Remove 'All Tasks from Dataframe'
+    # Remove 'All Tasks rows from Dataframe'
     df = df[df.Task != 'All Tasks']
 
     # Convert PSC entries to numeric type
@@ -420,10 +420,10 @@ def threeway_rmanova(df, output_dir, prefix, roi):
         results = model.fit()
 
         # Perform pairwise Tukey HSD tests
-        # phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
-        # phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
-        # phoc_task = pairwise_tukeyhsd(db['PSC'], db['Task'], alpha=.05)
-        # phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
+        phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+        phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+        phoc_task = pairwise_tukeyhsd(db['PSC'], db['Task'], alpha=.05)
+        phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
 
         # Create output_dir, if it does not exist
         if not os.path.exists(output_dir):
@@ -437,22 +437,22 @@ def threeway_rmanova(df, output_dir, prefix, roi):
             os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
 
         # ... and for posthoc
-        # phoc_flabel = flabel + 'posthoc_'
-        # with open(os.path.join(
-        #         output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
-        #     fc.write(phoc_category.summary().as_csv(sep='\t'))
+        phoc_flabel = flabel + 'posthoc_'
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+            fc.write(phoc_category.summary().as_csv(sep='\t'))
 
-        # with open(os.path.join(
-        #         output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
-        #     fm.write(phoc_modality.summary().as_csv(sep='\t'))
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+            fm.write(phoc_modality.summary().as_csv(sep='\t'))
 
-        # with open(os.path.join(
-        #         output_dir, phoc_flabel + 'task.tsv'), 'w') as ft:
-        #     ft.write(phoc_task.summary().as_csv(sep='\t'))
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'task.tsv'), 'w') as ft:
+            ft.write(phoc_task.summary().as_csv(sep='\t'))
 
-        # with open(os.path.join(
-        #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
-        #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
+            fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
 
 
 def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
@@ -460,10 +460,7 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
     Compute 2 X 2 ANOVA per task
     """
     # Open dataframe
-    df = pd.read_csv(df)
-
-    # Remove Column of Contrasts
-    df = df.drop(['Contrast'], axis=1)
+    df = pd.read_csv(df, sep='\t')
 
     # Convert PSC entries to numeric type
     df['PSC'] = df['PSC'].apply(pd.to_numeric)
@@ -487,9 +484,9 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
             results = model.fit()
 
             # Perform pairwise Tukey HSD tests
-            # phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
-            # phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
-            # phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
+            phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+            phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+            phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
 
             # Create output_dir, if it does not exist
             if not os.path.exists(output_dir):
@@ -503,17 +500,17 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
                 os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
 
             # ... and for posthoc
-            # phoc_flabel = flabel + 'posthoc_'
-            # with open(os.path.join(
-            #         output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
-            #     fc.write(phoc_category.summary().as_csv(sep='\t'))
+            phoc_flabel = flabel + 'posthoc_'
+            with open(os.path.join(
+                    output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+                fc.write(phoc_category.summary().as_csv(sep='\t'))
 
-            # with open(os.path.join(
-            #         output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
-            #     fm.write(phoc_modality.summary().as_csv(sep='\t'))
-            # with open(os.path.join(
-            #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
-            #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
+            with open(os.path.join(
+                    output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+                fm.write(phoc_modality.summary().as_csv(sep='\t'))
+            with open(os.path.join(
+                    output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
+                fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
 
 
 def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
@@ -521,14 +518,13 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
     Compute 2 X 2 RM-ANOVA across all tasks
     """
     # Open dataframe
-    df = pd.read_csv(df)
+    df = pd.read_csv(df, sep='\t')
 
-    # Remove 'All Tasks from Dataframe'
+    # Remove 'All Tasks rows from Dataframe'
     df = df[df.Task != 'All Tasks']
 
-    # Remove Column of Tasks and Contrasts
+    # Remove Column of Tasks
     df = df.drop(['Task'], axis=1)
-    df = df.drop(['Contrast'], axis=1)
 
     # Convert PSC entries to numeric type
     df['PSC'] = df['PSC'].apply(pd.to_numeric)
@@ -540,7 +536,8 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
 
         # Averaged PSC across Tasks, i.e. grouped by Category and Modality ...
         # ... and averaged afterwards
-        db = db.groupby(['Category','Modality', 'Subject']).mean().reset_index()
+        db = db.groupby(['Category', 'Modality',
+                         'Contrast', 'Subject']).mean().reset_index()
 
         # Create AnovaRM object
         model = AnovaRM(data=db, depvar='PSC', subject='Subject',
@@ -550,9 +547,9 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
         results = model.fit()
 
         # Perform pairwise Tukey HSD tests
-        # phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
-        # phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
-        # phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
+        phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
+        phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
+        phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
 
         # Create output_dir, if it does not exist
         if not os.path.exists(output_dir):
@@ -566,17 +563,17 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
             os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
 
         # ... and for posthoc
-        # phoc_flabel = flabel + 'posthoc_'
-        # with open(os.path.join(
-        #         output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
-        #     fc.write(phoc_category.summary().as_csv(sep='\t'))
+        phoc_flabel = flabel + 'posthoc_'
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
+            fc.write(phoc_category.summary().as_csv(sep='\t'))
 
-        # with open(os.path.join(
-        #         output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
-        #     fm.write(phoc_modality.summary().as_csv(sep='\t'))
-        # with open(os.path.join(
-        #         output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
-        #     fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
+            fm.write(phoc_modality.summary().as_csv(sep='\t'))
+        with open(os.path.join(
+                output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
+            fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
 
 
 def pval_label_converter(pvalues):
@@ -794,10 +791,24 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 # region_names = ['striatum', 'cerebellum', 'cerebellum']
 # roi_names = ['str', 'cereb-s', 'cereb-i']
 
-atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir]
-atlas_names = ['hmat', 'hmat', 'hmat']
-region_names = ['motor_area', 'motor_area', 'motor_area']
-roi_names = ['pmd', 'sma', 'presma']
+# atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir]
+# atlas_names = ['hmat', 'hmat', 'hmat']
+# region_names = ['motor_area', 'motor_area', 'motor_area']
+# roi_names = ['pmd', 'sma', 'presma']
+
+# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
+#                   hmat_dir, hmat_dir, hmat_dir]
+# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat']
+# region_names = ['striatum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area']
+# roi_names = ['str', 'cereb-s', 'cereb-i',
+#              'pmd', 'sma', 'presma']
+
+atlas_dirnames = [atag_dir]
+atlas_names = ['atag-lnorm']
+region_names = ['striatum']
+roi_names = ['str']
 
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
@@ -808,24 +819,24 @@ if __name__ == '__main__':
             atlas_dirnames, atlas_names, region_names, roi_names):
         for tag, wpair in zip(tags, weights_list):
 
-            # Extraction of individual ROIs using ATAG atlas
-            iroicon_estimation(
-                msdtb_dir, atlas_dirname, atlas_name, region_name, roi_name,
-                filtered_contrasts, 'wpsc', tag, wpair)
+            # # Extraction of individual ROIs using ATAG atlas
+            # iroicon_estimation(
+            #     msdtb_dir, atlas_dirname, atlas_name, region_name, roi_name,
+            #     filtered_contrasts, 'wpsc', tag, wpair)
 
             # # Define output-dir path
             outdir = os.path.join(msdtb_dir, region_name, atlas_name)
 
-            # Overlay Individualized Masks
-            if tag != 'g':
-                overlay_masks(outdir, tag, roi_name)
+            # # Overlay Individualized Masks
+            # if tag != 'g':
+            #     overlay_masks(outdir, tag, roi_name)
 
             # Open ROI file and create dataframe
             rois_path = os.path.join(
                 outdir, 'rois_extraction', tag + '_' + roi_name + '_psc.npy')
             anovas_dir = os.path.join(outdir, 'anovas')
             df_path = os.path.join(
-                anovas_dir, tag + '_' + roi_name + '_df.csv')
+                anovas_dir, tag + '_' + roi_name + '_df.tsv')
             dataframe(rois_path,
                       ['lh', 'rh'],
                       list(tasks.values()),
@@ -833,16 +844,19 @@ if __name__ == '__main__':
                       SUBJECTS,
                       df_path)
 
-            # ## Run ANOVAs
-            # 3-way RM-ANOVA
-            three_anova_dir = os.path.join(anovas_dir, '3way-anova')
-            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+            # ## Run ANOVAs ##
+
+            # # 3-way RM-ANOVA
+            # three_anova_dir = os.path.join(anovas_dir, '3way-anova')
+            # threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+
             # 2-way RM-ANOVA per task
             two_anova_task_dir = os.path.join(
                 anovas_dir, '2way-anova_task')
             twoway_rmanova_task(
                 df_path, tasks, two_anova_task_dir, tag, roi_name)
-            # 2-way RM-ANOVA collapsed across tasks
+
+            # # 2-way RM-ANOVA collapsed across tasks
             two_anova_taskavg_dir = os.path.join(
                 anovas_dir, '2way-anova_grouped-tasks')
             twoway_rmanova_gtasks(
