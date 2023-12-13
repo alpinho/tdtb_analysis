@@ -25,8 +25,10 @@ from nilearn.input_data import NiftiLabelsMasker
 import seaborn as sns
 from statannotations.Annotator import Annotator
 from statsmodels.stats.anova import AnovaRM
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from statsmodels.stats.multicomp import pairwise_tukeyhsd, MultiComparison
 from matplotlib import pyplot as plt
+
+import pingouin as pg
 
 
 # ############################ FUNCTIONS ################################
@@ -419,11 +421,18 @@ def threeway_rmanova(df, output_dir, prefix, roi):
         # Run the 3-way repeated measures ANOVA
         results = model.fit()
 
-        # Perform pairwise Tukey HSD tests
-        phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
-        phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
-        phoc_task = pairwise_tukeyhsd(db['PSC'], db['Task'], alpha=.05)
-        phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
+        # Perform pairwise t-tests corrected w/ Holm's procedure
+        mccat = MultiComparison(db['PSC'], db['Category'])
+        phoc_category = mccat.allpairtest(ttest_rel, method='Holm')[0]
+
+        mcmod = MultiComparison(db['PSC'], db['Modality'])
+        phoc_modality = mcmod.allpairtest(ttest_rel, method='Holm')[0]
+
+        mctask = MultiComparison(db['PSC'], db['Task'])
+        phoc_task = mctask.allpairtest(ttest_rel, method='Holm')[0]
+
+        mccatmod = MultiComparison(db['PSC'], db['Contrast'])
+        phoc_catmod = mccatmod.allpairtest(ttest_rel, method='Holm')[0]
 
         # Create output_dir, if it does not exist
         if not os.path.exists(output_dir):
@@ -438,21 +447,22 @@ def threeway_rmanova(df, output_dir, prefix, roi):
 
         # ... and for posthoc
         phoc_flabel = flabel + 'posthoc_'
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'category.tsv'), 'w') as fc:
-            fc.write(phoc_category.summary().as_csv(sep='\t'))
 
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'modality.tsv'), 'w') as fm:
-            fm.write(phoc_modality.summary().as_csv(sep='\t'))
+        pd.DataFrame(phoc_category).to_csv(
+            os.path.join(output_dir, phoc_flabel + 'category.tsv'),
+            index=False, header=False, sep='\t')
 
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'task.tsv'), 'w') as ft:
-            ft.write(phoc_task.summary().as_csv(sep='\t'))
+        pd.DataFrame(phoc_modality).to_csv(
+            os.path.join(output_dir, phoc_flabel + 'modality.tsv'),
+            index=False, header=False, sep='\t')
 
-        with open(os.path.join(
-                output_dir, phoc_flabel + 'catmod.tsv'), 'w') as fcon:
-            fcon.write(phoc_catmod.summary().as_csv(sep='\t'))
+        pd.DataFrame(phoc_task).to_csv(
+            os.path.join(output_dir, phoc_flabel + 'task.tsv'),
+            index=False, header=False, sep='\t')
+
+        pd.DataFrame(phoc_catmod).to_csv(
+            os.path.join(output_dir, phoc_flabel + 'catmod.tsv'),
+            index=False, header=False, sep='\t')
 
 
 def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
@@ -546,10 +556,15 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
         # Run the 3-way repeated measures ANOVA
         results = model.fit()
 
-        # Perform pairwise Tukey HSD tests
+        pg.rm_anova(data=db, dv='PSC', within=['Category', 'Modality'], subject='Subject')
+
+        # Perform pairwise t-tests w/ Holm's procedure
         phoc_category = pairwise_tukeyhsd(db['PSC'], db['Category'], alpha=.05)
         phoc_modality = pairwise_tukeyhsd(db['PSC'], db['Modality'], alpha=.05)
         phoc_catmod = pairwise_tukeyhsd(db['PSC'], db['Contrast'], alpha=.05)
+
+        pingres = pg.pairwise_tukey(data=db, dv='PSC', within=['Category', 'Modality'],
+                                    subject='Subject', return_desc=True, padjust='cohen')
 
         # Create output_dir, if it does not exist
         if not os.path.exists(output_dir):
@@ -796,19 +811,19 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 # region_names = ['motor_area', 'motor_area', 'motor_area']
 # roi_names = ['pmd', 'sma', 'presma']
 
-# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
-#                   hmat_dir, hmat_dir, hmat_dir]
-# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat']
-# region_names = ['striatum', 'cerebellum', 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area']
-# roi_names = ['str', 'cereb-s', 'cereb-i',
-#              'pmd', 'sma', 'presma']
+atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
+                  hmat_dir, hmat_dir, hmat_dir]
+atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
+               'hmat', 'hmat', 'hmat']
+region_names = ['striatum', 'cerebellum', 'cerebellum',
+                'motor_area', 'motor_area', 'motor_area']
+roi_names = ['str', 'cereb-s', 'cereb-i',
+             'pmd', 'sma', 'presma']
 
-atlas_dirnames = [atag_dir]
-atlas_names = ['atag-lnorm']
-region_names = ['striatum']
-roi_names = ['str']
+# atlas_dirnames = [ntk_dir, ntk_dir]
+# atlas_names = ['ntk_symmni128', 'ntk_symmni128']
+# region_names = ['cerebellum', 'cerebellum']
+# roi_names = ['cereb-s', 'cereb-i']
 
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
@@ -846,18 +861,18 @@ if __name__ == '__main__':
 
             # ## Run ANOVAs ##
 
-            # # 3-way RM-ANOVA
-            # three_anova_dir = os.path.join(anovas_dir, '3way-anova')
-            # threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+            # 3-way RM-ANOVA
+            three_anova_dir = os.path.join(anovas_dir, '3way-anova')
+            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
 
-            # 2-way RM-ANOVA per task
-            two_anova_task_dir = os.path.join(
-                anovas_dir, '2way-anova_task')
-            twoway_rmanova_task(
-                df_path, tasks, two_anova_task_dir, tag, roi_name)
+            # # 2-way RM-ANOVA per task
+            # two_anova_task_dir = os.path.join(
+            #     anovas_dir, '2way-anova_task')
+            # twoway_rmanova_task(
+            #     df_path, tasks, two_anova_task_dir, tag, roi_name)
 
             # # 2-way RM-ANOVA collapsed across tasks
-            two_anova_taskavg_dir = os.path.join(
-                anovas_dir, '2way-anova_grouped-tasks')
-            twoway_rmanova_gtasks(
-                df_path, two_anova_taskavg_dir, tag, roi_name)
+            # two_anova_taskavg_dir = os.path.join(
+            #     anovas_dir, '2way-anova_grouped-tasks')
+            # twoway_rmanova_gtasks(
+            #     df_path, two_anova_taskavg_dir, tag, roi_name)
