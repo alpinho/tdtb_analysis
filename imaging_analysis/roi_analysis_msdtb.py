@@ -509,12 +509,14 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
 
             # ... for ANOVA
             anova_results.to_csv(
-                os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
+                os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t',
+                index=False)
 
             # ... and for posthoc
             phoc_flabel = flabel + 'posthoc'
             posthoc_results.to_csv(
-                os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t')
+                os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t',
+                index=False)
 
 
 def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
@@ -565,12 +567,72 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
 
         # ... for ANOVA
         anova_results.to_csv(
-            os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t')
+            os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t',
+            index=False)
 
         # ... and for posthoc
         phoc_flabel = flabel + 'posthoc'
         posthoc_results.to_csv(
-            os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t')
+            os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t',
+            index=False)
+
+
+def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi):
+    """
+    Compute one-way ANOVA: one categorical variable, i.e. category,
+    with two levels (equivalent to pptest; function for sanity check)
+    """
+    # Open dataframe
+    df = pd.read_csv(df, sep='\t')
+
+    # Remove Column of Contrasts
+    df = df.drop(['Contrast'], axis=1)
+
+    # Convert PSC entries to numeric type
+    df['PSC'] = df['PSC'].apply(pd.to_numeric)
+
+    # Tasks
+    ttags = list(tasks_dic.keys())
+    tasks_list = list(tasks_dic.values())
+
+    # For each task:
+    for ttag, task in zip(ttags, tasks_list):
+        # For each modality:
+        for modality in ['Auditory', 'Visual']:
+            # For each hemisphere:
+            for hem in ['lh', 'rh']:
+                db = pd.DataFrame()
+                db = df[df.Task == task][df.Modality == modality][
+                    df.Hemisphere == hem]
+
+                # Run the 2-way repeated measures ANOVA
+                anova_results = pg.rm_anova(
+                    data=db, dv='PSC', within='Category', subject='Subject',
+                    correction=True, detailed=True, effsize='ng2')
+
+                # Perform pairwise t-tests corrected w/ Holm's procedure
+                posthoc_results = pg.pairwise_tests(
+                    data=db, dv='PSC', within='Category', subject='Subject',
+                    return_desc=True, padjust='holm', effsize='eta-square')
+
+                # Create output_dir, if it does not exist
+                if not os.path.exists(output_dir):
+                    os.mkdir(output_dir)
+
+                # Save results in a TSV file...
+                flabel = prefix + '_' + roi + '_' + hem + '_2w-' + \
+                    ttag + '_' + modality.lower() + '_'
+
+                # ... for ANOVA
+                anova_results.to_csv(
+                    os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t',
+                    index=False)
+
+                # ... and for posthoc
+                phoc_flabel = flabel + 'posthoc'
+                posthoc_results.to_csv(
+                    os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t',
+                    index=False)
 
 
 def pval_label_converter(pvalues):
@@ -850,13 +912,19 @@ if __name__ == '__main__':
             # threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
 
             # 2-way RM-ANOVA per task
-            two_anova_task_dir = os.path.join(
+            twoway_anova_task_dir = os.path.join(
                 anovas_dir, '2way-anova_task')
             twoway_rmanova_task(
-                df_path, tasks, two_anova_task_dir, tag, roi_name)
+                df_path, tasks, twoway_anova_task_dir, tag, roi_name)
 
             # 2-way RM-ANOVA collapsed across tasks
-            two_anova_taskavg_dir = os.path.join(
+            twoway_anova_taskavg_dir = os.path.join(
                 anovas_dir, '2way-anova_grouped-tasks')
             twoway_rmanova_gtasks(
-                df_path, two_anova_taskavg_dir, tag, roi_name)
+                df_path, twoway_anova_taskavg_dir, tag, roi_name)
+
+            # 1-way RM-ANOVA for beat/interval
+            oneway_anova_task_dir = os.path.join(
+                anovas_dir, '1way-anova')
+            oneway_rmanova(
+                df_path, tasks, oneway_anova_task_dir, tag, roi_name)
