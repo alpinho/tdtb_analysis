@@ -491,8 +491,7 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi):
             # Run the 2-way repeated measures ANOVA
             anova_results = pg.rm_anova(
                 data=db, dv='PSC', within=['Category', 'Modality'],
-                subject='Subject', correction=True, detailed=True,
-                effsize='ng2')
+                subject='Subject', detailed=True)
 
             # Perform pairwise t-tests corrected w/ Holm's procedure
             posthoc_results = pg.pairwise_tests(
@@ -549,8 +548,7 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
         # Run the 2-way repeated measures ANOVA
         anova_results = pg.rm_anova(
             data=db, dv='PSC', within=['Category', 'Modality'],
-            subject='Subject', correction=True, detailed=True,
-            effsize='ng2')
+            subject='Subject', detailed=True)
 
         # Perform pairwise t-tests corrected w/ Holm's procedure
         posthoc_results = pg.pairwise_tests(
@@ -608,7 +606,7 @@ def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi):
                 # Run the 2-way repeated measures ANOVA
                 anova_results = pg.rm_anova(
                     data=db, dv='PSC', within='Category', subject='Subject',
-                    correction=True, detailed=True, effsize='ng2')
+                    detailed=True)
 
                 # Perform pairwise t-tests corrected w/ Holm's procedure
                 posthoc_results = pg.pairwise_tests(
