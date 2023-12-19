@@ -23,7 +23,7 @@ def binarize(mask_path, label):
 
     # Load
     mask = load_img(mask_path)
-    mask_val = mask.get_fdata()
+    mask_val = mask.get_fdata().astype(np.uint8)
 
     # Binarization
     bin_mask_val = (mask_val == label)
