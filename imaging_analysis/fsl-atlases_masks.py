@@ -24,7 +24,7 @@ def binarize(mask_path, threshold):
     mask = load_img(mask_path)
 
     # Threshold
-    thresholded_mask_val = mask.get_fdata()
+    thresholded_mask_val = mask.get_fdata().astype(np.uint8)
     thresholded_mask_val[thresholded_mask_val < threshold] = 0.
 
     # Binarization

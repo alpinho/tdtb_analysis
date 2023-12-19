@@ -11,6 +11,7 @@ Compatibility: Python 3.10.10
 """
 
 import os
+import numpy as np
 
 from nilearn.image import load_img, new_img_like
 
@@ -24,7 +25,7 @@ def binarize(mask_path, label):
     mask = load_img(mask_path)
 
     # Threshold
-    thresholded_mask_val = mask.get_fdata()
+    thresholded_mask_val = mask.get_fdata().astype(np.uint8)
     thresholded_mask_val[thresholded_mask_val != label] = 0
 
     # Binarization
@@ -43,7 +44,7 @@ atlases_dir = os.path.join(working_dir, 'atlases')
 data_dir = '/home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/derivatives'
 
 # ### AAL3 ###
-aal3 = os.path.join(atlases_dir, 'aal3')
+aal3 = os.path.join(atlases_dir, 'aal3_atlas')
 aal3_outputs = os.path.join(aal3, 'outputs')
 
 aal3_masks = os.path.join(aal3, 'AAL3')

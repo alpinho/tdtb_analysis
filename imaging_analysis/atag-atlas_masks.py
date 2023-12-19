@@ -11,6 +11,7 @@ Compatibility: Python 3.10.8
 """
 
 import os
+import numpy as np
 
 from nilearn.image import load_img, new_img_like
 
@@ -24,7 +25,7 @@ def binarize(mask_path, threshold):
     mask = load_img(mask_path)
 
     # Threshold
-    thresholded_mask_val = mask.get_fdata()
+    thresholded_mask_val = mask.get_fdata().astype(np.uint8)
     thresholded_mask_val[thresholded_mask_val < threshold] = 0
 
     # Binarization
