@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: December 2023
+Last update: January 2024
 
 Compatibility: Python 3.10.8
 
@@ -624,7 +624,7 @@ def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi):
                     os.mkdir(output_dir)
 
                 # Save results in a TSV file...
-                flabel = prefix + '_' + roi + '_' + hem + '_2w-' + \
+                flabel = prefix + '_' + roi + '_' + hem + '_1w-' + \
                     ttag + '_' + modality.lower() + '_'
 
                 # ... for ANOVA
@@ -906,16 +906,6 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
 # ############################## RUN ####################################
 
-# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir]
-# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
-# region_names = ['striatum', 'cerebellum', 'cerebellum']
-# roi_names = ['str', 'cereb-s', 'cereb-i']
-
-# atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir]
-# atlas_names = ['hmat', 'hmat', 'hmat']
-# region_names = ['motor_area', 'motor_area', 'motor_area']
-# roi_names = ['pmd', 'sma', 'presma']
-
 atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
                   hmat_dir, hmat_dir, hmat_dir]
 atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
@@ -925,15 +915,10 @@ region_names = ['striatum', 'cerebellum', 'cerebellum',
 roi_names = ['str', 'cereb-s', 'cereb-i',
              'pmd', 'sma', 'presma']
 
-# atlas_dirnames = [ntk_dir, ntk_dir]
-# atlas_names = ['ntk_symmni128', 'ntk_symmni128']
-# region_names = ['cerebellum', 'cerebellum']
-# roi_names = ['cereb-s', 'cereb-i']
-
-# atlas_dirnames = [ntk_dir]
-# atlas_names = ['ntk_symmni128']
-# region_names = ['cerebellum']
-# roi_names = ['cereb-s']
+# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir]
+# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
+# region_names = ['striatum', 'cerebellum', 'cerebellum']
+# roi_names = ['str', 'cereb-s', 'cereb-i']
 
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
@@ -963,9 +948,9 @@ if __name__ == '__main__':
                 outdir = os.path.join(msdtb_dir, region_name, atlas_name,
                                       roi_name)
 
-            # # Overlay Individualized Masks
-            # if tag != 'g':
-            #     overlay_masks(outdir, tag, roi_name)
+            # Overlay Individualized Masks
+            if tag != 'g':
+                overlay_masks(outdir, tag, roi_name)
 
             # Open ROI file and create paths
             rois_path = os.path.join(
@@ -988,7 +973,7 @@ if __name__ == '__main__':
             # Append dataframe
             dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
 
-            ## Run ANOVAs ##
+            # ## Run ANOVAs ##
 
             # 3-way RM-ANOVA
             three_anova_dir = os.path.join(anovas_dir, '3way-anova')
@@ -1014,7 +999,5 @@ if __name__ == '__main__':
 
         # 2-way RM-ANOVA for roi and category and only for auditory tasks
         twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_catroi')
+            msdtb_dir, '2way-anova_cat6rois_hem')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
-
-
