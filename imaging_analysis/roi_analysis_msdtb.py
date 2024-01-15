@@ -640,20 +640,30 @@ def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi):
 
 
 def twoway_rmanova_catroi(df, tasks_dic, output_dir, prefix,
-                          alternative='two-sided'):
+                          alternative='two-sided', modality=None):
     """
     Compute 2 X 2 ANOVA per task
     """
 
-    # Remove 'Visual' rows from Dataframe
-    df = df[df.Modality != 'Visual']
-
-    # Remove Column of Contrasts and Modality
+    # Remove Column of Contrasts
     df = df.drop(['Contrast'], axis=1)
-    df = df.drop(['Modality'], axis=1)
 
     # Convert PSC entries to numeric type
     df['PSC'] = df['PSC'].apply(pd.to_numeric)
+
+    if modality is None:
+        df = df.drop(['Modality'], axis=1)
+        # Averaged PSC across Modalities, i.e. grouped by Category and Task ...
+        # ... and averaged afterwards
+        df = df.groupby(['Category', 'Task', 'Subject', 'ROI',
+                         'Hemisphere']).mean().reset_index()
+    elif modality == 'auditory':
+        df = df[df.Modality == 'Auditory']
+        df = df.drop(['Modality'], axis=1)
+    else:
+        assert modality == 'visual'
+        df = df[df.Modality == 'Visual']
+        df = df.drop(['Modality'], axis=1)
 
     # Tasks
     ttags = list(tasks_dic.keys())
@@ -668,12 +678,12 @@ def twoway_rmanova_catroi(df, tasks_dic, output_dir, prefix,
 
             # Run the 2-way repeated measures ANOVA
             anova_results = pg.rm_anova(
-                data=db, dv='PSC', within=['Category', 'ROI'],
+                data=db, dv='PSC', within=['ROI', 'Category'],
                 subject='Subject', detailed=True)
 
             # Perform pairwise t-tests corrected w/ Holm's procedure
             posthoc_results = pg.pairwise_tests(
-                data=db, dv='PSC', within=['Category', 'ROI'],
+                data=db, dv='PSC', within=['ROI', 'Category'],
                 subject='Subject', alternative=alternative, return_desc=True,
                 padjust='holm', effsize='eta-square')
 
@@ -906,19 +916,21 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
 # ############################## RUN ####################################
 
-atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
-                  hmat_dir, hmat_dir, hmat_dir]
-atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
-               'hmat', 'hmat', 'hmat']
-region_names = ['striatum', 'cerebellum', 'cerebellum',
-                'motor_area', 'motor_area', 'motor_area']
-roi_names = ['str', 'cereb-s', 'cereb-i',
-             'pmd', 'sma', 'presma']
+# 6 ROIs
+# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
+#                   hmat_dir, hmat_dir, hmat_dir]
+# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat']
+# region_names = ['striatum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area']
+# roi_names = ['str', 'cereb-s', 'cereb-i',
+#              'pmd', 'sma', 'presma']
 
-# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir]
-# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
-# region_names = ['striatum', 'cerebellum', 'cerebellum']
-# roi_names = ['str', 'cereb-s', 'cereb-i']
+# 3 ROIs
+atlas_dirnames = [atag_dir, ntk_dir, ntk_dir]
+atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
+region_names = ['striatum', 'cerebellum', 'cerebellum']
+roi_names = ['str', 'cereb-s', 'cereb-i']
 
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
@@ -948,9 +960,12 @@ if __name__ == '__main__':
                 outdir = os.path.join(msdtb_dir, region_name, atlas_name,
                                       roi_name)
 
+            # ##################### 6 ROIs ##############################
             # Overlay Individualized Masks
-            if tag != 'g':
-                overlay_masks(outdir, tag, roi_name)
+            # if tag != 'g':
+            #     overlay_masks(outdir, tag, roi_name)
+
+            # ###########################################################
 
             # Open ROI file and create paths
             rois_path = os.path.join(
@@ -974,30 +989,53 @@ if __name__ == '__main__':
             dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
 
             # ## Run ANOVAs ##
+            # ##################### 6 ROIs ##############################
 
-            # 3-way RM-ANOVA
-            three_anova_dir = os.path.join(anovas_dir, '3way-anova')
-            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+            # # 3-way RM-ANOVA
+            # three_anova_dir = os.path.join(anovas_dir, '3way-anova')
+            # threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
 
-            # 2-way RM-ANOVA per task
-            twoway_anova_task_dir = os.path.join(
-                anovas_dir, '2way-anova_task')
-            twoway_rmanova_task(
-                df_path, tasks, twoway_anova_task_dir, tag, roi_name)
+            # # 2-way RM-ANOVA per task
+            # twoway_anova_task_dir = os.path.join(
+            #     anovas_dir, '2way-anova_task')
+            # twoway_rmanova_task(
+            #     df_path, tasks, twoway_anova_task_dir, tag, roi_name)
 
-            # 2-way RM-ANOVA collapsed across tasks
-            twoway_anova_taskavg_dir = os.path.join(
-                anovas_dir, '2way-anova_grouped-tasks')
-            twoway_rmanova_gtasks(
-                df_path, twoway_anova_taskavg_dir, tag, roi_name)
+            # # 2-way RM-ANOVA collapsed across tasks
+            # twoway_anova_taskavg_dir = os.path.join(
+            #     anovas_dir, '2way-anova_grouped-tasks')
+            # twoway_rmanova_gtasks(
+            #     df_path, twoway_anova_taskavg_dir, tag, roi_name)
 
-            # 1-way RM-ANOVA for beat/interval
-            oneway_anova_task_dir = os.path.join(
-                anovas_dir, '1way-anova')
-            oneway_rmanova(
-                df_path, tasks, oneway_anova_task_dir, tag, roi_name)
+            # # 1-way RM-ANOVA for beat/interval
+            # oneway_anova_task_dir = os.path.join(
+            #     anovas_dir, '1way-anova')
+            # oneway_rmanova(
+            #     df_path, tasks, oneway_anova_task_dir, tag, roi_name)
 
-        # 2-way RM-ANOVA for roi and category and only for auditory tasks
+        # ##################### 6 ROIs ##################################
+        # 2-way RM-ANOVA for roi and category for both modalities
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat6rois_hem')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+
+        # ##################### 3 ROIs ##################################
+        # 2-way RM-ANOVA for roi and category for both modalities
         twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat6rois_hem')
+            msdtb_dir, '2way-anova_cat3rois_hem')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+
+        # 2-way RM-ANOVA for roi and category for auditory tasks
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat3rois_hem_auditory')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+                              modality='auditory')
+
+        # 2-way RM-ANOVA for roi and category for vision tasks
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat3rois_hem_visual')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+                              modality='visual')
+
+
+# TODO: plot and do the same but merging cerebellum s+i and merging lh+rh for both rois
