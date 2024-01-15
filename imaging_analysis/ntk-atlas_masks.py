@@ -54,6 +54,25 @@ def create_cerebellum_quadrants(lutfile, atlas_path, tag, quadrant_path):
     quadrant.to_filename(quadrant_path)
 
 
+def combine_masks(maskpath1, maskpath2, combined_maskpath):
+
+    # Load
+    mask1 = load_img(maskpath1)
+    mask2 = load_img(maskpath2)
+
+    # Get data
+    mask1_val = mask1.get_fdata().astype(np.uint8)
+    mask2_val = mask2.get_fdata().astype(np.uint8)
+
+    # Merge masks in one single file
+    combined_mask_val = mask1_val + mask2_val
+    combined_mask_val[combined_mask_val == 2] = 1
+    combined_mask = new_img_like(mask1, combined_mask_val)
+
+    # Save file
+    combined_mask.to_filename(combined_maskpath)
+
+
 # ############################# INPUTS ##################################
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
@@ -74,10 +93,19 @@ ntk_symmni128_i_lh_maskpath = os.path.join(
 ntk_symmni128_i_rh_maskpath = os.path.join(
     ntk_dir, 'ntk_symmni128_cereb-i_rh_mask.nii.gz')
 
+ntk_symmni128_lh_maskpath = os.path.join(
+    ntk_dir, 'ntk_symmni128_cerebellum_lh_mask.nii.gz')
+ntk_symmni128_rh_maskpath = os.path.join(
+    ntk_dir, 'ntk_symmni128_cerebellum_rh_mask.nii.gz')
+
+ntk_symmni128_maskpath = os.path.join(
+    ntk_dir, 'ntk_symmni128_cerebellum_mask.nii.gz')
+
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
 
+    # Masks of Cerebellum quadrants
     create_cerebellum_quadrants(ntk_symmni128_lutpath, ntk_symmni128_path,
                                 'Ls', ntk_symmni128_s_lh_maskpath)
     create_cerebellum_quadrants(ntk_symmni128_lutpath, ntk_symmni128_path,
@@ -86,3 +114,13 @@ if __name__ == '__main__':
                                 'Li', ntk_symmni128_i_lh_maskpath)
     create_cerebellum_quadrants(ntk_symmni128_lutpath, ntk_symmni128_path,
                                 'Ri', ntk_symmni128_i_rh_maskpath)
+
+    # Masks of Cerebellum s-i hemispheres
+    combine_masks(ntk_symmni128_s_lh_maskpath, ntk_symmni128_i_lh_maskpath,
+                  ntk_symmni128_lh_maskpath)
+    combine_masks(ntk_symmni128_s_rh_maskpath, ntk_symmni128_i_rh_maskpath,
+                  ntk_symmni128_rh_maskpath)
+
+    # Mask of s-i Cerebellum (but vermis and tertiary)
+    combine_masks(ntk_symmni128_lh_maskpath, ntk_symmni128_rh_maskpath,
+                  ntk_symmni128_maskpath)
