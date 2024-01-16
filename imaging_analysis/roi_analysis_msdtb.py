@@ -260,7 +260,8 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
 
 
 def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
-                       contype, prefix, weights=None, subregion=False):
+                       contype, prefix, weights=None, subregion=False,
+                       hems=['lh', 'rh', 'bh']):
 
     if subregion:
         roi_dir = os.path.join(main_dir, region, atlas, roi)
@@ -281,7 +282,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
 
     # ### For each hemisphere ###
     roi_hems = []
-    for hem in ['lh', 'rh']:
+    for hem in hems:
         atlasreg_maskpath = os.path.join(
             atlas_dir, atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
 
@@ -496,7 +497,7 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi,
 
             # Run the 2-way repeated measures ANOVA
             anova_results = pg.rm_anova(
-                data=db, dv='PSC', within=['Category', 'Modality'],
+                data=db, dv='PSC', within=['Modality', 'Category'],
                 subject='Subject', detailed=True)
 
             # Perform pairwise t-tests corrected w/ Holm's procedure
@@ -553,7 +554,7 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
 
         # Run the 2-way repeated measures ANOVA
         anova_results = pg.rm_anova(
-            data=db, dv='PSC', within=['Category', 'Modality'],
+            data=db, dv='PSC', within=['Modality', 'Category'],
             subject='Subject', detailed=True)
 
         # Perform pairwise t-tests corrected w/ Holm's procedure
@@ -912,11 +913,11 @@ atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 
-msdtb_dir = os.path.join(working_dir, 'roi_analyses_hem')
+msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
 # ############################## RUN ####################################
 
-# 6 ROIs
+# 6 ROIs (old)
 # atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
 #                   hmat_dir, hmat_dir, hmat_dir]
 # atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
@@ -926,16 +927,27 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses_hem')
 # roi_names = ['str', 'cereb-s', 'cereb-i',
 #              'pmd', 'sma', 'presma']
 
-# 3 ROIs
-# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir]
-# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128']
-# region_names = ['striatum', 'cerebellum', 'cerebellum']
-# roi_names = ['str', 'cereb-s', 'cereb-i']
+# 6 ROIs
+atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir,
+                  hmat_dir, hmat_dir, hmat_dir]
+atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128',
+               'hmat', 'hmat', 'hmat']
+region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum',
+                'motor_area', 'motor_area', 'motor_area']
+roi_names = ['dstr', 'cereb-s', 'cereb-i',
+             'pmd', 'sma', 'presma']
 
-atlas_dirnames = [ntk_dir, ntk_dir]
-atlas_names = ['ntk_symmni128', 'ntk_symmni128']
-region_names = ['cerebellum', 'cerebellum']
-roi_names = ['cerebellum', 'cerebellum']
+# # 3 ROIs
+# atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
+# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128']
+# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum']
+# roi_names = ['dstr', 'cereb-s', 'cereb-i']
+
+# # 2 ROIs
+# atlas_dirnames = [fsl_dir, ntk_dir]
+# atlas_names = ['hos', 'ntk_symmni128']
+# region_names = ['dorsal_striatum', 'cerebellum']
+# roi_names = ['dstr', 'cereb']
 
 tags = ['i', 'a', 'g']
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
@@ -972,57 +984,57 @@ if __name__ == '__main__':
 
             # ###########################################################
 
-            # # Open ROI file and create paths
-            # rois_path = os.path.join(
-            #     outdir, 'rois_extraction', tag + '_' + roi_name + '_psc.npy')
-            # anovas_dir = os.path.join(outdir, 'anovas')
-            # df_path = os.path.join(
-            #     anovas_dir, tag + '_' + roi_name + '_df.tsv')
+            # Open ROI file and create paths
+            rois_path = os.path.join(
+                outdir, 'rois_extraction', tag + '_' + roi_name + '_psc.npy')
+            anovas_dir = os.path.join(outdir, 'anovas')
+            df_path = os.path.join(
+                anovas_dir, tag + '_' + roi_name + '_df.tsv')
 
-            # # Create dataframe
-            # dfroi = dataframe(rois_path,
-            #                   ['lh', 'rh'],
-            #                   list(tasks.values()),
-            #                   list(filtered_contrasts.values()),
-            #                   SUBJECTS,
-            #                   df_path)
+            # Create dataframe
+            dfroi = dataframe(rois_path,
+                              ['lh', 'rh'],
+                              list(tasks.values()),
+                              list(filtered_contrasts.values()),
+                              SUBJECTS,
+                              df_path)
 
-            # # Add roi column to dataframe
-            # roi_arr = np.repeat(roi_name, len(dfroi.index))
-            # dfroi['ROI'] = roi_arr
-            # # Append dataframe
-            # dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
+            # Add roi column to dataframe
+            roi_arr = np.repeat(roi_name, len(dfroi.index))
+            dfroi['ROI'] = roi_arr
+            # Append dataframe
+            dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
 
             # ############## Run ANOVAs per ROI #########################
 
-            # # 3-way RM-ANOVA
-            # three_anova_dir = os.path.join(anovas_dir, '3way-anova')
-            # threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+            # 3-way RM-ANOVA
+            three_anova_dir = os.path.join(anovas_dir, '3way-anova')
+            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
 
-            # # 2-way RM-ANOVA per task
-            # twoway_anova_task_dir = os.path.join(
-            #     anovas_dir, '2way-anova_task')
-            # twoway_rmanova_task(
-            #     df_path, tasks, twoway_anova_task_dir, tag, roi_name)
+            # 2-way RM-ANOVA per task
+            twoway_anova_task_dir = os.path.join(
+                anovas_dir, '2way-anova_task')
+            twoway_rmanova_task(
+                df_path, tasks, twoway_anova_task_dir, tag, roi_name)
 
-            # # 2-way RM-ANOVA collapsed across tasks
-            # twoway_anova_taskavg_dir = os.path.join(
-            #     anovas_dir, '2way-anova_grouped-tasks')
-            # twoway_rmanova_gtasks(
-            #     df_path, twoway_anova_taskavg_dir, tag, roi_name)
+            # 2-way RM-ANOVA collapsed across tasks
+            twoway_anova_taskavg_dir = os.path.join(
+                anovas_dir, '2way-anova_grouped-tasks')
+            twoway_rmanova_gtasks(
+                df_path, twoway_anova_taskavg_dir, tag, roi_name)
 
-            # # 1-way RM-ANOVA for beat/interval
-            # oneway_anova_task_dir = os.path.join(
-            #     anovas_dir, '1way-anova')
-            # oneway_rmanova(
-            #     df_path, tasks, oneway_anova_task_dir, tag, roi_name)
+            # 1-way RM-ANOVA for beat/interval
+            oneway_anova_task_dir = os.path.join(
+                anovas_dir, '1way-anova')
+            oneway_rmanova(
+                df_path, tasks, oneway_anova_task_dir, tag, roi_name)
 
 
         # ##################### 6 ROIs ##################################
         # 2-way RM-ANOVA for roi and category for both modalities
-        # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat6rois_hem')
-        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat6rois_hem')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
         # ##################### 3 ROIs ##################################
         # # 2-way RM-ANOVA for roi and category for both modalities
