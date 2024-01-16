@@ -80,12 +80,12 @@ hos_caudate_rh_maskpath = os.path.join(
     fsl_dir, 'hos_caudate_rh_mask.nii.gz')
 
 hos_dstriatum_lh_maskpath = os.path.join(
-    fsl_dir, 'hos_dorsal_striatum_lh_mask.nii.gz')
+    fsl_dir, 'hos_dstr_lh_mask.nii.gz')
 hos_dstriatum_rh_maskpath = os.path.join(
-    fsl_dir, 'hos_dorsal_striatum_rh_mask.nii.gz')
+    fsl_dir, 'hos_dstr_rh_mask.nii.gz')
 
 hos_dstriatum_bh_maskpath = os.path.join(
-    fsl_dir, 'hos_dorsal_striatum_bh_mask.nii.gz')
+    fsl_dir, 'hos_dstr_bh_mask.nii.gz')
 
 mniflirt_cereb6_lh_probmap = os.path.join(
     fsl_dir, 'cerebellum_mniflirt_prob_leftVI.nii.gz')
