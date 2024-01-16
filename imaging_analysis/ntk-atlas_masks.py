@@ -4,9 +4,9 @@ This script creates masks from Harvard-Oxford subcortical atlas.
 Author: Ana Luisa Pinho
 
 Created: November 2023
-Last update: December 2023
+Last update: January 2024
 
-Compatibility: Python 3.10.10
+Compatibility: Python 3.10.8
 
 """
 
@@ -99,7 +99,7 @@ ntk_symmni128_rh_maskpath = os.path.join(
     ntk_dir, 'ntk_symmni128_cerebellum_rh_mask.nii.gz')
 
 ntk_symmni128_maskpath = os.path.join(
-    ntk_dir, 'ntk_symmni128_cerebellum_mask.nii.gz')
+    ntk_dir, 'ntk_symmni128_cerebellum_bh_mask.nii.gz')
 
 # ############################## RUN ####################################
 
