@@ -90,6 +90,26 @@ def binary_dilation_with_limit(image, target_count, gmask):
     return dilated_image
 
 
+def combine_masks(maskpath1, maskpath2, combined_maskpath):
+
+    # Load
+    mask1 = load_img(maskpath1)
+    mask2 = load_img(maskpath2)
+
+    # Get data
+    mask1_val = mask1.get_fdata().astype(np.uint8)
+    mask2_val = mask2.get_fdata().astype(np.uint8)
+
+    # Merge masks in one single file
+    combined_mask_val = mask1_val + mask2_val
+    combined_mask_val[combined_mask_val == 2] = 1
+    combined_mask = new_img_like(mask1, combined_mask_val)
+
+    # Save file
+    combined_mask.to_filename(combined_maskpath)
+
+
+
 def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
                          con_thresh_min=3.385, con_thresh_max=None):
     """
@@ -129,10 +149,10 @@ def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
         raise ValueError('N_voxels = 0 ! There is no intersection between' + \
                          'thresholded, group encoding map and atlas-roi mask.')
 
-    # Create msdtb-Putamen mask
+    # Create msdtb mask
     msdtb_mask = new_img_like(atlas_rmask, msdtb_val)
 
-    # Save msdtb-Putamen mask
+    # Save msdtb mask
     msdtb_mask.to_filename(msdtb_maskpath)
 
     return msdtb_mask, np.count_nonzero(msdtb_val)
@@ -293,12 +313,24 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
 
         if os.path.isfile(gencoding_atlasreg_maskpath):
             gmask = load_img(gencoding_atlasreg_maskpath)
-            cluster_size = np.count_nonzero(gmask.get_fdata())
+            if hem in ['lh', 'rh']:
+                cluster_size = np.count_nonzero(gmask.get_fdata())
         else:
-            gmask, cluster_size = create_group_roimask(
-                group_tmap_path,
-                atlasreg_maskpath,
-                gencoding_atlasreg_maskpath)
+            if hem in ['lh', 'rh']:
+                gmask, cluster_size = create_group_roimask(
+                    group_tmap_path,
+                    atlasreg_maskpath,
+                    gencoding_atlasreg_maskpath)
+            else:
+                assert hem == 'bh'
+                gmask_lh = os.path.join(
+                    groi_dir,
+                    'g_msdtb_' + atlas + '_' + roi + '_' + '_lh_mask.nii.gz')
+                gmask_rh = os.path.join(
+                    groi_dir,
+                    'g_msdtb_' + atlas + '_' + roi + '_' + '_rh_mask.nii.gz')
+                combine_masks(gmask_lh, gmask_rh, gencoding_atlasreg_maskpath)
+                gmask = load_img(gencoding_atlasreg_maskpath)
 
         # ### For each subject ###
         subjects_alltaskcon = []
@@ -314,10 +346,21 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
             subject_encoding_tmap = os.path.join(
                 estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
                 'wspmT_0001_desc-sm8wbmasked.nii')
-            irmask = create_iroimask(
-                subject_encoding_tmap, atlasreg_maskpath, gmask,
-                cluster_size, iencoding_atlasreg_maskpath,
-                gcon_path=group_tmap_path, weights=weights)
+            if hem in ['lh', 'rh']:
+                irmask = create_iroimask(
+                    subject_encoding_tmap, atlasreg_maskpath, gmask,
+                    cluster_size, iencoding_atlasreg_maskpath,
+                    gcon_path=group_tmap_path, weights=weights)
+            else:
+                assert hem == 'bh'
+                imask_lh = os.path.join(
+                    iroi_dir,
+                    prefix + '_sub-%02d_' + roi + '_lh_mask.nii.gz') % subject
+                imask_rh = os.path.join(
+                    iroi_dir,
+                    prefix + '_sub-%02d_' + roi + '_rh_mask.nii.gz') % subject
+                combine_masks(imask_lh, imask_rh, iencoding_atlasreg_maskpath)
+                irmask = load_img(iencoding_atlasreg_maskpath)
 
             # ### For each task ###
             itasks_contrasts = []
@@ -917,6 +960,16 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
 # ############################## RUN ####################################
 
+# All ROIs: 7 ROIs
+atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
+                  hmat_dir, hmat_dir, hmat_dir]
+atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+               'hmat', 'hmat', 'hmat']
+region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
+                'motor_area', 'motor_area', 'motor_area']
+roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
+             'pmd', 'sma', 'presma']
+
 # 6 ROIs (old)
 # atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
 #                   hmat_dir, hmat_dir, hmat_dir]
@@ -928,14 +981,14 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 #              'pmd', 'sma', 'presma']
 
 # 6 ROIs
-atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir,
-                  hmat_dir, hmat_dir, hmat_dir]
-atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128',
-               'hmat', 'hmat', 'hmat']
-region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum',
-                'motor_area', 'motor_area', 'motor_area']
-roi_names = ['dstr', 'cereb-s', 'cereb-i',
-             'pmd', 'sma', 'presma']
+# atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir,
+#                   hmat_dir, hmat_dir, hmat_dir]
+# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat']
+# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area']
+# roi_names = ['dstr', 'cereb-s', 'cereb-i',
+#              'pmd', 'sma', 'presma']
 
 # # 3 ROIs
 # atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
@@ -954,13 +1007,13 @@ weights_list = [(1.,0.), (.5,.5), (0.,1.)]
 
 if __name__ == '__main__':
 
+    # ###### Extract ROIs and compute overlay of individual masks ######
     for tag, wpair in zip(tags, weights_list):
-        dfrois = pd.DataFrame()
         for atlas_dirname, atlas_name, region_name, roi_name in zip(
                 atlas_dirnames, atlas_names, region_names, roi_names):
 
             # Extraction of individual ROIs using ATAG atlas
-            if region_name == 'striatum':
+            if region_name == 'dorsal_striatum':
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
                     roi_name, filtered_contrasts, 'wpsc', tag, wpair)
@@ -971,88 +1024,98 @@ if __name__ == '__main__':
                     subregion=True)
 
             # Define output-dir path
-            if region_name == 'striatum':
+            if region_name == 'dorsal_striatum':
                 outdir = os.path.join(msdtb_dir, region_name, atlas_name)
             else:
                 outdir = os.path.join(msdtb_dir, region_name, atlas_name,
                                       roi_name)
 
-            # ###########################################################
+            # ##########################################################
             # Overlay Individualized Masks for each ROI
             if tag != 'g':
                 overlay_masks(outdir, tag, roi_name)
 
-            # ###########################################################
+    # ################### Compute Statistics ###########################
+    # for tag, wpair in zip(tags, weights_list):
+    #     dfrois = pd.DataFrame()
+    #     for atlas_dirname, atlas_name, region_name, roi_name in zip(
+    #             atlas_dirnames, atlas_names, region_names, roi_names):
 
-            # Open ROI file and create paths
-            rois_path = os.path.join(
-                outdir, 'rois_extraction', tag + '_' + roi_name + '_psc.npy')
-            anovas_dir = os.path.join(outdir, 'anovas')
-            df_path = os.path.join(
-                anovas_dir, tag + '_' + roi_name + '_df.tsv')
+    #         # Define output-dir path
+    #         if region_name == 'dorsal_striatum':
+    #             outdir = os.path.join(msdtb_dir, region_name, atlas_name)
+    #         else:
+    #             outdir = os.path.join(msdtb_dir, region_name, atlas_name,
+    #                                   roi_name)
+    #         # Open ROI file and create paths
+    #         rois_path = os.path.join(
+    #             outdir, 'rois_extraction', tag + '_' + roi_name + '_psc.npy')
+    #         anovas_dir = os.path.join(outdir, 'anovas')
+    #         df_path = os.path.join(
+    #             anovas_dir, tag + '_' + roi_name + '_df.tsv')
 
-            # Create dataframe
-            dfroi = dataframe(rois_path,
-                              ['lh', 'rh'],
-                              list(tasks.values()),
-                              list(filtered_contrasts.values()),
-                              SUBJECTS,
-                              df_path)
+    #         # Create dataframe
+    #         dfroi = dataframe(rois_path,
+    #                           ['lh', 'rh'],
+    #                           list(tasks.values()),
+    #                           list(filtered_contrasts.values()),
+    #                           SUBJECTS,
+    #                           df_path)
 
-            # Add roi column to dataframe
-            roi_arr = np.repeat(roi_name, len(dfroi.index))
-            dfroi['ROI'] = roi_arr
-            # Append dataframe
-            dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
+    #         # Add roi column to dataframe
+    #         roi_arr = np.repeat(roi_name, len(dfroi.index))
+    #         dfroi['ROI'] = roi_arr
+    #         # Append dataframe
+    #         dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
 
-            # ############## Run ANOVAs per ROI #########################
+    #         ############## Run ANOVAs per ROI #########################
 
-            # 3-way RM-ANOVA
-            three_anova_dir = os.path.join(anovas_dir, '3way-anova')
-            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+    #         # 3-way RM-ANOVA
+    #         three_anova_dir = os.path.join(anovas_dir, '3way-anova')
+    #         threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
 
-            # 2-way RM-ANOVA per task
-            twoway_anova_task_dir = os.path.join(
-                anovas_dir, '2way-anova_task')
-            twoway_rmanova_task(
-                df_path, tasks, twoway_anova_task_dir, tag, roi_name)
+    #         # 2-way RM-ANOVA per task
+    #         twoway_anova_task_dir = os.path.join(
+    #             anovas_dir, '2way-anova_task')
+    #         twoway_rmanova_task(
+    #             df_path, tasks, twoway_anova_task_dir, tag, roi_name)
 
-            # 2-way RM-ANOVA collapsed across tasks
-            twoway_anova_taskavg_dir = os.path.join(
-                anovas_dir, '2way-anova_grouped-tasks')
-            twoway_rmanova_gtasks(
-                df_path, twoway_anova_taskavg_dir, tag, roi_name)
+    #         # 2-way RM-ANOVA collapsed across tasks
+    #         twoway_anova_taskavg_dir = os.path.join(
+    #             anovas_dir, '2way-anova_grouped-tasks')
+    #         twoway_rmanova_gtasks(
+    #             df_path, twoway_anova_taskavg_dir, tag, roi_name)
 
-            # 1-way RM-ANOVA for beat/interval
-            oneway_anova_task_dir = os.path.join(
-                anovas_dir, '1way-anova')
-            oneway_rmanova(
-                df_path, tasks, oneway_anova_task_dir, tag, roi_name)
+    #         # 1-way RM-ANOVA for beat/interval
+    #         oneway_anova_task_dir = os.path.join(
+    #             anovas_dir, '1way-anova')
+    #         oneway_rmanova(
+    #             df_path, tasks, oneway_anova_task_dir, tag, roi_name)
 
 
-        # ##################### 6 ROIs ##################################
-        # 2-way RM-ANOVA for roi and category for both modalities
-        twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat6rois_hem')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+    #     ##################### 6 ROIs ##################################
+    #     # 2-way RM-ANOVA for roi and category for both modalities
+    #     twoway_anova_catroi_dir = os.path.join(
+    #         msdtb_dir, '2way-anova_cat6rois_hem')
+    #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
-        # ##################### 3 ROIs ##################################
-        # # 2-way RM-ANOVA for roi and category for both modalities
-        # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem')
-        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+    #     ##################### 3 ROIs ##################################
+    #     # 2-way RM-ANOVA for roi and category for both modalities
+    #     twoway_anova_catroi_dir = os.path.join(
+    #         msdtb_dir, '2way-anova_cat3rois_hem')
+    #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
-        # # 2-way RM-ANOVA for roi and category for auditory tasks
-        # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem_auditory')
-        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-        #                       modality='auditory')
+    #     # 2-way RM-ANOVA for roi and category for auditory tasks
+    #     twoway_anova_catroi_dir = os.path.join(
+    #         msdtb_dir, '2way-anova_cat3rois_hem_auditory')
+    #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+    #                           modality='auditory')
 
-        # # 2-way RM-ANOVA for roi and category for vision tasks
-        # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem_visual')
-        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-        #                       modality='visual')
+    #     # 2-way RM-ANOVA for roi and category for vision tasks
+    #     twoway_anova_catroi_dir = os.path.join(
+    #         msdtb_dir, '2way-anova_cat3rois_hem_visual')
+    #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+    #                           modality='visual')
 
 
 # TODO: plot and do the same but merging cerebellum s+i and merging lh+rh for both rois
