@@ -109,7 +109,6 @@ def combine_masks(maskpath1, maskpath2, combined_maskpath):
     combined_mask.to_filename(combined_maskpath)
 
 
-
 def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
                          con_thresh_min=3.385, con_thresh_max=None):
     """
@@ -1116,6 +1115,3 @@ if __name__ == '__main__':
     #         msdtb_dir, '2way-anova_cat3rois_hem_visual')
     #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
     #                           modality='visual')
-
-
-# TODO: plot and do the same but merging cerebellum s+i and merging lh+rh for both rois
