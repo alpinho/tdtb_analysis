@@ -225,9 +225,7 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
             print(np.count_nonzero(bin_iroi_val))
             iroi_mask = new_img_like(atlas_rmask, bin_iroi_val)
 
-    # Save individual ROI mask
-    if weights != (0,1):
-        iroi_mask.to_filename(iroi_maskpath)
+    iroi_mask.to_filename(iroi_maskpath)
 
     return iroi_mask
 
@@ -324,10 +322,10 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
                 assert hem == 'bh'
                 gmask_lh = os.path.join(
                     groi_dir,
-                    'g_msdtb_' + atlas + '_' + roi + '_' + '_lh_mask.nii.gz')
+                    'g_msdtb_' + atlas + '_' + roi + '_lh_mask.nii.gz')
                 gmask_rh = os.path.join(
                     groi_dir,
-                    'g_msdtb_' + atlas + '_' + roi + '_' + '_rh_mask.nii.gz')
+                    'g_msdtb_' + atlas + '_' + roi + '_rh_mask.nii.gz')
                 combine_masks(gmask_lh, gmask_rh, gencoding_atlasreg_maskpath)
                 gmask = load_img(gencoding_atlasreg_maskpath)
 
@@ -342,24 +340,26 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
                 '_mask.nii.gz') % subject
 
             # Create individual ROIs
-            subject_encoding_tmap = os.path.join(
-                estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
-                'wspmT_0001_desc-sm8wbmasked.nii')
-            if hem in ['lh', 'rh']:
-                irmask = create_iroimask(
-                    subject_encoding_tmap, atlasreg_maskpath, gmask,
-                    cluster_size, iencoding_atlasreg_maskpath,
-                    gcon_path=group_tmap_path, weights=weights)
+            if weights == (0.,1.):
+                irmask = gmask
             else:
-                assert hem == 'bh'
-                imask_lh = os.path.join(
-                    iroi_dir,
-                    prefix + '_sub-%02d_' + roi + '_lh_mask.nii.gz') % subject
-                imask_rh = os.path.join(
-                    iroi_dir,
-                    prefix + '_sub-%02d_' + roi + '_rh_mask.nii.gz') % subject
-                combine_masks(imask_lh, imask_rh, iencoding_atlasreg_maskpath)
-                irmask = load_img(iencoding_atlasreg_maskpath)
+                subject_encoding_tmap = os.path.join(
+                    estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
+                    'wspmT_0001_desc-sm8wbmasked.nii')
+                if hem in ['lh', 'rh']:
+                    irmask = create_iroimask(
+                        subject_encoding_tmap, atlasreg_maskpath, gmask,
+                        cluster_size, iencoding_atlasreg_maskpath,
+                        gcon_path=group_tmap_path, weights=weights)
+                else:
+                    assert hem == 'bh'
+                    imask_lh = os.path.join(iroi_dir, prefix + '_sub-%02d_' + \
+                                            roi + '_lh_mask.nii.gz') % subject
+                    imask_rh = os.path.join(iroi_dir, prefix + '_sub-%02d_' + \
+                                            roi + '_rh_mask.nii.gz') % subject
+                    combine_masks(imask_lh, imask_rh,
+                                  iencoding_atlasreg_maskpath)
+                    irmask = load_img(iencoding_atlasreg_maskpath)
 
             # ### For each task ###
             itasks_contrasts = []
@@ -1001,7 +1001,13 @@ roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
 # region_names = ['dorsal_striatum', 'cerebellum']
 # roi_names = ['dstr', 'cereb']
 
+atlas_dirnames = [fsl_dir]
+atlas_names = ['hos']
+region_names = ['dorsal_striatum']
+roi_names = ['dstr']
+
 tags = ['i', 'a', 'g']
+# Tuple: (individual_weight, group_weight)
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
 
 if __name__ == '__main__':
@@ -1011,7 +1017,7 @@ if __name__ == '__main__':
         for atlas_dirname, atlas_name, region_name, roi_name in zip(
                 atlas_dirnames, atlas_names, region_names, roi_names):
 
-            # Extraction of individual ROIs using ATAG atlas
+            # Extraction of individual ROIs
             if region_name == 'dorsal_striatum':
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
