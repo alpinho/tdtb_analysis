@@ -980,14 +980,14 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 #              'pmd', 'sma', 'presma']
 
 # 6 ROIs
-atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir,
-                  hmat_dir, hmat_dir, hmat_dir]
-atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128',
-               'hmat', 'hmat', 'hmat']
-region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum',
-                'motor_area', 'motor_area', 'motor_area']
-roi_names = ['dstr', 'cereb-s', 'cereb-i',
-             'pmd', 'sma', 'presma']
+# atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir,
+#                   hmat_dir, hmat_dir, hmat_dir]
+# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat']
+# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area']
+# roi_names = ['dstr', 'cereb-s', 'cereb-i',
+#              'pmd', 'sma', 'presma']
 
 # # 3 ROIs
 # atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
@@ -1000,6 +1000,11 @@ roi_names = ['dstr', 'cereb-s', 'cereb-i',
 # atlas_names = ['hos', 'ntk_symmni128']
 # region_names = ['dorsal_striatum', 'cerebellum']
 # roi_names = ['dstr', 'cereb']
+
+atlas_dirnames = [ntk_dir]
+atlas_names = ['ntk_symmni128']
+region_names = ['cerebellum']
+roi_names = ['cereb']
 
 tags = ['i', 'a', 'g']
 # Tuple: (individual_weight, group_weight)
