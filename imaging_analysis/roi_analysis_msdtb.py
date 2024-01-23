@@ -443,7 +443,7 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
     return df
 
 
-def threeway_rmanova(df, output_dir, prefix, roi):
+def threeway_rmanova(df, output_dir, prefix, roi, hems=['lh', 'rh', 'bh']):
     """
     Compute 2 X 2 X 3 RM-ANOVA
     """
@@ -457,7 +457,7 @@ def threeway_rmanova(df, output_dir, prefix, roi):
     df['PSC'] = df['PSC'].apply(pd.to_numeric)
 
     # For each hemisphere:
-    for hem in ['lh', 'rh']:
+    for hem in hems:
         db = pd.DataFrame()
         db = df[df.Hemisphere == hem]
 
@@ -513,7 +513,7 @@ def threeway_rmanova(df, output_dir, prefix, roi):
 
 
 def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi,
-                        alternative='two-sided'):
+                        alternative='two-sided', hems=['lh', 'rh', 'bh']):
     """
     Compute 2 X 2 ANOVA per task
     """
@@ -533,7 +533,7 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi,
     # For each task:
     for ttag, task in zip(ttags, tasks_list):
         # For each hemisphere:
-        for hem in ['lh', 'rh']:
+        for hem in hems:
             db = pd.DataFrame()
             db = df[df.Task == task][df.Hemisphere == hem]
 
@@ -567,7 +567,8 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi,
                 index=False)
 
 
-def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
+def twoway_rmanova_gtasks(df, output_dir, prefix, roi,
+                          hems=['lh', 'rh', 'bh']):
     """
     Compute 2 X 2 RM-ANOVA across all tasks
     """
@@ -585,7 +586,7 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
     df['PSC'] = df['PSC'].apply(pd.to_numeric)
 
     # For each hemisphere:
-    for hem in ['lh', 'rh']:
+    for hem in hems:
         db = pd.DataFrame()
         db = df[df.Hemisphere == hem]
 
@@ -624,7 +625,8 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi):
             index=False)
 
 
-def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi):
+def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi,
+                   hems=['lh', 'rh', 'bh']):
     """
     Compute one-way ANOVA: one categorical variable, i.e. category,
     with two levels (equivalent to pptest; function for sanity check)
@@ -647,7 +649,7 @@ def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi):
         # For each modality:
         for modality in ['Auditory', 'Visual']:
             # For each hemisphere:
-            for hem in ['lh', 'rh']:
+            for hem in hems:
                 db = pd.DataFrame()
                 db = df[df.Task == task][df.Modality == modality][
                     df.Hemisphere == hem]
@@ -683,7 +685,8 @@ def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi):
 
 
 def twoway_rmanova_catroi(df, tasks_dic, output_dir, prefix,
-                          alternative='two-sided', modality=None):
+                          alternative='two-sided', modality=None,
+                          hems=['lh', 'rh', 'bh']):
     """
     Compute 2 X 2 ANOVA per task
     """
@@ -715,7 +718,7 @@ def twoway_rmanova_catroi(df, tasks_dic, output_dir, prefix,
     # For each task:
     for ttag, task in zip(ttags, tasks_list):
         # For each hemisphere:
-        for hem in ['lh', 'rh']:
+        for hem in hems:
             db = pd.DataFrame()
             db = df[df.Task == task][df.Hemisphere == hem]
 
@@ -990,16 +993,16 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 #              'pmd', 'sma', 'presma']
 
 # 3 ROIs
-atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
-atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128']
-region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum']
-roi_names = ['dstr', 'cereb-s', 'cereb-i']
+# atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
+# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128']
+# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum']
+# roi_names = ['dstr', 'cereb-s', 'cereb-i']
 
 # 2 ROIs
-# atlas_dirnames = [fsl_dir, ntk_dir]
-# atlas_names = ['hos', 'ntk_symmni128']
-# region_names = ['dorsal_striatum', 'cerebellum']
-# roi_names = ['dstr', 'cereb']
+atlas_dirnames = [fsl_dir, ntk_dir]
+atlas_names = ['hos', 'ntk_symmni128']
+region_names = ['dorsal_striatum', 'cerebellum']
+roi_names = ['dstr', 'cereb']
 
 tags = ['i', 'a', 'g']
 # Tuple: (individual_weight, group_weight)
@@ -1112,37 +1115,37 @@ if __name__ == '__main__':
         #                       modality='visual')
 
         # ##################### 3 ROIs ##################################
-        # 2-way RM-ANOVA for roi and category for both modalities
-        twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat3rois_hem')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
-
-        # 2-way RM-ANOVA for roi and category for auditory tasks
-        twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat3rois_hem_auditory')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-                              modality='auditory')
-
-        # 2-way RM-ANOVA for roi and category for vision tasks
-        twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat3rois_hem_visual')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-                              modality='visual')
-
-        # ##################### 2 ROIs ##################################
         # # 2-way RM-ANOVA for roi and category for both modalities
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat2rois_hem')
+        #     msdtb_dir, '2way-anova_cat3rois_hem')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
         # # 2-way RM-ANOVA for roi and category for auditory tasks
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat2rois_hem_auditory')
+        #     msdtb_dir, '2way-anova_cat3rois_hem_auditory')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
         #                       modality='auditory')
 
         # # 2-way RM-ANOVA for roi and category for vision tasks
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat2rois_hem_visual')
+        #     msdtb_dir, '2way-anova_cat3rois_hem_visual')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
         #                       modality='visual')
+
+        # ##################### 2 ROIs ##################################
+        # 2-way RM-ANOVA for roi and category for both modalities
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat2rois_hem')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+
+        # 2-way RM-ANOVA for roi and category for auditory tasks
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat2rois_hem_auditory')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+                              modality='auditory')
+
+        # 2-way RM-ANOVA for roi and category for vision tasks
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat2rois_hem_visual')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+                              modality='visual')
