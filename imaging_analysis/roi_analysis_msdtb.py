@@ -990,16 +990,16 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 #              'pmd', 'sma', 'presma']
 
 # 3 ROIs
-# atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
-# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128']
-# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum']
-# roi_names = ['dstr', 'cereb-s', 'cereb-i']
+atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
+atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128']
+region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum']
+roi_names = ['dstr', 'cereb-s', 'cereb-i']
 
 # 2 ROIs
-atlas_dirnames = [fsl_dir, ntk_dir]
-atlas_names = ['hos', 'ntk_symmni128']
-region_names = ['dorsal_striatum', 'cerebellum']
-roi_names = ['dstr', 'cereb']
+# atlas_dirnames = [fsl_dir, ntk_dir]
+# atlas_names = ['hos', 'ntk_symmni128']
+# region_names = ['dorsal_striatum', 'cerebellum']
+# roi_names = ['dstr', 'cereb']
 
 tags = ['i', 'a', 'g']
 # Tuple: (individual_weight, group_weight)
@@ -1099,38 +1099,50 @@ if __name__ == '__main__':
         #     msdtb_dir, '2way-anova_cat6rois_hem')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
-        # ##################### 3 ROIs ##################################
-        # # 2-way RM-ANOVA for roi and category for both modalities
-        # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem')
-        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
-
         # # 2-way RM-ANOVA for roi and category for auditory tasks
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem_auditory')
+        #     msdtb_dir, '2way-anova_cat6rois_hem_auditory')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
         #                       modality='auditory')
 
         # # 2-way RM-ANOVA for roi and category for vision tasks
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem_visual')
+        #     msdtb_dir, '2way-anova_cat6rois_hem_visual')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
         #                       modality='visual')
 
-        # ##################### 2 ROIs ##################################
+        # ##################### 3 ROIs ##################################
         # 2-way RM-ANOVA for roi and category for both modalities
         twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat2rois_hem')
+            msdtb_dir, '2way-anova_cat3rois_hem')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
         # 2-way RM-ANOVA for roi and category for auditory tasks
         twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat2rois_hem_auditory')
+            msdtb_dir, '2way-anova_cat3rois_hem_auditory')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
                               modality='auditory')
 
         # 2-way RM-ANOVA for roi and category for vision tasks
         twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat2rois_hem_visual')
+            msdtb_dir, '2way-anova_cat3rois_hem_visual')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
                               modality='visual')
+
+        # ##################### 2 ROIs ##################################
+        # # 2-way RM-ANOVA for roi and category for both modalities
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat2rois_hem')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+
+        # # 2-way RM-ANOVA for roi and category for auditory tasks
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat2rois_hem_auditory')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+        #                       modality='auditory')
+
+        # # 2-way RM-ANOVA for roi and category for vision tasks
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat2rois_hem_visual')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+        #                       modality='visual')
