@@ -989,22 +989,17 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 # roi_names = ['dstr', 'cereb-s', 'cereb-i',
 #              'pmd', 'sma', 'presma']
 
-# # 3 ROIs
+# 3 ROIs
 # atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
 # atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128']
 # region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum']
 # roi_names = ['dstr', 'cereb-s', 'cereb-i']
 
-# # 2 ROIs
-# atlas_dirnames = [fsl_dir, ntk_dir]
-# atlas_names = ['hos', 'ntk_symmni128']
-# region_names = ['dorsal_striatum', 'cerebellum']
-# roi_names = ['dstr', 'cereb']
-
-atlas_dirnames = [ntk_dir]
-atlas_names = ['ntk_symmni128']
-region_names = ['cerebellum']
-roi_names = ['cereb']
+# 2 ROIs
+atlas_dirnames = [fsl_dir, ntk_dir]
+atlas_names = ['hos', 'ntk_symmni128']
+region_names = ['dorsal_striatum', 'cerebellum']
+roi_names = ['dstr', 'cereb']
 
 tags = ['i', 'a', 'g']
 # Tuple: (individual_weight, group_weight)
@@ -1013,38 +1008,20 @@ weights_list = [(1.,0.), (.5,.5), (0.,1.)]
 if __name__ == '__main__':
 
     # ###### Extract ROIs and compute overlay of individual masks ######
-    for tag, wpair in zip(tags, weights_list):
-        for atlas_dirname, atlas_name, region_name, roi_name in zip(
-                atlas_dirnames, atlas_names, region_names, roi_names):
-
-            # Extraction of individual ROIs
-            if region_name == 'dorsal_striatum':
-                iroicon_estimation(
-                    msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, filtered_contrasts, 'wpsc', tag, wpair)
-            else:
-                iroicon_estimation(
-                    msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, filtered_contrasts, 'wpsc', tag, wpair,
-                    subregion=True)
-
-            # Define output-dir path
-            if region_name == 'dorsal_striatum':
-                outdir = os.path.join(msdtb_dir, region_name, atlas_name)
-            else:
-                outdir = os.path.join(msdtb_dir, region_name, atlas_name,
-                                      roi_name)
-
-            # ##########################################################
-            # Overlay Individualized Masks for each ROI
-            if tag != 'g':
-                overlay_masks(outdir, tag, roi_name)
-
-    # ################### Compute Statistics ###########################
     # for tag, wpair in zip(tags, weights_list):
-    #     dfrois = pd.DataFrame()
     #     for atlas_dirname, atlas_name, region_name, roi_name in zip(
     #             atlas_dirnames, atlas_names, region_names, roi_names):
+
+    #         # Extraction of individual ROIs
+    #         if region_name == 'dorsal_striatum':
+    #             iroicon_estimation(
+    #                 msdtb_dir, atlas_dirname, atlas_name, region_name,
+    #                 roi_name, filtered_contrasts, 'wpsc', tag, wpair)
+    #         else:
+    #             iroicon_estimation(
+    #                 msdtb_dir, atlas_dirname, atlas_name, region_name,
+    #                 roi_name, filtered_contrasts, 'wpsc', tag, wpair,
+    #                 subregion=True)
 
     #         # Define output-dir path
     #         if region_name == 'dorsal_striatum':
@@ -1052,72 +1029,108 @@ if __name__ == '__main__':
     #         else:
     #             outdir = os.path.join(msdtb_dir, region_name, atlas_name,
     #                                   roi_name)
-    #         # Open ROI file and create paths
-    #         rois_path = os.path.join(
-    #             outdir, 'rois_extraction', tag + '_' + roi_name + '_psc.npy')
-    #         anovas_dir = os.path.join(outdir, 'anovas')
-    #         df_path = os.path.join(
-    #             anovas_dir, tag + '_' + roi_name + '_df.tsv')
 
-    #         # Create dataframe
-    #         dfroi = dataframe(rois_path,
-    #                           ['lh', 'rh'],
-    #                           list(tasks.values()),
-    #                           list(filtered_contrasts.values()),
-    #                           SUBJECTS,
-    #                           df_path)
+    #         # ##########################################################
+    #         # Overlay Individualized Masks for each ROI
+    #         if tag != 'g':
+    #             overlay_masks(outdir, tag, roi_name)
 
-    #         # Add roi column to dataframe
-    #         roi_arr = np.repeat(roi_name, len(dfroi.index))
-    #         dfroi['ROI'] = roi_arr
-    #         # Append dataframe
-    #         dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
+    # ################### Compute Statistics ###########################
+    for tag, wpair in zip(tags, weights_list):
+        dfrois = pd.DataFrame()
+        for atlas_dirname, atlas_name, region_name, roi_name in zip(
+                atlas_dirnames, atlas_names, region_names, roi_names):
 
-    #         ############## Run ANOVAs per ROI #########################
+            # Define output-dir path
+            if region_name == 'dorsal_striatum':
+                outdir = os.path.join(msdtb_dir, region_name, atlas_name)
+            else:
+                outdir = os.path.join(msdtb_dir, region_name, atlas_name,
+                                      roi_name)
+            # Open ROI file and create paths
+            rois_path = os.path.join(
+                outdir, 'rois_extraction', tag + '_' + roi_name + '_psc.npy')
+            anovas_dir = os.path.join(outdir, 'anovas')
+            df_path = os.path.join(
+                anovas_dir, tag + '_' + roi_name + '_df.tsv')
 
-    #         # 3-way RM-ANOVA
-    #         three_anova_dir = os.path.join(anovas_dir, '3way-anova')
-    #         threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+            # Create dataframe
+            dfroi = dataframe(rois_path,
+                              ['lh', 'rh', 'bh'],
+                              list(tasks.values()),
+                              list(filtered_contrasts.values()),
+                              SUBJECTS,
+                              df_path)
 
-    #         # 2-way RM-ANOVA per task
-    #         twoway_anova_task_dir = os.path.join(
-    #             anovas_dir, '2way-anova_task')
-    #         twoway_rmanova_task(
-    #             df_path, tasks, twoway_anova_task_dir, tag, roi_name)
+            # Add roi column to dataframe
+            roi_arr = np.repeat(roi_name, len(dfroi.index))
+            dfroi['ROI'] = roi_arr
+            # Append dataframe
+            dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
 
-    #         # 2-way RM-ANOVA collapsed across tasks
-    #         twoway_anova_taskavg_dir = os.path.join(
-    #             anovas_dir, '2way-anova_grouped-tasks')
-    #         twoway_rmanova_gtasks(
-    #             df_path, twoway_anova_taskavg_dir, tag, roi_name)
+            ############## Run ANOVAs per ROI #########################
 
-    #         # 1-way RM-ANOVA for beat/interval
-    #         oneway_anova_task_dir = os.path.join(
-    #             anovas_dir, '1way-anova')
-    #         oneway_rmanova(
-    #             df_path, tasks, oneway_anova_task_dir, tag, roi_name)
+            # 3-way RM-ANOVA
+            three_anova_dir = os.path.join(anovas_dir, '3way-anova')
+            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+
+            # 2-way RM-ANOVA per task
+            twoway_anova_task_dir = os.path.join(
+                anovas_dir, '2way-anova_task')
+            twoway_rmanova_task(
+                df_path, tasks, twoway_anova_task_dir, tag, roi_name)
+
+            # 2-way RM-ANOVA collapsed across tasks
+            twoway_anova_taskavg_dir = os.path.join(
+                anovas_dir, '2way-anova_grouped-tasks')
+            twoway_rmanova_gtasks(
+                df_path, twoway_anova_taskavg_dir, tag, roi_name)
+
+            # 1-way RM-ANOVA for beat/interval
+            oneway_anova_task_dir = os.path.join(
+                anovas_dir, '1way-anova')
+            oneway_rmanova(
+                df_path, tasks, oneway_anova_task_dir, tag, roi_name)
 
 
-    #     ##################### 6 ROIs ##################################
-    #     # 2-way RM-ANOVA for roi and category for both modalities
-    #     twoway_anova_catroi_dir = os.path.join(
-    #         msdtb_dir, '2way-anova_cat6rois_hem')
-    #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+        ####################### 6 ROIs ##################################
+        # # 2-way RM-ANOVA for roi and category for both modalities
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat6rois_hem')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
-    #     ##################### 3 ROIs ##################################
-    #     # 2-way RM-ANOVA for roi and category for both modalities
-    #     twoway_anova_catroi_dir = os.path.join(
-    #         msdtb_dir, '2way-anova_cat3rois_hem')
-    #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+        # ##################### 3 ROIs ##################################
+        # # 2-way RM-ANOVA for roi and category for both modalities
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat3rois_hem')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
-    #     # 2-way RM-ANOVA for roi and category for auditory tasks
-    #     twoway_anova_catroi_dir = os.path.join(
-    #         msdtb_dir, '2way-anova_cat3rois_hem_auditory')
-    #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-    #                           modality='auditory')
+        # # 2-way RM-ANOVA for roi and category for auditory tasks
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat3rois_hem_auditory')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+        #                       modality='auditory')
 
-    #     # 2-way RM-ANOVA for roi and category for vision tasks
-    #     twoway_anova_catroi_dir = os.path.join(
-    #         msdtb_dir, '2way-anova_cat3rois_hem_visual')
-    #     twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-    #                           modality='visual')
+        # # 2-way RM-ANOVA for roi and category for vision tasks
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat3rois_hem_visual')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+        #                       modality='visual')
+
+        # ##################### 2 ROIs ##################################
+        # 2-way RM-ANOVA for roi and category for both modalities
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat2rois_hem')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+
+        # 2-way RM-ANOVA for roi and category for auditory tasks
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat2rois_hem_auditory')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+                              modality='auditory')
+
+        # 2-way RM-ANOVA for roi and category for vision tasks
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat2rois_hem_visual')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+                              modality='visual')
