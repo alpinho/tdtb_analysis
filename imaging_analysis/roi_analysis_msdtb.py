@@ -887,6 +887,104 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
         plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
 
+def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
+                   modality=None, hems=['lh', 'rh', 'bh']):
+    """
+    Plot posthoc 2w-ANOVA per task
+    """
+
+    # Remove Column of Contrasts
+    df = df.drop(['Contrast'], axis=1)
+
+    # Convert PSC entries to numeric type
+    df['PSC'] = df['PSC'].apply(pd.to_numeric)
+
+    if modality is None:
+        df = df.drop(['Modality'], axis=1)
+        # Averaged PSC across Modalities, i.e. grouped by Category and Task ...
+        # ... and averaged afterwards
+        df = df.groupby(['Category', 'Task', 'Subject', 'ROI',
+                         'Hemisphere']).mean().reset_index()
+    elif modality == 'auditory':
+        df = df[df.Modality == 'Auditory']
+        df = df.drop(['Modality'], axis=1)
+    else:
+        assert modality == 'visual'
+        df = df[df.Modality == 'Visual']
+        df = df.drop(['Modality'], axis=1)
+
+    # Tasks
+    ttags = list(tasks_dic.keys())
+    tasks_list = list(tasks_dic.values())
+
+    fig = plt.figure(figsize=(12, 12))
+
+    # For each hemisphere:
+    for h, hem in enumerate(hems):
+
+        # For each task:
+        for t, (ttag, task) in enumerate(zip(ttags, tasks_list)):
+
+            # Define subplot of bar charts and its position in the fig
+            # plt.axes([left, bottom, width, height])
+            ax = plt.axes([.07 + h*.3, .75 - t*.23, .2, .15])
+
+            db = pd.DataFrame()
+            db = df[df.Task == task][df.Hemisphere == hem]
+
+            # Create bar plot
+            s = sns.barplot(
+                ax=ax,
+                x='ROI',
+                y='PSC',
+                hue='Category',
+                data=db,
+                estimator=np.mean,
+                ci=95, # 1.96 * standard error (95% confidence interval)
+                errcolor="darkgray", errwidth=1.5, capsize = 0.2, alpha=0.5,
+                order=order_list
+                        )
+
+            # Add values inside bars
+            for i in s.containers:
+                ax.bar_label(i, padding=-10, fontsize=6)
+
+            # Hide the right and top spines
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+
+            # Remove frame of legend
+            ax.legend(frameon=False)
+
+            # Set limits of ticks in y axis
+            plt.ylim([0., .225])
+
+            # Task
+            plt.title(task, size=12, x=.5, y=1.1, fontweight='bold')
+
+            # Hemisphere
+            if t == 0:
+                plt.text(.25, .32, hem.capitalize(), size=18,
+                         linespacing=.75, fontweight='bold')
+
+            if hem == 'lh' and task == 'Production':
+                if modality:
+                    plt.text(-1.1, .33, modality.capitalize(), size=12,
+                             linespacing=.75, fontweight='bold')
+                else:
+                    plt.text(-1.1, .33, 'Both Modalities', size=12,
+                             linespacing=.75, fontweight='bold')
+                plt.text(-1.1, .3, prefix, size=12,
+                         linespacing=.75, fontweight='bold')
+            else:
+                # ... remove legend
+                ax.legend([],[], frameon=False)
+
+    # Save figure
+    fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc'
+    plt.savefig(os.path.join(output_folder, fname + '.pdf'))
+
+
 # ############################# INPUTS ##################################
 
 if os.path.isdir('/home/analu/diedrichsen_data/data'):
@@ -1038,7 +1136,7 @@ if __name__ == '__main__':
     #         if tag != 'g':
     #             overlay_masks(outdir, tag, roi_name)
 
-    # ################### Compute Statistics ###########################
+    # # ################ Compute Statistics and Plot ####################
     for tag, wpair in zip(tags, weights_list):
         dfrois = pd.DataFrame()
         for atlas_dirname, atlas_name, region_name, roi_name in zip(
@@ -1073,79 +1171,85 @@ if __name__ == '__main__':
 
             ############## Run ANOVAs per ROI #########################
 
-            # 3-way RM-ANOVA
-            three_anova_dir = os.path.join(anovas_dir, '3way-anova')
-            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
+    #         # 3-way RM-ANOVA
+    #         three_anova_dir = os.path.join(anovas_dir, '3way-anova')
+    #         threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
 
-            # 2-way RM-ANOVA per task
-            twoway_anova_task_dir = os.path.join(
-                anovas_dir, '2way-anova_task')
-            twoway_rmanova_task(
-                df_path, tasks, twoway_anova_task_dir, tag, roi_name)
+    #         # 2-way RM-ANOVA per task
+    #         twoway_anova_task_dir = os.path.join(
+    #             anovas_dir, '2way-anova_task')
+    #         twoway_rmanova_task(
+    #             df_path, tasks, twoway_anova_task_dir, tag, roi_name)
 
-            # 2-way RM-ANOVA collapsed across tasks
-            twoway_anova_taskavg_dir = os.path.join(
-                anovas_dir, '2way-anova_grouped-tasks')
-            twoway_rmanova_gtasks(
-                df_path, twoway_anova_taskavg_dir, tag, roi_name)
+    #         # 2-way RM-ANOVA collapsed across tasks
+    #         twoway_anova_taskavg_dir = os.path.join(
+    #             anovas_dir, '2way-anova_grouped-tasks')
+    #         twoway_rmanova_gtasks(
+    #             df_path, twoway_anova_taskavg_dir, tag, roi_name)
 
-            # 1-way RM-ANOVA for beat/interval
-            oneway_anova_task_dir = os.path.join(
-                anovas_dir, '1way-anova')
-            oneway_rmanova(
-                df_path, tasks, oneway_anova_task_dir, tag, roi_name)
+    #         # 1-way RM-ANOVA for beat/interval
+    #         oneway_anova_task_dir = os.path.join(
+    #             anovas_dir, '1way-anova')
+    #         oneway_rmanova(
+    #             df_path, tasks, oneway_anova_task_dir, tag, roi_name)
 
 
         ####################### 6 ROIs ##################################
         # # 2-way RM-ANOVA for roi and category for both modalities
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat6rois_hem')
+        #     msdtb_dir, '2way-anova_cat6rois')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
         # # 2-way RM-ANOVA for roi and category for auditory tasks
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat6rois_hem_auditory')
+        #     msdtb_dir, '2way-anova_cat6rois_auditory')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
         #                       modality='auditory')
 
         # # 2-way RM-ANOVA for roi and category for vision tasks
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat6rois_hem_visual')
+        #     msdtb_dir, '2way-anova_cat6rois_visual')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
         #                       modality='visual')
 
         # ##################### 3 ROIs ##################################
         # # 2-way RM-ANOVA for roi and category for both modalities
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem')
+        #     msdtb_dir, '2way-anova_cat3rois')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
 
         # # 2-way RM-ANOVA for roi and category for auditory tasks
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem_auditory')
+        #     msdtb_dir, '2way-anova_cat3rois_auditory')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
         #                       modality='auditory')
 
         # # 2-way RM-ANOVA for roi and category for vision tasks
         # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat3rois_hem_visual')
+        #     msdtb_dir, '2way-anova_cat3rois_visual')
         # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
         #                       modality='visual')
 
         # ##################### 2 ROIs ##################################
         # 2-way RM-ANOVA for roi and category for both modalities
         twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat2rois_hem')
+            msdtb_dir, '2way-anova_cat2rois')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+        posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
+                       roi_names)
 
         # 2-way RM-ANOVA for roi and category for auditory tasks
         twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat2rois_hem_auditory')
+            msdtb_dir, '2way-anova_cat2rois_auditory')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
                               modality='auditory')
+        posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
+                       roi_names, modality='auditory')
 
         # 2-way RM-ANOVA for roi and category for vision tasks
         twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat2rois_hem_visual')
+            msdtb_dir, '2way-anova_cat2rois_visual')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
                               modality='visual')
+        posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
+                       roi_names, modality='visual')
