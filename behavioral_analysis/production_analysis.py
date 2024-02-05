@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: August 2023
+Last update: February 2024
 
 Compatibility: Python 3.10.4
 """
@@ -1134,8 +1134,8 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
             x_labels = [str(xl) for xl in x]
             ax[m].set_xticks(x, x_labels, fontsize=24)
             # Set limits of y-axis
-            y_labels = [str(int(yl)) for yl in y_values]
-            ax[m].set_yticks(y_values, y_labels, fontsize=24)
+            # y_labels = [str(int(yl)) for yl in y_values]
+            # ax[m].set_yticks(y_values, y_labels, fontsize=24)
             # Add horizontal dashed line at y = 0.5
             if hline:
                 ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
@@ -1338,6 +1338,38 @@ if __name__ == "__main__":
         'Group Distribution of Absolute-Asynchrony for the Production Tasks',
         MAIN_DIR, PLOTS_FOLDER,
         'production_groupviolin_absolute_asynch')
+
+    # ### Regression of mean and std errors for signed asychronies ###
+
+    # Compute Group Mean plus Std of Error and stack
+    mean_ffx_ssync_ab = np.mean(ffx_ssync_audio_beat, axis=1).tolist()
+    mean_ffx_ssync_ai = np.mean(ffx_ssync_audio_interval, axis=1).tolist()
+    mean_ffx_ssync_vb = np.mean(ffx_ssync_visual_beat, axis=1).tolist()
+    mean_ffx_ssync_vi = np.mean(ffx_ssync_visual_interval, axis=1).tolist()
+
+    std_ffx_ssync_ab = np.std(ffx_ssync_audio_beat, axis=1).tolist()
+    std_ffx_ssync_ai = np.std(ffx_ssync_audio_interval, axis=1).tolist()
+    std_ffx_ssync_vb = np.std(ffx_ssync_visual_beat, axis=1).tolist()
+    std_ffx_ssync_vi = np.std(ffx_ssync_visual_interval, axis=1).tolist()
+
+    # Plot
+    mean_ffx_ssync_data = [[mean_ffx_ssync_ab] + [mean_ffx_ssync_ai]] + \
+        [[mean_ffx_ssync_vb] + [mean_ffx_ssync_vi]]
+    mean_ffx_ssync_std = [[std_ffx_ssync_ab] + [std_ffx_ssync_ai]] + \
+        [[std_ffx_ssync_vb] + [std_ffx_ssync_vi]]
+
+    plotfit_production(
+        standards, mean_ffx_ssync_data, np.linspace(-.1, .2, 7),
+        'Mean of Signed Asynchrony', .225,
+        'Mean of Signed Asynchrony for every Standard',
+        MAIN_DIR, PLOTS_FOLDER, 'mean_ssynch_fit_production', hline=True,
+        hline_legend=r'$RT=Standard$')
+    plotfit_production(
+        standards, mean_ffx_ssync_std, np.linspace(-.1, .2, 7),
+        'SD of Signed Asynchrony', .225,
+        'Standard Deviation (SD) of of Signed Asynchrony ' + \
+        'for every Standard', MAIN_DIR, PLOTS_FOLDER,
+        'std_ssynch_fit_production')
 
     # Compute three-way ANOVA for signed asychronies
     db = dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
