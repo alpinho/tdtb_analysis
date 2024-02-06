@@ -565,7 +565,7 @@ def ginput_reshape(audio_beat, audio_interval, visual_beat, visual_interval):
 def plot_violin(audio_beat, audio_interval,
                 visual_beat, visual_interval,
                 isi1s, ylim_b, ylim_t, y_label,
-                title, this_dir, output_folder, fname):
+                title, output_folder, fname):
 
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
 
@@ -692,11 +692,11 @@ def plot_violin(audio_beat, audio_interval,
     plt.suptitle(title, size=10, linespacing=.75)
 
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
+    plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
 
 def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
-              sync_visual_interval, stand_numbers):
+              sync_visual_interval, stand_numbers, output_dir):
     # Inputs shape (n_subjects, n_isi, n_trials)
 
     # Compute mean of trials synchronies for each standard and subject
@@ -748,10 +748,18 @@ def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
                                       'Modality', 'Condition'])
     df['Asynchronies'] = df['Asynchronies'].apply(pd.to_numeric)
 
+    output_folder = os.path.join(output_dir, 'anovas')
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+    # Save dataframe
+    outpath = os.path.join(output_folder, 'asynchronies_df.tsv')
+    df.to_csv(outpath, index=False, sep='\t')
+
     return df
 
 
-def threeway_repanova(df, this_dir, output_dir):
+def threeway_repanova(df, output_dir):
     # Create AnovaRM object
     model = AnovaRM(data=df, depvar='Asynchronies', subject='Subject',
                     within=['Modality', 'Condition', 'Standard'])
@@ -759,11 +767,15 @@ def threeway_repanova(df, this_dir, output_dir):
     # Run the 3-way repeated measures ANOVA
     results = model.fit()
 
+    # Create output_folder, if it does not exist
+    output_folder = os.path.join(output_dir, 'anovas/threeway')
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
     # Save ANOVA results in a TSV file
-    results.anova_table.to_csv(
-        os.path.join(this_dir, output_dir,
-                     'anovas/threeway/threeway_anova_results.tsv'),
-        sep='\t')
+    results.anova_table.to_csv(os.path.join(output_folder,
+                                            'threeway_anova_results.tsv'),
+                               sep='\t')
 
     # Perform pairwise Tukey HSD tests
     posthoc_modality = pairwise_tukeyhsd(df['Asynchronies'], df['Modality'],
@@ -772,9 +784,6 @@ def threeway_repanova(df, this_dir, output_dir):
                                           alpha=0.05)
     posthoc_standard = pairwise_tukeyhsd(df['Asynchronies'], df['Standard'],
                                          alpha=0.05)
-
-    # Save posthoc results in a TSV file
-    output_folder = os.path.join(this_dir, output_dir, 'anovas/threeway')
 
     with open(os.path.join(output_folder, 'posthoc_modality.tsv'), 'w') as fm:
         fm.write(posthoc_modality.summary().as_csv(sep='\t'))
@@ -874,7 +883,7 @@ def threeway_repanova(df, this_dir, output_dir):
 def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
                     pval_audio, pval_visual,
                     isi1s, y, ylim_b, ylim_t, yshift,
-                    title, this_dir, output_folder, fname):
+                    title, output_folder, fname):
 
     # Concatenate data
     data_audio = [np.append(audio_beat[j], audio_interval[j]).tolist()
@@ -993,7 +1002,7 @@ def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
 
     # plt.show()
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
+    plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
 
 def plot_pttest(data_audio, data_visual,
@@ -1098,7 +1107,7 @@ def plot_pttest(data_audio, data_visual,
     plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
 
 
-def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
+def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title,
                        output_folder, fname, legend_loc='lower left',
                        hline_legend=None, hline_yloc=[.4275, .435]):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
@@ -1167,7 +1176,7 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
     plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
 
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
+    plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
 
 def production_ancova(dependent_var, covariate, modality='audio'):
@@ -1213,34 +1222,33 @@ SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 SESSTYPES = ['behavioral_session', 'imaging_session']
 # SESSTYPES = ['imaging_session']
 
-PLOTS_FOLDER = 'production_results'
-
 N_TRIALS = 30
 
 # %%
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results')
 
 # %%
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
 
-    if not os.path.exists(os.path.join(MAIN_DIR, PLOTS_FOLDER)):
-        os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER))
+    if not os.path.exists(RESULTS_FOLDER):
+        os.mkdir(RESULTS_FOLDER)
 
     # ############### PRODUCTION SYNCHRONIES ###########################
 
     # ### Individual analysis per standard --- box plots
     ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
         ssync_visual_interval, standards = individual_production_isi_sync(
-            SUBJECTS, SESSTYPES, MAIN_DIR, PLOTS_FOLDER, 'signed',
+            SUBJECTS, SESSTYPES, MAIN_DIR, RESULTS_FOLDER, 'signed',
             N_TRIALS, flatten=False)
 
     async_audio_beat, async_audio_interval, async_visual_beat, \
         async_visual_interval, standards = individual_production_isi_sync(
-            SUBJECTS, SESSTYPES, MAIN_DIR, PLOTS_FOLDER, 'absolute',
+            SUBJECTS, SESSTYPES, MAIN_DIR, RESULTS_FOLDER, 'absolute',
             N_TRIALS, flatten=False)
 
     # ## Compute mean of asynchronies across trials per subject
@@ -1277,7 +1285,7 @@ if __name__ == "__main__":
                     ffx_ssync_visual_beat, ffx_ssync_visual_interval,
                     pssync_audio, pssync_visual,
                     standards, 'Signed Asynchrony', -.125, .3, -.039,
-                    ssync_title, MAIN_DIR, PLOTS_FOLDER, ssync_f)
+                    ssync_title, RESULTS_FOLDER, ssync_f)
 
     # Absolute asynchronies
     _, pasync_audio = stats.ttest_rel(
@@ -1294,7 +1302,7 @@ if __name__ == "__main__":
                     ffx_async_visual_beat, ffx_async_visual_interval,
                     pasync_audio, pasync_visual,
                     standards, 'Absolute Asynchrony', -0., .3, -.04,
-                    async_title, MAIN_DIR, PLOTS_FOLDER, async_f)
+                    async_title, RESULTS_FOLDER, async_f)
 
     # ### Group Analyses per standard --- violin plots
 
@@ -1330,7 +1338,7 @@ if __name__ == "__main__":
         rs_ssync_visual_beat, rs_ssync_visual_interval,
         standards, -1., 4., 'Asynchrony',
         'Group Distribution of Signed-Asynchrony for the Production Tasks',
-        MAIN_DIR, PLOTS_FOLDER,
+        RESULTS_FOLDER,
         'production_groupviolin_signed_asynch')
 
     # Absolute asynchronies
@@ -1339,7 +1347,7 @@ if __name__ == "__main__":
         rs_async_visual_beat, rs_async_visual_interval,
         standards, -.05, 4., 'Asynchrony',
         'Group Distribution of Absolute-Asynchrony for the Production Tasks',
-        MAIN_DIR, PLOTS_FOLDER,
+        RESULTS_FOLDER,
         'production_groupviolin_absolute_asynch')
 
     # ### Regression of mean and std errors for signed asychronies ###
@@ -1365,20 +1373,20 @@ if __name__ == "__main__":
         standards, mean_ffx_ssync_data, np.around(np.arange(-.1, .2, .05), 2),
         'Mean of Signed Asynchrony', .225,
         'Mean of Signed Asynchrony for every Standard',
-        MAIN_DIR, PLOTS_FOLDER, 'mean_ssynch_fit_production',
+        RESULTS_FOLDER, 'mean_ssynch_fit_production',
         hline_legend=r'$RT=Standard$', hline_yloc=[.41, .41])
     plotfit_production(
         standards, mean_ffx_ssync_std, np.around(np.arange(.06, .14, .02), 3),
         'SD of Signed Asynchrony', .225,
         'Standard Deviation (SD) of of Signed Asynchrony ' + \
-        'for every Standard', MAIN_DIR, PLOTS_FOLDER,
+        'for every Standard', RESULTS_FOLDER,
         'std_ssynch_fit_production', legend_loc='upper left')
 
     # Compute three-way ANOVA for signed asychronies
     db = dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
                    rsized_ssync_visual_beat, rsized_ssync_visual_interval,
-                   standards)
-    threeway_repanova(db, MAIN_DIR, PLOTS_FOLDER)
+                   standards, RESULTS_FOLDER)
+    threeway_repanova(db, RESULTS_FOLDER)
 
 
     # # # # # ############## PRODUCTION RESPONSE TIME ########################
@@ -1386,7 +1394,8 @@ if __name__ == "__main__":
     # ### Individual analysis per standard --- box plots ###
     rtsprod_audio_beat, rtsprod_audio_interval, rtsprod_visual_beat, \
         rtsprod_visual_interval, standards = individual_production_isi_rts(
-            SUBJECTS, SESSTYPES, MAIN_DIR, PLOTS_FOLDER, N_TRIALS,
+            SUBJECTS, SESSTYPES, MAIN_DIR
+            , RESULTS_FOLDER, N_TRIALS,
             flatten=False)
 
     # ### Group Analyses per standard --- bar plots + paired t-test ###
@@ -1413,7 +1422,7 @@ if __name__ == "__main__":
                     ffx_rtsprod_visual_beat, ffx_rtsprod_visual_interval,
                     prtprod_audio, prtprod_visual,
                     standards, 'Response Time (ms)', 0., 900., -100.,
-                    rtprod_title, MAIN_DIR, PLOTS_FOLDER, rtprod_f)
+                    rtprod_title, RESULTS_FOLDER, rtprod_f)
 
     # ### Group Analyses per standard --- violin plots ###
     # Resize
@@ -1435,7 +1444,7 @@ if __name__ == "__main__":
         rs_rtsprod_visual_beat, rs_rtsprod_visual_interval,
         standards, 0., 2250., 'Response Time (ms)',
         'Group Distribution of Response Time for the Production Tasks',
-        MAIN_DIR, PLOTS_FOLDER,
+        RESULTS_FOLDER,
         'production_groupviolin_responsetime')
 
     # ### Regression of mean and std errors ###
@@ -1515,26 +1524,26 @@ if __name__ == "__main__":
         standards, mean_ffx_data, np.linspace(-60, 90, 6),
         'RT-Difference Mean (ms)', .225,
         'Mean of Response-Time (RT) Difference for every Standard',
-        MAIN_DIR, PLOTS_FOLDER, 'mean-err_production',
+        RESULTS_FOLDER, 'mean-err_production',
         hline_legend=r'$RT=Standard$')
     plotfit_production(
         standards, mean_ffx_std, np.linspace(30, 70, 6),
         'RT-Difference SD (ms)', .225,
         'Standard Deviation (SD) of Response-Time (RT) Difference ' + \
-        'for every Standard', MAIN_DIR, PLOTS_FOLDER,
+        'for every Standard', RESULTS_FOLDER,
         'std-err_production')
 
     plotfit_production(
         standards, mean_abs_ffx_data, np.linspace(-60, 140, 6),
         'Absolute RT-Difference Mean (ms)', .125,
         'Mean of Absolute Response-Time (RT) Difference for every Standard',
-        MAIN_DIR, PLOTS_FOLDER, 'mean-abserr_production',
+        RESULTS_FOLDER, 'mean-abserr_production',
         hline_legend=r'$RT=Standard$')
     plotfit_production(
         standards, mean_abs_ffx_std, np.linspace(30, 70, 6),
         'Absolute RT-Difference SD (ms)', .125,
         'Standard Deviation (SD) of Absolute Response-Time (RT) Difference' + \
-        ' for every Standard', MAIN_DIR, PLOTS_FOLDER,
+        ' for every Standard', RESULTS_FOLDER,
         'std-abserr_production')
 
     # Compute ANCOVAs
