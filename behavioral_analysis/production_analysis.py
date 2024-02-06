@@ -1480,56 +1480,58 @@ if __name__ == "__main__":
             abs_error_rtsprod_visual_beat, abs_error_rtsprod_visual_interval)
 
     # Compute Group Mean plus Std of Error and stack
-    mean_ab = np.mean(ffxerr_rtsprod_audio_beat, axis=1).tolist()
-    mean_ai = np.mean(ffxerr_rtsprod_audio_interval, axis=1).tolist()
-    mean_vb = np.mean(ffxerr_rtsprod_visual_beat, axis=1).tolist()
-    mean_vi = np.mean(ffxerr_rtsprod_visual_interval, axis=1).tolist()
+    mean_ffx_ab = np.mean(ffxerr_rtsprod_audio_beat, axis=1).tolist()
+    mean_ffx_ai = np.mean(ffxerr_rtsprod_audio_interval, axis=1).tolist()
+    mean_ffx_vb = np.mean(ffxerr_rtsprod_visual_beat, axis=1).tolist()
+    mean_ffx_vi = np.mean(ffxerr_rtsprod_visual_interval, axis=1).tolist()
 
-    mean_abs_ab = np.mean(ffxabserr_rtsprod_audio_beat, axis=1).tolist()
-    mean_abs_ai = np.mean(ffxabserr_rtsprod_audio_interval, axis=1).tolist()
-    mean_abs_vb = np.mean(ffxabserr_rtsprod_visual_beat, axis=1).tolist()
-    mean_abs_vi = np.mean(ffxabserr_rtsprod_visual_interval, axis=1).tolist()
+    mean_abs_ffx_ab = np.mean(ffxabserr_rtsprod_audio_beat, axis=1).tolist()
+    mean_abs_ffx_ai = np.mean(ffxabserr_rtsprod_audio_interval, axis=1).tolist()
+    mean_abs_ffx_vb = np.mean(ffxabserr_rtsprod_visual_beat, axis=1).tolist()
+    mean_abs_ffx_vi = np.mean(ffxabserr_rtsprod_visual_interval,
+                              axis=1).tolist()
 
-    std_ab = np.std(ffxerr_rtsprod_audio_beat, axis=1).tolist()
-    std_ai = np.std(ffxerr_rtsprod_audio_interval, axis=1).tolist()
-    std_vb = np.std(ffxerr_rtsprod_visual_beat, axis=1).tolist()
-    std_vi = np.std(ffxerr_rtsprod_visual_interval, axis=1).tolist()
+    std_ffx_ab = np.std(ffxerr_rtsprod_audio_beat, axis=1).tolist()
+    std_ffx_ai = np.std(ffxerr_rtsprod_audio_interval, axis=1).tolist()
+    std_ffx_vb = np.std(ffxerr_rtsprod_visual_beat, axis=1).tolist()
+    std_ffx_vi = np.std(ffxerr_rtsprod_visual_interval, axis=1).tolist()
 
-    std_abs_ab = np.std(ffxabserr_rtsprod_audio_beat, axis=1).tolist()
-    std_abs_ai = np.std(ffxabserr_rtsprod_audio_interval, axis=1).tolist()
-    std_abs_vb = np.std(ffxabserr_rtsprod_visual_beat, axis=1).tolist()
-    std_abs_vi = np.std(ffxabserr_rtsprod_visual_interval, axis=1).tolist()
+    std_abs_ffx_ab = np.std(ffxabserr_rtsprod_audio_beat, axis=1).tolist()
+    std_abs_ffx_ai = np.std(ffxabserr_rtsprod_audio_interval, axis=1).tolist()
+    std_abs_ffx_vb = np.std(ffxabserr_rtsprod_visual_beat, axis=1).tolist()
+    std_abs_ffx_vi = np.std(ffxabserr_rtsprod_visual_interval, axis=1).tolist()
 
     # Plot
-    mean_data = [[mean_ab] + [mean_ai]] + [[mean_vb] + [mean_vi]]
-    mean_std = [[std_ab] + [std_ai]] + [[std_vb] + [std_vi]]
+    mean_ffx_data = [
+        [mean_ffx_ab] + [mean_ffx_ai]] + [[mean_ffx_vb] + [mean_ffx_vi]]
+    mean_ffx_std = [[std_ffx_ab] + [std_ffx_ai]] + [[std_ffx_vb] + [std_ffx_vi]]
 
-    mean_abs_data = [[mean_abs_ab] + [mean_abs_ai]] + \
-        [[mean_abs_vb] + [mean_abs_vi]]
-    mean_abs_std = [[std_abs_ab] + [std_abs_ai]] + \
-        [[std_abs_vb] + [std_abs_vi]]
+    mean_abs_ffx_data = [[mean_abs_ffx_ab] + [mean_abs_ffx_ai]] + \
+        [[mean_abs_ffx_vb] + [mean_abs_ffx_vi]]
+    mean_abs_ffx_std = [[std_abs_ffx_ab] + [std_abs_ffx_ai]] + \
+        [[std_abs_ffx_vb] + [std_abs_ffx_vi]]
 
     plotfit_production(
-        standards, mean_data, np.linspace(-60, 90, 6),
+        standards, mean_ffx_data, np.linspace(-60, 90, 6),
         'RT-Difference Mean (ms)', .225,
         'Mean of Response-Time (RT) Difference for every Standard',
         MAIN_DIR, PLOTS_FOLDER, 'mean-err_production',
         hline_legend=r'$RT=Standard$')
     plotfit_production(
-        standards, mean_std, np.linspace(30, 70, 6),
+        standards, mean_ffx_std, np.linspace(30, 70, 6),
         'RT-Difference SD (ms)', .225,
         'Standard Deviation (SD) of Response-Time (RT) Difference ' + \
         'for every Standard', MAIN_DIR, PLOTS_FOLDER,
         'std-err_production')
 
     plotfit_production(
-        standards, mean_abs_data, np.linspace(-60, 140, 6),
+        standards, mean_abs_ffx_data, np.linspace(-60, 140, 6),
         'Absolute RT-Difference Mean (ms)', .125,
         'Mean of Absolute Response-Time (RT) Difference for every Standard',
         MAIN_DIR, PLOTS_FOLDER, 'mean-abserr_production',
         hline_legend=r'$RT=Standard$')
     plotfit_production(
-        standards, mean_abs_std, np.linspace(30, 70, 6),
+        standards, mean_abs_ffx_std, np.linspace(30, 70, 6),
         'Absolute RT-Difference SD (ms)', .125,
         'Standard Deviation (SD) of Absolute Response-Time (RT) Difference' + \
         ' for every Standard', MAIN_DIR, PLOTS_FOLDER,
@@ -1537,15 +1539,18 @@ if __name__ == "__main__":
 
     # Compute ANCOVAs
     # Stack multidimensional numpy array to produce a dataframe
-    mean_data = np.array(mean_data)
-    mean_std = np.array(mean_std)
+    mean_ffx_data = np.array(mean_ffx_data)
+    mean_ffx_std = np.array(mean_ffx_std)
 
-    aoc_mean_audio = production_ancova(mean_data, standards, modality='audio')
-    aoc_mean_visual = production_ancova(mean_data, standards,
+    aoc_mean_audio = production_ancova(mean_ffx_data, standards,
+                                       modality='audio')
+    aoc_mean_visual = production_ancova(mean_ffx_data, standards,
                                         modality='visual')
 
-    aoc_std_audio = production_ancova(mean_std, standards, modality='audio')
-    aoc_std_visual = production_ancova(mean_std, standards, modality='visual')
+    aoc_std_audio = production_ancova(mean_ffx_std, standards,
+                                      modality='audio')
+    aoc_std_visual = production_ancova(mean_ffx_std, standards,
+                                       modality='visual')
 
     print('\nANCOVA for Mean Error of Response Time in Audio Tasks')
     print(aoc_mean_audio)
