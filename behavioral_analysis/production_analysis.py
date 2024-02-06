@@ -704,7 +704,7 @@ def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
     sync_audio_interval = np.nanmean(sync_audio_interval, axis=2)
     sync_visual_beat = np.nanmean(sync_visual_beat, axis=2)
     sync_visual_interval = np.nanmean(sync_visual_interval, axis=2)
-    
+
     conditions_names = np.array(['beat', 'interval'])
     modalities_names = np.array(['audio', 'visual'])
 
@@ -1099,7 +1099,8 @@ def plot_pttest(data_audio, data_visual,
 
 
 def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
-                       output_folder, fname, hline=False, hline_legend=None):
+                       output_folder, fname, legend_loc='lower left',
+                       hline_legend=None, hline_yloc=[.4275, .435]):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
 
     # left   # the left side of the subplots of the figure
@@ -1108,7 +1109,7 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
     # top    # the top of the subplots of the figure
     # wspace # the amount of width reserved for blank space between subplots
     # hspace # the amount of height reserved for white space between subplots
-    plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15)
+    plt.subplots_adjust(left=.095, bottom=.11, right=.98, wspace=.175)
 
     colors = ['tab:blue', 'tab:orange']
     legend_labels = ['Beat', 'Interval']
@@ -1134,10 +1135,10 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
             x_labels = [str(xl) for xl in x]
             ax[m].set_xticks(x, x_labels, fontsize=24)
             # Set limits of y-axis
-            # y_labels = [str(int(yl)) for yl in y_values]
-            # ax[m].set_yticks(y_values, y_labels, fontsize=24)
+            y_labels = [str(yl) for yl in y_values]
+            ax[m].set_yticks(y_values, y_labels, fontsize=24)
             # Add horizontal dashed line at y = 0.5
-            if hline:
+            if hline_legend:
                 ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
                               alpha=.5)
 
@@ -1145,7 +1146,7 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
         if m == 0:
             ax[m].set_title('Auditory Production', weight='bold', pad=0,
                             fontsize=24)
-            ax[m].legend(loc='lower left', frameon=False, prop={'size': 24})
+            ax[m].legend(loc=legend_loc, frameon=False, prop={'size': 24})
         else:
             assert m == 1
             ax[m].set_title('Visual Production', weight='bold', pad=0,
@@ -1154,11 +1155,13 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title, this_dir,
         # Name of x-axis
         fig.text(.465, .018, 'Standards (ms)', fontsize=24)
         # Name of y-axis
-        fig.text(.02, yname_pos, yaxis_name, fontsize=26, rotation=90)
+        fig.text(.005, yname_pos, yaxis_name, fontsize=26, rotation=90)
         # Legends for horizontal dashed lines
-        if hline:
-            fig.text(.355, .4275, hline_legend, fontsize=24, color='dimgrey')
-            fig.text(.825, .435, hline_legend, fontsize=24, color='dimgrey')
+        if hline_legend:
+            fig.text(.355, hline_yloc[0], hline_legend, fontsize=24,
+                     color='dimgrey')
+            fig.text(.825, hline_yloc[1], hline_legend, fontsize=24,
+                     color='dimgrey')
 
     # Title
     plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
@@ -1359,17 +1362,17 @@ if __name__ == "__main__":
         [[std_ffx_ssync_vb] + [std_ffx_ssync_vi]]
 
     plotfit_production(
-        standards, mean_ffx_ssync_data, np.linspace(-.1, .2, 7),
+        standards, mean_ffx_ssync_data, np.around(np.arange(-.1, .2, .05), 2),
         'Mean of Signed Asynchrony', .225,
         'Mean of Signed Asynchrony for every Standard',
-        MAIN_DIR, PLOTS_FOLDER, 'mean_ssynch_fit_production', hline=True,
-        hline_legend=r'$RT=Standard$')
+        MAIN_DIR, PLOTS_FOLDER, 'mean_ssynch_fit_production',
+        hline_legend=r'$RT=Standard$', hline_yloc=[.41, .41])
     plotfit_production(
-        standards, mean_ffx_ssync_std, np.linspace(-.1, .2, 7),
+        standards, mean_ffx_ssync_std, np.around(np.arange(.06, .14, .02), 3),
         'SD of Signed Asynchrony', .225,
         'Standard Deviation (SD) of of Signed Asynchrony ' + \
         'for every Standard', MAIN_DIR, PLOTS_FOLDER,
-        'std_ssynch_fit_production')
+        'std_ssynch_fit_production', legend_loc='upper left')
 
     # Compute three-way ANOVA for signed asychronies
     db = dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
@@ -1510,7 +1513,7 @@ if __name__ == "__main__":
         standards, mean_data, np.linspace(-60, 90, 6),
         'RT-Difference Mean (ms)', .225,
         'Mean of Response-Time (RT) Difference for every Standard',
-        MAIN_DIR, PLOTS_FOLDER, 'mean-err_production', hline=True,
+        MAIN_DIR, PLOTS_FOLDER, 'mean-err_production',
         hline_legend=r'$RT=Standard$')
     plotfit_production(
         standards, mean_std, np.linspace(30, 70, 6),
@@ -1523,7 +1526,7 @@ if __name__ == "__main__":
         standards, mean_abs_data, np.linspace(-60, 140, 6),
         'Absolute RT-Difference Mean (ms)', .125,
         'Mean of Absolute Response-Time (RT) Difference for every Standard',
-        MAIN_DIR, PLOTS_FOLDER, 'mean-abserr_production', hline=True,
+        MAIN_DIR, PLOTS_FOLDER, 'mean-abserr_production',
         hline_legend=r'$RT=Standard$')
     plotfit_production(
         standards, mean_abs_std, np.linspace(30, 70, 6),
