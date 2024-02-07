@@ -1219,8 +1219,6 @@ def production_ancova(dependent_var, covariate, output_dir, dfname, resname,
     res_outpath = os.path.join(output_folder, resname + '_' + modality + '.tsv')
     aoc_modality.to_csv(res_outpath, index=False, sep='\t')
 
-    return aoc_modality
-
 
 # %%
 # =========================== INPUTS ===================================
@@ -1379,19 +1377,19 @@ if __name__ == "__main__":
     std_ffx_ssync_vi = np.std(ffx_ssync_visual_interval, axis=1).tolist()
 
     # Plot
-    mean_ffx_ssync_data = [[mean_ffx_ssync_ab] + [mean_ffx_ssync_ai]] + \
+    mean_ffx_ssync = [[mean_ffx_ssync_ab] + [mean_ffx_ssync_ai]] + \
         [[mean_ffx_ssync_vb] + [mean_ffx_ssync_vi]]
-    mean_ffx_ssync_std = [[std_ffx_ssync_ab] + [std_ffx_ssync_ai]] + \
+    std_ffx_ssync = [[std_ffx_ssync_ab] + [std_ffx_ssync_ai]] + \
         [[std_ffx_ssync_vb] + [std_ffx_ssync_vi]]
 
     plotfit_production(
-        standards, mean_ffx_ssync_data, np.around(np.arange(-.1, .2, .05), 2),
+        standards, mean_ffx_ssync, np.around(np.arange(-.1, .2, .05), 2),
         'Mean of Signed Asynchrony', .225,
         'Mean of Signed Asynchrony for every Standard',
         RESULTS_FOLDER, 'mean_ssynch_fit_production',
         hline_legend=r'$RT=Standard$', hline_yloc=[.41, .41])
     plotfit_production(
-        standards, mean_ffx_ssync_std, np.around(np.arange(.06, .14, .02), 3),
+        standards, std_ffx_ssync, np.around(np.arange(.06, .14, .02), 3),
         'SD of Signed Asynchrony', .225,
         'Standard Deviation (SD) of of Signed Asynchrony ' + \
         'for every Standard', RESULTS_FOLDER,
@@ -1402,6 +1400,25 @@ if __name__ == "__main__":
                    rsized_ssync_visual_beat, rsized_ssync_visual_interval,
                    standards, RESULTS_FOLDER)
     threeway_repanova(db, RESULTS_FOLDER)
+
+    # Compute ANCOVAs for signed asychronies
+    # Stack multidimensional numpy array to produce a dataframe
+    mean_ffx_ssync = np.array(mean_ffx_ssync)
+    std_ffx_ssync = np.array(std_ffx_ssync)
+
+    production_ancova(mean_ffx_ssync, standards, RESULTS_FOLDER,
+                      'df_ancova_mean-ssync', 'res_ancova_mean-ssync',
+                      modality='audio')
+    production_ancova(mean_ffx_ssync, standards, RESULTS_FOLDER,
+                      'df_ancova_mean-ssync', 'res_ancova_mean-ssync',
+                      modality='visual')
+
+    production_ancova(std_ffx_ssync, standards, RESULTS_FOLDER,
+                      'df_ancova_sd-ssync', 'res_ancova_sd-ssync',
+                      modality='audio')
+    production_ancova(std_ffx_ssync, standards, RESULTS_FOLDER,
+                      'df_ancova_sd-ssync', 'res_ancova_sd-ssync',
+                      modality='visual')
 
 
     # # # # # ############## PRODUCTION RESPONSE TIME ########################
@@ -1526,64 +1543,56 @@ if __name__ == "__main__":
     std_abs_ffx_vi = np.std(ffxabserr_rtsprod_visual_interval, axis=1).tolist()
 
     # Plot
-    mean_ffx_data = [
+    mean_ffx_rt = [
         [mean_ffx_ab] + [mean_ffx_ai]] + [[mean_ffx_vb] + [mean_ffx_vi]]
-    mean_ffx_std = [[std_ffx_ab] + [std_ffx_ai]] + [[std_ffx_vb] + [std_ffx_vi]]
+    std_ffx_rt = [[std_ffx_ab] + [std_ffx_ai]] + [[std_ffx_vb] + [std_ffx_vi]]
 
-    mean_abs_ffx_data = [[mean_abs_ffx_ab] + [mean_abs_ffx_ai]] + \
+    mean_abs_ffx_rt = [[mean_abs_ffx_ab] + [mean_abs_ffx_ai]] + \
         [[mean_abs_ffx_vb] + [mean_abs_ffx_vi]]
-    mean_abs_ffx_std = [[std_abs_ffx_ab] + [std_abs_ffx_ai]] + \
+    std_abs_ffx_rt = [[std_abs_ffx_ab] + [std_abs_ffx_ai]] + \
         [[std_abs_ffx_vb] + [std_abs_ffx_vi]]
 
     plotfit_production(
-        standards, mean_ffx_data, np.linspace(-60, 90, 6),
+        standards, mean_ffx_rt, np.linspace(-60, 90, 6),
         'RT-Difference Mean (ms)', .225,
         'Mean of Response-Time (RT) Difference for every Standard',
         RESULTS_FOLDER, 'mean-err_production',
         hline_legend=r'$RT=Standard$')
     plotfit_production(
-        standards, mean_ffx_std, np.linspace(30, 70, 6),
+        standards, std_ffx_rt, np.linspace(30, 70, 6),
         'RT-Difference SD (ms)', .225,
         'Standard Deviation (SD) of Response-Time (RT) Difference ' + \
         'for every Standard', RESULTS_FOLDER,
         'std-err_production')
 
     plotfit_production(
-        standards, mean_abs_ffx_data, np.linspace(-60, 140, 6),
+        standards, mean_abs_ffx_rt, np.linspace(-60, 140, 6),
         'Absolute RT-Difference Mean (ms)', .125,
         'Mean of Absolute Response-Time (RT) Difference for every Standard',
         RESULTS_FOLDER, 'mean-abserr_production',
         hline_legend=r'$RT=Standard$')
     plotfit_production(
-        standards, mean_abs_ffx_std, np.linspace(30, 70, 6),
+        standards, std_abs_ffx_rt, np.linspace(30, 70, 6),
         'Absolute RT-Difference SD (ms)', .125,
         'Standard Deviation (SD) of Absolute Response-Time (RT) Difference' + \
         ' for every Standard', RESULTS_FOLDER,
         'std-abserr_production')
 
-    # Compute ANCOVAs
+    # Compute ANCOVAs for signed response times
     # Stack multidimensional numpy array to produce a dataframe
-    mean_ffx_data = np.array(mean_ffx_data)
-    mean_ffx_std = np.array(mean_ffx_std)
+    mean_ffx_rt = np.array(mean_ffx_rt)
+    std_ffx_rt = np.array(std_ffx_rt)
 
-    aoc_mean_audio = production_ancova(mean_ffx_data, standards,
-                                       RESULTS_FOLDER,
-                                       'df_ancova_mean-rtprod',
-                                       'res_ancova_mean-rtprod',
-                                       modality='audio')
-    aoc_mean_visual = production_ancova(mean_ffx_data, standards,
-                                        RESULTS_FOLDER,
-                                        'df_ancova_mean-rtprod',
-                                        'res_ancova_mean-rtprod',
-                                        modality='visual')
+    production_ancova(mean_ffx_rt, standards, RESULTS_FOLDER,
+                      'df_ancova_mean-rtprod', 'res_ancova_mean-rtprod',
+                      modality='audio')
+    production_ancova(mean_ffx_rt, standards, RESULTS_FOLDER,
+                      'df_ancova_mean-rtprod', 'res_ancova_mean-rtprod',
+                      modality='visual')
 
-    aoc_std_audio = production_ancova(mean_ffx_std, standards,
-                                      RESULTS_FOLDER,
-                                      'df_ancova_sd-rtprod',
-                                      'res_ancova_sd-rtprod',
-                                      modality='audio')
-    aoc_std_visual = production_ancova(mean_ffx_std, standards,
-                                       RESULTS_FOLDER,
-                                       'df_ancova_sd-rtprod',
-                                       'res_ancova_sd-rtprod',
-                                       modality='visual')
+    production_ancova(std_ffx_rt, standards, RESULTS_FOLDER,
+                      'df_ancova_sd-rtprod', 'res_ancova_sd-rtprod',
+                      modality='audio')
+    production_ancova(std_ffx_rt, standards, RESULTS_FOLDER,
+                      'df_ancova_sd-rtprod', 'res_ancova_sd-rtprod',
+                      modality='visual')
