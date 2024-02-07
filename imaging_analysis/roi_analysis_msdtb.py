@@ -970,9 +970,16 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
 
                 # Remove frame of legend
                 ax.legend(frameon=False)
+
+                # Task
+                plt.title('Audio Tasks', size=12, x=.5, y=1.1,
+                          fontweight='bold', color='mediumaquamarine')
             else:
                 # ... remove legend
                 ax.legend([],[], frameon=False)
+
+                # Task
+                plt.title(task, size=12, x=.5, y=1.1, fontweight='bold')
 
             # Add values inside bars
             for i in s.containers:
@@ -993,9 +1000,6 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
             if n_rois == 6:
                 # Rotating X-axis labels
                 plt.xticks(rotation = 30, fontsize=10)
-
-            # Task
-            plt.title(task, size=12, x=.5, y=1.1, fontweight='bold')
 
             # Hemisphere
             if t == 0:
