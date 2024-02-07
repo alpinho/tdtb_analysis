@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: August 2023
+Last update: February 2024
 
 Compatibility: Python 3.10.4
 """
@@ -396,7 +396,7 @@ def individual_perception(
 
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
-                     standards, comparisons, condition, this_dir, output_dir,
+                     standards, comparisons, condition, output_dir,
                      estimator = 'mle_expit'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
@@ -550,7 +550,7 @@ def group_perception(all_rf1_audio, all_rf2_audio,
         suffix, x=.5, y=.97, size=16, linespacing=.75)
 
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_dir,
+    plt.savefig(os.path.join(output_dir,
         'group_perception_' + condition + '_' + estimator + '.pdf'))
 
     plt.close('all')
@@ -558,7 +558,7 @@ def group_perception(all_rf1_audio, all_rf2_audio,
     return group_pse, group_dl
 
 
-def plotfit_perception(x, y, estimator, this_dir, output_dir):
+def plotfit_perception(x, y, estimator, output_dir):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
 
     # left   # the left side of the subplots of the figure
@@ -634,13 +634,13 @@ def plotfit_perception(x, y, estimator, this_dir, output_dir):
         x=.5, y=.97, size=26, linespacing=.75)
 
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_dir,
+    plt.savefig(os.path.join(output_dir,
                              'pse-vs-standard_' + estimator + '.pdf'))
 
     plt.close('all')
 
 
-def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir,
+def dataframe(estim_pse, estim_dl, stand_numbers, output_dir,
               estimator='mle_expit'):
     # Shape of pse and dl arrays:
     # (estimators, conditions, modality, subjects, standards)
@@ -698,10 +698,22 @@ def dataframe(estim_pse, estim_dl, stand_numbers, this_dir, output_dir,
                 df.Modality == mod_val][df.Condition == cond_val].DL.values)
             df.loc[index, 'DL'] = dl
 
+    output_folder = os.path.join(output_dir, 'anovas')
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+    # Save dataframe
+    outpath = os.path.join(output_folder, 'df_dl.tsv')
+    df.to_csv(outpath, index=False, sep='\t')
+
     return df
 
 
-def threeway_repanova(df, this_dir, output_dir):
+def threeway_repanova(df, output_dir):
+    # Open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
     # Create AnovaRM object
     model = AnovaRM(data=df, depvar='DL', subject='Subject',
                     within=['Modality', 'Condition', 'Standard'])
@@ -709,11 +721,13 @@ def threeway_repanova(df, this_dir, output_dir):
     # Run the 3-way repeated measures ANOVA
     results = model.fit()
 
+    output_folder = os.path.join(output_dir, 'anovas/threeway')
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
     # Save ANOVA results in a TSV file
-    results.anova_table.to_csv(
-        os.path.join(this_dir, output_dir,
-                     'anovas/threeway/threeway_anova_results.tsv'),
-        sep='\t')
+    results.anova_table.to_csv(os.path.join(
+        output_folder, 'threeway_anova_results.tsv'), sep='\t')
 
     # Perform pairwise Tukey HSD tests
     posthoc_modality = pairwise_tukeyhsd(df['DL'], df['Modality'],
@@ -722,9 +736,6 @@ def threeway_repanova(df, this_dir, output_dir):
                                           alpha=0.05)
     posthoc_standard = pairwise_tukeyhsd(df['DL'], df['Standard'],
                                          alpha=0.05)
-
-    # Save posthoc results in a TSV file
-    output_folder = os.path.join(this_dir, output_dir, 'anovas/threeway')
 
     with open(os.path.join(output_folder, 'posthoc_modality.tsv'), 'w') as fm:
         fm.write(posthoc_modality.summary().as_csv(sep='\t'))
@@ -738,7 +749,6 @@ def threeway_repanova(df, this_dir, output_dir):
     # Plot
     modalities = np.unique(df.Modality).tolist()
     conditions = np.unique(df.Condition).tolist()
-    # standards = np.unique(df.Standard).tolist()
 
     for m, modality in enumerate(modalities):
         if modality == 'audio':
@@ -840,23 +850,25 @@ SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 SESSTYPES = ['behavioral_session', 'imaging_session']
 # SESSTYPES = ['imaging_session']
 
-PLOTS_FOLDER = 'perception_results'
-
 N_TRIALS = 30
 
 # %%
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_FOLDER = os.path.join(MAIN_DIR, 'perception_results')
 
 # %%
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
 
-    if not os.path.exists(os.path.join(MAIN_DIR, PLOTS_FOLDER)):
-        os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/twoway'))
-        os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/threeway'))
+    # if not os.path.exists(os.path.join(MAIN_DIR, PLOTS_FOLDER)):
+    #     os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/twoway'))
+    #     os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/threeway'))
+
+    if not os.path.exists(RESULTS_FOLDER):
+        os.mkdir(RESULTS_FOLDER)
 
     # # ################### PERCEPTION ###################################
 
@@ -872,15 +884,14 @@ if __name__ == "__main__":
             # Compute individual psychometric functions
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
-                    individual_perception(SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
+                    individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
                                           SESSTYPES, cond, N_TRIALS,
                                           estimator=estimator)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
                                        rftwo_visual, stand, comp, cond,
-                                       MAIN_DIR, PLOTS_FOLDER,
-                                       estimator=estimator)
+                                       RESULTS_FOLDER, estimator=estimator)
 
             # Start concatenating and appending
             ipse = np.concatenate(([ipse_audio], [ipse_visual]),
@@ -908,11 +919,11 @@ if __name__ == "__main__":
 
         # Plot PSE as a function of the standard
         mod_gpse = np.swapaxes(cond_gpse, 0, 1)
-        plotfit_perception(stand, mod_gpse, estimator, MAIN_DIR, PLOTS_FOLDER)
+        plotfit_perception(stand, mod_gpse, estimator, RESULTS_FOLDER)
 
         # Compute ANOVAS
         if estimator == 'mle_cdf':
             continue
         else:
-            db = dataframe(estim_pse, estim_dl, stand, MAIN_DIR, PLOTS_FOLDER)
-            threeway_repanova(db, MAIN_DIR, PLOTS_FOLDER)
+            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER)
+            threeway_repanova(db, RESULTS_FOLDER)
