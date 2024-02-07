@@ -913,6 +913,12 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
         df = df[df.Modality == 'Visual']
         df = df.drop(['Modality'], axis=1)
 
+    # # Replace strings with names of ROIs
+    df['ROI'] = df['ROI'].str.replace('dstr', 'Dorsal Striatum')
+    df['ROI'] = df['ROI'].str.replace('cereb', 'Cerebellum')
+    order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
+    order_list = [s.replace('cereb', 'Cerebellum') for s in order_list]
+
     # Tasks
     ttags = list(tasks_dic.keys())
     tasks_list = list(tasks_dic.values())
@@ -943,7 +949,30 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                 ci=95, # 1.96 * standard error (95% confidence interval)
                 errcolor="darkgray", errwidth=1.5, capsize = 0.2, alpha=0.5,
                 order=order_list
-                        )
+            )
+
+            # Annotate
+            if hem == 'bh' and task == 'All Tasks':
+                rois = np.flip(np.unique(df.ROI.values))
+                pairs = tuple([[(str(roi), 'Beat'), (str(roi), 'Interval')]
+                               for roi in rois])
+                annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
+                                      hue='Category')
+                annotator.configure(test=None,
+                                    text_format="star", # text_format="simple"
+                                    # test_short_name="pttest", # if former is "simple"
+                                    fontsize=10., hide_non_significant=True)
+
+                annotator.set_pvalues([0.0471665164707565, 0.471495843530365])
+                annotator.annotate()
+
+                ax.text(-.05, .3, '95% CI for the Mean of PSC', size=8)
+
+                # Remove frame of legend
+                ax.legend(frameon=False)
+            else:
+                # ... remove legend
+                ax.legend([],[], frameon=False)
 
             # Add values inside bars
             for i in s.containers:
@@ -953,14 +982,12 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            # Remove frame of legend
-            ax.legend(frameon=False)
-
             # Set limits of ticks in y axis
             plt.ylim([0., .3])
 
             # Add units in ylabel
-            ax.set(ylabel='PSC (%)')
+            # ax.set(ylabel='Percent Signal Change (%)')
+            plt.ylabel('Percent Signal Change (%)', labelpad=7)
 
             # Rotate x_labels
             if n_rois == 6:
@@ -984,9 +1011,6 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                              linespacing=.75, fontweight='bold')
                 plt.text(-1., .36, prefix, size=12,
                          linespacing=.75, fontweight='bold')
-            else:
-                # ... remove legend
-                ax.legend([],[], frameon=False)
 
     # Save figure
     if modality:
@@ -1092,14 +1116,14 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 #              'pmd', 'sma', 'presma']
 
 # 6 ROIs
-atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir,
-                  hmat_dir, hmat_dir, hmat_dir]
-atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128',
-               'hmat', 'hmat', 'hmat']
-region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum',
-                'motor_area', 'motor_area', 'motor_area']
-roi_names = ['dstr', 'cereb-s', 'cereb-i',
-             'pmd', 'sma', 'presma']
+# atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir,
+#                   hmat_dir, hmat_dir, hmat_dir]
+# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat']
+# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area']
+# roi_names = ['dstr', 'cereb-s', 'cereb-i',
+#              'pmd', 'sma', 'presma']
 
 # 3 ROIs
 # atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir]
@@ -1108,14 +1132,16 @@ roi_names = ['dstr', 'cereb-s', 'cereb-i',
 # roi_names = ['dstr', 'cereb-s', 'cereb-i']
 
 # 2 ROIs
-# atlas_dirnames = [fsl_dir, ntk_dir]
-# atlas_names = ['hos', 'ntk_symmni128']
-# region_names = ['dorsal_striatum', 'cerebellum']
-# roi_names = ['dstr', 'cereb']
+atlas_dirnames = [fsl_dir, ntk_dir]
+atlas_names = ['hos', 'ntk_symmni128']
+region_names = ['dorsal_striatum', 'cerebellum']
+roi_names = ['dstr', 'cereb']
 
-tags = ['i', 'a', 'g']
+# tags = ['i', 'a', 'g']
+tags = ['i']
 # Tuple: (individual_weight, group_weight)
-weights_list = [(1.,0.), (.5,.5), (0.,1.)]
+# weights_list = [(1.,0.), (.5,.5), (0.,1.)]
+weights_list = [(1.,0.)]
 
 if __name__ == '__main__':
 
@@ -1206,28 +1232,28 @@ if __name__ == '__main__':
 
 
         ####################### 6 ROIs ##################################
-        # 2-way RM-ANOVA for roi and category for both modalities
-        twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat6rois')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
-        posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
-                       roi_names)
+        # # 2-way RM-ANOVA for roi and category for both modalities
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat6rois')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
+        # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
+        #                roi_names)
 
-        # 2-way RM-ANOVA for roi and category for auditory tasks
-        twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat6rois_auditory')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-                              modality='auditory')
-        posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
-                       roi_names, modality='auditory')
+        # # 2-way RM-ANOVA for roi and category for auditory tasks
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat6rois_auditory')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+        #                       modality='auditory')
+        # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
+        #                roi_names, modality='auditory')
 
-        # 2-way RM-ANOVA for roi and category for vision tasks
-        twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat6rois_visual')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-                              modality='visual')
-        posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
-                       roi_names, modality='visual')
+        # # 2-way RM-ANOVA for roi and category for vision tasks
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat6rois_visual')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+        #                       modality='visual')
+        # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
+        #                roi_names, modality='visual')
 
         # ##################### 3 ROIs ##################################
         # # 2-way RM-ANOVA for roi and category for both modalities
@@ -1261,13 +1287,13 @@ if __name__ == '__main__':
         # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
         #                roi_names)
 
-        # # 2-way RM-ANOVA for roi and category for auditory tasks
-        # twoway_anova_catroi_dir = os.path.join(
-        #     msdtb_dir, '2way-anova_cat2rois_auditory')
-        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-        #                       modality='auditory')
-        # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
-        #                roi_names, modality='auditory')
+        # 2-way RM-ANOVA for roi and category for auditory tasks
+        twoway_anova_catroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_cat2rois_auditory')
+        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+                              modality='auditory')
+        posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
+                       roi_names, modality='auditory')
 
         # # 2-way RM-ANOVA for roi and category for vision tasks
         # twoway_anova_catroi_dir = os.path.join(
