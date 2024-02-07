@@ -753,7 +753,7 @@ def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
     # Save dataframe
-    outpath = os.path.join(output_folder, 'asynchronies_df.tsv')
+    outpath = os.path.join(output_folder, 'df_asynchronies.tsv')
     df.to_csv(outpath, index=False, sep='\t')
 
     return df
@@ -1179,7 +1179,8 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title,
     plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
 
-def production_ancova(dependent_var, covariate, modality='audio'):
+def production_ancova(dependent_var, covariate, output_dir, dfname, resname,
+                      modality='audio'):
     # ## Create columns of dataframe
     # Dependent var
     mean_flatten = np.ravel(dependent_var)
@@ -1203,6 +1204,20 @@ def production_ancova(dependent_var, covariate, modality='audio'):
 
     aoc_modality = pg.ancova(data=df_modality, dv='Mean Error',
                              covar='Standard', between='Condition')
+
+    # Save dataframe and ANCOVA's results
+    output_folder = os.path.join(output_dir, 'ancova')
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
+    # Save dataframe
+    df_outpath = os.path.join(output_folder, dfname + '_' + modality + '.tsv')
+    df.to_csv(df_outpath, index=False, sep='\t')
+
+    # Save ANCOVA results
+    res_outpath = os.path.join(output_folder, resname + '_' + modality + '.tsv')
+    aoc_modality.to_csv(res_outpath, index=False, sep='\t')
 
     return aoc_modality
 
@@ -1552,20 +1567,23 @@ if __name__ == "__main__":
     mean_ffx_std = np.array(mean_ffx_std)
 
     aoc_mean_audio = production_ancova(mean_ffx_data, standards,
+                                       RESULTS_FOLDER,
+                                       'df_ancova_mean-rtprod',
+                                       'res_ancova_mean-rtprod',
                                        modality='audio')
     aoc_mean_visual = production_ancova(mean_ffx_data, standards,
+                                        RESULTS_FOLDER,
+                                        'df_ancova_mean-rtprod',
+                                        'res_ancova_mean-rtprod',
                                         modality='visual')
 
     aoc_std_audio = production_ancova(mean_ffx_std, standards,
+                                      RESULTS_FOLDER,
+                                      'df_ancova_sd-rtprod',
+                                      'res_ancova_sd-rtprod',
                                       modality='audio')
     aoc_std_visual = production_ancova(mean_ffx_std, standards,
+                                       RESULTS_FOLDER,
+                                       'df_ancova_sd-rtprod',
+                                       'res_ancova_sd-rtprod',
                                        modality='visual')
-
-    print('\nANCOVA for Mean Error of Response Time in Audio Tasks')
-    print(aoc_mean_audio)
-    print('\nANCOVA for Mean Error of Response Time in Visual Tasks')
-    print(aoc_mean_visual)
-    print('\nANCOVA for SD of Response Time in Audio Tasks')
-    print(aoc_std_audio)
-    print('\nANCOVA for SD of Response Time in Visual Tasks')
-    print(aoc_std_visual)
