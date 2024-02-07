@@ -760,6 +760,10 @@ def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
 
 
 def threeway_repanova(df, output_dir):
+    # Open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
     # Create AnovaRM object
     model = AnovaRM(data=df, depvar='Asynchronies', subject='Subject',
                     within=['Modality', 'Condition', 'Standard'])
@@ -1205,7 +1209,6 @@ def production_ancova(dependent_var, covariate, output_dir, dfname, resname,
     aoc_modality = pg.ancova(data=df_modality, dv='Mean Error',
                              covar='Standard', between='Condition')
 
-    # Save dataframe and ANCOVA's results
     output_folder = os.path.join(output_dir, 'ancova')
     # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
