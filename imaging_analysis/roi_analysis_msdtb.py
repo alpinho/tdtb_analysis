@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: January 2024
+Last update: February 2024
 
 Compatibility: Python 3.10.8
 
@@ -448,7 +448,8 @@ def threeway_rmanova(df, output_dir, prefix, roi, hems=['lh', 'rh', 'bh']):
     Compute 2 X 2 X 3 RM-ANOVA
     """
     # Open dataframe
-    df = pd.read_csv(df, sep='\t')
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
 
     # Remove 'All Tasks' rows from Dataframe
     df = df[df.Task != 'All Tasks']
@@ -518,7 +519,8 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi,
     Compute 2 X 2 ANOVA per task
     """
     # Open dataframe
-    df = pd.read_csv(df, sep='\t')
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
 
     # Remove Column of Contrasts
     df = df.drop(['Contrast'], axis=1)
@@ -573,7 +575,8 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi,
     Compute 2 X 2 RM-ANOVA across all tasks
     """
     # Open dataframe
-    df = pd.read_csv(df, sep='\t')
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
 
     # Remove 'All Tasks' rows from Dataframe
     df = df[df.Task != 'All Tasks']
@@ -632,7 +635,8 @@ def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi,
     with two levels (equivalent to pptest; function for sanity check)
     """
     # Open dataframe
-    df = pd.read_csv(df, sep='\t')
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
 
     # Remove Column of Contrasts
     df = df.drop(['Contrast'], axis=1)
@@ -690,6 +694,9 @@ def twoway_rmanova_catroi(df, tasks_dic, output_dir, prefix,
     """
     Compute 2 X 2 ANOVA per task
     """
+    # Open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
 
     # Remove Column of Contrasts
     df = df.drop(['Contrast'], axis=1)
@@ -892,6 +899,9 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
     """
     Plot posthoc 2w-ANOVA per task
     """
+    # Open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
 
     # Remove Column of Contrasts
     df = df.drop(['Contrast'], axis=1)
