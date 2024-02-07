@@ -380,7 +380,6 @@ def individual_perception(
                  condition.capitalize() +
                  ' condition of the Perception Tasks ' + suffix, x=.5, y=.9975,
                  size=18, linespacing=.75)
-    # plt.show()
 
     # Save figure
     plt.savefig(os.path.join(
@@ -862,10 +861,6 @@ RESULTS_FOLDER = os.path.join(MAIN_DIR, 'perception_results')
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-
-    # if not os.path.exists(os.path.join(MAIN_DIR, PLOTS_FOLDER)):
-    #     os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/twoway'))
-    #     os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER, 'anovas/threeway'))
 
     if not os.path.exists(RESULTS_FOLDER):
         os.mkdir(RESULTS_FOLDER)

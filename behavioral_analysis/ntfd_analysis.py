@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: August 2023
+Last update: February 2024
 
 Compatibility: Python 3.10.4
 """
@@ -235,7 +235,6 @@ def individual_ntfd_rts(subjects, this_dir, output_dir, sesstype, n_trials,
     # Title
     plt.suptitle('Individual Mean and Standard Deviation of Reaction Time ' + \
                  'for the NTFD tasks', x=.5, y=.995, size=14, linespacing=.75)
-    # plt.show()
 
     # Save figure
     plt.savefig(os.path.join(this_dir, output_dir, 'ntfd_individual_rt.pdf'))
@@ -426,7 +425,6 @@ def individual_ntfd_isi_rts(
         'Individual Reaction Time for the NTFD tasks',
         x=.5, y=.9975, size=14, linespacing=.75)
 
-    # plt.show()
     # Save figure
     plt.savefig(os.path.join(this_dir, output_dir,
                              'ntfd_individual_isi_rt.pdf'))
@@ -549,7 +547,6 @@ def individual_ntfd_sucessrate(
     # Title
     plt.suptitle('Individual Mean of Success Rate for the NTFD tasks',
                  x=.5, y=.995, size=14, linespacing=.75)
-    # plt.show()
 
     # Save figure
     if random:
@@ -632,10 +629,8 @@ def ffx(audio_beat, audio_interval, visual_beat, visual_interval):
             ffx_visual_interval)
 
 
-def plot_violin(audio_beat, audio_interval,
-                visual_beat, visual_interval,
-                isi1s, ylim_b, ylim_t, y_label,
-                title, this_dir, output_dir, fname):
+def plot_violin(audio_beat, audio_interval, visual_beat, visual_interval,
+                isi1s, ylim_b, ylim_t, y_label, title, output_dir, fname):
 
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
 
@@ -751,13 +746,13 @@ def plot_violin(audio_beat, audio_interval,
     plt.suptitle(title, size=10, linespacing=.75)
 
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_dir, fname + '.pdf'))
+    plt.savefig(os.path.join(output_dir, fname + '.pdf'))
 
 
 def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
                     pval_audio, pval_visual,
                     isi1s, y, ylim_b, ylim_t, yshift,
-                    title, this_dir, output_dir, fname):
+                    title, output_dir, fname):
 
     # Concatenate data
     data_audio = [np.append(audio_beat[j], audio_interval[j]).tolist()
@@ -874,15 +869,14 @@ def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
     # Common x-label
     fig.text(.555, .055, 'Standards (ms)', ha='center', fontsize=10)
 
-    # plt.show()
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_dir, fname + '.pdf'))
+    plt.savefig(os.path.join(output_dir, fname + '.pdf'))
 
 
 def plot_pttest(data_audio, data_visual,
                 pval_audio_bi, pval_audio_br, pval_audio_ir,
                 pval_visual_bi, pval_visual_br, pval_visual_ir,
-                y, ylim_b, ylim_t, yshift, title, this_dir, output_dir, fname):
+                y, ylim_b, ylim_t, yshift, title, output_dir, fname):
 
     modalities = ['audio', 'visual']
     fig, ax = plt.subplots(1, len(modalities))
@@ -974,15 +968,14 @@ def plot_pttest(data_audio, data_visual,
     plt.suptitle(title, size=10, linespacing=.75)
     plt.title('95% CI for the Mean', size=8, x=-.15)
 
-    # plt.show()
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_dir, fname + '.pdf'))
+    plt.savefig(os.path.join(output_dir, fname + '.pdf'))
 
 
 def group_successrate_norand(
         israte_audio_beat, israte_audio_interval,
         israte_visual_beat, israte_visual_interval,
-        p_audio_bi, p_visual_bi, this_dir, output_dir):
+        p_audio_bi, p_visual_bi, output_dir):
 
     modalities = ['audio', 'visual']
     fig, ax = plt.subplots(1, len(modalities))
@@ -1069,10 +1062,9 @@ def group_successrate_norand(
                  linespacing=.75)
     plt.title('95% CI for the Mean', size=8, x=-.15)
 
-    # plt.show()
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_dir,
-                             'ntfd_group_success_rate_norandom.pdf'))
+    plt.savefig(os.path.join(
+        output_dir, 'ntfd_group_success_rate_norandom.pdf'))
 
 
 def group_successrate_rand(
@@ -1080,7 +1072,7 @@ def group_successrate_rand(
         israte_visual_beat, israte_visual_interval, israte_visual_random,
         p_audio_bi, p_audio_br, p_audio_ir,
         p_visual_bi, p_visual_br, p_visual_ir,
-        this_dir, output_dir):
+        output_dir):
 
     modalities = ['audio', 'visual']
     fig, ax = plt.subplots(1, len(modalities))
@@ -1177,10 +1169,9 @@ def group_successrate_rand(
                  linespacing=.75)
     plt.title('95% CI for the Mean', size=8, x=-.15)
 
-    # plt.show()
     # Save figure
-    plt.savefig(os.path.join(this_dir, output_dir,
-                             'ntfd_group_success_rate_random.pdf'))
+    plt.savefig(os.path.join(
+        output_dir, 'ntfd_group_success_rate_random.pdf'))
 
 
 # %%
@@ -1207,8 +1198,6 @@ RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34,
 SESSTYPES = ['behavioral_session', 'imaging_session']
 # SESSTYPES = ['behavioral_session']
 
-PLOTS_FOLDER = 'ntfd_results'
-
 # Total number of trials per run
 N_TRIALS = 30
 # Total number of trials per isi per condition (without random condition)...
@@ -1222,6 +1211,7 @@ N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2)
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results')
 
 if SESSTYPES == ['behavioral_session', 'imaging_session']:
     N_ISI_TRIALS = N_ISI_TRIALS_BEHAV + N_ISI_TRIALS_IMG
@@ -1236,8 +1226,8 @@ else:
 
 if __name__ == "__main__":
 
-    if not os.path.exists(os.path.join(MAIN_DIR, PLOTS_FOLDER)):
-        os.makedirs(os.path.join(MAIN_DIR, PLOTS_FOLDER))
+    if not os.path.exists(RESULTS_FOLDER):
+        os.mkdir(RESULTS_FOLDER)
 
     # ################### NTFD RT'S ####################################
 
@@ -1245,7 +1235,7 @@ if __name__ == "__main__":
     m_rtsntfd_audio_beat, m_rtsntfd_audio_interval, m_rtsntfd_audio_random, \
         m_rtsntfd_visual_beat, m_rtsntfd_visual_interval, \
         m_rtsntfd_visual_random = individual_ntfd_rts(
-            RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPES, N_TRIALS,
+            RAND_SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
             flatten=False)
 
     # Compute ffx
@@ -1299,13 +1289,13 @@ if __name__ == "__main__":
                 pntfd_audio_bi, pntfd_audio_br, pntfd_audio_ir,
                 pntfd_visual_bi, pntfd_visual_br, pntfd_visual_ir,
                 'Reaction Time (ms)', 0., 750., -100.,
-                ntfd_title, MAIN_DIR, PLOTS_FOLDER, ntfd_f)
+                ntfd_title, RESULTS_FOLDER, ntfd_f)
 
     # ##################################################################
     # ### Individual analysis per standards --- box plots
     rtsntfd_audio_beat, rtsntfd_audio_interval, rtsntfd_visual_beat, \
         rtsntfd_visual_interval, standards = individual_ntfd_isi_rts(
-            SUBJECTS, MAIN_DIR, PLOTS_FOLDER, SESSTYPES, N_TRIALS,
+            SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
             N_ISI_TRIALS, flatten=False)
 
     # ## Compute mean of reaction time across trials per subject
@@ -1330,7 +1320,7 @@ if __name__ == "__main__":
                     ffx_rtsntfd_visual_beat, ffx_rtsntfd_visual_interval,
                     prtntfd_audio, prtntfd_visual,
                     standards, 'Reaction Time (ms)', 0., 650., -100.,
-                    rtntfd_title, MAIN_DIR, PLOTS_FOLDER, rtntfd_f)
+                    rtntfd_title, RESULTS_FOLDER, rtntfd_f)
 
     # ## Reshape
     rs_rtsntfd_audio_beat, rs_rtsntfd_audio_interval, \
@@ -1344,8 +1334,7 @@ if __name__ == "__main__":
         rs_rtsntfd_visual_beat, rs_rtsntfd_visual_interval,
         standards, 0., 2250., 'Reaction Time (ms)',
         'Group Distribution of Reaction Time for the NTFD Tasks',
-        MAIN_DIR, PLOTS_FOLDER,
-        'ntfd_groupviolin_rt')
+        RESULTS_FOLDER, 'ntfd_groupviolin_rt')
 
     # ##################################################################
     # ### Analysis for success rate
@@ -1355,7 +1344,7 @@ if __name__ == "__main__":
         individual_norand_srate_audio_interval, _, \
         individual_norand_srate_visual_beat, \
         individual_norand_srate_visual_interval, _ = \
-            individual_ntfd_sucessrate(SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
+            individual_ntfd_sucessrate(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
                                        SESSTYPES, N_TRIALS, flatten=False)
 
     individual_rand_srate_audio_beat, \
@@ -1364,7 +1353,7 @@ if __name__ == "__main__":
         individual_rand_srate_visual_beat, \
         individual_rand_srate_visual_interval, \
         individual_rand_srate_visual_random = \
-            individual_ntfd_sucessrate(RAND_SUBJECTS, MAIN_DIR, PLOTS_FOLDER,
+            individual_ntfd_sucessrate(RAND_SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
                                        SESSTYPES, N_TRIALS, random=True,
                                        flatten=False)
 
@@ -1419,7 +1408,7 @@ if __name__ == "__main__":
         individual_norand_srate_visual_interval,
         pval_norand_srate_audio,
         pval_norand_srate_visual,
-        MAIN_DIR, PLOTS_FOLDER)
+        RESULTS_FOLDER)
 
     group_successrate_rand(
         individual_rand_srate_audio_beat,
@@ -1434,4 +1423,4 @@ if __name__ == "__main__":
         pval_rand_srate_visual_bi,
         pval_rand_srate_visual_br,
         pval_rand_srate_visual_ir,
-        MAIN_DIR, PLOTS_FOLDER)
+        RESULTS_FOLDER)
