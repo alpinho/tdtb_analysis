@@ -306,7 +306,6 @@ def individual_production_isi_sync(
             'Individual Absolute Asynchrony for the Production tasks',
             x=.5, y=.9975, size=14, linespacing=.75)
 
-    # plt.show()
     # Save figure
     plt.savefig(os.path.join(
         this_dir, output_folder,
@@ -479,7 +478,6 @@ def individual_production_isi_rts(
         'Individual Response Time for the Production tasks', x=.5, y=.9975,
         size=14, linespacing=.75)
 
-    # plt.show()
     # Save figure
     plt.savefig(os.path.join(this_dir, output_folder,
                              'production_individual_isi_responsetime.pdf'))
@@ -1004,7 +1002,6 @@ def plot_pttest_isi(audio_beat, audio_interval, visual_beat, visual_interval,
     # Common x-label
     fig.text(.555, .055, 'Standards (ms)', ha='center', fontsize=10)
 
-    # plt.show()
     # Save figure
     plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
@@ -1106,7 +1103,6 @@ def plot_pttest(data_audio, data_visual,
     # Common x-label
     fig.text(.53, .055, 'Standards (ms)', ha='center', fontsize=10)
 
-    # plt.show()
     # Save figure
     plt.savefig(os.path.join(this_dir, output_folder, fname + '.pdf'))
 
