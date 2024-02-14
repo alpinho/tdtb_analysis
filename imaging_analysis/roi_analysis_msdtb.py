@@ -563,9 +563,8 @@ def twoway_rmanova_task(df, tasks_dic, output_dir, prefix, roi,
                 index=False)
 
             # ... and for posthoc
-            phoc_flabel = flabel + 'posthoc'
             posthoc_results.to_csv(
-                os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t',
+                os.path.join(output_dir, flabel + 'posthoc.tsv'), sep='\t',
                 index=False)
 
 
@@ -622,9 +621,8 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi,
             index=False)
 
         # ... and for posthoc
-        phoc_flabel = flabel + 'posthoc'
         posthoc_results.to_csv(
-            os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t',
+            os.path.join(output_dir, flabel + 'posthoc.tsv'), sep='\t',
             index=False)
 
 
@@ -682,9 +680,8 @@ def oneway_rmanova(df, tasks_dic, output_dir, prefix, roi,
                     index=False)
 
                 # ... and for posthoc
-                phoc_flabel = flabel + 'posthoc'
                 posthoc_results.to_csv(
-                    os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t',
+                    os.path.join(output_dir, flabel + 'posthoc.tsv'), sep='\t',
                     index=False)
 
 
@@ -753,10 +750,79 @@ def twoway_rmanova_catroi(df, tasks_dic, output_dir, prefix,
                 index=False)
 
             # ... and for posthoc
-            phoc_flabel = flabel + 'posthoc'
             posthoc_results.to_csv(
-                os.path.join(output_dir, phoc_flabel + '.tsv'), sep='\t',
+                os.path.join(output_dir, flabel + 'posthoc.tsv'), sep='\t',
                 index=False)
+
+
+def twoway_rmanova_timingroi(df, output_dir, prefix, alternative='two-sided',
+                             modality=None, hems=['lh', 'rh', 'bh']):
+    """
+    Compute 2 X 2 ANOVA per task
+    """
+    # Open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    # Remove Column of Contrasts
+    df = df.drop(['Contrast'], axis=1)
+
+    # Convert PSC entries to numeric type
+    df['PSC'] = df['PSC'].apply(pd.to_numeric)
+
+    if modality is None:
+        df = df.drop(['Modality'], axis=1)
+        # Averaged PSC across Modalities, i.e. grouped by Category and Task ...
+        # ... and averaged afterwards
+        df = df.groupby(['Category', 'Task', 'Subject', 'ROI',
+                         'Hemisphere']).mean().reset_index()
+    elif modality == 'auditory':
+        df = df[df.Modality == 'Auditory']
+        df = df.drop(['Modality'], axis=1)
+    else:
+        assert modality == 'visual'
+        df = df[df.Modality == 'Visual']
+        df = df.drop(['Modality'], axis=1)
+
+    # Add explicit/implicit timing column
+    df['Timing'] = np.where(df['Task']== 'Production', 'Explicit', 'Implicit')
+
+    # Remove Column of Task and Category
+    df = df.drop(['Task'], axis=1)
+    df = df.drop(['Category'], axis=1)
+
+    # For each hemisphere:
+    for hem in hems:
+        db = pd.DataFrame()
+        db = df[df.Hemisphere == hem]
+
+        # Run the 2-way repeated measures ANOVA
+        anova_results = pg.rm_anova(
+            data=db, dv='PSC', within=['ROI', 'Timing'],
+            subject='Subject', detailed=True)
+
+        # Perform pairwise t-tests corrected w/ Holm's procedure
+        posthoc_results = pg.pairwise_tests(
+            data=db, dv='PSC', within=['ROI', 'Timing'],
+            subject='Subject', alternative=alternative, return_desc=True,
+            padjust='holm', effsize='eta-square')
+
+        # Create output_dir, if it does not exist
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+
+        # Save results in a TSV file...
+        flabel = prefix + '_' + hem + '_2w_'
+
+        # ... for ANOVA
+        anova_results.to_csv(
+            os.path.join(output_dir, flabel + 'anova.tsv'), sep='\t',
+            index=False)
+
+        # ... and for posthoc
+        posthoc_results.to_csv(
+            os.path.join(output_dir, flabel + 'posthoc.tsv'), sep='\t',
+            index=False)
 
 
 def pval_label_converter(pvalues):
@@ -961,8 +1027,9 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                 order=order_list
             )
 
-            # Annotate
             if hem == 'bh' and task == 'All Tasks':
+
+                # Annotate
                 rois = np.flip(np.unique(df.ROI.values))
                 pairs = tuple([[(str(roi), 'Beat'), (str(roi), 'Interval')]
                                for roi in rois])
@@ -1003,7 +1070,6 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
             plt.ylim([0., .3])
 
             # Add units in ylabel
-            # ax.set(ylabel='Percent Signal Change (%)')
             plt.ylabel('Percent Signal Change (%)', labelpad=7)
 
             # Rotate x_labels
@@ -1025,6 +1091,143 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                              linespacing=.75, fontweight='bold')
                 plt.text(-1., .36, prefix, size=12,
                          linespacing=.75, fontweight='bold')
+
+    # Save figure
+    if modality:
+        fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc_' + modality
+    else:
+        fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc_both-modalitites'
+    plt.savefig(os.path.join(output_folder, fname + '.pdf'))
+
+
+def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
+                      modality=None, hems=['lh', 'rh', 'bh']):
+    """
+    Plot posthoc 2w-ANOVA per task
+    """
+    # Open dataframe
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    # Remove Column of Contrasts
+    df = df.drop(['Contrast'], axis=1)
+
+    # Convert PSC entries to numeric type
+    df['PSC'] = df['PSC'].apply(pd.to_numeric)
+
+    if modality is None:
+        df = df.drop(['Modality'], axis=1)
+        # Averaged PSC across Modalities, i.e. grouped by Category and Task ...
+        # ... and averaged afterwards
+        df = df.groupby(['Category', 'Task', 'Subject', 'ROI',
+                         'Hemisphere']).mean().reset_index()
+    elif modality == 'auditory':
+        df = df[df.Modality == 'Auditory']
+        df = df.drop(['Modality'], axis=1)
+    else:
+        assert modality == 'visual'
+        df = df[df.Modality == 'Visual']
+        df = df.drop(['Modality'], axis=1)
+
+    # Add explicit/implicit timing column
+    df['Timing'] = np.where(df['Task']== 'Production', 'Explicit', 'Implicit')
+
+    # Remove Column of Task
+    df = df.drop(['Task'], axis=1)
+
+    # # Replace strings with names of ROIs
+    df['ROI'] = df['ROI'].str.replace('dstr', 'Dorsal Striatum')
+    df['ROI'] = df['ROI'].str.replace('cereb', 'Cerebellum')
+    order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
+    order_list = [s.replace('cereb', 'Cerebellum') for s in order_list]
+
+    fig = plt.figure(figsize=(12, 4))
+
+    # For each hemisphere:
+    for h, hem in enumerate(hems):
+
+        # Define subplot of bar charts and its position in the fig
+        # plt.axes([left, bottom, width, height])
+        ax = plt.axes([.07 + h*.3, .15, .23, .65])
+
+        db = pd.DataFrame()
+        db = df[df.Hemisphere == hem]
+
+        # Create bar plot
+        s = sns.barplot(
+            ax=ax,
+            x='ROI',
+            y='PSC',
+            hue='Timing',
+            data=db,
+            estimator=np.mean,
+            ci=95, # 1.96 * standard error (95% confidence interval)
+            errcolor="darkgray", errwidth=1.5, capsize = 0.2, alpha=0.5,
+            order=order_list,
+            hue_order=['Explicit', 'Implicit'],
+            palette=['indigo', 'salmon']
+        )
+
+        ax.text(.1, .3, '95% CI for the Mean of PSC', size=8)
+
+        if hem == 'bh':
+
+            # Annotate
+            # rois = np.flip(np.unique(df.ROI.values))
+            # pairs = tuple([[(str(roi), 'Beat'), (str(roi), 'Interval')]
+            #                for roi in rois])
+            # annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
+            #                       hue='Category')
+            # annotator.configure(test=None,
+            #                     text_format="star", # text_format="simple"
+            #                     # test_short_name="pttest", # if former is "simple"
+            #                     fontsize=10., hide_non_significant=True)
+
+            # annotator.set_pvalues([0.0471665164707565, 0.471495843530365])
+            # annotator.annotate()
+
+            # Remove frame of legend
+            ax.legend(frameon=False)
+
+            # # Task
+            # plt.title('Audio Tasks', size=12, x=.5, y=1.1,
+            #           fontweight='bold', color='mediumaquamarine')
+        else:
+            # ... remove legend
+            ax.legend([],[], frameon=False)
+
+        # Add values inside bars
+        for i in s.containers:
+            ax.bar_label(i, padding=-10, fontsize=6, fmt='%.3f')
+
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        # Set limits of ticks in y axis
+        plt.ylim([0., .3])
+
+        # Add units in ylabel
+        plt.ylabel('Percent Signal Change (%)', labelpad=7)
+
+        # Rotate x_labels
+        if n_rois == 6:
+            # Rotating X-axis labels
+            plt.xticks(rotation = 30, fontsize=10)
+
+        # Hemisphere
+        plt.text(.4, .35, hem.capitalize(), size=18,
+                 linespacing=.75, fontweight='bold')
+
+        if hem == 'lh':
+            if modality:
+                plt.text(-1., .37, modality.capitalize(), size=12,
+                         linespacing=.75, fontweight='bold')
+            else:
+                plt.text(-1., .37, 'Both Mod.', size=12,
+                         linespacing=.75, fontweight='bold')
+            plt.text(-1., .35, prefix, size=12,
+                     linespacing=.75, fontweight='bold')
 
     # Save figure
     if modality:
@@ -1151,11 +1354,12 @@ atlas_names = ['hos', 'ntk_symmni128']
 region_names = ['dorsal_striatum', 'cerebellum']
 roi_names = ['dstr', 'cereb']
 
-# tags = ['i', 'a', 'g']
-tags = ['i']
+tags = ['i', 'a', 'g']
+# tags = ['i']
+
 # Tuple: (individual_weight, group_weight)
-# weights_list = [(1.,0.), (.5,.5), (0.,1.)]
-weights_list = [(1.,0.)]
+weights_list = [(1.,0.), (.5,.5), (0.,1.)]
+# weights_list = [(1.,0.)]
 
 if __name__ == '__main__':
 
@@ -1245,6 +1449,7 @@ if __name__ == '__main__':
     #             df_path, tasks, oneway_anova_task_dir, tag, roi_name)
 
 
+        # ################# CATROI ANALYSES #############################
         ####################### 6 ROIs ##################################
         # # 2-way RM-ANOVA for roi and category for both modalities
         # twoway_anova_catroi_dir = os.path.join(
@@ -1301,13 +1506,13 @@ if __name__ == '__main__':
         # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
         #                roi_names)
 
-        # 2-way RM-ANOVA for roi and category for auditory tasks
-        twoway_anova_catroi_dir = os.path.join(
-            msdtb_dir, '2way-anova_cat2rois_auditory')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
-                              modality='auditory')
-        posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
-                       roi_names, modality='auditory')
+        # # 2-way RM-ANOVA for roi and category for auditory tasks
+        # twoway_anova_catroi_dir = os.path.join(
+        #     msdtb_dir, '2way-anova_cat2rois_auditory')
+        # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag,
+        #                       modality='auditory')
+        # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
+        #                roi_names, modality='auditory')
 
         # # 2-way RM-ANOVA for roi and category for vision tasks
         # twoway_anova_catroi_dir = os.path.join(
@@ -1316,3 +1521,28 @@ if __name__ == '__main__':
         #                       modality='visual')
         # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 2,
         #                roi_names, modality='visual')
+
+        # ####### EXPLICIT/IMPLICIT TIMING ROI ANALYSES #################
+        # ##################### 2 ROIs ##################################
+        # 2-way RM-ANOVA for roi and timing type tasks for both modalities
+        twoway_anova_timingroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_timing2rois')
+        twoway_rmanova_timingroi(dfrois, twoway_anova_timingroi_dir, tag)
+        posthoc_timingroi(dfrois, twoway_anova_timingroi_dir, tag, 2,
+                          roi_names)
+
+        # 2-way RM-ANOVA for roi and timing type tasks for auditory tasks
+        twoway_anova_timingroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_timing2rois_auditory')
+        twoway_rmanova_timingroi(dfrois, twoway_anova_timingroi_dir, tag,
+                                 modality='auditory')
+        posthoc_timingroi(dfrois, twoway_anova_timingroi_dir, tag, 2,
+                          roi_names, modality='auditory')
+
+        # 2-way RM-ANOVA for roi and timing type tasks for visual tasks
+        twoway_anova_timingroi_dir = os.path.join(
+            msdtb_dir, '2way-anova_timing2rois_visual')
+        twoway_rmanova_timingroi(dfrois, twoway_anova_timingroi_dir, tag,
+                                 modality='visual')
+        posthoc_timingroi(dfrois, twoway_anova_timingroi_dir, tag, 2,
+                          roi_names, modality='visual')
