@@ -28,6 +28,7 @@ from statannotations.Annotator import Annotator
 from statsmodels.stats.anova import AnovaRM
 from statsmodels.stats.multicomp import MultiComparison
 from matplotlib import pyplot as plt
+from itertools import chain
 
 
 # ############################ FUNCTIONS ################################
@@ -785,11 +786,14 @@ def twoway_rmanova_timingroi(df, output_dir, prefix, alternative='two-sided',
         df = df.drop(['Modality'], axis=1)
 
     # Add explicit/implicit timing column
-    df['Timing'] = np.where(df['Task']== 'Production', 'Explicit', 'Implicit')
+    # df['Timing'] = np.where(df['Task']== 'Production', 'Explicit', 'Implicit')
 
     # Remove Column of Task and Category
-    df = df.drop(['Task'], axis=1)
+    # df = df.drop(['Task'], axis=1)
     df = df.drop(['Category'], axis=1)
+
+    # Remove 'All Tasks' rows from Dataframe
+    df = df[df.Task != 'All Tasks']
 
     # For each hemisphere:
     for hem in hems:
@@ -798,12 +802,12 @@ def twoway_rmanova_timingroi(df, output_dir, prefix, alternative='two-sided',
 
         # Run the 2-way repeated measures ANOVA
         anova_results = pg.rm_anova(
-            data=db, dv='PSC', within=['ROI', 'Timing'],
+            data=db, dv='PSC', within=['ROI', 'Task'],
             subject='Subject', detailed=True)
 
         # Perform pairwise t-tests corrected w/ Holm's procedure
         posthoc_results = pg.pairwise_tests(
-            data=db, dv='PSC', within=['ROI', 'Timing'],
+            data=db, dv='PSC', within=['ROI', 'Task'],
             subject='Subject', alternative=alternative, return_desc=True,
             padjust='holm', effsize='eta-square')
 
@@ -1103,7 +1107,7 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
 def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
                       modality=None, hems=['lh', 'rh', 'bh']):
     """
-    Plot posthoc 2w-ANOVA per task
+    Plot posthoc 2w-ANOVA
     """
     # Open dataframe
     if isinstance(df, str):
@@ -1130,10 +1134,13 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
         df = df.drop(['Modality'], axis=1)
 
     # Add explicit/implicit timing column
-    df['Timing'] = np.where(df['Task']== 'Production', 'Explicit', 'Implicit')
+    # df['Timing'] = np.where(df['Task']== 'Production', 'Explicit', 'Implicit')
 
     # Remove Column of Task
-    df = df.drop(['Task'], axis=1)
+    # df = df.drop(['Task'], axis=1)
+
+    # Remove 'All Tasks' rows from Dataframe
+    df = df[df.Task != 'All Tasks']
 
     # # Replace strings with names of ROIs
     df['ROI'] = df['ROI'].str.replace('dstr', 'Dorsal Striatum')
@@ -1158,38 +1165,48 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
             ax=ax,
             x='ROI',
             y='PSC',
-            hue='Timing',
+            hue='Task',
             data=db,
             estimator=np.mean,
             ci=95, # 1.96 * standard error (95% confidence interval)
             errcolor="darkgray", errwidth=1.5, capsize = 0.2, alpha=0.5,
             order=order_list,
-            hue_order=['Explicit', 'Implicit'],
-            palette=['indigo', 'salmon']
+            hue_order=['Production', 'Perception', 'NTFD'],
+            palette=['indigo', 'm', 'salmon']
         )
 
-        ax.text(.1, .3, '95% CI for the Mean of PSC', size=8)
+        ax.text(.4, .33, '95% CI for the Mean of PSC', size=7)
 
         if hem == 'bh':
 
             # Annotate
-            # rois = np.flip(np.unique(df.ROI.values))
-            # pairs = tuple([[(str(roi), 'Beat'), (str(roi), 'Interval')]
-            #                for roi in rois])
-            # annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
-            #                       hue='Category')
-            # annotator.configure(test=None,
-            #                     text_format="star", # text_format="simple"
-            #                     # test_short_name="pttest", # if former is "simple"
-            #                     fontsize=10., hide_non_significant=True)
+            rois = np.flip(np.unique(df.ROI.values))
+            pairs = [[[(str(roi), 'Production'), (str(roi), 'Perception')],
+                      [(str(roi), 'Production'), (str(roi), 'NTFD')],
+                      [(str(roi), 'Perception'), (str(roi), 'NTFD')]]
+                     for roi in rois]
 
-            # annotator.set_pvalues([0.0471665164707565, 0.471495843530365])
-            # annotator.annotate()
+            pairs = list(chain.from_iterable(pairs))
+
+            annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
+                                  hue='Task')
+
+            annotator.configure(
+                test=None,
+                text_format="star", # text_format="simple"
+                # test_short_name="pttest", # if former is "simple"
+                fontsize=10., hide_non_significant=True)
+
+            annotator.set_pvalues([0.207254325877246, 0.00751591163809919,
+                                   0.0939423736958822, 0.0306539507348838,
+                                   0.00000001279586027571, 0.00000000050751689771])
+
+            annotator.annotate()
 
             # Remove frame of legend
-            ax.legend(frameon=False)
+            ax.legend(frameon=False, loc=(.5, .8))
 
-            # # Task
+            # Task
             # plt.title('Audio Tasks', size=12, x=.5, y=1.1,
             #           fontweight='bold', color='mediumaquamarine')
         else:
@@ -1216,8 +1233,8 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
             plt.xticks(rotation = 30, fontsize=10)
 
         # Hemisphere
-        plt.text(.4, .35, hem.capitalize(), size=18,
-                 linespacing=.75, fontweight='bold')
+        # plt.text(.4, .35, hem.capitalize(), size=18,
+        #          linespacing=.75, fontweight='bold')
 
         if hem == 'lh':
             if modality:
