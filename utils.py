@@ -136,22 +136,36 @@ def change_width(ax, new_value) :
         patch.set_x(patch.get_x() + diff * .5)
 
 
-def ffx(audio_beat, audio_interval, visual_beat, visual_interval):
+def ffx(audio_beat, audio_interval, visual_beat, visual_interval,
+        metric='mean'):
     # Inputs shape (n_subjects, n_isi, n_trials)
     # Computes mean of elements in the third dimension
     # Swaps dimensions and returns array w/ shape (n_isi, n_subjects)
 
-    mean_audio_beat = [[np.mean(ab2) for ab2 in ab1] for ab1 in audio_beat]
-    mean_audio_interval = [[np.mean(ai2) for ai2 in ai1]
-                           for ai1 in audio_interval]
-    mean_visual_beat = [[np.mean(vb2) for vb2 in vb1] for vb1 in visual_beat]
-    mean_visual_interval = [[np.mean(vi2) for vi2 in vi1]
-                            for vi1 in visual_interval]
+    if metric == 'mean':
+        ffx_audio_beat = [[np.mean(ab2)
+                           for ab2 in ab1] for ab1 in audio_beat]
+        ffx_audio_interval = [[np.mean(ai2)
+                               for ai2 in ai1] for ai1 in audio_interval]
+        ffx_visual_beat = [[np.mean(vb2)
+                             for vb2 in vb1] for vb1 in visual_beat]
+        ffx_visual_interval = [[np.mean(vi2)
+                                for vi2 in vi1] for vi1 in visual_interval]
+    else:
+        assert metric == 'std'
+        ffx_audio_beat = [[np.std(ab2)
+                           for ab2 in ab1] for ab1 in audio_beat]
+        ffx_audio_interval = [[np.std(ai2)
+                               for ai2 in ai1] for ai1 in audio_interval]
+        ffx_visual_beat = [[np.std(vb2)
+                             for vb2 in vb1] for vb1 in visual_beat]
+        ffx_visual_interval = [[np.std(vi2)
+                                for vi2 in vi1] for vi1 in visual_interval]
 
-    ffx_audio_beat = np.swapaxes(mean_audio_beat, 0, 1)
-    ffx_audio_interval = np.swapaxes(mean_audio_interval, 0, 1)
-    ffx_visual_beat = np.swapaxes(mean_visual_beat, 0, 1)
-    ffx_visual_interval = np.swapaxes(mean_visual_interval, 0, 1)
+    ffx_audio_beat = np.swapaxes(ffx_audio_beat, 0, 1)
+    ffx_audio_interval = np.swapaxes(ffx_audio_interval, 0, 1)
+    ffx_visual_beat = np.swapaxes(ffx_visual_beat, 0, 1)
+    ffx_visual_interval = np.swapaxes(ffx_visual_interval, 0, 1)
 
     return (ffx_audio_beat, ffx_audio_interval, ffx_visual_beat,
             ffx_visual_interval)

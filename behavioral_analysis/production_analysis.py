@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: February 2024
+Last update: April 2024
 
 Compatibility: Python 3.10.4
 """
@@ -24,7 +24,9 @@ from scipy import stats
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
 from statannotations.Annotator import Annotator
-from statsmodels.stats.anova import AnovaRM
+
+import statsmodels.api as sm
+from statsmodels.stats.anova import AnovaRM, anova_lm
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 # setting path
@@ -1180,43 +1182,97 @@ def plotfit_production(x, y, y_values, yaxis_name, yname_pos, title,
 
 
 def production_ancova(dependent_var, covariate, output_dir, dfname, resname,
-                      modality='audio'):
+                      subjects, modality='audio'):
+    """
+    dependent_var: asynchronies, shape: (modality, category, standards, subjects)
+    """
+    # Swap axis: shape dependent var --> subjects, modality, standards
+    dependent_var = np.moveaxis(dependent_var, -1, 0)
     # ## Create columns of dataframe
     # Dependent var
     mean_flatten = np.ravel(dependent_var)
     # Create columns of independent (categorical) var,
     # i.e. Condition and Modality
     standval = np.tile(covariate,
-                       dependent_var.shape[1] * dependent_var.shape[0])
+                       dependent_var.shape[2] * dependent_var.shape[1] * \
+                       dependent_var.shape[0])
     condtag = np.repeat(['beat', 'interval'], len(covariate))
-    condval = np.tile(condtag, dependent_var.shape[0])
-    modval = np.repeat(['audio', 'visual'], len(condtag))
+    condval = np.tile(condtag, dependent_var.shape[1] * dependent_var.shape[0])
+    modtag = np.repeat(['audio', 'visual'], len(condtag))
+    modval = np.tile(modtag, dependent_var.shape[0])
+    # Create column of subjects
+    subjects_col = np.repeat(subjects,
+                             dependent_var.shape[3] * \
+                             dependent_var.shape[2] * dependent_var.shape[1])
 
     # Build DataFrame
-    table = np.vstack((mean_flatten, standval, condval, modval)).T
+    table = np.vstack((mean_flatten, standval, condval, modval,
+                       subjects_col)).T
 
     df = pd.DataFrame(
-        table, columns=['Mean Error', 'Standard', 'Condition', 'Modality'])
+        table, columns=['Mean Error', 'Standard', 'Condition', 'Modality',
+                        'Subject'])
     df['Mean Error'] = df['Mean Error'].apply(pd.to_numeric)
+    df = df.rename(columns = {'Mean Error': 'Mean_Error'})
     df['Standard'] = df['Standard'].apply(pd.to_numeric)
+    df['Subject'] = df['Subject'].apply(pd.to_numeric)
 
+    # Convert 'Subject', 'Condition' and 'Standard 'columns...
+    # ... to categorical variables
+    df['Subject'] = pd.Categorical(df['Subject'])
+    df['Condition'] = pd.Categorical(df['Condition'])
+    df['Modality'] = pd.Categorical(df['Modality'])
+
+    # Filter Modality
     df_modality = df[df.Modality == modality]
 
-    aoc_modality = pg.ancova(data=df_modality, dv='Mean Error',
-                             covar='Standard', between='Condition')
-
+    # Define and create output_folder, if it does not exist
     output_folder = os.path.join(output_dir, 'ancova')
-    # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
-    # Save dataframe
-    df_outpath = os.path.join(output_folder, dfname + '_' + modality + '.tsv')
-    df.to_csv(df_outpath, index=False, sep='\t')
+    # Save dataframes in the wide format
+    wdf_outpath = os.path.join(output_folder, 'w' + dfname + '.tsv')
+    if not os.path.isfile(wdf_outpath):
+        wide_df = pd.pivot(df, values='Mean_Error',
+                        index=['Subject', 'Standard'],
+                        columns=['Condition', 'Modality'])
+        wide_df.to_csv(wdf_outpath, index=True, sep='\t')
 
-    # Save ANCOVA results
-    res_outpath = os.path.join(output_folder, resname + '_' + modality + '.tsv')
-    aoc_modality.to_csv(res_outpath, index=False, sep='\t')
+    wdf_modality_outpath = os.path.join(
+        output_folder, 'w' + dfname + '_' + modality + '.tsv')
+    wide_df_modality = pd.pivot(df_modality, values='Mean_Error',
+                                index=['Subject', 'Standard'],
+                                columns=['Condition'])
+    wide_df_modality.to_csv(wdf_modality_outpath, index=True, sep='\t')
+
+    # ############# Compute ANCOVA ######################################
+
+    # ************* Using Pingouin **************************************
+
+    df_modality = df_modality.drop(['Subject'], axis=1)
+    df_modality = df_modality.groupby(
+        ['Condition', 'Standard']).mean().reset_index()
+    aoc_modality = pg.ancova(data=df_modality, dv='Mean_Error',
+                             covar='Standard', between='Condition')
+
+    # ************ Using Statsmodel *************************************
+
+    # model = sm.formula.ols('Mean_Error ~ Standard + C(Condition)',
+    #                        data=df_modality).fit()
+    # aoc_modality = sm.stats.anova_lm(model, typ=3)
+
+    # ###################################################################
+
+    # Save dataframes
+    df_modality_outpath = os.path.join(output_folder,
+                                       dfname + '_' + modality + '.tsv')
+    df_modality.to_csv(df_modality_outpath, index=False, sep='\t')
+
+    # Save OLS and ANCOVA results
+    ancova_outpath = os.path.join(output_folder,
+                                  resname + '_' + modality + '.tsv')
+    aoc_modality.to_csv(ancova_outpath, sep='\t')
 
 
 # %%
@@ -1263,7 +1319,7 @@ if __name__ == "__main__":
             SUBJECTS, SESSTYPES, MAIN_DIR, RESULTS_FOLDER, 'absolute',
             N_TRIALS, flatten=False)
 
-    # ## Compute mean of asynchronies across trials per subject
+    # ## Compute mean and std of asynchronies across trials per subject
     # ## for every standard (fixed-effects)
 
     # Signed asynchronies
@@ -1272,6 +1328,13 @@ if __name__ == "__main__":
                                         ssync_audio_interval,
                                         ssync_visual_beat,
                                         ssync_visual_interval)
+
+    ffx_std_ssync_audio_beat, ffx_std_ssync_audio_interval, \
+        ffx_std_ssync_visual_beat, ffx_std_ssync_visual_interval = ffx(
+            ssync_audio_beat,
+            ssync_audio_interval,
+            ssync_visual_beat,
+            ssync_visual_interval, metric='std')
 
     # Absolute asynchronies
     ffx_async_audio_beat, ffx_async_audio_interval, ffx_async_visual_beat, \
@@ -1402,22 +1465,28 @@ if __name__ == "__main__":
 
     # Compute ANCOVAs for signed asychronies
     # Stack multidimensional numpy array to produce a dataframe
-    mean_ffx_ssync = np.array(mean_ffx_ssync)
-    std_ffx_ssync = np.array(std_ffx_ssync)
+    ffxmean_ssync = [[ffx_ssync_audio_beat.tolist()] +
+                     [ffx_ssync_audio_interval.tolist()]] + \
+                    [[ffx_ssync_visual_beat.tolist()] +
+                     [ffx_ssync_visual_interval.tolist()]]
+    ffxstd_ssync = [[ffx_std_ssync_audio_beat.tolist()] +
+                    [ffx_std_ssync_audio_interval.tolist()]] + \
+                   [[ffx_std_ssync_visual_beat.tolist()] + \
+                    [ffx_std_ssync_visual_interval.tolist()]] 
 
-    production_ancova(mean_ffx_ssync, standards, RESULTS_FOLDER,
-                      'df_ancova_mean-ssync', 'res_ancova_mean-ssync',
-                      modality='audio')
-    production_ancova(mean_ffx_ssync, standards, RESULTS_FOLDER,
-                      'df_ancova_mean-ssync', 'res_ancova_mean-ssync',
-                      modality='visual')
+    production_ancova(ffxmean_ssync, standards, RESULTS_FOLDER,
+                      'df_ancova_mean-ssync', 'results_ancova_mean-ssync',
+                      SUBJECTS, modality='audio')
+    production_ancova(ffxmean_ssync, standards, RESULTS_FOLDER,
+                      'df_ancova_mean-ssync', 'results_ancova_mean-ssync',
+                      SUBJECTS, modality='visual')
 
-    production_ancova(std_ffx_ssync, standards, RESULTS_FOLDER,
-                      'df_ancova_sd-ssync', 'res_ancova_sd-ssync',
-                      modality='audio')
-    production_ancova(std_ffx_ssync, standards, RESULTS_FOLDER,
-                      'df_ancova_sd-ssync', 'res_ancova_sd-ssync',
-                      modality='visual')
+    production_ancova(ffxstd_ssync, standards, RESULTS_FOLDER,
+                      'df_ancova_sd-ssync', 'results_ancova_sd-ssync',
+                      SUBJECTS, modality='audio')
+    production_ancova(ffxstd_ssync, standards, RESULTS_FOLDER,
+                      'df_ancova_sd-ssync', 'results_ancova_sd-ssync',
+                      SUBJECTS, modality='visual')
 
 
     # # # # # ############## PRODUCTION RESPONSE TIME ########################
@@ -1577,21 +1646,3 @@ if __name__ == "__main__":
         ' for every Standard', RESULTS_FOLDER,
         'std-abserr_production')
 
-    # Compute ANCOVAs for signed response times
-    # Stack multidimensional numpy array to produce a dataframe
-    mean_ffx_rt = np.array(mean_ffx_rt)
-    std_ffx_rt = np.array(std_ffx_rt)
-
-    production_ancova(mean_ffx_rt, standards, RESULTS_FOLDER,
-                      'df_ancova_mean-rtprod', 'res_ancova_mean-rtprod',
-                      modality='audio')
-    production_ancova(mean_ffx_rt, standards, RESULTS_FOLDER,
-                      'df_ancova_mean-rtprod', 'res_ancova_mean-rtprod',
-                      modality='visual')
-
-    production_ancova(std_ffx_rt, standards, RESULTS_FOLDER,
-                      'df_ancova_sd-rtprod', 'res_ancova_sd-rtprod',
-                      modality='audio')
-    production_ancova(std_ffx_rt, standards, RESULTS_FOLDER,
-                      'df_ancova_sd-rtprod', 'res_ancova_sd-rtprod',
-                      modality='visual')
