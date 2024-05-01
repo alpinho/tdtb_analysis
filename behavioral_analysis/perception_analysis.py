@@ -18,8 +18,10 @@ import warnings
 import numpy as np
 import pandas as pd
 
+import pingouin as pg
 from scipy import stats, optimize, special
 from matplotlib import pyplot as plt
+from matplotlib.patches import ConnectionPatch
 from statsmodels.stats.anova import AnovaRM
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
@@ -708,42 +710,41 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir,
     return df
 
 
-def threeway_repanova(df, output_dir):
+def twoway_repanova(df, output_dir, alternative='two-sided'):
     # Open dataframe
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
+    # Averaged DL across Standards, i.e. grouped by ...
+    # ... Condition, Modality and Subject and averaged afterwards
+    df = df.drop(['Standard'], axis=1)
+    df = df.drop(['Estimator'], axis=1)
+    df = df.groupby(['Condition', 'Modality', 'Subject']).mean().reset_index()
+
     # Create AnovaRM object
     model = AnovaRM(data=df, depvar='DL', subject='Subject',
-                    within=['Modality', 'Condition', 'Standard'])
+                    within=['Modality', 'Condition'])
 
-    # Run the 3-way repeated measures ANOVA
+    # Run the 2-way repeated measures ANOVA
     results = model.fit()
 
-    output_folder = os.path.join(output_dir, 'anovas/threeway')
+    output_folder = os.path.join(output_dir, 'anovas/twoway')
     # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
     # Save ANOVA results in a TSV file
-    results.anova_table.to_csv(os.path.join(
-        output_folder, 'threeway_anova_results.tsv'), sep='\t')
+    results.anova_table.to_csv(
+        os.path.join(output_folder, 'twoway_anova_results.tsv'), sep='\t')
 
-    # Perform pairwise Tukey HSD tests
-    posthoc_modality = pairwise_tukeyhsd(df['DL'], df['Modality'],
-                                         alpha=0.05)
-    posthoc_condition = pairwise_tukeyhsd(df['DL'], df['Condition'],
-                                          alpha=0.05)
-    posthoc_standard = pairwise_tukeyhsd(df['DL'], df['Standard'],
-                                         alpha=0.05)
+    # Posthoc pairwise tests
+    posthoc_results = pg.pairwise_tests(
+        data=df, dv='DL', within=['Condition', 'Modality'],
+        subject='Subject', alternative=alternative, return_desc=True,
+        padjust='holm', effsize='eta-square')
 
-    with open(os.path.join(output_folder, 'posthoc_modality.tsv'), 'w') as fm:
-        fm.write(posthoc_modality.summary().as_csv(sep='\t'))
-
-    with open(os.path.join(output_folder, 'posthoc_condition.tsv'), 'w') as fc:
-        fc.write(posthoc_condition.summary().as_csv(sep='\t'))
-
-    with open(os.path.join(output_folder, 'posthoc_standard.tsv'), 'w') as fs:
-        fs.write(posthoc_standard.summary().as_csv(sep='\t'))
+    # Save Posthoc results
+    posthoc_results.to_csv(
+        os.path.join(output_folder, 'posthoc.tsv'), sep='\t', index=False)
 
     # Plot
     modalities = np.unique(df.Modality).tolist()
@@ -784,11 +785,17 @@ def threeway_repanova(df, output_dir):
 
         # Fill boxes with colors
         # colors = ['tab:blue', 'tab:orange']
-        colors = [[0.12156862745098039, 0.4666666666666667, 0.7058823529411765, 0.5],
-                  [1, 0.4980392156862745, 0.054901960784313725, 0.5]]
+        # colors = [[0.12156862745098039, 0.4666666666666667, 0.7058823529411765, 0.5],
+        #           [1, 0.4980392156862745, 0.054901960784313725, 0.5]]
+
+        # for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
+        #     patch1.set_facecolor(colors[0])
+        #     patch2.set_facecolor(colors[1])
+
+        colors = [[.0, .66, .47, .5], [.89, .61, .06, .5]]
         for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
-            patch1.set_facecolor(colors[0])
-            patch2.set_facecolor(colors[1])
+            patch1.set_facecolor(colors[m])
+            patch2.set_facecolor(colors[m])
 
         # Set ticks labels in x-axis
         ax.set_xticks([.2, .8], x_labels)
@@ -800,24 +807,34 @@ def threeway_repanova(df, output_dir):
         # For the first plot,
         if m == 0:
             # Place legend
-            ax.legend([beat["boxes"][0], interval["boxes"][0]],
-                      ['Beat', 'Interval'],
-                      loc='upper right', frameon=False,
-                      prop={'size': 12})
-            # Title of each plot
-            ax.set_title('Auditory Perception', fontweight='semibold',
-                         size=9, y=.95)
+            ax.legend([beat["boxes"][0]], ['Auditory'],
+                       loc=(.075, .92), frameon=False,
+                       prop={'size': 12})
+            # # Title of each plot
+            # ax.set_title('Auditory Perception', fontweight='semibold',
+            #              size=9, y=.95)
             # Set name for y-axis
-            ax.set_ylabel('Group DL across Standards')
+            ax.set_ylabel('Group DL')
+            # Copy axis object to draw connection patch
+            ax0 = ax
+            # Draw small vertical line for annotation
+            plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
+
         # For the second plot
         else:
+            # Place legend
+            ax.legend([beat["boxes"][0]], ['Visual'],
+                       loc=(.075, .92), frameon=False,
+                       prop={'size': 12})
             # ... remove y frame on the left
             ax.spines['left'].set_visible(False)
             # ... remove labels and ticks
             ax.axes.get_yaxis().set_visible(False)
-            # Title of each plot
-            ax.set_title('Visual Perception', fontweight='semibold', size=9,
-                         y=.95)
+            # # Title of each plot
+            # ax.set_title('Visual Perception', fontweight='semibold', size=9,
+            #              y=.95)
+            # Draw small vertical line for annotation
+            plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
 
         # Set limits of ticks in y axis
         plt.ylim([-.025, .25])
@@ -825,14 +842,20 @@ def threeway_repanova(df, output_dir):
         # Set name for x-axis
         fig.text(.435, .025, 'Conditions', size=12)
 
+    # Annotation
+    con1 = ConnectionPatch(xyA=(.5, .195), xyB=(.5, .195),
+                           coordsA="data", coordsB="data", axesA=ax0, axesB=ax,
+                           color='black', linewidth=1.)
+    ax.add_artist(con1)
+    fig.text(.53, .71, '****', size=12)
+
     # Title
     plt.suptitle(
-        'Descriptive Stats of Group DL across Standards for\n\n3-way' + \
-        ' Repeated Measures ANOVA',
+        'Descriptive Stats of Group DL for 2-way RM-ANOVA',
         x=.5, y=.98, size=10, linespacing=.75)
 
     # Save figure
-    plt.savefig(os.path.join(output_folder, 'threeway_boxplot.pdf'))
+    plt.savefig(os.path.join(output_folder, 'twoway_boxplot.pdf'))
 
 # %%
 # =========================== INPUTS ===================================
@@ -921,4 +944,4 @@ if __name__ == "__main__":
             continue
         else:
             db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER)
-            threeway_repanova(db, RESULTS_FOLDER)
+            twoway_repanova(db, RESULTS_FOLDER)
