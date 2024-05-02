@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: February 2024
+Last update: May 2024
 
 Compatibility: Python 3.10.4
 """
@@ -774,14 +774,22 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
                           widths=width,
                           flierprops={'marker': '', 'markersize': 5},
                           patch_artist=True,
-                          medianprops = dict(color="black",linewidth=1.5))
+                          medianprops = dict(color="black",linewidth=0.),
+                          notch=True,
+                          meanline=True,
+                          showmeans=True,
+                          meanprops = dict(color="tab:brown",linewidth=1.5))
         interval = ax.boxplot(dl_interval,
                               bootstrap=100,
                               positions=[.8],
                               widths=width,
                               flierprops={'marker': '', 'markersize': 5},
                               patch_artist=True,
-                              medianprops = dict(color="black",linewidth=1.5))
+                              medianprops = dict(color="black",linewidth=0.),
+                              notch=True,
+                              meanline=True,
+                              showmeans=True,
+                              meanprops = dict(color="tab:brown",linewidth=1.5))
 
         # Fill boxes with colors
         # colors = ['tab:blue', 'tab:orange']
