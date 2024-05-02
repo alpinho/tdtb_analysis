@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: February 2024
+Last update: May 2024
 
 Compatibility: Python 3.10.4
 """
@@ -972,6 +972,100 @@ def plot_pttest(data_audio, data_visual,
     plt.savefig(os.path.join(output_dir, fname + '.pdf'))
 
 
+def plot_pttest_boxplot(data_audio, data_visual,
+                        pval_audio_bi, pval_audio_br, pval_audio_ir,
+                        pval_visual_bi, pval_visual_br, pval_visual_ir,
+                        y, ylim_b, ylim_t, yshift, title, output_dir, fname):
+
+    modalities = ['audio', 'visual']
+    fig, ax = plt.subplots(1, len(modalities))
+
+    # left   # the left side of the subplots of the figure
+    # right  # the right side of the subplots of the figure
+    # bottom # the bottom of the subplots of the figure
+    # top    # the top of the subplots of the figure
+    # wspace # the amount of width reserved for blank space between subplots
+    # hspace # the amount of height reserved for white space between subplots
+    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25)
+
+    # Define subplot of bar charts and its position in the fig
+    # plt.axes([left, bottom, width, height])
+    # ax = plt.axes([.225, .145, .65, .65])
+
+    # Prepare the data
+    x = 'Conditions'
+    pval_audio = [pval_audio_bi, pval_audio_br, pval_audio_ir]
+    pval_visual = [pval_visual_bi, pval_visual_br, pval_visual_ir]
+    for m, modality in enumerate(modalities):
+        if modality == 'audio':
+            data_list = data_audio
+            pvalue = pval_audio
+            x_label = 'Auditory Conditions'
+        else:
+            assert modality == 'visual'
+            data_list = data_visual
+            pvalue = pval_visual
+            x_label = 'Visual Conditions'
+        conditions = np.repeat('Beat', len(data_list) / 3).tolist() + \
+            np.repeat('Interval', len(data_list) / 3).tolist() + \
+            np.repeat('Random', len(data_list) / 3).tolist()
+        d = {x: conditions, y: data_list}
+        df = pd.DataFrame(data=d)
+
+        colors = ['tab:blue', 'tab:orange', 'tab:pink']
+        # Create boxplot
+        sns.boxplot(
+            ax=ax[m],
+            x=x,
+            y=y,
+            data=df,
+            palette=colors,
+            medianprops={"color": "k", "linewidth": 0.},
+            notch=True,
+            meanline=True,
+            showmeans=True,
+            meanprops = dict(color="tab:brown",linewidth=1.5),
+            **{'boxprops': {'alpha': 0.5, 'edgecolor': 'black'}})
+
+        # Annotate
+        pairs = [('Beat', 'Interval'), ('Beat', 'Random'), ('Interval', 'Random')]
+        annotator = Annotator(ax[m], pairs, data=df, x=x, y=y)
+        annotator.configure(test=None,
+                            text_format="star",
+                            # test_short_name="pttest",
+                            fontsize=10.,
+                            hide_non_significant=True)
+        annotator.set_pvalues(pvalue)
+        annotator.annotate()
+
+        # Set limits of y-axis
+        ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
+
+        if m ==1:
+            # Remove labels and ticks
+            ax[m].axes.get_yaxis().set_visible(False)
+            # Remove y frame
+            ax[m].spines['left'].set_visible(False)
+            # Change x label
+            ax[m].set_xlabel('Visual Conditions', fontweight='semibold',
+                             labelpad=15)
+        else:
+            assert m == 0
+            ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
+                             labelpad=15)
+
+        # Hide the right and top spines
+        ax[m].spines['right'].set_visible(False)
+        ax[m].spines['top'].set_visible(False)
+
+    # Title
+    plt.suptitle(title, size=10, y=.96)
+    # plt.title('95% CI for the Mean', size=8, x=-.15)
+
+    # Save figure
+    plt.savefig(os.path.join(output_dir, fname + '.pdf'))
+
+
 def group_successrate_norand(
         israte_audio_beat, israte_audio_interval,
         israte_visual_beat, israte_visual_interval,
@@ -1290,6 +1384,13 @@ if __name__ == "__main__":
                 pntfd_visual_bi, pntfd_visual_br, pntfd_visual_ir,
                 'Reaction Time (ms)', 0., 750., -100.,
                 ntfd_title, RESULTS_FOLDER, ntfd_f)
+
+    ntfd_fboxplot = 'paired-ttest_merged-rt_ntfd_boxplot'
+    plot_pttest_boxplot(m_rtsntfd_audio, m_rtsntfd_visual,
+                        pntfd_audio_bi, pntfd_audio_br, pntfd_audio_ir,
+                        pntfd_visual_bi, pntfd_visual_br, pntfd_visual_ir,
+                        'Reaction Time (ms)', 300., 750., -100.,
+                        ntfd_title, RESULTS_FOLDER, ntfd_fboxplot)
 
     # ##################################################################
     # ### Individual analysis per standards --- box plots
