@@ -6,7 +6,7 @@ import numpy as np
 
 
 def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
-                  ttl=False, concatenate=True):
+                  ttl=False, concatenate=True, sessions=None):
 
     allsessions = []
     for sesstype in sesstypes:
@@ -20,10 +20,12 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
         # Comment to extract paradigm descriptors
         elif sesstype == 'imaging_session' and subject_no == 4:
             break
-        else:
+        elif sessions is None:
             sessions = []
             sessions = os.listdir(sesstype_path)
             sessions.sort()
+        else:
+            assert sessions is not None
 
         for session in sessions:
             logpath = os.path.join(sesstype_path, session)

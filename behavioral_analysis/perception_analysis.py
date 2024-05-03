@@ -207,7 +207,7 @@ def outliers(arr):
 
 def individual_perception(
         subjects, this_dir, output_dir, sesstype, condition, n_trials,
-        estimator='mle_expit',
+        estimator='mle_expit', sessions=None,
         tasks = ['Auditory Perception', 'Visual Perception']):
 
     logfiles_dir = os.path.join(
@@ -227,7 +227,7 @@ def individual_perception(
                 raise NameError('Task not valid!')
 
             data = parse_logfile(logfiles_dir, subject, sesstype, task,
-                                 n_trials)
+                                 n_trials, sessions=sessions)
             trials = perception_data(data)
             beat_trials, interval_trials, _ = filter_trialtype(trials,
                                                                'perception')
@@ -641,7 +641,7 @@ def plotfit_perception(x, y, estimator, output_dir):
     plt.close('all')
 
 
-def dataframe(estim_pse, estim_dl, stand_numbers, output_dir,
+def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
               estimator='mle_expit'):
     # Shape of pse and dl arrays:
     # (estimators, conditions, modality, subjects, standards)
@@ -704,7 +704,7 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir,
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
     # Save dataframe
-    outpath = os.path.join(output_folder, 'df_dl.tsv')
+    outpath = os.path.join(output_folder, 'df_dl' + sesstag + '.tsv')
     df.to_csv(outpath, index=False, sep='\t')
 
     return df
@@ -791,15 +791,6 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
                               showmeans=True,
                               meanprops = dict(color="tab:brown",linewidth=1.5))
 
-        # Fill boxes with colors
-        # colors = ['tab:blue', 'tab:orange']
-        # colors = [[0.12156862745098039, 0.4666666666666667, 0.7058823529411765, 0.5],
-        #           [1, 0.4980392156862745, 0.054901960784313725, 0.5]]
-
-        # for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
-        #     patch1.set_facecolor(colors[0])
-        #     patch2.set_facecolor(colors[1])
-
         colors = [[.0, .66, .47, .5], [.89, .61, .06, .5]]
         for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
             patch1.set_facecolor(colors[m])
@@ -868,17 +859,28 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
 # %%
 # =========================== INPUTS ===================================
 
+# All subjects
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
 #             40, 41, 42, 43, 44, 45, 46, 47]
+
+# All good subjects including img pilot (sub-04)
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
             44, 45, 46, 47]
+
+# Img subjects only
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
 SESSTYPES = ['behavioral_session', 'imaging_session']
 # SESSTYPES = ['imaging_session']
+# SESSTYPES = ['behavioral_session']
+
+# SESSIONS = ['ses-02']
+SESSIONS = None
 
 N_TRIALS = 30
 
@@ -912,7 +914,8 @@ if __name__ == "__main__":
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
                     individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
                                           SESSTYPES, cond, N_TRIALS,
-                                          estimator=estimator)
+                                          estimator=estimator,
+                                          sessions=SESSIONS)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
@@ -943,13 +946,13 @@ if __name__ == "__main__":
         estim_pse.append(cond_pse)
         estim_dl.append(cond_dl)
 
-        # Plot PSE as a function of the standard
+        # Plot PSE
         mod_gpse = np.swapaxes(cond_gpse, 0, 1)
         plotfit_perception(stand, mod_gpse, estimator, RESULTS_FOLDER)
 
-        # Compute ANOVAS
+        # Compute ANOVAS and plot DL
         if estimator == 'mle_cdf':
             continue
         else:
-            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER)
+            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER, '_allses')
             twoway_repanova(db, RESULTS_FOLDER)
