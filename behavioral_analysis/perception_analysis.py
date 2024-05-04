@@ -677,18 +677,23 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
                            len(crossind_conditions))
 
     # ## Build tables and dataframes
-    table = np.vstack((dl_flatten, standards, modalities, individuals,
-                       conditions, estimators)).T
+    table = np.vstack((dl_flatten, pse_flatten, standards, modalities,
+                       individuals, conditions, estimators)).T
 
-    df = pd.DataFrame(table, columns=['DL', 'Standard', 'Modality',
+    df = pd.DataFrame(table, columns=['DL', 'PSE', 'Standard', 'Modality',
                                       'Subject', 'Condition', 'Estimator'])
     df['DL'] = df['DL'].apply(pd.to_numeric)
+    df['PSE'] = df['PSE'].apply(pd.to_numeric)
     df = df[df.Estimator == estimator]
 
     # Replace outliers by median across subjects
-    ht, lt = outliers(dl_flatten)
-    df['DL'] = np.where(df['DL'] > ht, np.nan, df['DL'])
-    df['DL'] = np.where(df['DL'] < lt, np.nan, df['DL'])
+    ht_dl, lt_dl = outliers(dl_flatten)
+    df['DL'] = np.where(df['DL'] > ht_dl, np.nan, df['DL'])
+    df['DL'] = np.where(df['DL'] < lt_dl, np.nan, df['DL'])
+
+    ht_pse, lt_pse = outliers(pse_flatten)
+    df['PSE'] = np.where(df['PSE'] > ht_pse, np.nan, df['PSE'])
+    df['PSE'] = np.where(df['PSE'] < lt_pse, np.nan, df['PSE'])
 
     for index, row in df.iterrows():
         if np.isnan(df.loc[index, 'DL']):
@@ -698,13 +703,20 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
             dl = np.nanmedian(df[df.Standard == std_val][
                 df.Modality == mod_val][df.Condition == cond_val].DL.values)
             df.loc[index, 'DL'] = dl
+        if np.isnan(df.loc[index, 'PSE']):
+            std_val = df.loc[index, 'Standard']
+            mod_val = df.loc[index, 'Modality']
+            cond_val = df.loc[index, 'Condition']
+            pse = np.nanmedian(df[df.Standard == std_val][
+                df.Modality == mod_val][df.Condition == cond_val].PSE.values)
+            df.loc[index, 'PSE'] = pse
 
     output_folder = os.path.join(output_dir, 'anovas')
     # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
     # Save dataframe
-    outpath = os.path.join(output_folder, 'df_dl' + sesstag + '.tsv')
+    outpath = os.path.join(output_folder, 'df_perception_' + sesstag + '.tsv')
     df.to_csv(outpath, index=False, sep='\t')
 
     return df
@@ -865,22 +877,22 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
 #             40, 41, 42, 43, 44, 45, 46, 47]
 
 # All good subjects including img pilot (sub-04)
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-            44, 45, 46, 47]
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
 
 # Img subjects only
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
-SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSTYPES = ['imaging_session']
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSTYPES = ['imaging_session']
 # SESSTYPES = ['behavioral_session']
 
-# SESSIONS = ['ses-02']
-SESSIONS = None
+SESSIONS = ['ses-02']
+# SESSIONS = None
 
 N_TRIALS = 30
 
@@ -954,5 +966,5 @@ if __name__ == "__main__":
         if estimator == 'mle_cdf':
             continue
         else:
-            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER, '_allses')
+            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER, 'ses-05')
             twoway_repanova(db, RESULTS_FOLDER)
