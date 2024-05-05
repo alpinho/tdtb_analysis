@@ -91,7 +91,7 @@ def missing_isi_data(arr, isi1s):
     return arr
 
 def isi_async(subjects, sesstypes, this_dir, output_folder, sync_type,
-              n_trials, sessions=None,
+              n_trials, sessions=None, missing_full_isi=False,
               tasks=['Auditory Production', 'Visual Production']):
 
     logfiles_dir = os.path.join(
@@ -191,12 +191,13 @@ def isi_async(subjects, sesstypes, this_dir, output_folder, sync_type,
     # Replace median across subjects ...
     # ... for a given standard at a given trial number ...
     # ... when all trial values for that standard are nan
-    allsub_beat_audio = missing_isi_data(np.array(allsub_beat_audio), isi1s)
-    allsub_beat_visual = missing_isi_data(np.array(allsub_beat_visual), isi1s)
-    allsub_interval_audio = missing_isi_data(
-        np.array(allsub_interval_audio), isi1s)
-    allsub_interval_visual = missing_isi_data(
-        np.array(allsub_interval_visual), isi1s)
+    if missing_full_isi:
+        allsub_beat_audio = missing_isi_data(np.array(allsub_beat_audio), isi1s)
+        allsub_beat_visual = missing_isi_data(np.array(allsub_beat_visual), isi1s)
+        allsub_interval_audio = missing_isi_data(
+            np.array(allsub_interval_audio), isi1s)
+        allsub_interval_visual = missing_isi_data(
+            np.array(allsub_interval_visual), isi1s)
 
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
             allsub_interval_visual, isi1s)
@@ -236,7 +237,8 @@ def ginput_resize(audio_beat, audio_interval, visual_beat, visual_interval):
 
 
 def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
-              sync_visual_interval, stand_numbers, output_dir, sesstag):
+              sync_visual_interval, stand_numbers, subjects, output_dir,
+              sesstag):
     # Inputs shape (n_subjects, n_isi, n_trials)
 
     # Compute mean of trials synchronies for each standard and subject
@@ -266,8 +268,7 @@ def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
                         conditions_names.shape[0] * modalities_names.shape[0])
 
     # ## Subjects column
-    itag = ['sub-%02d' % s for s in SUBJECTS]
-    stand_allsubjects = np.repeat(itag, stand_numbers.shape[0])
+    stand_allsubjects = np.repeat(SUBJECTS, stand_numbers.shape[0])
     subjects = np.tile(
         stand_allsubjects,
         conditions_names.shape[0] * modalities_names.shape[0])
@@ -348,7 +349,7 @@ if __name__ == "__main__":
     ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
         ssync_visual_interval, standards = isi_async(
             SUBJECTS, SESSTYPES, MAIN_DIR, RESULTS_FOLDER, 'signed',
-            N_TRIALS, sessions=SESSIONS)
+            N_TRIALS, sessions=SESSIONS, missing_full_isi=True)
 
     # Resize
     rsized_ssync_audio_beat, rsized_ssync_audio_interval, \
@@ -359,4 +360,4 @@ if __name__ == "__main__":
     # Build dataframe
     db = dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
                    rsized_ssync_visual_beat, rsized_ssync_visual_interval,
-                   standards, RESULTS_FOLDER, 'ses-05')
+                   standards, SUBJECTS, RESULTS_FOLDER, 'ses-05')
