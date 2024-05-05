@@ -1829,7 +1829,7 @@ switch what
             'file_type', 'psc', 'masktag', 'gmmasked')
         
     case 'GROUP:mean_t1'
-        % Example usage: msdtb_imana('ANAT:mean_t1')
+        % Example usage: msdtb_imana('GROUP:mean_t1')
         
         sn       = subj_id; % subject list
         vararginoptions(varargin, {'sn'});
