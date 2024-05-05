@@ -13,28 +13,17 @@ Compatibility: Python 3.10.8
 
 import sys
 import os
-
-import numpy as np
-import pandas as pd
-
-import pingouin as pg
-import seaborn as sns
-
 import warnings
-
-from scipy import stats, optimize, special
-from matplotlib import pyplot as plt
-from matplotlib import patches as mpatches
-from statannotations.Annotator import Annotator
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # setting path
 sys.path.append('../')
 # importing
-from utils import parse_logfile, customize_vplot, change_width
+from utils import parse_logfile
 
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
-
+import numpy as np
+import pandas as pd
 
 # %%
 # ======================== MAIN FUNCTIONS ==============================

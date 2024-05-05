@@ -14,29 +14,16 @@ Compatibility: Python 3.10.8
 import sys
 import os
 import warnings
-
-import numpy as np
-import pandas as pd
-
-import pingouin as pg
-import seaborn as sns
-
-from scipy import stats
-from matplotlib import pyplot as plt
-from matplotlib import patches as mpatches
-from statannotations.Annotator import Annotator
-
-import statsmodels.api as sm
-from statsmodels.stats.anova import AnovaRM, anova_lm
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # setting path
 sys.path.append('../')
 # importing
-from utils import parse_logfile, customize_vplot, change_width, ffx
+from utils import parse_logfile
 
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
+import numpy as np
+import pandas as pd
 
 
 # %%
