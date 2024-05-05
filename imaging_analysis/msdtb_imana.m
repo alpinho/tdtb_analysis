@@ -72,15 +72,16 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % List of all subjects
-subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
-
-% List of all subjects but pilot
-% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
+% List of all subjects but pilot
+subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+
 % Working list of subjects
-% subj_n = [4];
+% subj_n = [10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -1117,7 +1118,7 @@ switch what
                 J.global           = 'None';
                 J.mask             = {char(fullfile(deriv_subjdir, ...
                     'ses-01', func_dir, 'rmask_noskull.nii'))};
-                J.mthresh          = 1.;
+                J.mthresh          = 0.;
                 J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
                     'ses-01', func_dir,'rmask_gray.nii'))}; % only for rwls
                 J.cvi              = 'fast';
