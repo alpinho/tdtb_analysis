@@ -3,7 +3,7 @@
 *.png
 behavioral_analysis/production_results
 behavioral_analysis/perception_results
-behavioral_analysis/behavsess_results_3_4
+behavioral_analysis/ntfd_results
 imaging_analysis/events
 imaging_analysis/events_drbb
 imaging_analysis/atlases

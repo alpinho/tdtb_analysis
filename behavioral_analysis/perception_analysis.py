@@ -675,13 +675,16 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
     # ## Estimator column
     estimators = np.repeat(['mle_cdf', 'mle_expit'],
                            len(crossind_conditions))
+    # ## Session
+    sessions = np.repeat(sesstag, len(dl_flatten))
 
     # ## Build tables and dataframes
-    table = np.vstack((dl_flatten, pse_flatten, standards, modalities,
-                       individuals, conditions, estimators)).T
+    table = np.vstack((dl_flatten, pse_flatten, standards, individuals, 
+                       modalities, conditions, estimators, sessions)).T
 
-    df = pd.DataFrame(table, columns=['DL', 'PSE', 'Standard', 'Modality',
-                                      'Subject', 'Condition', 'Estimator'])
+    df = pd.DataFrame(table, columns=['DL', 'PSE', 'Standard', 'Subject',
+                                      'Modality', 'Condition', 'Estimator',
+                                      'Session'])
     df['DL'] = df['DL'].apply(pd.to_numeric)
     df['PSE'] = df['PSE'].apply(pd.to_numeric)
     df = df[df.Estimator == estimator]
@@ -888,8 +891,8 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
 # SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSTYPES = ['imaging_session']
 # SESSTYPES = ['behavioral_session']
+SESSTYPES = ['imaging_session']
 
 SESSIONS = ['ses-02']
 # SESSIONS = None
