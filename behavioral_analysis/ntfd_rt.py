@@ -4,7 +4,7 @@ Analysis of behavioral data for the NTFD Tasks of the Music-SDTB project
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
-Created: February 2023
+Created: May 5, 2024
 Last update: May 2024
 
 Compatibility: Python 3.10.4
