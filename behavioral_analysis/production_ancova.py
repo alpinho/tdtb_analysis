@@ -51,8 +51,11 @@ def group_dvar(df_ffx, estimator='mean'):
         df_group.Condition=='beat'].Asynchronies.values
     async_vi = df_group[df_group.Modality=='visual'][
         df_group.Condition=='interval'].Asynchronies.values
+        
+    group_async = [[async_ab.tolist()] + [async_ai.tolist()]] + \
+                   [[async_vb.tolist()] + [async_vi.tolist()]]
 
-    return [[async_ab] + [async_ai]] + [[async_vb] + [async_vi]]
+    return group_async
 
 
 def wide_dataframe(df, output_folder, sesstag):
