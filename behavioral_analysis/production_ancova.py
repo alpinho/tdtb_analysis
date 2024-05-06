@@ -1,5 +1,5 @@
 """
-Analysis of behavioral data for the Production Tasks of the Music-SDTB project
+ANCOVA analyses of behavioral data of Production Tasks of the Music-SDTB project
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
@@ -23,12 +23,17 @@ from matplotlib import pyplot as plt
 # %%
 # ======================== MAIN FUNCTIONS ==============================
 
-def dependent_var(df, estimator='mean'):
-
+def ffx_dvar(df):
+    # Fixed Effects within subjects
     df_ffx = df.drop(['Session'], axis=1)
     df_ffx = df_ffx.groupby([
         'Condition', 'Modality', 'Standard', 'Subject']).mean().reset_index()
 
+    return df_ffx
+
+
+def group_dvar(df_ffx, estimator='mean'):
+    # Group effect for plotting
     df_group = df_ffx.drop(['Subject'], axis=1)
     if estimator == 'mean':
         df_group = df_group.groupby([
@@ -48,6 +53,20 @@ def dependent_var(df, estimator='mean'):
         df_group.Condition=='interval'].Asynchronies.values
 
     return [[async_ab] + [async_ai]] + [[async_vb] + [async_vi]]
+
+
+def wide_dataframe(df, output_folder, sesstag):
+    wdf = pd.pivot(df, values='Asynchronies', index=['Subject', 'Standard'],
+                   columns=['Condition', 'Modality'])
+
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # Save dataframe
+    wdf_outpath = os.path.join(
+        output_folder, 'wide_df_production_' + sesstag + '.tsv')
+    wdf.to_csv(wdf_outpath, index=True, sep='\t')
 
 
 def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
@@ -118,6 +137,10 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
     # Title
     plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
 
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
     # Save figure
     plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
@@ -127,7 +150,8 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results')
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
-OUTPUT_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
+JASP_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'jasp')
+PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'plots')
 
 sessions_dic = {'allses': 'All Sessions',
                 'ses-01': 'Session 1',
@@ -141,10 +165,6 @@ sessions_dic = {'allses': 'All Sessions',
 
 if __name__ == "__main__":
 
-    # Create output directory if it does not exist
-    if not os.path.exists(OUTPUT_FOLDER):
-        os.mkdir(OUTPUT_FOLDER)
-
     for key, value in sessions_dic.items():
         # Open dataframe
         db_path = os.path.join(DATAFRAMES_FOLDER,
@@ -155,15 +175,19 @@ if __name__ == "__main__":
         standards = np.unique(db['Standard'])
 
         # Extract dependent variable
-        mean_async = dependent_var(db, estimator='mean')
-        std_async = dependent_var(db, estimator='std')
+        db_ffx = ffx_dvar(db)
+        mean_async = group_dvar(db_ffx, estimator='mean')
+        std_async = group_dvar(db_ffx, estimator='std')
+
+        # Convert dataframe in the wide format for ancova analyses with JASP
+        wide_dataframe(db_ffx, JASP_FOLDER, key)
 
         # Plot ANCOVA
         plot_ancova(
             standards, mean_async, np.around(np.arange(-.1, .2, .05), 2),
             'Mean of Signed Asynchrony', .225,
             'Mean of Signed Asynchrony for every Standard: ' + value,
-            OUTPUT_FOLDER, 'mean_ancova_production_' + key,
+            PLOTS_FOLDER, 'mean_ancova_production_' + key,
             hline_legend=r'$RT=Standard$', hline_yloc=[.41, .41],
             legend_loc='upper right')
 
@@ -179,5 +203,5 @@ if __name__ == "__main__":
             standards, std_async, ylimits,
             'SD of Signed Asynchrony', .225,
             'Standard Deviation (SD) of Signed Asynchrony ' + \
-            'for every Standard: ' + value, OUTPUT_FOLDER,
+            'for every Standard: ' + value, PLOTS_FOLDER,
             'std_ancova_production_' + key, legend_loc='upper right')

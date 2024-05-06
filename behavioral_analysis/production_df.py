@@ -236,9 +236,9 @@ def ginput_resize(audio_beat, audio_interval, visual_beat, visual_interval):
             rsi_visual_interval)
 
 
-def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
-              sync_visual_interval, stand_numbers, subjects, output_dir,
-              sesstag):
+def long_dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
+                   sync_visual_interval, stand_numbers, subjects, output_dir,
+                   sesstag):
     # Inputs shape (n_subjects, n_isi, n_trials)
 
     # Compute mean of trials synchronies for each standard and subject
@@ -312,21 +312,21 @@ def dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
 #             40, 41, 42, 43, 44, 45, 46, 47]
 
 # All good subjects including img pilot (sub-04)
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-#             44, 45, 46, 47]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+            44, 45, 46, 47]
 
 # Img subjects only
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # TASKS = ['Visual Production']
 
-# SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSTYPES = ['behavioral_session', 'imaging_session']
 # SESSTYPES = ['behavioral_session']
-SESSTYPES = ['imaging_session']
+# SESSTYPES = ['imaging_session']
 
-SESSIONS = ['ses-02']
+SESSIONS = ['ses-01']
 # SESSIONS = None
 
 N_TRIALS = 30
@@ -349,7 +349,7 @@ if __name__ == "__main__":
     ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
         ssync_visual_interval, standards = isi_async(
             SUBJECTS, SESSTYPES, MAIN_DIR, RESULTS_FOLDER, 'signed',
-            N_TRIALS, sessions=SESSIONS, missing_full_isi=True)
+            N_TRIALS, sessions=SESSIONS, missing_full_isi=False)
 
     # Resize
     rsized_ssync_audio_beat, rsized_ssync_audio_interval, \
@@ -357,7 +357,7 @@ if __name__ == "__main__":
             ginput_resize(ssync_audio_beat, ssync_audio_interval,
                           ssync_visual_beat, ssync_visual_interval)
 
-    # Build dataframe
-    db = dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
-                   rsized_ssync_visual_beat, rsized_ssync_visual_interval,
-                   standards, SUBJECTS, RESULTS_FOLDER, 'ses-05')
+    # Build and save dataframe in the long format
+    db = long_dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
+                        rsized_ssync_visual_beat, rsized_ssync_visual_interval,
+                        standards, SUBJECTS, RESULTS_FOLDER, 'allses')
