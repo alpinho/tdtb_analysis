@@ -171,3 +171,16 @@ def ffx(audio_beat, audio_interval, visual_beat, visual_interval,
 
     return (ffx_audio_beat, ffx_audio_interval, ffx_visual_beat,
             ffx_visual_interval)
+
+
+def resize_arrays(arr):
+    """
+    Resize numpy arrays when there is less trials per isi because
+    the participant only did the behavioral sessions
+    """
+    maxlength = np.amax([np.array(arr0).shape[0] for arr0 in arr])
+    new_arr = [
+        np.append(arr0, np.repeat('n/a', maxlength - len(arr0))).tolist()
+        if len(arr0) < maxlength else arr0 for arr0 in arr]
+
+    return new_arr

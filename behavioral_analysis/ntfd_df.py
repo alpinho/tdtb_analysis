@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # setting path
 sys.path.append('../')
 # importing
-from utils import parse_logfile
+from utils import parse_logfile, resize_arrays
 
 import numpy as np
 import pandas as pd
@@ -67,57 +67,7 @@ def filter_trialtype(trs, category):
     return beat, interval, random
 
 
-def success_trialtype_filter(data):
-    trial_beat = [dt for dt in data if dt[4][:4] == 'beat']
-    trial_interval = [dt for  dt in data if dt[4][:8] == 'interval']
-    trial_random = [dt for dt in data if dt[4][:6] == 'random']
-
-    return trial_beat, trial_interval, trial_random
-
-
-def success(data, subject):
-    if subject == 4:
-        high_cir = ['o', 'y']
-        low_tri = ['p', 'b']
-    else:
-        high_cir = ['o', 'b']
-        low_tri = ['p', 'y']
-    scores = []
-    for dt, datum in enumerate(data):
-        if datum[5] == 'feedback':
-            answer = datum[11]
-            dstimulus = data[dt-1][5]
-            if answer in high_cir and dstimulus in ['beep_880hz', 'circle']:
-                scores.append(1)
-            elif answer in low_tri and dstimulus in ['beep_220hz', 'triangle']:
-                scores.append(1)
-            elif answer == 'None':
-                scores.append(np.nan)
-            else:
-                scores.append(0)
-
-    # Replace missing values (nan's) by median of the all sample
-    if np.any(np.isnan(scores)):
-        missval = np.nanmedian(scores)
-        scores = np.where(np.isnan(scores), missval, scores).tolist()
-
-    return round(np.sum(scores)/len(scores), 3)
-
-
-def resize_arrays(arr):
-    """
-    Resize numpy arrays when there is less trials per isi because
-    the participant only did the behavioral sessions
-    """
-    maxlength = np.amax([np.array(arr0).shape[0] for arr0 in arr])
-    new_arr = [
-        np.append(arr0, np.repeat(np.nan, maxlength - len(arr0))).tolist()
-        if len(arr0) < maxlength else arr0 for arr0 in arr]
-
-    return new_arr
-
-
-def ntfd_dataframe(
+def ntfd_isi_dataframe(
         subjects, this_dir, output_dir, sesstype, n_trials, n_isi_trials,
         sesstag, sessions=None,
         tasks=['Auditory No-Temporal Feature Discrimination',
@@ -158,10 +108,11 @@ def ntfd_dataframe(
                         else:
                             rts_beat.append(np.nan)
                 # Replace missing values (nan's) by median of the isi sample
-                if np.any(np.isnan(rts_beat)):
-                    miss_bval = np.nanmedian(rts_beat)
-                    rts_beat = np.where(np.isnan(rts_beat), miss_bval,
-                                        rts_beat).tolist()
+                # if np.any(np.isnan(rts_beat)):
+                #     miss_bval = np.nanmedian(rts_beat)
+                #     rts_beat = np.where(np.isnan(rts_beat), miss_bval,
+                #                         rts_beat).tolist()
+
                 rt_isi1_grouped_beat.append(rts_beat)
 
             rt_isi1_grouped_interval = []
@@ -174,22 +125,23 @@ def ntfd_dataframe(
                         else:
                             rts_interval.append(np.nan)
                 # Replace missing values (nan's) by median of the sample
-                if np.any(np.isnan(rts_interval)):
-                    miss_ival = np.nanmedian(rts_interval)
-                    rts_interval = np.where(np.isnan(rts_interval), miss_ival,
-                                            rts_interval).tolist()
+                # if np.any(np.isnan(rts_interval)):
+                #     miss_ival = np.nanmedian(rts_interval)
+                #     rts_interval = np.where(np.isnan(rts_interval), miss_ival,
+                #                             rts_interval).tolist()
+
                 rt_isi1_grouped_interval.append(rts_interval)
 
             # Aggregate data
             diff = n_isi_trials - np.array(rt_isi1_grouped_interval).shape[1]
             if diff != 0:
-                # Add missing data for subjects who have less data because of
+                # Add 'n/a' for subjects who have less data because of
                 # the introduction of the random condition
                 rt_isi1_grouped_beat = [
-                    np.append(rb, np.repeat(np.median(rb), diff)).tolist()
+                    np.append(rb, np.repeat('n/a', diff)).tolist()
                     for rb in rt_isi1_grouped_beat]
                 rt_isi1_grouped_interval = [
-                    np.append(ri, np.repeat(np.median(ri), diff)).tolist()
+                    np.append(ri, np.repeat('n/a', diff)).tolist()
                     for ri in rt_isi1_grouped_interval]
             if task == 'Auditory No-Temporal Feature Discrimination':
                 allsub_beat_audio.append(rt_isi1_grouped_beat)
@@ -237,7 +189,137 @@ def ntfd_dataframe(
                        mod_col, ses_col)).T
     df = pd.DataFrame(table, columns=['RT', 'Standard', 'Subject', 'Condition',
                                       'Modality', 'Session'])
-    df['RT'] = df['RT'].apply(pd.to_numeric)
+    # df['RT'] = df['RT'].apply(pd.to_numeric)
+
+    output_folder = os.path.join(output_dir, 'dataframes')
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
+    # Save dataframe
+    outpath = os.path.join(output_folder, 'df_ntfd_isi_' + sesstag + '.tsv')
+    df.to_csv(outpath, index=False, sep='\t')
+
+    return df
+
+
+def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
+                   sesstag, sessions=None,
+                   tasks=['Auditory No-Temporal Feature Discrimination',
+                          'Visual No-Temporal Feature Discrimination']):
+
+    logfiles_dir = os.path.join(
+        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+
+    allsub_beat_audio = []
+    allsub_interval_audio = []
+    allsub_random_audio = []
+    allsub_beat_visual = []
+    allsub_interval_visual = []
+    allsub_random_visual = []
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory No-Temporal Feature Discrimination',
+                            'Visual No-Temporal Feature Discrimination']:
+                raise NameError('Task not valid!')
+
+            data = parse_logfile(logfiles_dir, subject, sesstype, task,
+                                 n_trials, sessions=sessions)
+
+            if subject == 2 and \
+               task == 'Visual No-Temporal Feature Discrimination':
+                data = data[:476]
+            trials = ntfd_data(data)
+            beat_trials, interval_trials, random_trials = \
+                filter_trialtype(trials, 'ntfd')
+
+            # ############## Extract RT's ######################
+            beat_trials = np.array([bt[1] for bt in beat_trials])
+            interval_trials = np.array([it[1] for it in interval_trials])
+            random_trials = np.array([rt[1] for rt in random_trials])
+
+            # # Replace missing values (nan's) by median of the all sample
+            # if np.any(np.isnan(beat_trials)):
+            #     miss_bval = np.nanmedian(beat_trials)
+            #     beat_trials = np.where(np.isnan(beat_trials),
+            #                            miss_bval, beat_trials)
+
+            # if np.any(np.isnan(interval_trials)):
+            #     miss_ival = np.nanmedian(interval_trials)
+            #     interval_trials = np.where(np.isnan(interval_trials),
+            #                                miss_ival, interval_trials)
+
+            # if np.any(np.isnan(random_trials)):
+            #     miss_rval = np.nanmedian(random_trials)
+            #     random_trials = np.where(np.isnan(random_trials),
+            #                              miss_rval, random_trials)
+
+            # Aggregate data
+            if task == 'Auditory No-Temporal Feature Discrimination':
+                allsub_beat_audio.append(beat_trials.tolist())
+                allsub_interval_audio.append(interval_trials.tolist())
+                allsub_random_audio.append(random_trials.tolist())
+            else:
+                assert task == 'Visual No-Temporal Feature Discrimination'
+                allsub_beat_visual.append(beat_trials.tolist())
+                allsub_interval_visual.append(interval_trials.tolist())
+                allsub_random_visual.append(random_trials.tolist())
+
+    # Resize outputs with 'n/a' when there is less trials because...
+    # ... the participant only did the behavioral sessions
+    allsub_beat_audio = resize_arrays(allsub_beat_audio)
+    allsub_interval_audio = resize_arrays(allsub_interval_audio)
+    allsub_random_audio = resize_arrays(allsub_random_audio)
+    allsub_beat_visual = resize_arrays(allsub_beat_visual)
+    allsub_interval_visual = resize_arrays(allsub_interval_visual)
+    allsub_random_visual = resize_arrays(allsub_random_visual)
+
+    # Flatten RT's
+    allsub_beat_audio_flatten = np.ravel(allsub_beat_audio).tolist()
+    allsub_interval_audio_flatten = np.ravel(allsub_interval_audio).tolist()
+    allsub_random_audio_flatten = np.ravel(allsub_random_audio).tolist()
+    allsub_beat_visual_flatten = np.ravel(allsub_beat_visual).tolist()
+    allsub_interval_visual_flatten = np.ravel(allsub_interval_visual).tolist()
+    allsub_random_visual_flatten = np.ravel(allsub_random_visual).tolist()
+
+    # Concatenate
+    reaction_times = np.concatenate((allsub_beat_audio_flatten,
+                                     allsub_interval_audio_flatten,
+                                     allsub_random_audio_flatten,
+                                     allsub_beat_visual_flatten,
+                                     allsub_interval_visual_flatten,
+                                     allsub_random_visual_flatten,))
+
+    # Subjects column
+    beat_subjects = np.repeat(subjects, np.array(allsub_beat_audio).shape[1])
+    interval_subjects = np.repeat(
+        subjects, np.array(allsub_interval_audio).shape[1])
+    random_subjects = np.repeat(
+        subjects, np.array(allsub_random_audio).shape[1])
+    subjects_col = np.concatenate((
+        beat_subjects, interval_subjects, random_subjects,
+        beat_subjects, interval_subjects, random_subjects))
+
+    # Conditions column
+    beat_col = np.repeat('beat', len(allsub_beat_audio_flatten))
+    interval_col = np.repeat('interval', len(allsub_interval_audio_flatten))
+    random_col = np.repeat('random', len(allsub_random_audio_flatten))
+    cond_col = np.concatenate((beat_col, interval_col, random_col,
+                               beat_col, interval_col, random_col))
+
+    # Modality column
+    audio_col = np.repeat('audio', len(cond_col) / 2)
+    visual_col = np.repeat('visual', len(cond_col) / 2)
+    mod_col = np.concatenate((audio_col, visual_col))
+
+    # Session column
+    ses_col = np.repeat(sesstag, len(reaction_times))
+
+    # Build dataframe
+    table = np.vstack((
+        reaction_times, subjects_col, cond_col, mod_col, ses_col)).T
+    df = pd.DataFrame(table, columns=['RT', 'Subject', 'Condition',
+                                      'Modality', 'Session'])
 
     output_folder = os.path.join(output_dir, 'dataframes')
     # Create output_folder, if it does not exist
@@ -290,10 +372,11 @@ SESSIONS = ['ses-02']
 N_TRIALS = 30
 # Total number of trials per isi per condition (without random condition)...
 # ... across all runs of every behavioral sessions
-N_ISI_TRIALS_BEHAV = 36 # (3*4*3)
-# Total number of trials per isi per condition across all runs of every ...
-# ... imaging sessions
-N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2)
+N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
+# Total number of trials per isi per condition (without random condition)...
+# ... across all runs of every imaging sessions
+N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
+
 
 # %%
 # ========================= PARAMETERS =================================
@@ -317,6 +400,12 @@ if __name__ == "__main__":
     if not os.path.exists(RESULTS_FOLDER):
         os.mkdir(RESULTS_FOLDER)
 
-    # Dataframe
-    db = ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                        N_TRIALS, N_ISI_TRIALS, 'ses-05', sessions=SESSIONS)
+    # Dataframe with beat and interval (i.e. no random) only for every isi
+    ntfd_isi_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
+                       N_TRIALS, N_ISI_TRIALS, 'ses-05', sessions=SESSIONS)
+
+    # Dataframe with ffx of beat, interval and random
+    ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
+                   'ses-05', sessions=SESSIONS)
+
+
