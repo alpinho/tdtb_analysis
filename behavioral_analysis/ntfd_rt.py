@@ -12,27 +12,18 @@ Compatibility: Python 3.10.4
 
 import sys
 import os
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 import numpy as np
 import pandas as pd
-
-import pingouin as pg
 import seaborn as sns
 
-import warnings
-
-from scipy import stats, optimize, special
+from scipy import stats
 from matplotlib import pyplot as plt
-from matplotlib import patches as mpatches
 from statannotations.Annotator import Annotator
 
-# setting path
-sys.path.append('../')
-# importing
-from utils import parse_logfile, customize_vplot, change_width
-
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=UserWarning)
 
 # %%
 # ======================== MAIN FUNCTIONS ==============================
