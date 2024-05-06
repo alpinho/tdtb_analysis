@@ -336,6 +336,7 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 # %%
 # =========================== INPUTS ===================================
 
+# ################## Note about subjects ###############################
 # All subjects
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
@@ -347,26 +348,21 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 #             44, 45, 46, 47]
 
 # Img subjects only
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # This set of subjects are those that for the behavioral experiments did
 # the NTFD with the Random Condition
 # RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
 #                  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 
 #                  47]
-RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 
-		 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 
+# 		 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# #######################################################################
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
 #          'Visual No-Temporal Feature Discrimination']
-
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSTYPES = ['behavioral_session']
-SESSTYPES = ['imaging_session']
-
-SESSIONS = ['ses-02']
-# SESSIONS = None
 
 # Total number of trials per run
 N_TRIALS = 30
@@ -376,6 +372,52 @@ N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 # Total number of trials per isi per condition (without random condition)...
 # ... across all runs of every imaging sessions
 N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
+
+# ### For 'All Sessions' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSIONS = None
+# tag = 'allses'
+
+# ### For first behav session: 'ses-01' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01']
+# tag = SESSIONS[0]
+
+# ### For second behav session: 'ses-02' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-02']
+# tag = SESSIONS[0]
+
+# ### For third behav session: 'ses-03' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-03']
+# tag = SESSIONS[0]
+
+# ### For first img session: 'ses-04' ###
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-01']
+# tag = 'ses-04'
+
+# ### For second img session: 'ses-05' ###
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SESSTYPES = ['imaging_session']
+SESSIONS = ['ses-02']
+tag = 'ses-05'
 
 
 # %%
@@ -402,10 +444,10 @@ if __name__ == "__main__":
 
     # Dataframe with beat and interval (i.e. no random) only for every isi
     ntfd_isi_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                       N_TRIALS, N_ISI_TRIALS, 'ses-05', sessions=SESSIONS)
+                       N_TRIALS, N_ISI_TRIALS, tag, sessions=SESSIONS)
 
     # Dataframe with ffx of beat, interval and random
     ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
-                   'ses-05', sessions=SESSIONS)
+                   tag, sessions=SESSIONS)
 
 
