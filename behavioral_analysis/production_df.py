@@ -346,6 +346,8 @@ if __name__ == "__main__":
         os.mkdir(RESULTS_FOLDER)
 
     # Compute asynchronies
+    # Note: Set missing_full_isi to True for ses-05 (img ses-02)
+    #       For the remaining sessions, let it to False.
     ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
         ssync_visual_interval, standards = isi_async(
             SUBJECTS, SESSTYPES, MAIN_DIR, RESULTS_FOLDER, 'signed',
