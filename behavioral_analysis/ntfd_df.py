@@ -67,7 +67,7 @@ def filter_trialtype(trs, category):
     return beat, interval, random
 
 
-def resize_arrays(arr):
+def resize_ntfd_arr(arr):
     """
     Resize numpy arrays when there is less trials per isi because
     the participant only did the behavioral sessions
@@ -280,12 +280,12 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 
     # Resize outputs with 'n/a' when there is less trials because...
     # ... the participant only did the behavioral sessions
-    allsub_beat_audio = resize_arrays(allsub_beat_audio)
-    allsub_interval_audio = resize_arrays(allsub_interval_audio)
-    allsub_random_audio = resize_arrays(allsub_random_audio)
-    allsub_beat_visual = resize_arrays(allsub_beat_visual)
-    allsub_interval_visual = resize_arrays(allsub_interval_visual)
-    allsub_random_visual = resize_arrays(allsub_random_visual)
+    allsub_beat_audio = resize_ntfd_arr(allsub_beat_audio)
+    allsub_interval_audio = resize_ntfd_arr(allsub_interval_audio)
+    allsub_random_audio = resize_ntfd_arr(allsub_random_audio)
+    allsub_beat_visual = resize_ntfd_arr(allsub_beat_visual)
+    allsub_interval_visual = resize_ntfd_arr(allsub_interval_visual)
+    allsub_random_visual = resize_ntfd_arr(allsub_random_visual)
 
     # Flatten RT's
     allsub_beat_audio_flatten = np.ravel(allsub_beat_audio).tolist()
