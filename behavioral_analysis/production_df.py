@@ -90,6 +90,22 @@ def missing_isi_data(arr, isi1s):
 
     return arr
 
+
+def resize_array(arr):
+    # Inputs shape (n_subjects, n_isi, n_trials)
+
+    # Resize numpy arrays when there is less trials per isi because the participant
+    # only did the behavioral sessions
+    nt_max = np.ravel([[np.array(isi).shape[0] for isi in isis]
+                       for isis in arr]).max()
+
+    rlist = [[np.append(trials, np.repeat(np.nan, nt_max - len(trials))).tolist()
+              if len(trials) < nt_max else trials for trials in tisis]
+             for tisis in arr]
+
+    return rlist
+
+
 def isi_async(subjects, sesstypes, this_dir, output_folder, sync_type,
               n_trials, sessions=None, missing_full_isi=False,
               tasks=['Auditory Production', 'Visual Production']):
@@ -199,41 +215,9 @@ def isi_async(subjects, sesstypes, this_dir, output_folder, sync_type,
         allsub_interval_visual = missing_isi_data(
             np.array(allsub_interval_visual), isi1s)
 
+
     return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
             allsub_interval_visual, isi1s)
-
-
-def ginput_resize(audio_beat, audio_interval, visual_beat, visual_interval):
-    # Inputs shape (n_subjects, n_isi, n_trials)
-
-    # Resize numpy arrays when there is less trials per isi because the participant
-    # only did the behavioral sessions
-    nt_max = np.ravel([[np.array(isi).shape[0] for isi in isis]
-                       for isis in audio_beat]).max()
-
-    rsi_audio_beat = [
-        [np.append(
-            ab_trials, np.repeat(np.nan, nt_max - len(ab_trials))).tolist()
-         if len(ab_trials) < nt_max else ab_trials for ab_trials in ab_isis]
-        for ab_isis in audio_beat]
-    rsi_audio_interval = [
-        [np.append(
-            ai_trials, np.repeat(np.nan, nt_max - len(ai_trials))).tolist()
-         if len(ai_trials) < nt_max else ai_trials for ai_trials in ai_isis]
-        for ai_isis in audio_interval]
-    rsi_visual_beat = [
-        [np.append(
-            vb_trials, np.repeat(np.nan, nt_max - len(vb_trials))).tolist()
-         if len(vb_trials) < nt_max else vb_trials for vb_trials in vb_isis]
-        for vb_isis in visual_beat]
-    rsi_visual_interval = [
-        [np.append(
-            vi_trials, np.repeat(np.nan, nt_max - len(vi_trials))).tolist()
-         if len(vi_trials) < nt_max else vi_trials for vi_trials in vi_isis]
-        for vi_isis in visual_interval]
-
-    return (rsi_audio_beat, rsi_audio_interval, rsi_visual_beat,
-            rsi_visual_interval)
 
 
 def long_dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
@@ -241,7 +225,7 @@ def long_dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
                    sesstag):
     # Inputs shape (n_subjects, n_isi, n_trials)
 
-    # Compute mean of trials synchronies for each standard and subject
+    # Compute mean of trials asynchronies for each standard and subject
     sync_audio_beat = np.nanmean(sync_audio_beat, axis=2)
     sync_audio_interval = np.nanmean(sync_audio_interval, axis=2)
     sync_visual_beat = np.nanmean(sync_visual_beat, axis=2)
@@ -290,7 +274,7 @@ def long_dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
 
     df = pd.DataFrame(table, columns=['Asynchronies', 'Standard', 'Subject',
                                       'Modality', 'Condition', 'Session'])
-    df['Asynchronies'] = df['Asynchronies'].apply(pd.to_numeric)
+    # df['Asynchronies'] = df['Asynchronies'].apply(pd.to_numeric)
 
     output_folder = os.path.join(output_dir, 'dataframes')
     # Create output_folder, if it does not exist
@@ -306,30 +290,72 @@ def long_dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
 # %%
 # =========================== INPUTS ===================================
 
+# ################## Note about subjects ###############################
 # All subjects
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
 #             40, 41, 42, 43, 44, 45, 46, 47]
 
 # All good subjects including img pilot (sub-04)
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-            44, 45, 46, 47]
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
 
 # Img subjects only
 # SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 #             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# #######################################################################
+
 # TASKS = ['Visual Production']
 
-SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSTYPES = ['behavioral_session']
-# SESSTYPES = ['imaging_session']
-
-SESSIONS = ['ses-01']
-# SESSIONS = None
-
 N_TRIALS = 30
+
+# ### For 'All Sessions' ###
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+            44, 45, 46, 47]
+SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSIONS = None
+tag = 'allses'
+
+# ### For first behav session: 'ses-01' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01']
+# tag = SESSIONS[0]
+
+# ### For second behav session: 'ses-02' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-02']
+# tag = SESSIONS[0]
+
+# ### For third behav session: 'ses-03' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-03']
+# tag = SESSIONS[0]
+
+# ### For first img session: 'ses-04' ###
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-01']
+# tag = 'ses-04'
+
+# ### For second img session: 'ses-05' ###
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-02']
+# tag = 'ses-05'
 
 # %%
 # ========================= PARAMETERS =================================
@@ -354,12 +380,12 @@ if __name__ == "__main__":
             N_TRIALS, sessions=SESSIONS, missing_full_isi=False)
 
     # Resize
-    rsized_ssync_audio_beat, rsized_ssync_audio_interval, \
-        rsized_ssync_visual_beat, rsized_ssync_visual_interval = \
-            ginput_resize(ssync_audio_beat, ssync_audio_interval,
-                          ssync_visual_beat, ssync_visual_interval)
+    rsized_ssync_audio_beat = resize_array(ssync_audio_beat)
+    rsized_ssync_audio_interval = resize_array(ssync_audio_interval)
+    rsized_ssync_visual_beat = resize_array(ssync_visual_beat)
+    rsized_ssync_visual_interval = resize_array(ssync_visual_interval)
 
     # Build and save dataframe in the long format
-    db = long_dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
-                        rsized_ssync_visual_beat, rsized_ssync_visual_interval,
-                        standards, SUBJECTS, RESULTS_FOLDER, 'allses')
+    long_dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
+                   rsized_ssync_visual_beat, rsized_ssync_visual_interval,
+                   standards, SUBJECTS, RESULTS_FOLDER, tag)
