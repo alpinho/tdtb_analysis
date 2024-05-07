@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # setting path
 sys.path.append('../')
 # importing
-from utils import parse_logfile, resize_arrays
+from utils import parse_logfile
 
 import numpy as np
 import pandas as pd
@@ -65,6 +65,19 @@ def filter_trialtype(trs, category):
         interval = [[int(i[0]), int(i[1]), i[2]] for i in interval]
 
     return beat, interval, random
+
+
+def resize_arrays(arr):
+    """
+    Resize numpy arrays when there is less trials per isi because
+    the participant only did the behavioral sessions
+    """
+    maxlength = np.amax([np.array(arr0).shape[0] for arr0 in arr])
+    new_arr = [
+        np.append(arr0, np.repeat('n/a', maxlength - len(arr0))).tolist()
+        if len(arr0) < maxlength else arr0 for arr0 in arr]
+
+    return new_arr
 
 
 def ntfd_isi_dataframe(
@@ -374,16 +387,16 @@ N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
 
 # ### For 'All Sessions' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-#             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSIONS = None
-# tag = 'allses'
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47]
+SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSIONS = None
+tag = 'allses'
 
 # ### For first behav session: 'ses-01' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
 #             44, 45, 46, 47]
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-01']
@@ -391,7 +404,7 @@ N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
 #             44, 45, 46, 47]
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-02']
@@ -399,7 +412,7 @@ N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions
 
 # ### For third behav session: 'ses-03' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
 #             44, 45, 46, 47]
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-03']
@@ -413,11 +426,11 @@ N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions
 # tag = 'ses-04'
 
 # ### For second img session: 'ses-05' ###
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-SESSTYPES = ['imaging_session']
-SESSIONS = ['ses-02']
-tag = 'ses-05'
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-02']
+# tag = 'ses-05'
 
 
 # %%
