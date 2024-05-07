@@ -173,12 +173,25 @@ if __name__ == "__main__":
         db_path = os.path.join(DATAFRAMES_FOLDER,
                                'df_production_' + key + '.tsv')
         db = pd.read_csv(db_path, sep='\t')
+        db['Asynchronies'] = db['Asynchronies'].astype('str')
+
+        # Remove rows with 'n/a' entries
+        na = db['Asynchronies'].str.contains('n/a')
+        filtered_db = db[~na]
+
+        # Remove rows with nan's entries
+        nans = filtered_db['Asynchronies'].str.contains('nan')
+        filtered_db = filtered_db[~nans]
+
+        # Convert Asynchronies to numbers
+        filtered_db['Asynchronies'] = \
+            filtered_db['Asynchronies'].apply(pd.to_numeric)
 
         # Extract covariate
-        standards = np.unique(db['Standard'])
+        standards = np.unique(filtered_db['Standard'])
 
         # Extract dependent variable
-        db_ffx = ffx_dvar(db)
+        db_ffx = ffx_dvar(filtered_db)
         mean_async = group_dvar(db_ffx, estimator='mean')
         std_async = group_dvar(db_ffx, estimator='std')
 
