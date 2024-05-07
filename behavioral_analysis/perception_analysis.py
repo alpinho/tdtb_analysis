@@ -206,7 +206,7 @@ def outliers(arr):
 
 
 def individual_perception(
-        subjects, this_dir, output_dir, sesstype, condition, n_trials,
+        subjects, this_dir, output_dir, sesstype, condition, n_trials, sesstag,
         estimator='mle_expit', sessions=None,
         tasks = ['Auditory Perception', 'Visual Perception']):
 
@@ -260,11 +260,11 @@ def individual_perception(
             colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
                       'tab:purple']
             if s == 0 and t == 0:
-                fig = plt.figure(figsize=(16, 200))
+                fig = plt.figure(figsize=(16, 100))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.1 + t*.46, .9685 - s*.02, .428, .0125])
+            ax = plt.axes([.1 + t*.46, .9685 - s*.023, .428, .0125])
 
             std_pse_audio = []
             std_dl_audio = []
@@ -369,7 +369,7 @@ def individual_perception(
                 all_pse_visual.append(std_pse_visual)
                 all_dl_visual.append(std_dl_visual)
 
-        fig.text(.03, .9765 - s*.02, 'Subject %d' % subject, ha='center',
+        fig.text(.03, .9765 - s*.023, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
 
     # Title
@@ -378,15 +378,20 @@ def individual_perception(
     else:
         assert estimator == 'mle_expit'
         suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
-    plt.suptitle('Individual Relative Frequencies for the ' +
-                 condition.capitalize() +
-                 ' condition of the Perception Tasks ' + suffix, x=.5, y=.9975,
-                 size=18, linespacing=.75)
+    plt.suptitle(
+        'Individual Relative Frequencies for the ' + condition.capitalize() +
+        ' condition of the Perception Tasks: ' + sessions_dic[sesstag] + ' ' +
+        suffix, x=.5, y=.9975, size=16, linespacing=.75)
 
+    output_folder = os.path.join(output_dir, 'individual_psychometric')
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
     # Save figure
     plt.savefig(os.path.join(
-        this_dir, output_dir,
-        'individual_perception_' + condition + '_' + estimator + '.pdf'))
+        this_dir, output_folder,
+        'individual_psychometric_' + condition + '_' + estimator + '_' +
+        sesstag + '.pdf'))
 
     plt.close('all')
 
@@ -397,7 +402,7 @@ def individual_perception(
 
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
-                     standards, comparisons, condition, output_dir,
+                     standards, comparisons, condition, output_dir, sesstag,
                      estimator = 'mle_expit'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
@@ -547,19 +552,28 @@ def group_perception(all_rf1_audio, all_rf2_audio,
         suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
     plt.suptitle(
         'Group Mean of Relative Frequencies for the ' +
-        condition.capitalize() + ' condition of the Perception Tasks ' +
-        suffix, x=.5, y=.97, size=16, linespacing=.75)
+        condition.capitalize() + ' condition of the Perception Tasks: ' +
+        sessions_dic[sesstag] + ' ' + suffix, x=.5, y=.97, size=14,
+        linespacing=.75)
+    plt.title(sessions_dic[sesstag])
+
+    output_folder = os.path.join(output_dir, 'group_psychometric')
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
 
     # Save figure
-    plt.savefig(os.path.join(output_dir,
-        'group_perception_' + condition + '_' + estimator + '.pdf'))
+    plt.savefig(os.path.join(
+        output_folder,
+        'group_psychometric_' + condition + '_' + estimator + '_' + sesstag + \
+        '.pdf'))
 
     plt.close('all')
 
     return group_pse, group_dl
 
 
-def plotfit_perception(x, y, estimator, output_dir):
+def plotfit_perception(x, y, estimator, output_dir, sesstag):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
 
     # left   # the left side of the subplots of the figure
@@ -568,7 +582,7 @@ def plotfit_perception(x, y, estimator, output_dir):
     # top    # the top of the subplots of the figure
     # wspace # the amount of width reserved for blank space between subplots
     # hspace # the amount of height reserved for white space between subplots
-    plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15)
+    plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15, top=.8)
 
     colors = ['tab:blue', 'tab:orange']
     legend_labels = ['Beat', 'Interval']
@@ -604,13 +618,13 @@ def plotfit_perception(x, y, estimator, output_dir):
         # Add legend
         if m == 0:
             ax[m].set_title('Auditory Perception', weight='bold', pad=-5,
-                            fontsize=24)
+                            fontsize=22)
         else:
             assert m == 1
             ax[m].legend(loc='upper right', frameon=False,
                          prop={'size': 16})
             ax[m].set_title('Visual Perception', weight='bold', pad=-5,
-                            fontsize=24)
+                            fontsize=22)
 
         # Name of x-axis
         fig.text(.47, .018, 'Standards (ms)', fontsize=24)
@@ -621,22 +635,28 @@ def plotfit_perception(x, y, estimator, output_dir):
         fig.text(.895, .525, 'No Bias', fontsize=24, color='dimgrey')
 
     # Title
-    # if estimator == 'mle_cdf':
-    #     suffix = '(Estimator: MLE of Norm CDF)'
-    # else:
-    #     assert estimator == 'mle_expit'
-    #     suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
-    # plt.suptitle(
-    #     'Point of Subjective Equality (PSE) for the Perception Tasks' +
-    #     '\n\n' + suffix, x=.5, y=.97, size=26, linespacing=.75)
-
+    if estimator == 'mle_cdf':
+        suffix = '(Estimator: MLE of Norm CDF)'
+    else:
+        assert estimator == 'mle_expit'
+        suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
     plt.suptitle(
-        'Point of Subjective Equality (PSE) for the Perception Tasks',
-        x=.5, y=.97, size=26, linespacing=.75)
+        'Point of Subjective Equality (PSE) for the Perception Tasks: ' + \
+        sessions_dic[sesstag] + '\n\n' + suffix,
+        x=.5, y=.97, size=24, linespacing=.75)
 
+    # plt.suptitle(
+    #     'Point of Subjective Equality (PSE) for the Perception Tasks',
+    #     x=.5, y=.97, size=26, linespacing=.75)
+
+    output_folder = os.path.join(output_dir, 'pse')
+    # Create output_folder, if it does not exist
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
     # Save figure
-    plt.savefig(os.path.join(output_dir,
-                             'pse-vs-standard_' + estimator + '.pdf'))
+    plt.savefig(os.path.join(
+        output_folder,
+        'pse-vs-standard_' + estimator + '_' + sesstag + '.pdf'))
 
     plt.close('all')
 
@@ -725,7 +745,7 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
     return df
 
 
-def twoway_repanova(df, output_dir, alternative='two-sided'):
+def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
     # Open dataframe
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
@@ -749,7 +769,8 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
         os.mkdir(output_folder)
     # Save ANOVA results in a TSV file
     results.anova_table.to_csv(
-        os.path.join(output_folder, 'twoway_anova_results.tsv'), sep='\t')
+        os.path.join(output_folder, 'twoway_anova_' + sesstag + '.tsv'),
+        sep='\t')
 
     # Posthoc pairwise tests
     posthoc_results = pg.pairwise_tests(
@@ -759,7 +780,8 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
 
     # Save Posthoc results
     posthoc_results.to_csv(
-        os.path.join(output_folder, 'posthoc.tsv'), sep='\t', index=False)
+        os.path.join(output_folder, 'twoway_posthoc_' + sesstag + '.tsv'),
+        sep='\t', index=False)
 
     # Plot
     modalities = np.unique(df.Modality).tolist()
@@ -832,7 +854,11 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
             # Copy axis object to draw connection patch
             ax0 = ax
             # Draw small vertical line for annotation
-            plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
+            if sesstag in ['allses', 'ses-01', 'ses-02', 'ses-03', 'ses-04']:
+                plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
+            else:
+                assert sesstag == 'ses-05'
+                plt.vlines(.77, .16, .165, colors='k', linewidths=1.)
 
         # For the second plot
         else:
@@ -848,7 +874,11 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
             # ax.set_title('Visual Perception', fontweight='semibold', size=9,
             #              y=.95)
             # Draw small vertical line for annotation
-            plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
+            if sesstag in ['allses', 'ses-01', 'ses-02', 'ses-03', 'ses-04']:
+                plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
+            else:
+                assert sesstag == 'ses-05'
+                plt.vlines(.77, .16, .165, colors='k', linewidths=1.)
 
         # Set limits of ticks in y axis
         plt.ylim([-.025, .25])
@@ -857,11 +887,24 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
         fig.text(.435, .025, 'Conditions', size=12)
 
     # Annotation
-    con1 = ConnectionPatch(xyA=(.5, .195), xyB=(.5, .195),
+    if sesstag in ['allses', 'ses-01', 'ses-02', 'ses-03']:
+        xa = (.5, .195)
+        xb = (.5, .195)
+        fig.text(.53, .71, '****', size=12)
+    elif sesstag == 'ses-04':
+        xa = (.5, .195)
+        xb = (.5, .195)
+        fig.text(.57, .71, '*', size=12)
+    else:
+        assert sesstag == 'ses-05'
+        xa = (.77, .165)
+        xb = (.77, .165)
+        fig.text(.585, .65, '****', size=12)
+
+    con1 = ConnectionPatch(xyA=xa, xyB=xb,
                            coordsA="data", coordsB="data", axesA=ax0, axesB=ax,
                            color='black', linewidth=1.)
     ax.add_artist(con1)
-    fig.text(.53, .71, '****', size=12)
 
     # Title
     plt.suptitle(
@@ -869,11 +912,13 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
         x=.5, y=.98, size=10, linespacing=.75)
 
     # Save figure
-    plt.savefig(os.path.join(output_folder, 'twoway_boxplot.pdf'))
+    plt.savefig(os.path.join(output_folder,
+                             'twoway_boxplot_' + sesstag + '.pdf'))
 
 # %%
 # =========================== INPUTS ===================================
 
+# ################## Note about subjects ###############################
 # All subjects
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
@@ -885,19 +930,67 @@ def twoway_repanova(df, output_dir, alternative='two-sided'):
 #             44, 45, 46, 47]
 
 # Img subjects only
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# #######################################################################
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSTYPES = ['behavioral_session']
-SESSTYPES = ['imaging_session']
-
-SESSIONS = ['ses-02']
-# SESSIONS = None
-
 N_TRIALS = 30
+
+# ### For 'All Sessions' ###
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47]
+SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSIONS = None
+tag = 'allses'
+
+# ### For first behav session: 'ses-01' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01']
+# tag = SESSIONS[0]
+
+# ### For second behav session: 'ses-02' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-02']
+# tag = SESSIONS[0]
+
+# ### For third behav session: 'ses-03' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-03']
+# tag = SESSIONS[0]
+
+# ### For first img session: 'ses-04' ###
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-01']
+# tag = 'ses-04'
+
+# ### For second img session: 'ses-05' ###
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-02']
+# tag = 'ses-05'
+
+sessions_dic = {'allses': 'All Sessions',
+                'ses-01': 'Session 1',
+                'ses-02': 'Session 2',
+                'ses-03': 'Session 3',
+                'ses-04': 'Session 4',
+                'ses-05': 'Session 5'}
 
 # %%
 # ========================= PARAMETERS =================================
@@ -928,14 +1021,14 @@ if __name__ == "__main__":
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
                     individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
-                                          SESSTYPES, cond, N_TRIALS,
+                                          SESSTYPES, cond, N_TRIALS, tag,
                                           estimator=estimator,
                                           sessions=SESSIONS)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
                                        rftwo_visual, stand, comp, cond,
-                                       RESULTS_FOLDER, estimator=estimator)
+                                       RESULTS_FOLDER, tag, estimator=estimator)
 
             # Start concatenating and appending
             ipse = np.concatenate(([ipse_audio], [ipse_visual]),
@@ -963,11 +1056,11 @@ if __name__ == "__main__":
 
         # Plot PSE
         mod_gpse = np.swapaxes(cond_gpse, 0, 1)
-        plotfit_perception(stand, mod_gpse, estimator, RESULTS_FOLDER)
+        plotfit_perception(stand, mod_gpse, estimator, RESULTS_FOLDER, tag)
 
         # Compute ANOVAS and plot DL
         if estimator == 'mle_cdf':
             continue
         else:
-            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER, 'ses-05')
-            twoway_repanova(db, RESULTS_FOLDER)
+            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER, tag)
+            twoway_repanova(db, RESULTS_FOLDER, tag)
