@@ -67,6 +67,43 @@ def filter_trialtype(trs, category):
     return beat, interval, random
 
 
+def success_trialtype_filter(data):
+    trial_beat = [dt for dt in data if dt[4][:4] == 'beat']
+    trial_interval = [dt for  dt in data if dt[4][:8] == 'interval']
+    trial_random = [dt for dt in data if dt[4][:6] == 'random']
+
+    return trial_beat, trial_interval, trial_random
+
+
+def success(data, subject):
+    if subject == 4:
+        high_cir = ['o', 'y']
+        low_tri = ['p', 'b']
+    else:
+        high_cir = ['o', 'b']
+        low_tri = ['p', 'y']
+    scores = []
+    for dt, datum in enumerate(data):
+        if datum[5] == 'feedback':
+            answer = datum[11]
+            dstimulus = data[dt-1][5]
+            if answer in high_cir and dstimulus in ['beep_880hz', 'circle']:
+                scores.append(1)
+            elif answer in low_tri and dstimulus in ['beep_220hz', 'triangle']:
+                scores.append(1)
+            elif answer == 'None':
+                scores.append(np.nan)
+            else:
+                scores.append(0)
+
+    # Replace missing values (nan's) by median of the all sample
+    # if np.any(np.isnan(scores)):
+    #     missval = np.nanmedian(scores)
+    #     scores = np.where(np.isnan(scores), missval, scores).tolist()
+
+    return scores
+
+
 def resize_ntfd_arr(arr):
     """
     Resize numpy arrays when there is less trials per isi because
@@ -230,6 +267,12 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
     allsub_beat_visual = []
     allsub_interval_visual = []
     allsub_random_visual = []
+    allsub_success_rate_audio_beat = []
+    allsub_success_rate_audio_interval = []
+    allsub_success_rate_audio_random  = []
+    allsub_success_rate_visual_beat = []
+    allsub_success_rate_visual_interval = []
+    allsub_success_rate_visual_random  = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory No-Temporal Feature Discrimination',
@@ -242,6 +285,7 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
+
             trials = ntfd_data(data)
             beat_trials, interval_trials, random_trials = \
                 filter_trialtype(trials, 'ntfd')
@@ -267,16 +311,30 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             #     random_trials = np.where(np.isnan(random_trials),
             #                              miss_rval, random_trials)
 
+            # ######### Extract the Success Rate ###############
+            ft_beat, ft_interval, ft_random = success_trialtype_filter(data)
+            success_rate_beat = success(ft_beat, subject)
+            success_rate_interval = success(ft_interval, subject)
+            success_rate_random = success(ft_random, subject)
+
             # Aggregate data
             if task == 'Auditory No-Temporal Feature Discrimination':
                 allsub_beat_audio.append(beat_trials.tolist())
                 allsub_interval_audio.append(interval_trials.tolist())
                 allsub_random_audio.append(random_trials.tolist())
+                allsub_success_rate_audio_beat.append(success_rate_beat)
+                allsub_success_rate_audio_interval.append(
+                    success_rate_interval)
+                allsub_success_rate_audio_random.append(success_rate_random)
             else:
                 assert task == 'Visual No-Temporal Feature Discrimination'
                 allsub_beat_visual.append(beat_trials.tolist())
                 allsub_interval_visual.append(interval_trials.tolist())
                 allsub_random_visual.append(random_trials.tolist())
+                allsub_success_rate_visual_beat.append(success_rate_beat)
+                allsub_success_rate_visual_interval.append(
+                    success_rate_interval)
+                allsub_success_rate_visual_random.append(success_rate_random)
 
     # Resize outputs with 'n/a' when there is less trials because...
     # ... the participant only did the behavioral sessions
@@ -286,6 +344,18 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
     allsub_beat_visual = resize_ntfd_arr(allsub_beat_visual)
     allsub_interval_visual = resize_ntfd_arr(allsub_interval_visual)
     allsub_random_visual = resize_ntfd_arr(allsub_random_visual)
+    allsub_success_rate_audio_beat = resize_ntfd_arr(
+        allsub_success_rate_audio_beat)
+    allsub_success_rate_audio_interval = resize_ntfd_arr(
+        allsub_success_rate_audio_interval)
+    allsub_success_rate_audio_random = resize_ntfd_arr(
+        allsub_success_rate_audio_random)
+    allsub_success_rate_visual_beat = resize_ntfd_arr(
+        allsub_success_rate_visual_beat)
+    allsub_success_rate_visual_interval = resize_ntfd_arr(
+        allsub_success_rate_visual_interval)
+    allsub_success_rate_visual_random = resize_ntfd_arr(
+        allsub_success_rate_visual_random)
 
     # Flatten RT's
     allsub_beat_audio_flatten = np.ravel(allsub_beat_audio).tolist()
@@ -294,6 +364,20 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
     allsub_beat_visual_flatten = np.ravel(allsub_beat_visual).tolist()
     allsub_interval_visual_flatten = np.ravel(allsub_interval_visual).tolist()
     allsub_random_visual_flatten = np.ravel(allsub_random_visual).tolist()
+    allsub_success_rate_audio_beat_flatten = np.ravel(
+        allsub_success_rate_audio_beat).tolist()
+    allsub_success_rate_audio_interval_flatten = np.ravel(
+        allsub_success_rate_audio_interval).tolist()
+    allsub_success_rate_audio_random_flatten = np.ravel(
+        allsub_success_rate_audio_random).tolist()
+    allsub_success_rate_visual_beat_flatten = np.ravel(
+        allsub_success_rate_visual_beat).tolist()
+    allsub_success_rate_visual_interval_flatten = np.ravel(
+        allsub_success_rate_visual_interval).tolist()
+    allsub_success_rate_visual_interval_flatten = np.ravel(
+        allsub_success_rate_visual_interval).tolist()
+    allsub_success_rate_visual_random_flatten = np.ravel(
+        allsub_success_rate_visual_random).tolist()
 
     # Concatenate
     reaction_times = np.concatenate((allsub_beat_audio_flatten,
@@ -302,6 +386,13 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                                      allsub_beat_visual_flatten,
                                      allsub_interval_visual_flatten,
                                      allsub_random_visual_flatten,))
+
+    success_rates = np.concatenate((allsub_success_rate_audio_beat_flatten,
+                                    allsub_success_rate_audio_interval_flatten,
+                                    allsub_success_rate_audio_random_flatten,
+                                    allsub_success_rate_visual_beat_flatten,
+                                    allsub_success_rate_visual_interval_flatten,
+                                    allsub_success_rate_visual_random_flatten))
 
     # Subjects column
     beat_subjects = np.repeat(subjects, np.array(allsub_beat_audio).shape[1])
@@ -329,10 +420,10 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
     ses_col = np.repeat(sesstag, len(reaction_times))
 
     # Build dataframe
-    table = np.vstack((
-        reaction_times, subjects_col, cond_col, mod_col, ses_col)).T
-    df = pd.DataFrame(table, columns=['RT', 'Subject', 'Condition',
-                                      'Modality', 'Session'])
+    table = np.vstack((reaction_times, success_rates, subjects_col, cond_col,
+                       mod_col, ses_col)).T
+    df = pd.DataFrame(table, columns=['RT', 'Success Rate', 'Subject',
+                                      'Condition', 'Modality', 'Session'])
 
     output_folder = os.path.join(output_dir, 'dataframes')
     # Create output_folder, if it does not exist
@@ -387,12 +478,12 @@ N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
 
 # ### For 'All Sessions' ###
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-            44, 45, 46, 47]
-SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSIONS = None
-tag = 'allses'
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSIONS = None
+# tag = 'allses'
 
 # ### For first behav session: 'ses-01' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -426,11 +517,11 @@ tag = 'allses'
 # tag = 'ses-04'
 
 # ### For second img session: 'ses-05' ###
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-# SESSTYPES = ['imaging_session']
-# SESSIONS = ['ses-02']
-# tag = 'ses-05'
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SESSTYPES = ['imaging_session']
+SESSIONS = ['ses-02']
+tag = 'ses-05'
 
 
 # %%
@@ -462,5 +553,3 @@ if __name__ == "__main__":
     # Dataframe with ffx of beat, interval and random
     ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
                    tag, sessions=SESSIONS)
-
-
