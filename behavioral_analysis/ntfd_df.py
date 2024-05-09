@@ -387,12 +387,13 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                                      allsub_interval_visual_flatten,
                                      allsub_random_visual_flatten,))
 
-    success_rates = np.concatenate((allsub_success_rate_audio_beat_flatten,
-                                    allsub_success_rate_audio_interval_flatten,
-                                    allsub_success_rate_audio_random_flatten,
-                                    allsub_success_rate_visual_beat_flatten,
-                                    allsub_success_rate_visual_interval_flatten,
-                                    allsub_success_rate_visual_random_flatten))
+    success_scores = np.concatenate((
+        allsub_success_rate_audio_beat_flatten,
+        allsub_success_rate_audio_interval_flatten,
+        allsub_success_rate_audio_random_flatten,
+        allsub_success_rate_visual_beat_flatten,
+        allsub_success_rate_visual_interval_flatten,
+        allsub_success_rate_visual_random_flatten))
 
     # Subjects column
     beat_subjects = np.repeat(subjects, np.array(allsub_beat_audio).shape[1])
@@ -420,9 +421,9 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
     ses_col = np.repeat(sesstag, len(reaction_times))
 
     # Build dataframe
-    table = np.vstack((reaction_times, success_rates, subjects_col, cond_col,
+    table = np.vstack((reaction_times, success_scores, subjects_col, cond_col,
                        mod_col, ses_col)).T
-    df = pd.DataFrame(table, columns=['RT', 'Success Rate', 'Subject',
+    df = pd.DataFrame(table, columns=['RT', 'Score', 'Subject',
                                       'Condition', 'Modality', 'Session'])
 
     output_folder = os.path.join(output_dir, 'dataframes')
@@ -478,12 +479,12 @@ N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
 
 # ### For 'All Sessions' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSIONS = None
-# tag = 'allses'
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47]
+SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSIONS = None
+tag = 'allses'
 
 # ### For first behav session: 'ses-01' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -517,11 +518,11 @@ N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions
 # tag = 'ses-04'
 
 # ### For second img session: 'ses-05' ###
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-SESSTYPES = ['imaging_session']
-SESSIONS = ['ses-02']
-tag = 'ses-05'
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-02']
+# tag = 'ses-05'
 
 
 # %%
