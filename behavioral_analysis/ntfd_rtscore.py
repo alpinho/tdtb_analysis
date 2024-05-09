@@ -38,11 +38,11 @@ def ffx_dvar(df):
 
 
 def plot_pttest(data_audio, data_visual,
-                y, ylim_b, ylim_t, yshift, title, output_dir, fname,
+                y, ylim_b, ylim_t, title, output_dir, fname,
                 pval_audio_bi, pval_visual_bi, 
                 pval_audio_br=None, pval_audio_ir=None,
                 pval_visual_br=None, pval_visual_ir=None,
-                norand=False):
+                norand=False, loc='inside'):
 
     modalities = ['audio', 'visual']
     fig, ax = plt.subplots(1, len(modalities))
@@ -53,7 +53,7 @@ def plot_pttest(data_audio, data_visual,
     # top    # the top of the subplots of the figure
     # wspace # the amount of width reserved for blank space between subplots
     # hspace # the amount of height reserved for white space between subplots
-    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25)
+    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25, top=.775)
 
     # Define subplot of bar charts and its position in the fig
     # plt.axes([left, bottom, width, height])
@@ -115,13 +115,14 @@ def plot_pttest(data_audio, data_visual,
             pairs = [('Beat', 'Interval'),
                      ('Beat', 'Random'),
                      ('Interval', 'Random')]
-        
+
         annotator = Annotator(ax[m], pairs, data=df, x=x, y=y)
         annotator.configure(test=None,
                             text_format="star",
                             # test_short_name="pttest",
                             fontsize=10.,
-                            hide_non_significant=False)
+                            hide_non_significant=False,
+                            loc=loc)
         annotator.set_pvalues(pvalue)
         annotator.annotate()
 
@@ -170,7 +171,7 @@ IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results')
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
-PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'rt')
+PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'rt_and_success')
 
 sessions_dic = {'allses': 'All Sessions',
                 'ses-01': 'Session 1',
@@ -197,6 +198,7 @@ if __name__ == "__main__":
                                 'df_ntfd_' + key + '.tsv')
         db = pd.read_csv(db_path, sep='\t')
         db['RT'] = db['RT'].astype('str')
+        db['Score'] = db['Score'].astype('str')
 
         # Remove rows with 'n/a' entries
         na = db['RT'].str.contains('n/a')
@@ -210,13 +212,14 @@ if __name__ == "__main__":
         filtered_db = filtered_db[
             filtered_db['Subject'].isin(subjects_dic[key])]
 
-        # Convert RT to numbers
+        # Convert RT and Score to numbers
         filtered_db['RT'] = filtered_db['RT'].apply(pd.to_numeric)
+        filtered_db['Score'] = filtered_db['Score'].apply(pd.to_numeric)
 
-        # Extract dependant variable
+        # Compute fixes effects of dependent variable
         db_ffx = ffx_dvar(filtered_db)
 
-        # Concatenate dependent variable
+        # Concatenate RT
         rt_ab = db_ffx[
             db_ffx.Modality=='audio'][db_ffx.Condition=='beat'].RT.values
         rt_ai = db_ffx[
@@ -230,40 +233,106 @@ if __name__ == "__main__":
         rt_vr = db_ffx[
             db_ffx.Modality=='visual'][db_ffx.Condition=='random'].RT.values
 
+        # Concatenate Score
+        score_ab = db_ffx[
+            db_ffx.Modality=='audio'][db_ffx.Condition=='beat'].Score.values
+        score_ai = db_ffx[
+            db_ffx.Modality=='audio'][
+            db_ffx.Condition=='interval'].Score.values
+        score_ar = db_ffx[
+            db_ffx.Modality=='audio'][db_ffx.Condition=='random'].Score.values
+        score_vb = db_ffx[
+            db_ffx.Modality=='visual'][db_ffx.Condition=='beat'].Score.values
+        score_vi = db_ffx[
+            db_ffx.Modality=='visual'][
+            db_ffx.Condition=='interval'].Score.values
+        score_vr = db_ffx[
+            db_ffx.Modality=='visual'][db_ffx.Condition=='random'].Score.values
+
         if key == 'ses-04':
             rt_audio = rt_ab.tolist() + rt_ai.tolist()
             rt_visual = rt_vb.tolist() + rt_vi.tolist()
+
+            score_audio = score_ab.tolist() + score_ai.tolist()
+            score_visual = score_vb.tolist() + score_vi.tolist()
         else:
             rt_audio = rt_ab.tolist() + rt_ai.tolist() + rt_ar.tolist()
             rt_visual = rt_vb.tolist() + rt_vi.tolist() + rt_vr.tolist()
 
+            score_audio = score_ab.tolist() + score_ai.tolist() + \
+                score_ar.tolist()
+            score_visual = score_vb.tolist() + score_vi.tolist() + \
+                score_vr.tolist()
+
         # Compute paired t-tests
-        _, pval_abi = stats.ttest_rel(rt_ab, rt_ai, alternative='two-sided')
-        _, pval_vbi = stats.ttest_rel(rt_vb, rt_vi, alternative='two-sided')
+        _, pval_rt_abi = stats.ttest_rel(rt_ab, rt_ai, alternative='two-sided')
+        _, pval_rt_vbi = stats.ttest_rel(rt_vb, rt_vi, alternative='two-sided')
+
+        _, pval_score_abi = stats.ttest_rel(score_ab, score_ai,
+                                            alternative='two-sided')
+        _, pval_score_vbi = stats.ttest_rel(score_vb, score_vi,
+                                            alternative='two-sided')
 
         if key != 'ses-04':
-            _, pval_abr = stats.ttest_rel(rt_ab, rt_ar, alternative='two-sided')
-            _, pval_air = stats.ttest_rel(rt_ai, rt_ar, alternative='two-sided')
-            _, pval_vbr = stats.ttest_rel(rt_vb, rt_vr, alternative='two-sided')
-            _, pval_vir = stats.ttest_rel(rt_vi, rt_vr, alternative='two-sided')
+            _, pval_rt_abr = stats.ttest_rel(rt_ab, rt_ar,
+                                             alternative='two-sided')
+            _, pval_rt_air = stats.ttest_rel(rt_ai, rt_ar,
+                                             alternative='two-sided')
+            _, pval_rt_vbr = stats.ttest_rel(rt_vb, rt_vr,
+                                             alternative='two-sided')
+            _, pval_rt_vir = stats.ttest_rel(rt_vi, rt_vr,
+                                             alternative='two-sided')
+
+            _, pval_score_abr = stats.ttest_rel(score_ab, score_ar,
+                                                alternative='two-sided')
+            _, pval_score_air = stats.ttest_rel(score_ai, score_ar,
+                                                alternative='two-sided')
+            _, pval_score_vbr = stats.ttest_rel(score_vb, score_vr,
+                                                alternative='two-sided')
+            _, pval_score_vir = stats.ttest_rel(score_vi, score_vr,
+                                                alternative='two-sided')
 
         # Plot
         if not os.path.exists(PLOTS_FOLDER):
             os.mkdir(PLOTS_FOLDER)
 
-        title = 'Group Mean of Reaction Time for the NTFD tasks: ' + value
-        fname = 'group_rt_ntfd_' + key
-
+        rt_title = 'Group Mean of Reaction Time for the NTFD tasks: ' + value
+        rt_fname = 'group_rt_ntfd_' + key
+        score_title = \
+            'Group Mean of the Success Rate for the NTFD tasks: ' + value
+        score_fname = 'group_scores_ntfd_' + key
+        
         if key == 'ses-04':
-            plot_pttest(rt_audio, rt_visual,
-                        'Reaction Time (ms)', 300., 900., -100.,
-                        title, PLOTS_FOLDER, fname,
-                        pval_abi, pval_vbi,
-                        norand=True)
+            plot_pttest(rt_audio,
+                        rt_visual,
+                        'Reaction Time (ms)', 300., 800.,
+                        rt_title, PLOTS_FOLDER, rt_fname,
+                        pval_rt_abi,
+                        pval_rt_vbi,
+                        norand=True, loc='inside')
+            plot_pttest(np.multiply(score_audio, 100).tolist(),
+                        np.multiply(score_visual, 100).tolist(),
+                        'Success Rate (%)', 80, 104,
+                        score_title, PLOTS_FOLDER, score_fname,
+                        pval_score_abi,
+                        pval_score_vbi,
+                        norand=True, loc='outside')
         else:
-            plot_pttest(rt_audio, rt_visual,
-                        'Reaction Time (ms)', 300., 900., -100.,
-                        title, PLOTS_FOLDER, fname,
-                        pval_abi, pval_vbi, 
-                        pval_audio_br=pval_abr, pval_audio_ir=pval_air,
-                        pval_visual_br=pval_vbr, pval_visual_ir=pval_vir)
+            plot_pttest(rt_audio,
+                        rt_visual,
+                        'Reaction Time (ms)', 300., 800.,
+                        rt_title, PLOTS_FOLDER, rt_fname,
+                        pval_rt_abi, pval_rt_vbi,
+                        pval_audio_br=pval_rt_abr,
+                        pval_audio_ir=pval_rt_air,
+                        pval_visual_br=pval_rt_vbr,
+                        pval_visual_ir=pval_rt_vir, loc='inside')
+            plot_pttest(np.multiply(score_audio, 100).tolist(),
+                        np.multiply(score_visual, 100).tolist(),
+                        'Success Rate (%)', 80, 104,
+                        score_title, PLOTS_FOLDER, score_fname,
+                        pval_score_abi, pval_score_vbi,
+                        pval_audio_br=pval_score_abr,
+                        pval_audio_ir=pval_score_air,
+                        pval_visual_br=pval_score_vbr,
+                        pval_visual_ir=pval_score_vir, loc='outside')
