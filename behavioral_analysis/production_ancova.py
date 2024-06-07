@@ -23,11 +23,18 @@ from matplotlib import pyplot as plt
 # %%
 # ======================== MAIN FUNCTIONS ==============================
 
-def ffx_dvar(df):
+def ffx_dvar(df, estimator='mean'):
     # Fixed Effects within subjects
     df_ffx = df.drop(['Session'], axis=1)
-    df_ffx = df_ffx.groupby([
-        'Condition', 'Modality', 'Standard', 'Subject']).mean().reset_index()
+    if estimator == 'mean':
+        df_ffx = df_ffx.groupby([
+            'Condition', 'Modality',
+            'Standard', 'Subject']).mean().reset_index()
+    else:
+        assert estimator == 'std'
+        df_ffx = df_ffx.groupby([
+            'Condition', 'Modality',
+            'Standard', 'Subject']).std().reset_index()
 
     return df_ffx
 
@@ -51,14 +58,14 @@ def group_dvar(df_ffx, estimator='mean'):
         df_group.Condition=='beat'].Asynchronies.values
     async_vi = df_group[df_group.Modality=='visual'][
         df_group.Condition=='interval'].Asynchronies.values
-        
+
     group_async = [[async_ab.tolist()] + [async_ai.tolist()]] + \
                    [[async_vb.tolist()] + [async_vi.tolist()]]
 
     return group_async
 
 
-def wide_dataframe(df, output_folder, sesstag):
+def wide_dataframe(df, output_folder, estimator_id, sesstag):
     wdf = pd.pivot(df, values='Asynchronies', index=['Subject', 'Standard'],
                    columns=['Condition', 'Modality'])
 
@@ -68,7 +75,8 @@ def wide_dataframe(df, output_folder, sesstag):
 
     # Save dataframe
     wdf_outpath = os.path.join(
-        output_folder, 'wide_df_production_' + sesstag + '.tsv')
+        output_folder, 'wide_df_production_' + estimator_id + '_' + sesstag +
+        '.tsv')
     wdf.to_csv(wdf_outpath, index=True, sep='\t')
 
 
@@ -137,6 +145,19 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
             fig.text(.825, hline_yloc[1], hline_legend, fontsize=24,
                      color='dimgrey')
 
+    if fname[:4] == 'mean' and fname[-6:] == 'allses':
+        fig.text(.125, .2, r'$p_{Condition*Standard}=2\mathrm{e}{-3}$',
+                 fontsize=24)
+        fig.text(.6, .2, r'$p_{Condition*Standard}<1\mathrm{e}{-3}$',
+                 fontsize=24)
+    elif fname[:3] == 'std' and fname[-6:] == 'allses':
+        fig.text(.125, .2, r'$p_{Condition*Standard}: \mathrm{n.s.}$',
+                 fontsize=24)
+        fig.text(.6, .2, r'$p_{Condition*Standard}: \mathrm{n.s.}$',
+                 fontsize=24)
+    else:
+        pass
+
     # Title
     plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
 
@@ -153,7 +174,7 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results')
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
-JASP_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'jasp')
+JASP_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'jasp_bk')
 PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'plots')
 
 sessions_dic = {'allses': 'All Sessions',
@@ -191,12 +212,14 @@ if __name__ == "__main__":
         standards = np.unique(filtered_db['Standard'])
 
         # Extract dependent variable
-        db_ffx = ffx_dvar(filtered_db)
-        mean_async = group_dvar(db_ffx, estimator='mean')
-        std_async = group_dvar(db_ffx, estimator='std')
+        db_ffx_mean = ffx_dvar(filtered_db, estimator='mean')
+        db_ffx_std = ffx_dvar(filtered_db, estimator='std')
+        mean_async = group_dvar(db_ffx_mean, estimator='mean')
+        std_async = group_dvar(db_ffx_std, estimator='mean')
 
         # Convert dataframe in the wide format for ancova analyses with JASP
-        wide_dataframe(db_ffx, JASP_FOLDER, key)
+        wide_dataframe(db_ffx_mean, JASP_FOLDER, 'mean', key)
+        wide_dataframe(db_ffx_std, JASP_FOLDER, 'std', key)
 
         # Plot ANCOVA
         plot_ancova(
@@ -207,14 +230,7 @@ if __name__ == "__main__":
             hline_legend=r'$RT=Standard$', hline_yloc=[.41, .41],
             legend_loc='upper right')
 
-        if key in ['ses-01', 'ses-02', 'ses-03']:
-            ylimits = np.around(np.arange(.06, .19, .02), 3)
-        elif key == 'ses-04':
-            ylimits = np.around(np.arange(.06, .26, .02), 3)
-        elif key == 'ses-05':
-            ylimits = np.around(np.arange(.06, .40, .04), 3)
-        else:
-            ylimits = np.around(np.arange(.06, .14, .02), 3)
+        ylimits = np.around(np.arange(.06, .34, .04), 3)
         plot_ancova(
             standards, std_async, ylimits,
             'SD of Signed Asynchrony', .225,
