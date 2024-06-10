@@ -793,7 +793,7 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
 
         # Define subplot of bar charts and its position in the fig
         # plt.axes([left, bottom, width, height])
-        ax = plt.axes([.175 + m*.425, .15, .39, .7])
+        ax = plt.axes([.175 + m*.425, .15, .39, .775])
 
         x_labels = [str(cd).capitalize() for cd in conditions]
         x = np.arange(len(x_labels))  # the label locations
@@ -834,7 +834,7 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
             patch2.set_facecolor(colors[m])
 
         # Set ticks labels in x-axis
-        ax.set_xticks([.2, .8], x_labels)
+        ax.set_xticks([.2, .8], x_labels, fontsize=11)
 
         # Hide the right and top spines
         ax.spines['right'].set_visible(False)
@@ -850,7 +850,7 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
             # ax.set_title('Auditory Perception', fontweight='semibold',
             #              size=9, y=.95)
             # Set name for y-axis
-            ax.set_ylabel('Group DL')
+            ax.set_ylabel('Group DL', fontsize=14)
             # Copy axis object to draw connection patch
             ax0 = ax
             # Draw small vertical line for annotation
@@ -881,16 +881,16 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
                 plt.vlines(.77, .16, .165, colors='k', linewidths=1.)
 
         # Set limits of ticks in y axis
-        plt.ylim([-.025, .25])
+        plt.ylim([.01, .25])
 
         # Set name for x-axis
-        fig.text(.435, .025, 'Conditions', size=12)
+        fig.text(.435, .025, 'Conditions', size=14)
 
     # Annotation
     if sesstag in ['allses', 'ses-01', 'ses-02', 'ses-03']:
         xa = (.5, .195)
         xb = (.5, .195)
-        fig.text(.53, .71, '****', size=12)
+        fig.text(.53, .75, '****', size=12)
     elif sesstag == 'ses-04':
         xa = (.5, .195)
         xb = (.5, .195)
@@ -907,9 +907,9 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
     ax.add_artist(con1)
 
     # Title
-    plt.suptitle(
-        'Descriptive Stats of Group DL for 2-way RM-ANOVA',
-        x=.5, y=.98, size=10, linespacing=.75)
+    # plt.suptitle(
+    #     'Descriptive Stats of Group DL for 2-way RM-ANOVA',
+    #     x=.5, y=.98, size=10, linespacing=.75)
 
     # Save figure
     plt.savefig(os.path.join(output_folder,

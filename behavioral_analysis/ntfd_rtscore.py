@@ -53,7 +53,7 @@ def plot_pttest(data_audio, data_visual,
     # top    # the top of the subplots of the figure
     # wspace # the amount of width reserved for blank space between subplots
     # hspace # the amount of height reserved for white space between subplots
-    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25, top=.775)
+    plt.subplots_adjust(left=.15, bottom=.15, wspace=.25, top=.8)
 
     # Define subplot of bar charts and its position in the fig
     # plt.axes([left, bottom, width, height])
@@ -136,18 +136,23 @@ def plot_pttest(data_audio, data_visual,
             ax[m].spines['left'].set_visible(False)
             # Change x label
             ax[m].set_xlabel('Visual Conditions', fontweight='semibold',
-                             labelpad=15)
+                             labelpad=14, fontsize=12)
         else:
             assert m == 0
             ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
-                             labelpad=15)
+                             labelpad=14, fontsize=12)
+            ax[m].set_ylabel('Group Mean Reaction Time (ms)', fontsize=13, labelpad=10)
+            ax[m].tick_params(axis='y', labelsize=11)
+
+        # Set the fontsize of the tick labels for both x and y axes
+        ax[m].tick_params(axis='x', labelsize=11)
 
         # Hide the right and top spines
         ax[m].spines['right'].set_visible(False)
         ax[m].spines['top'].set_visible(False)
 
     # Title
-    plt.suptitle(title, size=10, y=.96)
+    # plt.suptitle(title, size=10, y=.96)
     # plt.title('95% CI for the Mean', size=8, x=-.15)
 
     # Save figure
