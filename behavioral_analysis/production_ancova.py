@@ -91,7 +91,7 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
     # top    # the top of the subplots of the figure
     # wspace # the amount of width reserved for blank space between subplots
     # hspace # the amount of height reserved for white space between subplots
-    plt.subplots_adjust(left=.095, bottom=.11, right=.98, wspace=.175)
+    plt.subplots_adjust(left=.095, bottom=.15, right=.98, wspace=.175)
 
     colors = ['tab:blue', 'tab:orange']
     legend_labels = ['Beat', 'Interval']
@@ -126,18 +126,16 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
 
         # Add legend
         if m == 0:
-            ax[m].set_title('Auditory Production', weight='bold', pad=0,
-                            fontsize=24)
+            ax[m].set_title('Audio', weight='bold', pad=0, fontsize=40)
             ax[m].legend(loc=legend_loc, frameon=False, prop={'size': 24})
         else:
             assert m == 1
-            ax[m].set_title('Visual Production', weight='bold', pad=0,
-                            fontsize=24)
+            ax[m].set_title('Visual', weight='bold', pad=0, fontsize=40)
 
         # Name of x-axis
-        fig.text(.465, .018, 'Standards (ms)', fontsize=24)
+        fig.text(.465, .025, 'Standards (ms)', fontsize=30)
         # Name of y-axis
-        fig.text(.005, yname_pos, yaxis_name, fontsize=26, rotation=90)
+        fig.text(.005, yname_pos, yaxis_name, fontsize=30, rotation=90)
         # Legends for horizontal dashed lines
         if hline_legend:
             fig.text(.355, hline_yloc[0], hline_legend, fontsize=24,
@@ -159,7 +157,7 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
         pass
 
     # Title
-    plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
+    # plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
 
     # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
@@ -224,7 +222,7 @@ if __name__ == "__main__":
         # Plot ANCOVA
         plot_ancova(
             standards, mean_async, np.around(np.arange(-.1, .2, .05), 2),
-            'Mean of Signed Asynchrony', .225,
+            'Mean of Signed Asynchrony', .165,
             'Mean of Signed Asynchrony for every Standard: ' + value,
             PLOTS_FOLDER, 'mean_ancova_production_' + key,
             hline_legend=r'$RT=Standard$', hline_yloc=[.41, .41],
@@ -233,7 +231,7 @@ if __name__ == "__main__":
         ylimits = np.around(np.arange(.06, .34, .04), 3)
         plot_ancova(
             standards, std_async, ylimits,
-            'SD of Signed Asynchrony', .225,
+            'SD of Signed Asynchrony', .165,
             'Standard Deviation (SD) of Signed Asynchrony ' + \
             'for every Standard: ' + value, PLOTS_FOLDER,
             'std_ancova_production_' + key, legend_loc='upper right')
