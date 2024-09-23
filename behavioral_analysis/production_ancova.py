@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 5, 2024
-Last update: May 2024
+Last update: September 2024
 
 Compatibility: Python 3.10.8
 """
@@ -172,7 +172,7 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results')
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
-JASP_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'jasp_bk')
+JASP_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'jasp_original_wide_df')
 PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'plots')
 
 sessions_dic = {'allses': 'All Sessions',
