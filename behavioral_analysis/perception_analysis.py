@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: May 2024
+Last update: September 2024
 
 Compatibility: Python 3.10.4
 """
@@ -754,6 +754,7 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
     # ... Condition, Modality and Subject and averaged afterwards
     df = df.drop(['Standard'], axis=1)
     df = df.drop(['Estimator'], axis=1)
+    df = df.drop(['Session'], axis=1)
     df = df.groupby(['Condition', 'Modality', 'Subject']).mean().reset_index()
 
     # Create AnovaRM object
