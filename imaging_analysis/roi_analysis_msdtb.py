@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: February 2024
+Last update: September 2024
 
 Compatibility: Python 3.10.8
 
@@ -595,6 +595,7 @@ def twoway_rmanova_gtasks(df, output_dir, prefix, roi,
 
         # Averaged PSC across Tasks, i.e. grouped by Category and Modality ...
         # ... and averaged afterwards
+        db = db.drop(['Hemisphere'], axis=1)
         db = db.groupby([
             'Category', 'Modality', 'Subject']).mean().reset_index()
 
@@ -1339,16 +1340,6 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 # roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
 #              'pmd', 'sma', 'presma']
 
-# 6 ROIs (old: str extracted with atag)
-# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
-#                   hmat_dir, hmat_dir, hmat_dir]
-# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat']
-# region_names = ['striatum', 'cerebellum', 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area']
-# roi_names = ['str', 'cereb-s', 'cereb-i',
-#              'pmd', 'sma', 'presma']
-
 # 6 ROIs
 # atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir,
 #                   hmat_dir, hmat_dir, hmat_dir]
@@ -1357,6 +1348,16 @@ msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 # region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum',
 #                 'motor_area', 'motor_area', 'motor_area']
 # roi_names = ['dstr', 'cereb-s', 'cereb-i',
+#              'pmd', 'sma', 'presma']
+
+# 6 ROIs (old: str extracted with atag)
+# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
+#                   hmat_dir, hmat_dir, hmat_dir]
+# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat']
+# region_names = ['striatum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area']
+# roi_names = ['str', 'cereb-s', 'cereb-i',
 #              'pmd', 'sma', 'presma']
 
 # 3 ROIs
@@ -1372,15 +1373,13 @@ region_names = ['dorsal_striatum', 'cerebellum']
 roi_names = ['dstr', 'cereb']
 
 tags = ['i', 'a', 'g']
-# tags = ['g']
 
-# Tuple: (individual_weight, group_weight)
+# Tuple: (individual_weight, average_weight, group_weight)
 weights_list = [(1.,0.), (.5,.5), (0.,1.)]
-# weights_list = [(0.,1.)]
 
 if __name__ == '__main__':
 
-    # ###### Extract ROIs and compute overlay of individual masks ######
+    # # ###### Extract ROIs and compute overlay of individual masks ######
     # for tag, wpair in zip(tags, weights_list):
     #     for atlas_dirname, atlas_name, region_name, roi_name in zip(
     #             atlas_dirnames, atlas_names, region_names, roi_names):
@@ -1403,10 +1402,10 @@ if __name__ == '__main__':
     #             outdir = os.path.join(msdtb_dir, region_name, atlas_name,
     #                                   roi_name)
 
-    #         # ##########################################################
-    #         # # Overlay Individualized Masks for each ROI
-    #         if tag != 'g':
-    #             overlay_masks(outdir, tag, roi_name)
+            # # ##########################################################
+            # # # Overlay Individualized Masks for each ROI
+            # if tag != 'g':
+            #     overlay_masks(outdir, tag, roi_name)
 
     # # ################ Compute Statistics and Plot ####################
     for tag, wpair in zip(tags, weights_list):
@@ -1441,7 +1440,7 @@ if __name__ == '__main__':
             # Append dataframe
             dfrois = pd.concat([dfrois, dfroi], ignore_index=True, sort=False)
 
-            # ############## Run ANOVAs per ROI #########################
+            # # ############## Run ANOVAs per ROI #########################
 
             # # 3-way RM-ANOVA
             # three_anova_dir = os.path.join(anovas_dir, '3way-anova')
