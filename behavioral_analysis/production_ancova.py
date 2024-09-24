@@ -67,7 +67,14 @@ def group_dvar(df_ffx, estimator='mean'):
 
 def wide_dataframe(df, output_folder, estimator_id, sesstag):
     wdf = pd.pivot(df, values='Asynchronies', index=['Subject', 'Standard'],
-                   columns=['Condition', 'Modality'])
+                   columns=['Modality', 'Condition'])
+
+    # Flatten the MultiIndex and capitalize the column names
+    wdf.columns = [' '.join(col).strip().title()
+                   for col in wdf.columns.values]
+
+    # Reset the index so that Standard and Subject are regular columns
+    wdf.reset_index(inplace=True)
 
     # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
@@ -77,7 +84,7 @@ def wide_dataframe(df, output_folder, estimator_id, sesstag):
     wdf_outpath = os.path.join(
         output_folder, 'wide_df_production_' + estimator_id + '_' + sesstag +
         '.tsv')
-    wdf.to_csv(wdf_outpath, index=True, sep='\t')
+    wdf.to_csv(wdf_outpath, index=False, sep='\t')
 
 
 def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
@@ -172,7 +179,7 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results')
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
-JASP_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'jasp_original_wide_df')
+JASP_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'jasp')
 PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova', 'plots')
 
 sessions_dic = {'allses': 'All Sessions',
