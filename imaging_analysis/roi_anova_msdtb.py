@@ -898,15 +898,6 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
 
 # ############################# INPUTS ##################################
 
-if os.path.isdir('/home/analu/diedrichsen_data/data'):
-    base_dir = '/home/analu/diedrichsen_data/data'
-else:
-    base_dir = '/srv/diedrichsen/data'
-
-data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
-mask_wb = os.path.join(data_dir, 'group/anat/group_mask_noskull.nii')
-mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
-
 # Subjects w/ pilot
 # SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21,
 #             22, 23, 26, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
@@ -919,41 +910,10 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
 
-all_contrasts = {1: 'Encoding',
-                 2: 'Auditory Encoding',
-                 3: 'Visual Encoding',
-                 4: 'Auditory vs Visual Encoding',
-                 5: 'Visual vs Auditory Encoding',
-                 6: 'Beat',
-                 7: 'Interval',
-                 8: 'Beat vs Interval',
-                 9: 'Interval vs Beat',
-                 10: 'Auditory Beat',
-                 11: 'Auditory Interval',
-                 12: 'Auditory Beat vs Auditory Interval',
-                 13: 'Auditory Interval vs Auditory Beat',
-                 14: 'Visual Beat',
-                 15: 'Visual Interval',
-                 16: 'Visual Beat vs Visual Interval',
-                 17: 'Visual Interval vs Visual Beat',
-                 18: 'Decision'}
-
 filtered_contrasts = {10: 'Auditory Beat',
                       11: 'Auditory Interval',
                       14: 'Visual Beat',
                       15: 'Visual Interval'}
-
-wb_masking = 'wb'
-gm_masking = 'gm'
-
-group_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ \
-    wb_masking + '/con_01_Encoding/'
-
-group_con_relative_path = group_relative_path + 'con_0001.nii'
-group_con_path = os.path.join(data_dir, group_con_relative_path)
-
-group_tmap_relative_path = group_relative_path + 'spmT_0001.nii'
-group_tmap_path = os.path.join(data_dir, group_tmap_relative_path)
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 
