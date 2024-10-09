@@ -12,7 +12,9 @@ Compatibility: Python 3.10.8
 """
 
 import os
+import sys
 import glob
+import re
 import numpy as np
 
 from scipy.ndimage import binary_dilation, binary_erosion
@@ -267,14 +269,15 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
     return task_contrasts
 
 
-def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
-                       contype, prefix, weights=None, subregion=False,
-                       hems=['lh', 'rh', 'bh']):
+def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
+                       group_tmap_path, contrasts_dic, contype, prefix,
+                       weights=None, subregion=False, hems=['lh', 'rh', 'bh']):
 
     if subregion:
         roi_dir = os.path.join(main_dir, region, atlas, roi)
     else:
         roi_dir = os.path.join(main_dir, region, atlas)
+
     groi_dir = os.path.join(roi_dir, 'group_roi_masks')
     iroi_dir = os.path.join(roi_dir, 'individual_roi_masks')
     roiextr_dir = os.path.join(roi_dir, 'rois_extraction')
@@ -294,6 +297,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
         atlasreg_maskpath = os.path.join(
             atlas_dir, atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
 
+        # Create group ROI mask:
         # Intersection of atlas w/ thresholded encoding group tmap
         gencoding_atlasreg_maskpath = os.path.join(
             groi_dir,
@@ -330,13 +334,17 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi, contrasts_dic,
                 prefix + '_sub-%02d_' + roi + '_' + hem +  \
                 '_mask.nii.gz') % subject
 
-            # Create individual ROIs
+            # Create individual ROI masks
             if weights == (0.,1.):
                 irmask = gmask
             else:
+                idx = [match.end()
+                       for match in re.finditer('con_', group_tmap_path)][0]
+                con_id = int(group_tmap_path[idx: idx+2])
                 subject_encoding_tmap = os.path.join(
                     estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
-                    'wspmT_0001_desc-sm8wbmasked.nii')
+                    'wspmT_%04d_desc-sm8wbmasked.nii' % con_id)
+                0/0
                 if hem in ['lh', 'rh']:
                     irmask = create_iroimask(
                         subject_encoding_tmap, atlasreg_maskpath, gmask,
@@ -419,22 +427,24 @@ all_contrasts = {1: 'Encoding',
                  17: 'Visual Interval vs Visual Beat',
                  18: 'Decision'}
 
-filtered_contrasts = {10: 'Auditory Beat',
+selected_contrasts = {10: 'Auditory Beat',
                       11: 'Auditory Interval',
                       14: 'Visual Beat',
                       15: 'Visual Interval'}
 
 wb_masking = 'wb'
 gm_masking = 'gm'
+group_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ wb_masking
 
-group_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ \
-    wb_masking + '/con_01_Encoding/'
-
-group_con_relative_path = group_relative_path + 'con_0001.nii'
-group_con_path = os.path.join(data_dir, group_con_relative_path)
-
-group_tmap_relative_path = group_relative_path  + 'spmT_0001.nii'
-group_tmap_path = os.path.join(data_dir, group_tmap_relative_path)
+group_encoding_folder = 'con_01_Encoding'
+gtmap_encoding = os.path.join(data_dir, group_relative_path,
+                              group_encoding_folder, 'spmT_0001.nii')
+group_audioencoding_folder = 'con_02_Auditory_Encoding'
+gtmap_audioencoding = os.path.join(data_dir, group_relative_path,
+                                   group_audioencoding_folder, 'spmT_0001.nii')
+group_visualencoding_folder = 'con_03_Visual_Encoding'
+gtmap_visualencoding = os.path.join(data_dir, group_relative_path,
+                                    group_visualencoding_folder, 'spmT_0001.nii')
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -447,24 +457,14 @@ hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 msdtb_dir = os.path.join(working_dir, 'roi_analyses')
 
 # All ROIs: 7 ROIs
-# atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
-#                   hmat_dir, hmat_dir, hmat_dir]
-# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat']
-# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area']
-# roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
-#              'pmd', 'sma', 'presma']
-
-# 6 ROIs (old: str extracted with atag)
-# atlas_dirnames = [atag_dir, ntk_dir, ntk_dir,
-#                   hmat_dir, hmat_dir, hmat_dir]
-# atlas_names = ['atag-lnorm', 'ntk_symmni128', 'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat']
-# region_names = ['striatum', 'cerebellum', 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area']
-# roi_names = ['str', 'cereb-s', 'cereb-i',
-#              'pmd', 'sma', 'presma']
+atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
+                  hmat_dir, hmat_dir, hmat_dir]
+atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+               'hmat', 'hmat', 'hmat']
+region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
+                'motor_area', 'motor_area', 'motor_area']
+roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
+             'pmd', 'sma', 'presma']
 
 tags = ['i', 'a', 'g']
 
@@ -476,6 +476,26 @@ weights_list = [(1.,0.), (.5,.5), (0.,1.)]
 
 if __name__ == '__main__':
 
+    # ========= SET COMMAND-LINE ARGUMENTS TO BE PASSED TO THE SCRIPT ====
+    assert(len(sys.argv) > 1), "No arg was introduced. " + \
+                               "You must pass a valid arg to the script."
+
+    encoding_type = sys.argv[1]
+
+    if encoding_type == 'all':
+        gtmap = gtmap_encoding
+        filtered_contrasts = selected_contrasts
+    elif encoding_type == 'audio':
+        gtmap = gtmap_audioencoding
+        filtered_contrasts = {key: selected_contrasts[key]
+                              for key in [10, 11] if key in selected_contrasts}
+    elif encoding_type == 'visual':
+        gtmap = gtmap_visualencoding
+        filtered_contrasts = {key: selected_contrasts[key]
+                              for key in [14, 15] if key in selected_contrasts}
+    else:
+        raise ValueError("The argument must be 'all', 'audio' or 'visual'.")
+
     # ###### Extract ROIs and compute overlay of individual masks ######
     for tag, wpair in zip(tags, weights_list):
         for atlas_dirname, atlas_name, region_name, roi_name in zip(
@@ -485,11 +505,11 @@ if __name__ == '__main__':
             if region_name == 'dorsal_striatum':
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, filtered_contrasts, 'wpsc', tag, wpair)
+                    roi_name, gtmap, filtered_contrasts, 'wpsc', tag, wpair)
             else:
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, filtered_contrasts, 'wpsc', tag, wpair,
+                    roi_name, gtmap, filtered_contrasts, 'wpsc', tag, wpair,
                     subregion=True)
 
             # Define output-dir path
