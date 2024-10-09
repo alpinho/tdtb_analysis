@@ -344,7 +344,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                 subject_encoding_tmap = os.path.join(
                     estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
                     'wspmT_%04d_desc-sm8wbmasked.nii' % con_id)
-                0/0
+
                 if hem in ['lh', 'rh']:
                     irmask = create_iroimask(
                         subject_encoding_tmap, atlasreg_maskpath, gmask,
@@ -454,8 +454,6 @@ atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 
-msdtb_dir = os.path.join(working_dir, 'roi_analyses')
-
 # All ROIs: 7 ROIs
 atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
                   hmat_dir, hmat_dir, hmat_dir]
@@ -485,16 +483,23 @@ if __name__ == '__main__':
     if encoding_type == 'all':
         gtmap = gtmap_encoding
         filtered_contrasts = selected_contrasts
+        msdtb_dir = os.path.join(working_dir, 'roi_analyses_all')
     elif encoding_type == 'audio':
         gtmap = gtmap_audioencoding
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [10, 11] if key in selected_contrasts}
+        msdtb_dir = os.path.join(working_dir, 'roi_analyses_audio')
     elif encoding_type == 'visual':
         gtmap = gtmap_visualencoding
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [14, 15] if key in selected_contrasts}
+        msdtb_dir = os.path.join(working_dir, 'roi_analyses_visual')
     else:
         raise ValueError("The argument must be 'all', 'audio' or 'visual'.")
+
+    # Create main directory if does not exist
+    if not os.path.exists(msdtb_dir):
+        os.mkdir(msdtb_dir)
 
     # ###### Extract ROIs and compute overlay of individual masks ######
     for tag, wpair in zip(tags, weights_list):
