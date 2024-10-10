@@ -484,18 +484,18 @@ if __name__ == '__main__':
         gtmap = gtmap_encoding
         filtered_contrasts = selected_contrasts
         msdtb_dir = os.path.join(working_dir, 'roi_analyses_all')
-    elif encoding_type == 'audio':
+    elif encoding_type == 'auditory':
         gtmap = gtmap_audioencoding
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [10, 11] if key in selected_contrasts}
-        msdtb_dir = os.path.join(working_dir, 'roi_analyses_audio')
+        msdtb_dir = os.path.join(working_dir, 'roi_analyses_auditory')
     elif encoding_type == 'visual':
         gtmap = gtmap_visualencoding
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [14, 15] if key in selected_contrasts}
         msdtb_dir = os.path.join(working_dir, 'roi_analyses_visual')
     else:
-        raise ValueError("The argument must be 'all', 'audio' or 'visual'.")
+        raise ValueError("The argument must be 'all', 'auditory' or 'visual'.")
 
     # Create main directory if does not exist
     if not os.path.exists(msdtb_dir):
