@@ -79,9 +79,7 @@ wb_dir   = 'surfaceWB';
 subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-% Working list of subjects
-% subj_n = [10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3];
 
 % SUIT: missing 4, 29 and 40 onwards
 
@@ -1081,6 +1079,7 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
         hrf_cutoff = 128; % for standard GLM in SPM
         % hrf_cutoff = Inf; % for rwls
+        % hrf_cutoff = 42.3
         prefix = 'u'; % prefix of the preprocessed epi we want to use
         events_file_tag = 'events';
         output_folder = 'ffx_rwls';
@@ -1118,10 +1117,16 @@ switch what
                 J.global           = 'None';
                 J.mask             = {char(fullfile(deriv_subjdir, ...
                     'ses-01', func_dir, 'rmask_noskull.nii'))};
-                J.mthresh          = 0.;
+                J.mthresh          = 1.;
                 J.cvi_mask         = {char(fullfile(deriv_subjdir, ...
                     'ses-01', func_dir,'rmask_gray.nii'))}; % only for rwls
-                J.cvi              = 'fast';
+                % To compute the covariance structure. If 'wls', SPM will
+                % estimate the noise variance in this module and then
+                % re-weight each image by the inverse of the variance in
+                % the model-estimation module. Make sure to use the rwls
+                % model-estimation module in SPM and not the standard
+                % model-estimation module.
+                J.cvi              = 'wls'; % 'fast' for no rwls
 
                 J.dir = {estimates_folder};
                 
