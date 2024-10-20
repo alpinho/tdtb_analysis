@@ -7,7 +7,7 @@ Author: Ana Luisa Pinho
 Created: October 2024
 Last update: October 2024
 
-Compatibility: Python 3.10.8
+Compatibility: Python 3.10.14
 
 """
 

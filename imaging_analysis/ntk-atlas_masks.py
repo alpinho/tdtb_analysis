@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Created: November 2023
 Last update: January 2024
 
-Compatibility: Python 3.10.8
+Compatibility: Python 3.10.14
 
 """
 
