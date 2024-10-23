@@ -9,6 +9,11 @@ Last update: October 2024
 
 Compatibility: Python 3.10.14
 
+How to run the script:
+python roi_extraction_msdtb.py <encoding_type>
+Example:
+python roi_extraction_msdtb.py auditory
+
 """
 
 import os
@@ -244,7 +249,8 @@ def overlay_masks(pdir, mask_type, roi):
         mask_norm.to_filename(os.path.join(output_dir, mask_name))
 
 
-def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
+def extract_roi(rmask, task, contrasts, subject_estimates_dir,
+                derivatives_folder, filetype):
 
     # # For every contrast
     task_contrasts = []
@@ -256,8 +262,7 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
         masker.fit()
 
         masked_con = os.path.join(subject_estimates_dir, task,
-                                  'masked_derivatives_rwls',
-                                  contrast_fname)
+                                  derivatives_folder, contrast_fname)
         # print(np.array(masked_con))
 
         # Extract mean average of contrasts effect-size in ROI...
@@ -271,7 +276,8 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir, filetype):
 
 def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                        group_tmap_path, contrasts_dic, contype, prefix,
-                       weights=None, subregion=False, hems=['lh', 'rh', 'bh']):
+                       derivatives_folder, mask, weights=None, subregion=False,
+                       hems=['lh', 'rh', 'bh']):
 
     if subregion:
         roi_dir = os.path.join(main_dir, region, atlas, roi)
@@ -342,8 +348,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                        for match in re.finditer('con_', group_tmap_path)][0]
                 con_id = int(group_tmap_path[idx: idx+2])
                 subject_encoding_tmap = os.path.join(
-                    estimates_dir, 'allmain_tasks', 'masked_derivatives_rwls',
-                    'wspmT_%04d_desc-sm8wbmasked.nii' % con_id)
+                    estimates_dir, 'allmain_tasks', derivatives_folder,
+                    'wspmT_%04d' % con_id + '_desc-sm8' + mask + 'masked.nii')
 
                 if hem in ['lh', 'rh']:
                     irmask = create_iroimask(
@@ -365,7 +371,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
             for task in tasks.keys():
                 # Extract individual ROIs
                 itask_contrasts = extract_roi(
-                    irmask, task, contrasts_dic, estimates_dir, contype)
+                    irmask, task, contrasts_dic, estimates_dir,
+                    derivatives_folder, contype)
                 # ... and append: shape (tasks, contrasts)
                 itasks_contrasts.append(itask_contrasts)
 
@@ -432,9 +439,17 @@ selected_contrasts = {10: 'Auditory Beat',
                       14: 'Visual Beat',
                       15: 'Visual Interval'}
 
-wb_masking = 'wb'
-gm_masking = 'gm'
-group_relative_path = 'group/allmain_tasks/rfx_onesample_t_rwls_'+ wb_masking
+model = 'rwls' # 'rwls'; or 'standard' (no rwls)
+masking = 'wb' # 'wb' for whole-brain; 'gm' for grey matter
+design = 'dbb' # 'dbb' if decision and response are modeled together;
+               # 'drbb' if otherwise
+hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
+
+individual_derivatives_folder = 'masked_derivatives_' + model + '_' + \
+    design + '_' + hrf_cutoff
+
+group_relative_path = 'group/allmain_tasks/rfx_onesample_t_' + model + '_'+ \
+    masking + '_' + design + '_' + hrf_cutoff
 
 group_encoding_folder = 'con_01_Encoding'
 gtmap_encoding = os.path.join(data_dir, group_relative_path,
@@ -453,6 +468,8 @@ fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
+
+roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff)
 
 # All ROIs: 7 ROIs
 atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
@@ -483,23 +500,23 @@ if __name__ == '__main__':
     if encoding_type == 'all':
         gtmap = gtmap_encoding
         filtered_contrasts = selected_contrasts
-        msdtb_dir = os.path.join(working_dir, 'roi_analyses_all')
+        msdtb_dir = os.path.join(roi_dir, 'all')
     elif encoding_type == 'auditory':
         gtmap = gtmap_audioencoding
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [10, 11] if key in selected_contrasts}
-        msdtb_dir = os.path.join(working_dir, 'roi_analyses_auditory')
+        msdtb_dir = os.path.join(roi_dir, 'auditory')
     elif encoding_type == 'visual':
         gtmap = gtmap_visualencoding
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [14, 15] if key in selected_contrasts}
-        msdtb_dir = os.path.join(working_dir, 'roi_analyses_visual')
+        msdtb_dir = os.path.join(roi_dir, 'visual')
     else:
         raise ValueError("The argument must be 'all', 'auditory' or 'visual'.")
 
     # Create main directory if does not exist
     if not os.path.exists(msdtb_dir):
-        os.mkdir(msdtb_dir)
+        os.makedirs(msdtb_dir)
 
     # ###### Extract ROIs and compute overlay of individual masks ######
     for tag, wpair in zip(tags, weights_list):
@@ -510,11 +527,13 @@ if __name__ == '__main__':
             if region_name == 'dorsal_striatum':
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, gtmap, filtered_contrasts, 'wpsc', tag, wpair)
+                    roi_name, gtmap, filtered_contrasts, 'wpsc', tag,
+                    individual_derivatives_folder, masking, weights=wpair)
             else:
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, gtmap, filtered_contrasts, 'wpsc', tag, wpair,
+                    roi_name, gtmap, filtered_contrasts, 'wpsc', tag,
+                    individual_derivatives_folder, masking, weights=wpair,
                     subregion=True)
 
             # Define output-dir path
