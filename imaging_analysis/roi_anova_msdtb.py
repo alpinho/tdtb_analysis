@@ -923,6 +923,10 @@ atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 
+model = 'rwls' # 'rwls'; or 'standard' (no rwls)
+hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
+roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff)
+
 # ### Define number of ROIs of the analysis ###
 # All ROIs: 7 ROIs
 atlas_dirnames7 = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
@@ -999,15 +1003,15 @@ if __name__ == '__main__':
 
     if encoding_type == 'all':
         filtered_contrasts = selected_contrasts
-        msdtb_dir = os.path.join(working_dir, 'roi_analyses_all')
+        msdtb_dir = os.path.join(roi_dir, 'all')
     elif encoding_type == 'auditory':
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [10, 11] if key in selected_contrasts}
-        msdtb_dir = os.path.join(working_dir, 'roi_analyses_auditory')
+        msdtb_dir = os.path.join(roi_dir, 'auditory')
     elif encoding_type == 'visual':
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [14, 15] if key in selected_contrasts}
-        msdtb_dir = os.path.join(working_dir, 'roi_analyses_visual')
+        msdtb_dir = os.path.join(roi_dir, 'visual')
     else:
         raise ValueError("The argument must be 'all', 'auditory' or 'visual'.")
 
