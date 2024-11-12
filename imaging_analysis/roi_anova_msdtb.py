@@ -924,7 +924,11 @@ ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 
 model = 'rwls' # 'rwls'; or 'standard' (no rwls)
+
 hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
+# hrf_cutoff = 'hrf128_timederiv'
+# hrf_cutoff = 'hrf128_timedispderiv'
+
 roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff)
 
 # ### Define number of ROIs of the analysis ###

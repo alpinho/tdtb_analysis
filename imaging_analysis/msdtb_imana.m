@@ -44,6 +44,14 @@ end
 suit_defaults;
 
 %==============================================================================
+
+% Initialize SPM defaults
+spm('defaults', 'FMRI');
+global defaults
+
+% Set maxmem to 4 GB
+defaults.stats.maxmem = 16 * 1024^3;  % 16 GB in bytes
+
 global base_dir
 
 base_dir = sprintf('%s/Cerebellum/music-sdtb', workdir);
@@ -151,6 +159,46 @@ contrasts = {'Encoding', [1 1 1 1 0]; ...                            %1
              'Decision', [0 0 0 0 1]; ...                            %18
              };
          
+contrasts_time = {'Encoding', [1 0 1 0 1 0 1 0 0 0] ; ...                           %1
+                  'Auditory Encoding', [1 0 1 0 0 0 0 0 0 0]; ...                   %2
+                  'Visual Encoding', [0 0 0 0 1 0 1 0 0 0]; ...                     %3
+                  'Auditory vs Visual Encoding', [1 0 1 0 -1 0 -1 0 0 0]; ...       %4
+                  'Visual vs Auditory Encoding', [-1 0 -1 0 1 0 1 0 0 0]; ...       %5
+                  'Beat', [1 0 0 0 1 0 0 0 0 0]; ...                                %6
+                  'Interval', [0 0 1 0 0 0 1 0 0 0]; ...                            %7
+                  'Beat vs Interval', [1 0 -1 0 1 0 -1 0 0 0]; ...                  %8
+                  'Interval vs Beat', [-1 0 1 0 -1 0 1 0 0 0]; ...                  %9
+                  'Auditory Beat', [1 0 0 0 0 0 0 0 0 0]; ...                       %10
+                  'Auditory Interval', [0 0 1 0 0 0 0 0 0 0]; ...                   %11
+                  'Auditory Beat vs Auditory Interval', [1 0 -1 0 0 0 0 0 0 0]; ... %12
+                  'Auditory Interval vs Auditory Beat', [-1 0 1 0 0 0 0 0 0 0]; ... %13
+                  'Visual Beat', [0 0 0 0 1 0 0 0 0 0]; ...                         %14
+                  'Visual Interval', [0 0 0 0 0 0 1 0 0 0]; ...                     %15
+                  'Visual Beat vs Visual Interval', [0 0 0 0 1 0 -1 0 0 0]; ...     %16            
+                  'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0 0 0]; ...     %17
+                  'Decision', [0 0 0 0 0 0 0 0 1 0]; ...                            %18
+                  };
+              
+contrasts_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                            %1
+                      'Auditory Encoding', [1 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                   %2
+                      'Visual Encoding', [0 0 0 0 0 0 1 0 0 1 0 0 0 0 0]; ...                     %3
+                      'Auditory vs Visual Encoding', [1 0 0 1 0 0 -1 0 0 -1 0 0 0 0 0]; ...       %4
+                      'Visual vs Auditory Encoding', [-1 0 0 -1 0 0 1 0 0 1 0 0 0 0 0]; ...       %5
+                      'Beat', [1 0 0 0 0 0 1 0 0 0 0 0 0 0 0]; ...                                %6
+                      'Interval', [0 0 0 1 0 0 0 0 0 1 0 0 0 0 0]; ...                            %7
+                      'Beat vs Interval', [1 0 0 -1 0 0 1 0 0 -1 0 0 0 0 0]; ...                  %8
+                      'Interval vs Beat', [-1 0 0 1 0 0 -1 0 0 1 0 0 0 0 0]; ...                  %9
+                      'Auditory Beat', [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                       %10
+                      'Auditory Interval', [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                   %11
+                      'Auditory Beat vs Auditory Interval', [1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0]; ... %12
+                      'Auditory Interval vs Auditory Beat', [-1 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ... %13
+                      'Visual Beat', [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]; ...                         %14
+                      'Visual Interval', [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                     %15
+                      'Visual Beat vs Visual Interval', [0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...     %16            
+                      'Visual Interval vs Visual Beat', [0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...     %17
+                      'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]; ...                            %18
+                      };
+         
 contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                              %1
                     'Auditory Encoding', [1 1 1 0 0 0 0]; ...                     %2
                     'Visual Encoding', [0 0 0 1 1 1 0]; ...                       %3
@@ -185,6 +233,76 @@ contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                            
                     'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...     %32
                     'Decision', [0 0 0 0 0 0 1]; ...                              %33
                     };
+                
+contrasts_random_time = {'Encoding', [1 0 1 0 1 0 1 0 1 0 1 0 0 0]; ...                              %1
+                         'Auditory Encoding', [1 0 1 0 1 0 0 0 0 0 0 0 0 0]; ...                     %2
+                         'Visual Encoding', [0 0 0 0 0 0 1 0 1 0 1 0 0 0]; ...                       %3
+                         'Auditory vs Visual Encoding', [1 0 1 0 1 0 -1 0 -1 0 -1 0 0 0]; ...        %4
+                         'Visual vs Auditory Encoding', [-1 0 -1 0 -1 0 1 0 1 0 1 0 0 0]; ...        %5
+                         'Beat', [1 0 0 0 0 0 1 0 0 0 0 0 0 0]; ...                                  %6
+                         'Interval', [0 0 1 0 0 0 0 0 1 0 0 0 0 0]; ...                              %7
+                         'Random', [0 0 0 0 1 0 0 0 0 0 1 0 0 0]; ...                                %8
+                         'Beat vs Interval', [1 0 -1 0 0 0 1 0 -1 0 0 0 0 0]; ...                    %9
+                         'Interval vs Beat', [-1 0 1 0 0 0 -1 0 1 0 0 0 0 0]; ...                    %10
+                         'Beat vs Random', [1 0 0 0 -1 0 1 0 0 0 -1 0 0 0]; ...                      %11
+                         'Random vs Beat', [-1 0 0 0 1 0 -1 0 0 0 1 0 0 0]; ...                      %12
+                         'Interval vs Random', [0 0 1 0 -1 0 0 0 1 0 -1 0 0 0]; ...                  %13
+                         'Random vs Interval', [0 0 -1 0 1 0 0 0 -1 0 1 0 0 0]; ...                  %14
+                         'Auditory Beat', [1 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                         %15
+                         'Auditory Interval', [0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                     %16
+                         'Auditory Random', [0 0 0 0 1 0 0 0 0 0 0 0 0 0]; ...                       %17
+                         'Auditory Beat vs Auditory Interval', [1 0 -1 0 0 0 0 0 0 0 0 0 0 0]; ...   %18
+                         'Auditory Interval vs Auditory Beat', [-1 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...   %19
+                         'Auditory Beat vs Auditory Random', [1 0 0 0 -1 0 0 0 0 0 0 0 0 0]; ...     %20
+                         'Auditory Random vs Auditory Beat', [-1 0 0 0 1 0 0 0 0 0 0 0 0 0]; ...     %21
+                         'Auditory Interval vs Auditory Random', [0 0 1 0 -1 0 0 0 0 0 0 0 0 0]; ... %22
+                         'Auditory Random vs Auditory Interval', [0 0 -1 0 1 0 0 0 0 0 0 0 0 0]; ... %23
+                         'Visual Beat', [0 0 0 0 0 0 1 0 0 0 0 0 0 0]; ...                           %24
+                         'Visual Interval', [0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                       %25
+                         'Visual Random', [0 0 0 0 0 0 0 0 0 0 1 0 0 0]; ...                         %26
+                         'Visual Beat vs Visual Interval', [0 0 0 0 0 0 1 0 -1 0 0 0 0 0]; ...       %27
+                         'Visual Interval vs Visual Beat', [0 0 0 0 0 0 -1 0 1 0 0 0 0 0]; ...       %28
+                         'Visual Beat vs Visual Random', [0 0 0 0 0 0 1 0 0 0 -1 0 0 0]; ...         %29
+                         'Visual Random vs Visual Beat', [0 0 0 0 0 0 -1 0 0 0 1 0 0 0]; ...         %30                    
+                         'Visual Interval vs Visual Random', [0 0 0 0 0 0 0 0 1 0 -1 0 0 0]; ...     %31
+                         'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 -1 0 1 0 0 0]; ...     %32
+                         'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0]; ...                              %33
+                        };
+                    
+contrasts_random_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                              %1
+                             'Auditory Encoding', [1 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                     %2
+                             'Visual Encoding', [0 0 0 0 0 0 0 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                       %3
+                             'Auditory vs Visual Encoding', [1 0 0 1 0 0 1 0 0 -1 0 0 -1 0 0 -1 0 0 0 0 0]; ...        %4
+                             'Visual vs Auditory Encoding', [-1 0 0 -1 0 0 -1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...        %5
+                             'Beat', [1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                                  %6
+                             'Interval', [0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]; ...                              %7
+                             'Random', [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                                %8
+                             'Beat vs Interval', [1 0 0 -1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0]; ...                    %9
+                             'Interval vs Beat', [-1 0 0 1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0]; ...                    %10
+                             'Beat vs Random', [1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 -1 0 0 0 0 0]; ...                      %11
+                             'Random vs Beat', [-1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 1 0 0 0 0 0]; ...                      %12
+                             'Interval vs Random', [0 0 0 1 0 0 -1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...                  %13
+                             'Random vs Interval', [0 0 0 -1 0 0 1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...                  %14
+                             'Auditory Beat', [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                         %15
+                             'Auditory Interval', [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                     %16
+                             'Auditory Random', [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                       %17
+                             'Auditory Beat vs Auditory Interval', [1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...   %18
+                             'Auditory Interval vs Auditory Beat', [-1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...   %19
+                             'Auditory Beat vs Auditory Random', [1 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...     %20
+                             'Auditory Random vs Auditory Beat', [-1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...     %21
+                             'Auditory Interval vs Auditory Random', [0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ... %22
+                             'Auditory Random vs Auditory Interval', [0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ... %23
+                             'Visual Beat', [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                           %24
+                             'Visual Interval', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]; ...                       %25
+                             'Visual Random', [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                         %26
+                             'Visual Beat vs Visual Interval', [0 0 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0]; ...       %27
+                             'Visual Interval vs Visual Beat', [0 0 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0]; ...       %28
+                             'Visual Beat vs Visual Random', [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 -1 0 0 0 0 0]; ...         %29
+                             'Visual Random vs Visual Beat', [0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 1 0 0 0 0 0]; ...         %30                    
+                             'Visual Interval vs Visual Random', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...     %31
+                             'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...     %32
+                             'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]; ...                              %33
+                             };
 
 %==============================================================================
 
@@ -1123,9 +1241,26 @@ switch what
                 J.timing.fmri_t  = 16;
                 J.timing.fmri_t0 = 8;
 
-                J.fact             = struct('name', {}, 'levels', {});
-                J.bases.hrf.derivs = [0 0];
-                J.bases.hrf.params = [4.5 11]; % set to [] if running wls
+                J.fact           = struct('name', {}, 'levels', {});
+                
+                % Using time and dispersion derivatives in the HRF. 
+                % This allows the model to adjust the HRF shape and timing ... 
+                % ... on a voxel-wise basis. Useful for whole-brain ...
+                % ... analysis when we suspect regional variability.
+                % [0, 0] no derivatives
+                % [1, 0] time derivatives
+                % [1, 1] time and dispersion derivatives
+                J.bases.hrf.derivs = [1 1];
+                
+                % p(1)	Delay of response (secs)	6
+                % p(2)	Delay of undershoot (secs)	16
+                % p(3)	Dispersion of response	1
+                % p(4)	Dispersion of undershoot	1
+                % p(5)	Ratio of response to undershoot	6
+                % p(6)	Onset (secs)	0
+                % p(7)	Length of HRF kernel (secs)	32
+                % J.bases.hrf.params = [6 16 1 1 6 0 32]; % default for canonical HRF in SPM
+                
                 J.volt             = 1;
                 J.global           = 'None';
                 J.mask             = {char(fullfile(deriv_subjdir, ...
@@ -1251,8 +1386,7 @@ switch what
                             J.sess(count).regress   = struct('name', {}, ...
                                 'val', {});
                             J.sess(count).multi_reg = {''};
-                            J.sess(count).hpf       = hrf_cutoff; % set to 0'inf' if using J.cvi = 'FAST'. SPM HPF not applied
-
+                            J.sess(count).hpf       = hrf_cutoff;
                         end % r (n_run)
                     end % tk (tasks)         
                 end % ses (ssn)
@@ -1326,6 +1460,114 @@ switch what
         % Step 5: Adjust colorbar limits if needed
         caxis([min(covariance_matrix(:)), max(covariance_matrix(:))]);  % Adjust color scaling
         
+    case 'PLOT:timeseries'
+        
+        s = 42;
+        design = 'allmain_tasks'; % design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'}
+        
+        % Define the center coordinate and radius in native space
+        centerCoord = [-21.7, 3.3, 5.3];  % Replace with your native space coordinates (in mm)
+        roi_name = 'lPutamen';       % name of ROI
+        radius = 8;               % Replace with your desired radius in millimeters
+        
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        % Go to the folder of script
+        cd(fileparts(mfilename('fullpath')))
+        
+        % Load SPM.mat
+        task_estimates_dir = fullfile(base_dir, derivatives_dir, ...
+            sprintf('sub-%02d', s), est_dir, design, 'ffx_rwls_dbb_hrf128')
+        SPM = load(fullfile(task_estimates_dir, 'SPM.mat')); 
+        SPM=SPM.SPM;
+        
+        % Ensure that SPM.xY.P exists
+        if ~isfield(SPM, 'xY') || ~isfield(SPM.xY, 'P')
+            error('SPM.xY.P is not available. Please ensure that SPM.mat contains the design matrix with specified images.');
+        end
+        
+        % Get the paths to your fMRI images from SPM.xY.P
+        VY = SPM.xY.VY;  % Should be an N x 1 cell array of file paths
+        
+        % Load first fMRI volume of first 4D NIfTI file to get dimensions and transformation matrix
+        fname = [VY(1).fname ',' num2str(1)];
+        V = spm_vol(fname);
+        dims = V.dim(1:3);  % Dimensions of the volume
+        mat = V.mat;        % Transformation matrix (voxel to native space coordinates)
+        
+        % Generate a grid of voxel coordinates
+        [xGrid, yGrid, zGrid] = ndgrid(1:dims(1), 1:dims(2), 1:dims(3));
+        
+        % Convert voxel indices to native space coordinates
+        voxelCoords = [xGrid(:), yGrid(:), zGrid(:), ones(numel(xGrid), 1)]';
+        worldCoords = mat * voxelCoords;
+        worldCoords = worldCoords(1:3, :)';  % Exclude the homogeneous coordinate
+        
+        % Compute Euclidean distances from each voxel to the center coordinate
+        distances = sqrt(sum((worldCoords - centerCoord).^2, 2));
+
+        % Create the spherical mask
+        sphereMask = distances <= radius;
+        sphereMask = reshape(sphereMask, dims);
+
+        % Find the indices of voxels within the sphere
+        roiIndices = find(sphereMask);
+
+        % Initialize array to hold the timeseries
+        numVolumes = length(VY);
+        y_raw = zeros(numVolumes, 1);
+
+        % Loop through each fMRI volume to extract the ROI timeseries
+        for i = 1:numVolumes
+            Vs = spm_vol(VY(i));  % Load the fMRI volume
+            Vs(i).dat = spm_read_vols(Vs);    % Read the volume data
+            Vs(i).dt = [64 0];    % Set number format to double 
+            Vs(i).pinfo = [1 0 0]'; % set scaling to zero becuase done 
+            Vs(i).dat(isnan(Vs(i).dat)) = 0;
+            roiData = Vs(i).dat(roiIndices); % Extract data within the spherical ROI
+            % A(:,i)=spm_sample_vol(roiData, worldCoords(:, 1), worldCoords(:, 2), worldCoords(:, 3),0); % Sampling of ROI with nearest neighbor interpolation
+            y_raw(i) = mean(roiData); % Compute mean signal in the ROI
+            % y_raw(i) = mean(A(:,i));
+        end
+        
+        % Do the regression and compute y_hat
+        y_filt = spm_filter(SPM.xX.K,y_raw);
+        SPM.xX.xKXs.X = spm_filter(SPM.xX.K,SPM.xX.X);
+        SPM.xX.pKX = pinv(SPM.xX.xKXs.X);
+        B = SPM.xX.pKX*y_filt; %-Parameter estimates
+        y_res   = y_filt - SPM.xX.xKXs.X*B;             %-Residuals
+        reg_interest=[SPM.xX.iH SPM.xX.iC]; % Get the Design Matrix (only for regressors-of-interest)
+        y_hat = SPM.xX.xKXs.X(:,reg_interest)*B(reg_interest,:); %- predicted values
+        y_adj  = y_hat + y_res; % The time series adjusted for nuiscance regressors 
+
+        % Create a time vector based on TR
+        TR = 1.2;  % Repetition time
+        timeVector = (0:length(y_raw)-1) * TR;
+        
+        % Plot the extracted timeseries
+        figure;
+        for n=1:10
+            subplot(10,1,n);
+            if n==1
+                plot(timeVector(1, 1:626), y_adj(1:626, 1), 'b-', 'LineWidth', 1.5);
+                hold on;
+                plot(timeVector(1, 1:626), y_hat(1:626, 1), 'r-', 'LineWidth', 1.5);
+                title('Overlapping Timeseries');
+            else
+                plot(timeVector(1, 626*(n-1):626*n), y_adj(626*(n-1):626*n, 1), 'b-', 'LineWidth', 1.5);
+                hold on;
+                plot(timeVector(1, 626*(n-1):626*n), y_hat(626*(n-1):626*n, 1), 'r-', 'LineWidth', 1.5);
+                if n==5
+                    ylabel('Signal Intensity');
+                elseif n==10
+                    xlabel('Time (seconds)');
+                end
+            end           
+            legend('Raw Signal', 'Predicted Signal');
+            grid on;
+            hold off;
+        end
+        
     case 'SUIT:cerebellum_graymask'    
         % Conjunction of the pcereb_corr  and the cerebellar gray matter 
         % mask (in functional space) thresholded to 0.2
@@ -1377,7 +1619,7 @@ switch what
         model_type = 'dbb';
         % model_type = 'drbb';
         
-        output_folder = 'ffx_rwls_drbb_hrf128';
+        output_folder = 'ffx_rwls_dbb_hrf128';
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -1389,14 +1631,14 @@ switch what
             contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
                 'AllTasks: '};
             if strcmp(model_type, 'dbb')
-                contrasts_list = contrasts;
+                contrasts_list = contrasts_timedisp;
             elseif strcmp(model_type, 'drbb')
                 contrasts_list = contrasts_drbb;
             end
         elseif isequal(design, {'rand_ntfd'})
             contrast_prefix = {'Random NTFD: '};
             if strcmp(model_type, 'dbb')
-                contrasts_list = contrasts_random;
+                contrasts_list = contrasts_random_timedisp;
             elseif strcmp(model_type, 'drbb')
                 contrasts_list = contrasts_random_drbb;
             end
@@ -1431,7 +1673,8 @@ switch what
         % Example usage:
         % msdtb_imana('GLM:calc_PSC', ...
         %             'design', {'rand_ntfd'}, ...
-        %             'output_folder', 'ffx_rwls_drbb_hrf42')
+        %             'model_derivatives', 'time', ...
+        %             'output_folder', 'ffx_rwls_drbb_hrf42_timederiv')
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
@@ -1440,11 +1683,16 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        output_folder = 'ffx_rwls_drbb_hrf128';
+        model_derivatives = 'no_deriv'
+        % model_derivatives = 'time'
+        % model_derivatives = 'timedisp'
+        
+        output_folder = 'ffx_rwls_dbb_hrf128_timedispderiv';
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        vararginoptions(varargin, {'sn', 'design', 'output_folder'});
+        vararginoptions(varargin, {'sn', 'design', 'model_derivatives', ...
+            'output_folder'});
 
         for s = sn
             % Go to subject’s directory and load SPM info
@@ -1496,12 +1744,17 @@ switch what
                     end
                     maxX=[];
                     maxX=max(X);
-                    if con < length(t_con_name)                      
-                        maxX(step:step:end)=[]; % remove 'decision' peaks
+                    if strcmp(model_derivatives, 'time')
+                        maxX = maxX(1:2:end); % remove peaks of time derivatives
+                    elseif strcmp(model_derivatives, 'timedisp')
+                        maxX = maxX(1:3:end); % remove peaks of time and dispersion derivatives
+                    end
+                    if con < length(t_con_name)
+                        maxX(step:step:end)=[] % remove 'decision' peaks for the encoding constrasts
                         h=min(maxX);
                     else
                         decision_max=[];
-                        decision_max=maxX(step:step:end);
+                        decision_max=maxX(step:step:end) % retrieve the decision peaks for the decision contrast
                         h=min(decision_max);
                     end
                         
@@ -1822,31 +2075,33 @@ switch what
         glm_type = 'rwls';
         % glm_type = 'standard';
         
-        % hrf_cutoff = 'hrf128';
-        hrf_cutoff = 'hrf42';
+        hrf_cutoff = 'hrf128';
+        % hrf_cutoff = 'hrf128_timederiv';
+        % hrf_cutoff = 'hrf128_timedispderiv';
+        % hrf_cutoff = 'hrf42';
 
         % msdtb_imana('GLM:grand_design_rwls', 'sn', sbj)
-        msdtb_imana('GLM:estimate_rwls', 'sn', sbj, 'output_folder', ...
-            ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('GLM:estimate_rwls', 'sn', sbj, 'output_folder', ...
+%             ['ffx_' glm_type '_dbb_' hrf_cutoff])
         
-        msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
-            'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-            'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
+%             'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+%             'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
                 
         msdtb_imana('GLM:calc_PSC', 'sn', sbj, ...
             'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
         msdtb_imana('GLM:calc_PSC', 'sn', sbj, 'design', {'rand_ntfd'}, ...
             'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
                 
-        msdtb_imana('CON:norm_smooth', 'sn', sbj, ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:norm_smooth', 'sn', sbj, ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT', ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'psc', ...
             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'psc', ...
@@ -1855,18 +2110,18 @@ switch what
         % msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
         % msdtb_imana('GROUP:mask', 'sn', subj_id, 'mask_type', 'wrmask_gray') % gray-matter mask
                 
-        msdtb_imana('CON:masking', 'sn', sbj, ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:masking', 'sn', sbj, ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
+%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
+%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
+%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
+%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', ...
             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
@@ -1874,18 +2129,18 @@ switch what
             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
         
-        msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'masktag', 'gmmasked', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked', ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
+%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'masktag', 'gmmasked', ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
+%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
+%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
+%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
+%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', 'masktag', 'gmmasked', ...
             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
@@ -2201,8 +2456,10 @@ switch what
         glm_type = 'rwls';
         % glm_type = 'standard';
         
-        % hrf_cutoff = 'hrf128';
-        hrf_cutoff = 'hrf42';
+        hrf_cutoff = 'hrf128';
+        % hrf_cutoff = 'hrf128_timederiv';
+        % hrf_cutoff = 'hrf128_timedispderiv';
+        % hrf_cutoff = 'hrf42';
         
         msdtb_imana('GROUP:onesample_t_design', 'sn', sbj, ...
             'input_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff], ...

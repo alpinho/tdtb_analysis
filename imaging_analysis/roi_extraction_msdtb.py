@@ -444,6 +444,8 @@ masking = 'wb' # 'wb' for whole-brain; 'gm' for grey matter
 design = 'dbb' # 'dbb' if decision and response are modeled together;
                # 'drbb' if otherwise
 hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
+# hrf_cutoff = 'hrf128_timederiv'
+# hrf_cutoff = 'hrf128_timedispderiv'
 
 individual_derivatives_folder = 'masked_derivatives_' + model + '_' + \
     design + '_' + hrf_cutoff
@@ -480,6 +482,11 @@ region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
                 'motor_area', 'motor_area', 'motor_area']
 roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
              'pmd', 'sma', 'presma']
+
+# atlas_dirnames = [fsl_dir, ntk_dir]
+# atlas_names = ['hos', 'ntk_symmni128']
+# region_names = ['dorsal_striatum', 'cerebellum']
+# roi_names = ['dstr', 'cereb']
 
 tags = ['i', 'a', 'g']
 
