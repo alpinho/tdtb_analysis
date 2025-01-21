@@ -80,12 +80,12 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % List of all subjects
-% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
-subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % subj_n = [3];
 
@@ -682,6 +682,85 @@ switch what
             anat_name = sprintf('%s_T1w', subj_str{s});
             suit_save_darteldef(anat_name);
         end
+        
+    case 'FUNC:realign_estimate'
+        % SPM realigns all volumes to the first volume of first run
+        % example usage: msdtb_imana('FUNC:realign', 'sn', 1)
+        % Updated upstream
+        
+        spm_figure('GetWin','Graphics'); % create SPM.ps file at the end
+        
+        sn   = subj_id; % list of subjects
+        prefix = '';
+        vararginoptions(varargin,{'sn'});
+                
+        for s = sn
+                   
+            deriv_subjdir = fullfile(base_dir, derivatives_dir, subj_str{s});
+            
+            run = {};
+            
+            [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
+            
+            for ses = 1:length(preproc_sestag)
+                
+                fmapderiv_folder = fullfile(deriv_subjdir, ...
+                    convertStringsToChars(preproc_sestag{ses}), fmap_dir);
+                
+                preproctag = sprintf('%s_%s', subj_str{s}, ...
+                    preproc_sestag{ses});
+                
+                % Empty localscratch
+                if ses == 1
+                    folder(localscratch);
+                end
+
+                for r=1:length(preproc_sesrun{ses})
+                    % Copy EPI files to localscratch
+                    func_fname = sprintf('%s_%s_bold.nii', ...
+                        preproctag, preproc_sesrun{ses}{r});
+                    func_file = fullfile(fmapderiv_folder, func_fname);
+                    copyfile(func_file, localscratch);
+                    
+                    run{ses}{r} = [...
+                        convertStringsToChars(preproc_sestag{ses}), '_', ...
+                        convertStringsToChars(preproc_sesrun{ses}{r})];                    
+                end % r (length(raw_sesrun{ses}))
+            end % ses (ses_id)
+            
+            run = horzcat(run{:});           
+            % Load batch and run spm
+            spma_realign_estimate(localscratch, subj_str{s}, run, 1, Inf, ...
+                'prefix', prefix);
+            
+            for ses = 1:length(preproc_sestag)
+                % Set path of the derivatives folder
+                func_deriv_folder = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, preproc_sestag{ses}, func_dir);
+                % Create/update destination folder
+                folder(func_deriv_folder);
+                % Move files from localscratch to destination folder
+                if ses == 1
+                    % Rename and move postscript file 
+                    psfiles(func_deriv_folder, 'realignestimate')
+                end
+                % Move motion-param .txt files
+                movefile([localscratch '/rp_' subj_str{s} '_' ...
+                    convertStringsToChars(preproc_sestag{ses}) ...
+                    '_task-*_run-*_bold.txt'], func_deriv_folder);
+                
+                % Move functional files w/ param estimation in their
+                % headers, but not resliced only, as well as all .mat files
+                movefile([localscratch '/' subj_str{s} '_' ...
+                    convertStringsToChars(preproc_sestag{ses}) ...
+                    '_task-*_run-*_bold*'], func_deriv_folder);
+            end % ses (ses_id)
+            
+            % Delete unziped raw files from localscratch
+            if any(size(dir([localscratch '/*.nii']), 1))
+                delete([localscratch '/*.nii']);
+            end
+        end % s (sn)
         
     case 'FUNC:make_fieldmap' % Make fieldmap
         
