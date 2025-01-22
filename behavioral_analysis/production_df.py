@@ -6,9 +6,9 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: May 2024
+Last update: January 2025
 
-Compatibility: Python 3.10.8
+Compatibility: Python 3.10.14
 """
 
 import sys
@@ -102,10 +102,14 @@ def isi_async(subjects, sesstypes, this_dir, sync_type, n_trials,
     logfiles_dir = os.path.join(
         os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
 
-    allsub_beat_audio = []
-    allsub_interval_audio = []
-    allsub_beat_visual = []
-    allsub_interval_visual = []
+    allsub_async_beat_audio = []
+    allsub_async_interval_audio = []
+    allsub_async_beat_visual = []
+    allsub_async_interval_visual = []
+    allsub_rt_beat_audio = []
+    allsub_rt_interval_audio = []
+    allsub_rt_beat_visual = []
+    allsub_rt_interval_visual = []
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
@@ -121,9 +125,11 @@ def isi_async(subjects, sesstypes, this_dir, sync_type, n_trials,
 
             ss_isi_beat = []
             as_isi_beat = []
+            rt_isi_beat = []
             for i in isi1s:
                 ss_beat = []
                 as_beat = []
+                rt_beat = []
                 for beat_trial in beat_trials:
                     if beat_trial[0] == i:
                         if ~np.any(np.isnan(beat_trial)):
@@ -135,6 +141,7 @@ def isi_async(subjects, sesstypes, this_dir, sync_type, n_trials,
                             asb = np.nan
                         ss_beat.append(ssb)
                         as_beat.append(asb)
+                        rt_beat.append(beat_trial[2])
                 # Replace missing values (nan's) by median of the sample
                 # if np.any(np.isnan(ss_beat)):
                 #     miss_sbval = np.nanmedian(ss_beat)
@@ -147,12 +154,15 @@ def isi_async(subjects, sesstypes, this_dir, sync_type, n_trials,
                 # Append isi array
                 ss_isi_beat.append(ss_beat)
                 as_isi_beat.append(as_beat)
+                rt_isi_beat.append(rt_beat)
 
             ss_isi_interval = []
             as_isi_interval = []
+            rt_isi_interval = []
             for i in isi1s:
                 ss_interval = []
                 as_interval = []
+                rt_interval = []
                 for interval_trial in interval_trials:
                     if interval_trial[0] == i:
                         if ~np.any(np.isnan(interval_trial)):
@@ -165,6 +175,7 @@ def isi_async(subjects, sesstypes, this_dir, sync_type, n_trials,
                             asi = np.nan
                         ss_interval.append(ssi)
                         as_interval.append(asi)
+                        rt_interval.append(interval_trial[2])
                 # Replace missing values (nan's) by median of the isi sample
                 # if np.any(np.isnan(ss_interval)):
                 #     miss_sival = np.nanmedian(ss_interval)
@@ -177,46 +188,68 @@ def isi_async(subjects, sesstypes, this_dir, sync_type, n_trials,
                 # Append isi array
                 ss_isi_interval.append(ss_interval)
                 as_isi_interval.append(as_interval)
+                rt_isi_interval.append(rt_interval)
             
             # Aggregate all data
-            if task == 'Auditory Production' and sync_type == 'signed':
-                allsub_beat_audio.append(ss_isi_beat)
-                allsub_interval_audio.append(ss_isi_interval)
-            elif task == 'Visual Production' and sync_type == 'signed':
-                allsub_beat_visual.append(ss_isi_beat)
-                allsub_interval_visual.append(ss_isi_interval)
-            elif task == 'Auditory Production' and sync_type == 'absolute':
-                allsub_beat_audio.append(as_isi_beat)
-                allsub_interval_audio.append(as_isi_interval)
+            if task == 'Auditory Production':
+                if sync_type == 'signed':
+                    allsub_async_beat_audio.append(ss_isi_beat)
+                    allsub_async_interval_audio.append(ss_isi_interval)
+                else:
+                    assert sync_type == 'absolute'
+                    allsub_async_beat_audio.append(as_isi_beat)
+                    allsub_async_interval_audio.append(as_isi_interval)
+                allsub_rt_beat_audio.append(rt_isi_beat)
+                allsub_rt_interval_audio.append(rt_isi_interval)
             else:
-                assert task == 'Visual Production' and sync_type == 'absolute'
-                allsub_beat_visual.append(as_isi_beat)
-                allsub_interval_visual.append(as_isi_interval)
+                assert task == 'Visual Production'
+                if sync_type == 'signed':
+                    allsub_async_beat_visual.append(ss_isi_beat)
+                    allsub_async_interval_visual.append(ss_isi_interval)
+                else:
+                    assert sync_type == 'absolute'
+                    allsub_async_beat_visual.append(as_isi_beat)
+                    allsub_async_interval_visual.append(as_isi_interval)
+                allsub_rt_beat_visual.append(rt_isi_beat)
+                allsub_rt_interval_visual.append(rt_isi_interval)
 
 
-    return (allsub_beat_audio, allsub_interval_audio, allsub_beat_visual,
-            allsub_interval_visual, isi1s)
+    return (allsub_async_beat_audio, allsub_async_interval_audio,
+            allsub_async_beat_visual, allsub_async_interval_visual,
+            allsub_rt_beat_audio, allsub_rt_interval_audio,
+            allsub_rt_beat_visual, allsub_rt_interval_visual,
+            isi1s)
 
 
-def long_dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
-                   sync_visual_interval, stand_numbers, subjects, output_dir,
-                   sesstag):
+def long_dataframe(sync_audio_beat, sync_audio_interval,
+                   sync_visual_beat, sync_visual_interval,
+                   rrt_audio_beat, rrt_audio_interval,
+                   rrt_visual_beat, rrt_visual_interval,
+                   stand_numbers, subjects, output_dir, sesstag):
     # Inputs shape (n_subjects, n_isi, n_trials)
 
     conditions_names = np.array(['beat', 'interval'])
     modalities_names = np.array(['audio', 'visual'])
 
-    # Flatten the synchronies arrays
+    # Flatten the synchronies and response-time arrays
     sync_audio_beat_flatten = np.ravel(sync_audio_beat)
     sync_audio_interval_flatten = np.ravel(sync_audio_interval)
     sync_visual_beat_flatten = np.ravel(sync_visual_beat)
     sync_visual_interval_flatten = np.ravel(sync_visual_interval)
+    rrt_audio_beat_flatten = np.ravel(rrt_audio_beat)
+    rrt_audio_interval_flatten = np.ravel(rrt_audio_interval)
+    rrt_visual_beat_flatten = np.ravel(rrt_visual_beat)
+    rrt_visual_interval_flatten = np.ravel(rrt_visual_interval)
 
-    # Stack synchronies in one single array
+    # Stack synchronies and response times in one single array
     asynchronies = np.hstack((sync_audio_beat_flatten,
                               sync_audio_interval_flatten,
                               sync_visual_beat_flatten,
                               sync_visual_interval_flatten))
+    rts = np.hstack((rrt_audio_beat_flatten,
+                     rrt_audio_interval_flatten,
+                     rrt_visual_beat_flatten,
+                     rrt_visual_interval_flatten))
 
     # ## Standards column
     trial_standards = np.repeat(
@@ -240,10 +273,11 @@ def long_dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
     sessions_col = np.repeat(sesstag, len(asynchronies))
 
     # ## Build tables and dataframes
-    table = np.vstack((asynchronies, standards_col, subjects_col,
+    table = np.vstack((asynchronies, rts, standards_col, subjects_col,
                        modalities_col, conditions_col, sessions_col)).T
 
-    df = pd.DataFrame(table, columns=['Asynchronies', 'Standard', 'Subject',
+    df = pd.DataFrame(table, columns=['Asynchronies', 'Response Times',
+                                      'Standard', 'Subject',
                                       'Modality', 'Condition', 'Session'])
     # df['Asynchronies'] = df['Asynchronies'].apply(pd.to_numeric)
 
@@ -283,12 +317,12 @@ def long_dataframe(sync_audio_beat, sync_audio_interval, sync_visual_beat,
 N_TRIALS = 30
 
 # ### For 'All Sessions' ###
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-            44, 45, 46, 47]
-SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSIONS = None
-tag = 'allses'
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSIONS = None
+# tag = 'allses'
 
 # ### For first behav session: 'ses-01' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -322,11 +356,11 @@ tag = 'allses'
 # tag = 'ses-04'
 
 # ### For second img session: 'ses-05' ###
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-# SESSTYPES = ['imaging_session']
-# SESSIONS = ['ses-02']
-# tag = 'ses-05'
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SESSTYPES = ['imaging_session']
+SESSIONS = ['ses-02']
+tag = 'ses-05'
 
 # %%
 # ========================= PARAMETERS =================================
@@ -343,8 +377,10 @@ if __name__ == "__main__":
         os.mkdir(RESULTS_FOLDER)
 
     # Compute asynchronies
-    ssync_audio_beat, ssync_audio_interval, ssync_visual_beat, \
-        ssync_visual_interval, standards = isi_async(
+    ssync_audio_beat, ssync_audio_interval, \
+        ssync_visual_beat, ssync_visual_interval, \
+        rt_audio_beat, rt_audio_interval, \
+        rt_visual_beat, rt_visual_interval, standards = isi_async(
             SUBJECTS, SESSTYPES, MAIN_DIR, 'signed', N_TRIALS,
             sessions=SESSIONS)
 
@@ -353,8 +389,14 @@ if __name__ == "__main__":
     rsized_ssync_audio_interval = resize_production_arr(ssync_audio_interval)
     rsized_ssync_visual_beat = resize_production_arr(ssync_visual_beat)
     rsized_ssync_visual_interval = resize_production_arr(ssync_visual_interval)
+    rsized_rt_audio_beat = resize_production_arr(rt_audio_beat)
+    rsized_rt_audio_interval = resize_production_arr(rt_audio_interval)
+    rsized_rt_visual_beat = resize_production_arr(rt_visual_beat)
+    rsized_rt_visual_interval = resize_production_arr(rt_visual_interval)
 
     # Build and save dataframe in the long format
     long_dataframe(rsized_ssync_audio_beat, rsized_ssync_audio_interval,
                    rsized_ssync_visual_beat, rsized_ssync_visual_interval,
+                   rsized_rt_audio_beat, rsized_rt_audio_interval,
+                   rsized_rt_visual_beat, rsized_rt_visual_interval,
                    standards, SUBJECTS, RESULTS_FOLDER, tag)
