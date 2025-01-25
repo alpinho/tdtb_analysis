@@ -80,16 +80,15 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % List of all subjects
-subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
 % subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-% subj_n = [3];
-
-% SUIT: missing 4, 29 and 40 onwards
+subj_n = [4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -700,13 +699,17 @@ switch what
             
             run = {};
             
-            [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
+            [raw_sestag, preproc_sestag, raw_sesrun, preproc_sesrun] = ...
+                datamap(subj_str{s});
             
-            for ses = 1:length(preproc_sestag)
+            for ses = 1:length(raw_sestag)
+                funcraw_folder = fullfile(base_dir, raw_dir, ...
+                    subj_str{s}, ...
+                    convertStringsToChars(raw_sestag{ses}), ...
+                    func_dir);
                 
-                fmapderiv_folder = fullfile(deriv_subjdir, ...
-                    convertStringsToChars(preproc_sestag{ses}), fmap_dir);
-                
+                rawtag = sprintf('%s_%s', subj_str{s}, ...
+                    raw_sestag{ses});                
                 preproctag = sprintf('%s_%s', subj_str{s}, ...
                     preproc_sestag{ses});
                 
@@ -715,12 +718,20 @@ switch what
                     folder(localscratch);
                 end
 
-                for r=1:length(preproc_sesrun{ses})
+                for r=1:length(raw_sesrun{ses})
                     % Copy EPI files to localscratch
-                    func_fname = sprintf('%s_%s_bold.nii', ...
+                    func_raw_fname = sprintf('%s_%s_bold.nii', ...
+                        rawtag, raw_sesrun{ses}{r});
+                    func_raw_file = fullfile(funcraw_folder, ...
+                        [func_raw_fname '.gz']);
+                    
+                    % Gunzip EPI files and rename them in localscratch ...
+                    % ... to be loaded by SPM
+                    gunzip(func_raw_file, localscratch);
+                    func_preproc_fname = sprintf('%s_%s_bold.nii', ...
                         preproctag, preproc_sesrun{ses}{r});
-                    func_file = fullfile(fmapderiv_folder, func_fname);
-                    copyfile(func_file, localscratch);
+                    movefile(fullfile(localscratch, func_raw_fname), ...
+                        fullfile(localscratch, func_preproc_fname));
                     
                     run{ses}{r} = [...
                         convertStringsToChars(preproc_sestag{ses}), '_', ...
@@ -760,6 +771,188 @@ switch what
             if any(size(dir([localscratch '/*.nii']), 1))
                 delete([localscratch '/*.nii']);
             end
+        end % s (sn)
+        
+    case 'FUNC:calculate_vdm' % Make fieldmap
+        
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
+        sn = subj_id;
+        magnumber=1;
+        epi_prefix = '';
+        vararginoptions(varargin,{'sn'});
+        for s = sn
+            [raw_sestag, preproc_sestag, ~, preproc_sesrun] = ...
+                datamap(subj_str{s});
+            
+            for ses = 1:length(raw_sestag)
+                funcderiv_folder = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, ...
+                    convertStringsToChars(preproc_sestag{ses}), ...
+                    func_dir);
+                fmapraw_folder = fullfile(base_dir, raw_dir, ...
+                    subj_str{s}, ...
+                    convertStringsToChars(raw_sestag{ses}), ...
+                    fmap_dir);
+                fmapderiv_folder = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, ...
+                    convertStringsToChars(preproc_sestag{ses}), ...
+                    fmap_dir);
+                
+                rawtag = sprintf('%s_%s', subj_str{s}, ...
+                    raw_sestag{ses});
+                preproctag = sprintf('%s_%s', subj_str{s}, ...
+                    preproc_sestag{ses});
+                
+                mag_fname = sprintf('%s_magnitude1.nii', rawtag);
+                phase_fname = sprintf('%s_phasediff.nii', rawtag);
+                
+                magnitude = fullfile(fmapraw_folder, [mag_fname '.gz']);
+                phasediff = fullfile(fmapraw_folder, [phase_fname '.gz']);
+                
+                % Unzip magnitude and phase files to be loaded by SPM
+                gunzip(magnitude, localscratch);
+                gunzip(phasediff, localscratch);
+
+                % Create/update destination folders
+                folder(fmapderiv_folder);
+                
+                % Move gunzipped magnitude and phase files to ...
+                % ... destination folder and rename session tag ...
+                % ... from one to two digits, if that is the case
+                movefile(fullfile(localscratch, mag_fname), ...
+                    fullfile(fmapderiv_folder, ...
+                    sprintf('%s_magnitude1.nii', preproctag)));
+                movefile(fullfile(localscratch, phase_fname), ...
+                    fullfile(fmapderiv_folder, ...
+                    sprintf('%s_phasediff.nii', preproctag)));
+ 
+                % Copy EPI files w/ the realignment already estimated to...
+                % ... fmap dir
+                for r=1:length(preproc_sesrun{ses})
+                    func_files = sprintf(...
+                        '%s_%s_bold.nii', preproctag, preproc_sesrun{ses}{r});
+                    func_data = fullfile(funcderiv_folder, func_files);
+                    
+                    % Move files
+                    copyfile(func_data, fullfile(fmapderiv_folder, ...
+                        sprintf('%s_%s_bold.nii', preproctag, ...
+                        preproc_sesrun{ses}{r})));
+                end                
+
+                % Load SPM Batch
+                if strcmp(subj_str{s}, 'sub-18')
+                    spmja_makefieldmap(fmapderiv_folder, preproctag, ...
+                        preproc_sesrun{ses}, 'prefix', epi_prefix, ...
+                        'regularization', 0.03);
+                else
+                    spmja_makefieldmap(fmapderiv_folder, preproctag, ...
+                        preproc_sesrun{ses}, 'prefix', epi_prefix);
+                end
+                
+                % Add task tag to fieldmap files
+                for r=1:length(preproc_sesrun{ses})
+                    movefile([fmapderiv_folder '/vdm5_sc' preproctag ...
+                        '_phasediff_run' num2str(r, '%d') '.nii'], ...
+                        fullfile(fmapderiv_folder, ['vdm5_sc' preproctag ...
+                        '_phasediff_' ...
+                        preproc_sesrun{ses}{r} '.nii']));
+                end
+                
+                % Rename and move postscript file
+                psfiles(fmapderiv_folder, 'fieldmap')
+                
+                % Delete unziped raw files from localscratch
+                if any(size(dir([localscratch '/*.nii']), 1))
+                    delete([localscratch '/*.nii']);
+                end
+                
+            end % ses (length(raw_sestag))
+        end % s (sn)
+        
+    case 'FUNC:apply_vdm'
+        spm_figure('GetWin','Graphics'); % create SPM .ps file at the end
+        
+        sn   = subj_id; % list of subjects
+        prefix = '';
+        vararginoptions(varargin,{'sn'});
+        
+        for s = sn
+                   
+            deriv_subjdir = fullfile(base_dir, derivatives_dir, subj_str{s});
+            
+            run = {};
+            
+            [~, preproc_sestag, ~, preproc_sesrun] = datamap(subj_str{s});
+            
+            for ses = 1:length(preproc_sestag)
+                funcderiv_folder = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, ...
+                    convertStringsToChars(preproc_sestag{ses}), ...
+                    func_dir);
+                fmapderiv_folder = fullfile(deriv_subjdir, ...
+                    convertStringsToChars(preproc_sestag{ses}), fmap_dir);
+                
+                preproctag = sprintf('%s_%s', subj_str{s}, ...
+                    preproc_sestag{ses});
+                
+                % Empty localscratch
+                if ses == 1
+                    folder(localscratch);
+                end
+
+                for r=1:length(preproc_sesrun{ses})
+                    % Copy EPI files to localscratch
+                    func_fname = sprintf('%s_%s_bold.nii', ...
+                        preproctag, preproc_sesrun{ses}{r});
+                    func_file = fullfile(funcderiv_folder, func_fname);
+                    copyfile(func_file, localscratch);
+                    % Copy fieldmap files to localscratch
+                    fmap_fname = sprintf('vdm5_sc%s_phasediff_%s.nii', ...
+                        preproctag, preproc_sesrun{ses}{r});
+                    fmap_file = fullfile(fmapderiv_folder, fmap_fname);
+                    copyfile(fmap_file, localscratch);
+                    
+                    run{ses}{r} = [...
+                        convertStringsToChars(preproc_sestag{ses}), '_', ...
+                        convertStringsToChars(preproc_sesrun{ses}{r})];                    
+                end % r (length(raw_sesrun{ses}))
+            end % ses (ses_id)
+            
+            run = horzcat(run{:});           
+            % Load batch and run spm
+            spma_applyvdm(localscratch, subj_str{s}, run, 1, Inf);
+        
+            for ses = 1:length(preproc_sestag)
+                func_deriv_folder = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, ...
+                    convertStringsToChars(preproc_sestag{ses}), ...
+                    func_dir);
+                % Move files from localscratch to destination folder
+                if ses == 1
+                    % Delete previous mean-unwarped EPI file from
+                    % destination folder
+                    delete(fullfile(func_deriv_folder, 'meanu*.nii'))
+                    % Move mean-unwarped EPI file
+                    movefile([localscratch '/meanu' subj_str{s} ...
+                        '_ses-01_task-prod_run-01_bold.nii'], ...
+                        func_deriv_folder);
+                end
+                
+                % Delete previous unwarped EPI files from destination folder
+                delete(fullfile(func_deriv_folder, 'u*.nii'))
+
+                % Move unwarped images
+                movefile([localscratch '/u' subj_str{s} '_' ...
+                    convertStringsToChars(preproc_sestag{ses}) ...
+                    '_task-*_run-*_bold*'], func_deriv_folder);
+            end % ses (ses_id)
+            
+            % Delete unziped raw files from localscratch
+            if any(size(dir([localscratch '/*.nii']), 1))
+                delete([localscratch '/*.nii']);
+            end
+            
         end % s (sn)
         
     case 'FUNC:make_fieldmap' % Make fieldmap
@@ -827,7 +1020,7 @@ switch what
                         '%s_%s_bold.nii', rawtag, raw_sesrun{ses}{r});
                     func_data = fullfile(funcraw_folder, [func_files '.gz']);
                     
-                    % Gunzip EPI files to be loaded by SPM
+                    % Gunzip EPI files in localscratch to be loaded by SPM
                     gunzip(func_data, localscratch);
                     
                     % Move files
@@ -867,7 +1060,7 @@ switch what
                 end
                 
             end % ses (length(raw_sestag))
-        end % s (sn)
+        end % s (sn)           
 
     case 'FUNC:realign_unwarp' % realign functional images
         % SPM realigns all volumes to the first volume of first run
@@ -1181,13 +1374,18 @@ switch what
     case 'FUNC:run_all'
         % Example usage: msdtb_imana('FUNC:run_all')
         
-        msdtb_imana('FUNC:make_fieldmap')
-        msdtb_imana('FUNC:realign_unwarp')
-        msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
-        msdtb_imana('FUNC:make_samealign', 'prefix', '')
-        msdtb_imana('FUNC:make_maskImage', 'prefix', '')
-        msdtb_imana('FUNC:mask_normalization')
-        msdtb_imana('GROUP:mask')
+%         msdtb_imana('FUNC:make_fieldmap')
+%         msdtb_imana('FUNC:realign_unwarp')
+        
+        msdtb_imana('FUNC:realign_estimate')
+        msdtb_imana('FUNC:calculate_vdm')
+        msdtb_imana('FUNC:apply_vdm')
+        
+%         msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
+%         msdtb_imana('FUNC:make_samealign', 'prefix', '')
+%         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
+%         msdtb_imana('FUNC:mask_normalization')
+%         msdtb_imana('GROUP:mask')
 
     case 'GLM:copy_paradigm-descriptors'
         % Example usage: msdtb_imana('GLM:copy_paradigm-descriptors', ...
