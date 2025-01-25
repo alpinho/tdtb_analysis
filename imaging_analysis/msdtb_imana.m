@@ -87,7 +87,7 @@ wb_dir   = 'surfaceWB';
 % subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-subj_n = [4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+subj_n = [10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 subj_id = 1:length(subj_n);
@@ -730,8 +730,10 @@ switch what
                     gunzip(func_raw_file, localscratch);
                     func_preproc_fname = sprintf('%s_%s_bold.nii', ...
                         preproctag, preproc_sesrun{ses}{r});
-                    movefile(fullfile(localscratch, func_raw_fname), ...
-                        fullfile(localscratch, func_preproc_fname));
+                    if ~strcmp(func_raw_fname, func_preproc_fname)
+                        movefile(fullfile(localscratch, func_raw_fname), ...
+                            fullfile(localscratch, func_preproc_fname));
+                    end
                     
                     run{ses}{r} = [...
                         convertStringsToChars(preproc_sestag{ses}), '_', ...
@@ -1378,8 +1380,8 @@ switch what
 %         msdtb_imana('FUNC:realign_unwarp')
         
         msdtb_imana('FUNC:realign_estimate')
-        msdtb_imana('FUNC:calculate_vdm')
-        msdtb_imana('FUNC:apply_vdm')
+%         msdtb_imana('FUNC:calculate_vdm')
+%         msdtb_imana('FUNC:apply_vdm')
         
 %         msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
 %         msdtb_imana('FUNC:make_samealign', 'prefix', '')
