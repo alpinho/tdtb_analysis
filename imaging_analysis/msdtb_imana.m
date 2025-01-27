@@ -87,8 +87,7 @@ wb_dir   = 'surfaceWB';
 % subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-subj_n = [10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+subj_n = [43];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -707,33 +706,43 @@ switch what
                     subj_str{s}, ...
                     convertStringsToChars(raw_sestag{ses}), ...
                     func_dir);
+                funcderiv_folder = fullfile(base_dir, derivatives_dir, ...
+                    subj_str{s}, ...
+                    convertStringsToChars(preproc_sestag{ses}), ...
+                    func_dir);
                 
                 rawtag = sprintf('%s_%s', subj_str{s}, ...
                     raw_sestag{ses});                
                 preproctag = sprintf('%s_%s', subj_str{s}, ...
                     preproc_sestag{ses});
                 
-                % Empty localscratch
+                % Empty localscratch and functional derivatives folder
                 if ses == 1
                     folder(localscratch);
+                    folder(funcderiv_folder);
                 end
 
+                % This 'for loop' routine has to be done in this order, i.e.
+                % gunzip in one folder and then rename in another and not in 
+                % the opposite direction in order to avoid problems when 
+                % renaming files, as for instance in sub-43 ses-03, ntfd run 1 
+                % is renamed into run-02 when the original run-02 has not been 
+                % renamed yet.
                 for r=1:length(raw_sesrun{ses})
-                    % Copy EPI files to localscratch
                     func_raw_fname = sprintf('%s_%s_bold.nii', ...
                         rawtag, raw_sesrun{ses}{r});
                     func_raw_file = fullfile(funcraw_folder, ...
                         [func_raw_fname '.gz']);
-                    
-                    % Gunzip EPI files and rename them in localscratch ...
-                    % ... to be loaded by SPM
-                    gunzip(func_raw_file, localscratch);
                     func_preproc_fname = sprintf('%s_%s_bold.nii', ...
                         preproctag, preproc_sesrun{ses}{r});
-                    if ~strcmp(func_raw_fname, func_preproc_fname)
-                        movefile(fullfile(localscratch, func_raw_fname), ...
-                            fullfile(localscratch, func_preproc_fname));
-                    end
+                    
+                    % Gunzip EPI in functional derivatives folder
+                    gunzip(func_raw_file, funcderiv_folder);
+
+                    % Move gunzipped EPI files to localscratch with ...
+                    % renamed session tag whenever necessary
+                    movefile(fullfile(funcderiv_folder, func_raw_fname), ...
+                        fullfile(localscratch, func_preproc_fname));
                     
                     run{ses}{r} = [...
                         convertStringsToChars(preproc_sestag{ses}), '_', ...
@@ -750,13 +759,12 @@ switch what
                 % Set path of the derivatives folder
                 func_deriv_folder = fullfile(base_dir, derivatives_dir, ...
                     subj_str{s}, preproc_sestag{ses}, func_dir);
-                % Create/update destination folder
-                folder(func_deriv_folder);
                 % Move files from localscratch to destination folder
                 if ses == 1
                     % Rename and move postscript file 
                     psfiles(func_deriv_folder, 'realignestimate')
                 end
+                
                 % Move motion-param .txt files
                 movefile([localscratch '/rp_' subj_str{s} '_' ...
                     convertStringsToChars(preproc_sestag{ses}) ...
@@ -767,6 +775,7 @@ switch what
                 movefile([localscratch '/' subj_str{s} '_' ...
                     convertStringsToChars(preproc_sestag{ses}) ...
                     '_task-*_run-*_bold*'], func_deriv_folder);
+
             end % ses (ses_id)
             
             % Delete unziped raw files from localscratch
@@ -1025,9 +1034,15 @@ switch what
                     % Gunzip EPI files in localscratch to be loaded by SPM
                     gunzip(func_data, localscratch);
                     
-                    % Move files
+                    % Move files to fmapderiv
                     % Rename EPI files if session tag or task-run number
                     % are not equal to their corresponding defaults
+                    % Note: This has to be done in this order, i.e.
+                    % gunzip in one folder and then rename in another and not in 
+                    % the opposite direction in order to avoid problems when 
+                    % renaming files, as for instance in sub-43 ses-03, ntfd run 1 
+                    % is renamed into run-02 when the original run-02 has not been 
+                    % renamed yet.
                     movefile(fullfile(localscratch, func_files), ...
                         fullfile(fmapderiv_folder, ...
                         sprintf('%s_%s_bold.nii', ...
