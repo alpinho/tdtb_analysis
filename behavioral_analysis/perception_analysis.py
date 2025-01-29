@@ -5,9 +5,9 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: September 2024
+Last update: January 2025
 
-Compatibility: Python 3.10.4
+Compatibility: Python 3.10.14
 """
 
 import sys
@@ -28,7 +28,7 @@ from statsmodels.stats.multicomp import pairwise_tukeyhsd
 # setting path
 sys.path.append('../')
 # importing
-from utils import parse_logfile
+from utils import parse_logfile, filter_trialtype
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)

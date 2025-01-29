@@ -98,6 +98,29 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
     return allsessions
 
 
+def filter_trialtype(trs, category):
+    beat = [tr[1:] for tr in trs if tr[0][:4] == 'beat']
+    interval = [tr[1:] for tr in trs if tr[0][:8] == 'interval']
+    random = [tr[1:] for tr in trs if tr[0][:6] == 'random']
+
+    if category in ['production', 'ntfd']:
+        0/0
+        beat = [list(map(int, b)) if ~np.any(np.isnan(b)) else b
+                for b in beat]
+        interval = [list(map(int, i)) if ~np.any(np.isnan(i)) else i
+                    for i in interval]
+        if random:
+            random = [list(map(int, r)) if ~np.any(np.isnan(r)) else r
+                      for r in random]
+        0/0
+    else:
+        assert category == 'perception'
+        beat = [[int(b[0]), int(b[1]), b[2]] for b in beat]
+        interval = [[int(i[0]), int(i[1]), i[2]] for i in interval]
+
+    return beat, interval, random
+
+
 def adjacent_values(vals, q1, q3):
     vals.sort()
     upper_adjacent_value = q3 + (q3 - q1) * 1.5
