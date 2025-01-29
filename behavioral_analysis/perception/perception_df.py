@@ -56,14 +56,14 @@ def perception_data(data):
 
 def create_dataframe(
         subjects, this_dir, output_dir, sesstype, n_trials, sesstag,
-        estimator='mle_expit', sessions=None,
+        n_columns, estimator='mle_expit', sessions=None,
         tasks = ['Auditory Perception', 'Visual Perception']):
 
     logfiles_dir = os.path.join(
         os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
         'logfiles')
 
-    trials_arr = np.empty((0, 7))
+    trials_arr = np.empty((0, n_columns))
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Perception', 'Visual Perception']:
@@ -180,6 +180,5 @@ if __name__ == "__main__":
         os.mkdir(RESULTS_FOLDER)
 
     create_dataframe(
-        SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS, tag,
-        sessions=SESSIONS,
-        tasks=['Auditory Perception', 'Visual Perception'])
+        SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS, tag, 7,
+        sessions=SESSIONS, tasks=['Auditory Perception', 'Visual Perception'])
