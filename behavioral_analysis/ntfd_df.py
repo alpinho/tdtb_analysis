@@ -6,9 +6,9 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: May 2024
+Last update: January, 2025
 
-Compatibility: Python 3.10.8
+Compatibility: Python 3.10.14
 """
 
 import sys
@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # setting path
 sys.path.append('../')
 # importing
-from utils import parse_logfile
+from utils import parse_logfile, filter_trialtype
 
 import numpy as np
 import pandas as pd
@@ -44,27 +44,6 @@ def ntfd_data(data):
             trials.append([condition, theoretical_isi1, rt])
 
     return trials
-
-
-def filter_trialtype(trs, category):
-    beat = [tr[1:] for tr in trs if tr[0][:4] == 'beat']
-    interval = [tr[1:] for tr in trs if tr[0][:8] == 'interval']
-    random = [tr[1:] for tr in trs if tr[0][:6] == 'random']
-
-    if category in ['production', 'ntfd']:
-        beat = [list(map(int, b)) if ~np.any(np.isnan(b)) else b
-                for b in beat]
-        interval = [list(map(int, i)) if ~np.any(np.isnan(i)) else i
-                    for i in interval]
-        if random:
-            random = [list(map(int, r)) if ~np.any(np.isnan(r)) else r
-                      for r in random]
-    else:
-        assert category == 'perception'
-        beat = [[int(b[0]), int(b[1]), b[2]] for b in beat]
-        interval = [[int(i[0]), int(i[1]), i[2]] for i in interval]
-
-    return beat, interval, random
 
 
 def success_trialtype_filter(data):
