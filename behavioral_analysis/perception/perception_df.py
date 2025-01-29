@@ -18,17 +18,10 @@ import warnings
 import numpy as np
 import pandas as pd
 
-import pingouin as pg
-from scipy import stats, optimize, special
-from matplotlib import pyplot as plt
-from matplotlib.patches import ConnectionPatch
-from statsmodels.stats.anova import AnovaRM
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-
 # setting path
-sys.path.append('../')
+sys.path.append('../../')
 # importing
-from utils import parse_logfile, filter_trialtype
+from utils import parse_logfile
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -67,7 +60,8 @@ def create_dataframe(
         tasks = ['Auditory Perception', 'Visual Perception']):
 
     logfiles_dir = os.path.join(
-        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+        os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
+        'logfiles')
 
     trials_arr = np.empty((0, 7))
     for s, subject in enumerate(subjects):
@@ -90,7 +84,7 @@ def create_dataframe(
         'Reaction Time'])
 
     # Save dataframe
-    outpath = os.path.join(output_dir, 'df_production_' + sesstag + '.tsv')
+    outpath = os.path.join(output_dir, 'df_perception_' + sesstag + '.tsv')
     df.to_csv(outpath, index=False, sep='\t')
 
 
@@ -119,12 +113,12 @@ def create_dataframe(
 N_TRIALS = 30
 
 # ### For 'All Sessions' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSIONS = None
-# tag = 'allses'
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47]
+SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSIONS = None
+tag = 'allses'
 
 # ### For first behav session: 'ses-01' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -158,11 +152,11 @@ N_TRIALS = 30
 # tag = 'ses-04'
 
 # ### For second img session: 'ses-05' ###
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-SESSTYPES = ['imaging_session']
-SESSIONS = ['ses-02']
-tag = 'ses-05'
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-02']
+# tag = 'ses-05'
 
 sessions_dic = {'allses': 'All Sessions',
                 'ses-01': 'Session 1',
