@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # setting path
 sys.path.append('../../')
 # importing
-from utils import parse_logfile, filter_trialtype
+from utils import parse_logfile
 
 import numpy as np
 import pandas as pd
@@ -43,7 +43,7 @@ def production_data(data):
                 rt = np.nan
             else:
                 raise ValueError('No feedback entry!')
-            trials.append([condition, theoretical_isi1, real_isi1, rt])
+            trials.append([condition[:-2], theoretical_isi1, real_isi1, rt])
 
     return trials
 
@@ -76,24 +76,31 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             data = parse_logfile(logfiles_dir, subject, sesstype, task,
                                  n_trials, sessions=sessions)
             trials = production_data(data)
-            beat_trials, interval_trials, _ = filter_trialtype(
-                trials, 'production')
+
+            # Get beat and interval trials to stack them later in groups
+            # of beat and interval trials
+            beat_trials = np.array([
+                tr for tr in trials if tr[0][:4] == 'beat'], dtype=object)
+            interval_trials = np.array([
+                tr for tr in trials if tr[0][:8] == 'interval'], dtype=object)
 
             # Removing the third element (real standard) from each row
-            beat_trials = np.delete(beat_trials, 1, axis=1)
-            interval_trials = np.delete(interval_trials, 1, axis=1)
+            beat_trials = np.delete(beat_trials, 2, axis=1)
+            interval_trials = np.delete(interval_trials, 2, axis=1)
 
             # Compute asynchronies, but return NaN if any value in...
             # ... the row is NaN
+            beat_numeric = beat_trials[:, 1:].astype(float)
+            interval_numeric = interval_trials[:, 1:].astype(float)
             with np.errstate(invalid='ignore'):  # Avoid warnings for NaN operations
                 ss_beat = np.where(
-                    np.isnan(beat_trials).any(axis=1), np.nan,
-                    np.round((beat_trials[:, 1] - beat_trials[:, 0]) /
-                             beat_trials[:, 0], 2))
+                    np.isnan(beat_numeric).any(axis=1), np.nan,
+                    np.round((beat_numeric[:, 1] - beat_numeric[:, 0]) /
+                             beat_numeric[:, 0], 2))
                 ss_interval = np.where(
-                    np.isnan(interval_trials).any(axis=1), np.nan,
-                    np.round((interval_trials[:, 1] - interval_trials[:, 0]) /
-                             interval_trials[:, 0], 2))
+                    np.isnan(interval_numeric).any(axis=1), np.nan,
+                    np.round((interval_numeric[:, 1] - interval_numeric[:, 0]) /
+                             interval_numeric[:, 0], 2))
 
             # Append asynchronies as the last elements of the row
             beat_trials = np.hstack((beat_trials,
@@ -102,16 +109,17 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             interval_trials = np.hstack((interval_trials,
                                          ss_interval.reshape(-1, 1)
                                          ))
-            
-            smb = np.array([subject, task.partition(' ')[0].lower(), 'beat'])
+
+            # Append trial info as first elements of the row
+            smb = np.array([subject, task.partition(' ')[0].lower()])
             smb_col = np.tile(smb, (beat_trials.shape[0], 1))
             table_beat = np.hstack((smb_col, beat_trials))
 
-            smi = np.array([subject, task.partition(' ')[0].lower(),
-                            'interval'])
+            smi = np.array([subject, task.partition(' ')[0].lower()])
             smi_col = np.tile(smi, (interval_trials.shape[0], 1))
             table_interval = np.hstack((smi_col, interval_trials))
-            
+
+            # Stack
             trials_arr = np.vstack((trials_arr, table_beat))
             trials_arr = np.vstack((trials_arr, table_interval))
 
@@ -149,7 +157,7 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 N_TRIALS = 30
 
 # ### For 'All Sessions' ###
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+sSUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
             44, 45, 46, 47]
 SESSTYPES = ['behavioral_session', 'imaging_session']
