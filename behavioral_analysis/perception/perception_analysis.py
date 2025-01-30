@@ -26,9 +26,9 @@ from statsmodels.stats.anova import AnovaRM
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 # setting path
-sys.path.append('../')
+sys.path.append('../../')
 # importing
-from utils import parse_logfile, filter_trialtype
+from utils import parse_logfile
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -208,10 +208,13 @@ def outliers(arr):
 def individual_perception(
         subjects, this_dir, output_dir, sesstype, condition, n_trials, sesstag,
         estimator='mle_expit', sessions=None,
-        tasks = ['Auditory Perception', 'Visual Perception']):
+        modalities=['auditory', 'visual']):
 
-    logfiles_dir = os.path.join(
-        os.path.abspath(os.path.join(this_dir, os.pardir)), 'logfiles')
+    dfs_path = os.path.join(
+        os.path.abspath(
+        os.path.join(this_dir, 'perception_results', 'raw_dataframes')),
+        'df_perception_' + tag + '.tsv')
+    df = pd.read_csv(dfs_path, sep='\t')
 
     all_rf1_audio = []
     all_rf2_audio = []
@@ -222,49 +225,70 @@ def individual_perception(
     all_pse_visual = []
     all_dl_visual = []
     for s, subject in enumerate(subjects):
-        for t, task in enumerate(tasks):
-            if task not in ['Auditory Perception', 'Visual Perception']:
-                raise NameError('Task not valid!')
+        for m, modality in enumerate(modalities):
+            if modality not in ['auditory', 'visual']:
+                raise NameError('Modality not valid!')
 
-            data = parse_logfile(logfiles_dir, subject, sesstype, task,
-                                 n_trials, sessions=sessions)
-            trials = perception_data(data)
-            beat_trials, interval_trials, _ = filter_trialtype(trials,
-                                                               'perception')
+            beat_trials = df[
+                (df['Subject'] == subject) &
+                (df['Modality'] == modality) &
+                (df['Condition'] == 'beat')][[
+                    'Standard', 'Comparison', 'Answer']].values.tolist()
+            interval_trials = df[
+                (df['Subject'] == subject) &
+                (df['Modality'] == modality) &
+                (df['Condition'] == 'interval')][[
+                    'Standard', 'Comparison', 'Answer']].values.tolist()
 
+            # Filtering rows where Comparison / Standard is approximately 0.12
+            filtered_df = df[
+                (df['Subject'] == subject) &
+                (df['Modality'] == modality) &
+                (df['Standard'] == 459)][
+                round(((df['Comparison'] - df['Standard']) / df['Standard']),
+                      2) == .2]
+            
+            # Count the number of trials
+            total_beat_trials = filtered_df[
+                (filtered_df['Condition'] == 'beat')].shape[0]
+            total_interval_trials = filtered_df[
+                (filtered_df['Condition'] == 'interval')].shape[0]
+            
             if condition == 'beat':
-            # Calculate frequencies of comparisons per standard
+                # Calculate frequencies of comparisons per standard
                 standards, comparisons, n1_beat, n2_beat, _, _ = \
                     perception_frequencies(beat_trials, interval_trials)
 
-                rf1 = [[n1/8 for n1 in n1b] for n1b in n1_beat]
-                rf2 = [[n2/8 for n2 in n2b] for n2b in n2_beat]
+                rf1 = [[n1/total_beat_trials for n1 in n1b] for n1b in n1_beat]
+                rf2 = [[n2/total_beat_trials for n2 in n2b] for n2b in n2_beat]
             else:
                 assert condition == 'interval'
                 standards, comparisons, _, _, n1_interval, n2_interval = \
                     perception_frequencies(beat_trials, interval_trials)
 
-                rf1 = [[n1/8 for n1 in n1i] for n1i in n1_interval]
-                rf2 = [[n2/8 for n2 in n2i] for n2i in n2_interval]
+                rf1 = [[n1/total_interval_trials for n1 in n1i]
+                       for n1i in n1_interval]
+                rf2 = [[n2/total_interval_trials for n2 in n2i]
+                       for n2i in n2_interval]
 
             # Aggregate data
-            if task == 'Auditory Perception':
+            if modality == 'auditory':
                 all_rf1_audio.append(rf1)
                 all_rf2_audio.append(rf2)
             else:
-                assert task == 'Visual Perception'
+                assert modality == 'visual'
                 all_rf1_visual.append(rf1)
                 all_rf2_visual.append(rf2)
 
             # ################## Plotting ###############################
             colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
                       'tab:purple']
-            if s == 0 and t == 0:
+            if s == 0 and m == 0:
                 fig = plt.figure(figsize=(16, 100))
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.1 + t*.46, .9685 - s*.023, .428, .0125])
+            ax = plt.axes([.1 + m*.46, .9685 - s*.023, .428, .0125])
 
             std_pse_audio = []
             std_dl_audio = []
@@ -303,11 +327,11 @@ def individual_perception(
                 ci95_dl = se_dl * 1.96
 
                 # Append
-                if task == 'Auditory Perception':
+                if modality == 'auditory':
                     std_pse_audio.append(pse)
                     std_dl_audio.append(dl)
                 else:
-                    assert task == 'Visual Perception'
+                    assert modality == 'visual'
                     std_pse_visual.append(pse)
                     std_dl_visual.append(dl)
 
@@ -344,13 +368,13 @@ def individual_perception(
 
             # Add legend
             if s == 0:
-                if t == 0:
+                if m == 0:
                     ax.legend(loc='lower right', frameon=False,
                               prop={'size': 6})
                     ax.set_title('Auditory Perception', weight='bold', pad=60,
                                  fontsize=16)
                 else:
-                    assert t == 1
+                    assert m == 1
                     ax.set_title('Visual Perception', weight='bold', pad=60,
                                  fontsize=16)
 
@@ -361,11 +385,11 @@ def individual_perception(
                      fontsize=14, rotation=90)
 
             # Append
-            if task == 'Auditory Perception':
+            if modality == 'auditory':
                 all_pse_audio.append(std_pse_audio)
                 all_dl_audio.append(std_dl_audio)
             else:
-                assert task == 'Visual Perception'
+                assert modality == 'visual'
                 all_pse_visual.append(std_pse_visual)
                 all_dl_visual.append(std_dl_visual)
 
@@ -1021,10 +1045,10 @@ if __name__ == "__main__":
             # Compute individual psychometric functions
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
-                    individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
-                                          SESSTYPES, cond, N_TRIALS, tag,
-                                          estimator=estimator,
-                                          sessions=SESSIONS)
+                individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
+                                      SESSTYPES, cond, N_TRIALS, tag,
+                                      estimator=estimator,
+                                      sessions=SESSIONS)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
