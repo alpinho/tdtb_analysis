@@ -2,7 +2,9 @@
 *.asv
 *.png
 behavioral_analysis/production_results
-behavioral_analysis/perception/perception_results
+behavioral_analysis/perception/production_results/ancova/plots
+behavioral_analysis/perception/perception_results/dataframes
+perception/perception_results/anovas/twoway/
 behavioral_analysis/ntfd_results
 imaging_analysis/events
 imaging_analysis/events_drbb

@@ -1,5 +1,6 @@
 """
-Analysis of behavioral data for the Perception Tasks of the Music-SDTB project
+Create dataframe of raw data from Perception Tasks of the
+Music-SDTB project
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
@@ -54,10 +55,10 @@ def perception_data(data):
     return trials
 
 
-def create_dataframe(
-        subjects, this_dir, output_dir, sesstype, n_trials, sesstag,
-        n_columns, estimator='mle_expit', sessions=None,
-        tasks = ['Auditory Perception', 'Visual Perception']):
+def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
+                         sesstag, n_columns, sessions=None,
+                         estimator='mle_expit',
+                         tasks = ['Auditory Perception', 'Visual Perception']):
 
     logfiles_dir = os.path.join(
         os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
@@ -179,6 +180,5 @@ if __name__ == "__main__":
     if not os.path.exists(RESULTS_FOLDER):
         os.mkdir(RESULTS_FOLDER)
 
-    create_dataframe(
-        SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS, tag, 7,
-        sessions=SESSIONS, tasks=['Auditory Perception', 'Visual Perception'])
+    perception_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
+                         N_TRIALS, tag, 7, sessions=SESSIONS)
