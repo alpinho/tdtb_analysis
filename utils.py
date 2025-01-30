@@ -111,10 +111,6 @@ def filter_trialtype(trs, category):
         if random:
             random = [list(map(int, r)) if ~np.any(np.isnan(r)) else r
                       for r in random]
-    else:
-        assert category == 'perception'
-        beat = [[int(b[0]), int(b[1]), b[2]] for b in beat]
-        interval = [[int(i[0]), int(i[1]), i[2]] for i in interval]
 
     return beat, interval, random
 
