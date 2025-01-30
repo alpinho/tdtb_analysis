@@ -240,15 +240,13 @@ def individual_perception(
                 (df['Condition'] == 'interval')][[
                     'Standard', 'Comparison', 'Answer']].values.tolist()
 
-            # Filtering rows where Comparison / Standard is approximately 0.12
+            # Count the number of trials
             filtered_df = df[
                 (df['Subject'] == subject) &
                 (df['Modality'] == modality) &
                 (df['Standard'] == 459)][
                 round(((df['Comparison'] - df['Standard']) / df['Standard']),
                       2) == .2]
-            
-            # Count the number of trials
             total_beat_trials = filtered_df[
                 (filtered_df['Condition'] == 'beat')].shape[0]
             total_interval_trials = filtered_df[
