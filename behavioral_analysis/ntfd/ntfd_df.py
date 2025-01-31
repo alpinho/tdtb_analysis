@@ -1,0 +1,263 @@
+"""
+Parse logfiles and create dataframes for NTFD Tasks of the
+ Music-SDTB project
+
+author: Ana Luisa Pinho
+e-mail: agrilopi@uwo.ca
+
+Created: May 4, 2024
+Last update: January, 2025
+
+Compatibility: Python 3.10.14
+"""
+
+import sys
+import os
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# setting path
+sys.path.append('../../')
+# importing
+from utils import parse_logfile
+
+import numpy as np
+import pandas as pd
+
+# %%
+# ======================== MAIN FUNCTIONS ==============================
+
+
+def ntfd_data(data):
+    trials = []
+    for dt, datum in enumerate(data):
+        if datum[5] == 'feedback':
+            condition = datum[4]
+            stim = data[dt-1][5]
+            theoretical_isi1 = int(data[dt-2][8])
+            if datum[11] in ['o', 'p', 'b', 'y']:
+                rt = int(data[dt-1][7]) + int(datum[10])
+                answer = datum[11]
+            elif datum[10] == 'None':
+                rt = np.nan
+                answer = 'None'
+            else:
+                raise ValueError('No feedback entry!')
+            trials.append([condition[:-2], stim, theoretical_isi1, rt, answer])
+
+    return trials
+
+
+def success(trials, subject):
+    if subject == 4:
+        high_cir = ['o', 'y']
+        low_tri = ['p', 'b']
+    else:
+        high_cir = ['o', 'b']
+        low_tri = ['p', 'y']
+    scores = []
+    for trial in trials:
+        if trial[4] in high_cir and trial[1] in ['beep_880hz', 'circle']:
+            scores.append(1)
+        elif trial[4] in low_tri and trial[1] in ['beep_220hz', 'triangle']:
+            scores.append(1)
+        elif trial[4] == 'None':
+            scores.append(np.nan)
+        else:
+            scores.append(0)
+
+    return scores
+
+
+def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
+                   sesstag, n_columns, sessions=None,
+                   tasks=['Auditory No-Temporal Feature Discrimination',
+                          'Visual No-Temporal Feature Discrimination']):
+
+    logfiles_dir = os.path.join(
+        os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
+        'logfiles')
+
+    trials_arr = np.empty((0, n_columns))
+    for s, subject in enumerate(subjects):
+        for t, task in enumerate(tasks):
+            if task not in ['Auditory No-Temporal Feature Discrimination',
+                            'Visual No-Temporal Feature Discrimination']:
+                raise NameError('Task not valid!')
+
+            data = parse_logfile(logfiles_dir, subject, sesstype, task,
+                                 n_trials, sessions=sessions)
+            if subject == 2 and \
+               task == 'Visual No-Temporal Feature Discrimination':
+                data = data[:476]
+            trials = ntfd_data(data)
+            success_scores = success(trials, subject)
+
+            # Convert into array and presserve data types
+            trials = np.array(trials, dtype=object)
+            success_scores = np.array(success_scores, dtype=object)
+
+            # Remove stim element from trials
+            trials = np.delete(trials, 1, axis=1)
+
+            # Stack success_scores as the last column
+            trials_extended = np.column_stack((trials, success_scores))
+            
+            # Get beat, interval and random trials to stack them later in
+            # groups of beat, interval and random trials
+            beat_trials = np.array([
+                tr for tr in trials_extended if tr[0][:4] == 'beat'])
+            interval_trials = np.array([
+                tr for tr in trials_extended if tr[0][:8] == 'interval'])
+            random_trials = np.array([
+                tr for tr in trials_extended if tr[0][:6] == 'random'])
+
+            # Append trial info as first elements of the row
+            sm = np.array([subject, task.partition(' ')[0].lower()])
+            
+            smb_col = np.tile(sm, (beat_trials.shape[0], 1))
+            table_beat = np.hstack((smb_col, beat_trials))
+
+            smi_col = np.tile(sm, (interval_trials.shape[0], 1))
+            table_interval = np.hstack((smi_col, interval_trials))
+
+            # Stack
+            trials_arr = np.vstack((trials_arr, table_beat))
+            trials_arr = np.vstack((trials_arr, table_interval))
+
+            # Do the same for random trials if they exist
+            if random_trials.size != 0:
+                smr_col = np.tile(sm, (random_trials.shape[0], 1))
+                table_random = np.hstack((smr_col, random_trials))
+                trials_arr = np.vstack((trials_arr, table_random))
+
+    df = pd.DataFrame(trials_arr, columns=[
+        'Subject', 'Modality', 'Condition', 'Standard', 'Reaction Time',
+        'Answer', 'Score'])
+
+    # Save dataframe
+    outpath = os.path.join(output_dir, 'df_ntfd_' + sesstag + '.tsv')
+    df.to_csv(outpath, index=False, sep='\t', na_rep="NaN")
+
+
+# %%
+# =========================== INPUTS ===================================
+
+# ################## Note about subjects ###############################
+# All subjects
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
+#             40, 41, 42, 43, 44, 45, 46, 47]
+
+# All good subjects including img pilot (sub-04)
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
+#             44, 45, 46, 47]
+
+# Img subjects only
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# This set of subjects are those that for the behavioral experiments did
+# the NTFD with the Random Condition
+# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+#                  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 
+#                  47]
+# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 
+# 		   35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# #######################################################################
+
+# TASKS = ['Auditory No-Temporal Feature Discrimination',
+#          'Visual No-Temporal Feature Discrimination']
+
+# Total number of trials per run
+N_TRIALS = 30
+# Total number of trials per isi per condition (without random condition)...
+# ... across all runs of every behavioral sessions
+N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
+# Total number of trials per isi per condition (without random condition)...
+# ... across all runs of every imaging sessions
+N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
+
+# ### For 'All Sessions' ###
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47]
+SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSIONS = None
+tag = 'allses'
+
+# ### For first behav session: 'ses-01' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01']
+# tag = SESSIONS[0]
+
+# ### For second behav session: 'ses-02' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-02']
+# tag = SESSIONS[0]
+
+# ### For third behav session: 'ses-03' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-03']
+# tag = SESSIONS[0]
+
+# ### For first img session: 'ses-04' ###
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-01']
+# tag = 'ses-04'
+
+# ### For second img session: 'ses-05' ###
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SESSTYPES = ['imaging_session']
+# SESSIONS = ['ses-02']
+# tag = 'ses-05'
+
+
+# %%
+# ========================= PARAMETERS =================================
+
+MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results', 'dataframes')
+
+if SESSTYPES == ['behavioral_session', 'imaging_session']:
+    N_ISI_TRIALS = N_ISI_TRIALS_BEHAV + N_ISI_TRIALS_IMG
+elif SESSTYPES == ['behavioral_session']:
+    N_ISI_TRIALS = N_ISI_TRIALS_BEHAV
+else:
+    assert SESSTYPES == ['imaging_session']
+    N_ISI_TRIALS = N_ISI_TRIALS_IMG
+
+# %%
+# ============================ RUN =====================================
+
+if __name__ == "__main__":
+
+    if not os.path.exists(RESULTS_FOLDER):
+        os.mkdir(RESULTS_FOLDER)
+
+    # # Dataframe with beat and interval (i.e. no random) only for every isi
+    # ntfd_isi_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
+    #                    N_TRIALS, N_ISI_TRIALS, tag, sessions=SESSIONS)
+
+    # # Dataframe with ffx of beat, interval and random
+    # ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
+    #                tag, sessions=SESSIONS)
+
+    # Create dataframes
+    ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
+                   tag, 7, sessions=SESSIONS)
