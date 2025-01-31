@@ -138,8 +138,8 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                 trials_arr = np.vstack((trials_arr, table_random))
 
     df = pd.DataFrame(trials_arr, columns=[
-        'Subject', 'Session', 'Run', 'Modality', 'Condition', 'Standard',
-        'Reaction Time', 'Answer', 'Score'])
+        'subject', 'session', 'run', 'modality', 'condition', 'standard',
+        'reaction_time', 'answer', 'score'])
 
     # Save dataframe
     outpath = os.path.join(output_dir, 'df_ntfd_' + sesstag + '.tsv')
@@ -187,20 +187,20 @@ N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
 
 # ### For 'All Sessions' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSIONS = None
-# tag = 'allses'
-
-# ### For first behav session: 'ses-01' ###
 SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
             44, 45, 46, 47]
-SESSTYPES = ['behavioral_session']
-SESSIONS = ['ses-01']
-tag = SESSIONS[0]
+SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSIONS = None
+tag = 'allses'
+
+# ### For first behav session: 'ses-01' ###
+# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+#             44, 45, 46, 47]
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01']
+# tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
