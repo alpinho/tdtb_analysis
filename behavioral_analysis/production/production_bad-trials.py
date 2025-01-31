@@ -22,21 +22,16 @@ import pandas as pd
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 DF_DIR = os.path.join(MAIN_DIR, 'production_results', 'dataframes')
 
-DF_IMG1_DIR = os.path.join(DF_DIR, 'df_production_ses-04.tsv')
-DF_IMG2_DIR = os.path.join(DF_DIR, 'df_production_ses-05.tsv')
+DF_IMG_DIR = os.path.join(DF_DIR, 'df_production_allses.tsv')
 
 # %%
 # ============================ RUN =====================================
 
 # Open dataframes
-df1 = pd.read_csv(DF_IMG1_DIR, sep='\t')
-df2 = pd.read_csv(DF_IMG2_DIR, sep='\t')
+df = pd.read_csv(DF_IMG_DIR, sep='\t')
 
-# Stacking DataFrames vertically
-df = pd.concat([df1, df2], ignore_index=True)
-
-# Get array with asynchronies
-asynchronies = df['Asynchronies']
+# Get array with asynchronies but only for sessions 4 and 5 (imaging sessions)
+asynchronies = df[df["session"].isin([4, 5])]["signed_asynchrony"].values
 
 # Total number of trials (includes NaN values)
 total_trials = len(asynchronies)
@@ -57,7 +52,7 @@ upper_threshold = 3 * std_dev_centered
 nan_trials = np.sum(np.isnan(mean_centered_asynchronies))
 
 # Count trials exceeding thresholds (ignoring NaN values)
-exceeding_trials = np.sum((mean_centered_asynchronies < lower_threshold) | 
+exceeding_trials = np.sum((mean_centered_asynchronies < lower_threshold) |
                           (mean_centered_asynchronies > upper_threshold))
 
 # Calculate percentages
