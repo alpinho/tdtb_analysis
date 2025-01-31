@@ -123,8 +123,8 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             trials_arr = np.vstack((trials_arr, table_interval))
 
     df = pd.DataFrame(trials_arr, columns=[
-        'Subject', 'Session', 'Run', 'Modality', 'Condition', 'Standard',
-        'Response Time', 'Signed Asynchrony'])
+        'subject', 'session', 'run', 'modality', 'condition', 'standard',
+        'response_time', 'signed_asynchrony'])
 
     # Save dataframe
     outpath = os.path.join(output_dir, 'df_production_' + sesstag + '.tsv')
