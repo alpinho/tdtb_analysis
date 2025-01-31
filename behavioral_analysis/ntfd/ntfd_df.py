@@ -33,6 +33,9 @@ def ntfd_data(data):
     trials = []
     for dt, datum in enumerate(data):
         if datum[5] == 'feedback':
+            subject = datum[0]
+            session = datum[1]
+            run_id = datum[2]
             condition = datum[4]
             stim = data[dt-1][5]
             theoretical_isi1 = int(data[dt-2][8])
@@ -44,7 +47,8 @@ def ntfd_data(data):
                 answer = 'None'
             else:
                 raise ValueError('No feedback entry!')
-            trials.append([condition[:-2], stim, theoretical_isi1, rt, answer])
+            trials.append([subject, session, run_id, condition[:-2], stim,
+                           theoretical_isi1, rt, answer])
 
     return trials
 
@@ -58,11 +62,11 @@ def success(trials, subject):
         low_tri = ['p', 'y']
     scores = []
     for trial in trials:
-        if trial[4] in high_cir and trial[1] in ['beep_880hz', 'circle']:
+        if trial[7] in high_cir and trial[4] in ['beep_880hz', 'circle']:
             scores.append(1)
-        elif trial[4] in low_tri and trial[1] in ['beep_220hz', 'triangle']:
+        elif trial[7] in low_tri and trial[4] in ['beep_220hz', 'triangle']:
             scores.append(1)
-        elif trial[4] == 'None':
+        elif trial[7] == 'None':
             scores.append(np.nan)
         else:
             scores.append(0)
@@ -92,14 +96,15 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
             trials = ntfd_data(data)
+
             success_scores = success(trials, subject)
 
-            # Convert into array and presserve data types
+            # Convert into array and preserve data types
             trials = np.array(trials, dtype=object)
             success_scores = np.array(success_scores, dtype=object)
 
             # Remove stim element from trials
-            trials = np.delete(trials, 1, axis=1)
+            trials = np.delete(trials, 4, axis=1)
 
             # Stack success_scores as the last column
             trials_extended = np.column_stack((trials, success_scores))
@@ -107,20 +112,20 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             # Get beat, interval and random trials to stack them later in
             # groups of beat, interval and random trials
             beat_trials = np.array([
-                tr for tr in trials_extended if tr[0][:4] == 'beat'])
+                tr for tr in trials_extended if tr[3][:4] == 'beat'])
             interval_trials = np.array([
-                tr for tr in trials_extended if tr[0][:8] == 'interval'])
+                tr for tr in trials_extended if tr[3][:8] == 'interval'])
             random_trials = np.array([
-                tr for tr in trials_extended if tr[0][:6] == 'random'])
+                tr for tr in trials_extended if tr[3][:6] == 'random'])
 
-            # Append trial info as first elements of the row
-            sm = np.array([subject, task.partition(' ')[0].lower()])
+            # Append modality info in the third position of the row
+            modality = np.array([task.partition(' ')[0].lower()])
             
-            smb_col = np.tile(sm, (beat_trials.shape[0], 1))
-            table_beat = np.hstack((smb_col, beat_trials))
+            mbeat = np.repeat(modality, beat_trials.shape[0])
+            table_beat = np.insert(beat_trials, 3, mbeat, axis=1)
 
-            smi_col = np.tile(sm, (interval_trials.shape[0], 1))
-            table_interval = np.hstack((smi_col, interval_trials))
+            minterval = np.repeat(modality, interval_trials.shape[0])
+            table_interval = np.insert(interval_trials, 3, minterval, axis=1)
 
             # Stack
             trials_arr = np.vstack((trials_arr, table_beat))
@@ -128,17 +133,17 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 
             # Do the same for random trials if they exist
             if random_trials.size != 0:
-                smr_col = np.tile(sm, (random_trials.shape[0], 1))
-                table_random = np.hstack((smr_col, random_trials))
+                mrandom = np.repeat(modality, random_trials.shape[0])
+                table_random = np.insert(random_trials, 3, mrandom, axis=1)
                 trials_arr = np.vstack((trials_arr, table_random))
 
     df = pd.DataFrame(trials_arr, columns=[
-        'Subject', 'Modality', 'Condition', 'Standard', 'Reaction Time',
-        'Answer', 'Score'])
+        'Subject', 'Session', 'Run', 'Modality', 'Condition', 'Standard',
+        'Reaction Time', 'Answer', 'Score'])
 
     # Save dataframe
     outpath = os.path.join(output_dir, 'df_ntfd_' + sesstag + '.tsv')
-    df.to_csv(outpath, index=False, sep='\t', na_rep="NaN")
+    df.to_csv(outpath, index=False, sep='\t', na_rep='NaN')
 
 
 # %%
@@ -182,20 +187,20 @@ N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
 
 # ### For 'All Sessions' ###
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-            44, 45, 46, 47]
-SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSIONS = None
-tag = 'allses'
-
-# ### For first behav session: 'ses-01' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 #             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
 #             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01']
-# tag = SESSIONS[0]
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSIONS = None
+# tag = 'allses'
+
+# ### For first behav session: 'ses-01' ###
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47]
+SESSTYPES = ['behavioral_session']
+SESSIONS = ['ses-01']
+tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -260,4 +265,4 @@ if __name__ == "__main__":
 
     # Create dataframes
     ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
-                   tag, 7, sessions=SESSIONS)
+                   tag, 9, sessions=SESSIONS)
