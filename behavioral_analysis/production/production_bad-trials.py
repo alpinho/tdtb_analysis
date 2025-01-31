@@ -1,6 +1,6 @@
 """
 Estimate bad trials (bad perfomances or missing trials) for
-Production Tasks of the Music-SDTB project
+the Production Tasks of the Music-SDTB project
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
@@ -31,7 +31,7 @@ DF_IMG_DIR = os.path.join(DF_DIR, 'df_production_allses.tsv')
 df = pd.read_csv(DF_IMG_DIR, sep='\t')
 
 # Get array with asynchronies but only for sessions 4 and 5 (imaging sessions)
-asynchronies = df[df["session"].isin([4, 5])]["signed_asynchrony"].values
+asynchronies = df[df['session'].isin([4, 5])]['signed_asynchrony'].values
 
 # Total number of trials (includes NaN values)
 total_trials = len(asynchronies)
@@ -62,6 +62,6 @@ percentage_bad = round(((
     nan_trials + exceeding_trials) / total_trials) * 100, 2)
 
 # Print results
-print(f"Percentage of NaN trials: {percentage_nan:.2f}%")
-print(f"Percentage of trials exceeding 3SD: {percentage_exceeding:.2f}%")
-print(f"Percentage of bad trials: {percentage_bad:.2f}%")
+print(f'Percentage of NaN trials: {percentage_nan:.2f}%')
+print(f'Percentage of trials exceeding 3SD: {percentage_exceeding:.2f}%')
+print(f'Percentage of bad trials: {percentage_bad:.2f}%')
