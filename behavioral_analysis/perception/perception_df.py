@@ -22,7 +22,7 @@ import pandas as pd
 # setting path
 sys.path.append('../../')
 # importing
-from utils import parse_logfile, filter_trialtype
+from utils import parse_logfile
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -36,6 +36,9 @@ def perception_data(data):
     trials = []
     for dt, datum in enumerate(data):
         if datum[5] == 'interval_1':
+            subject = datum[0]
+            session = datum[1]
+            run_id = datum[2]
             condition = datum[4]
             theoretical_isi1 = int(datum[8])
             theoretical_isi5 = int(data[dt+8][8])
@@ -49,8 +52,8 @@ def perception_data(data):
                 answer = 'None'
             else:
                 raise ValueError('No feedback entry!')
-            trials.append([condition[:-2], theoretical_isi1, theoretical_isi5,
-                           answer, rt])
+            trials.append([subject, session, run_id, condition[:-2],
+                           theoretical_isi1, theoretical_isi5, rt, answer])
 
     return trials
 
@@ -76,30 +79,30 @@ def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             # Get beat and interval trials to stack them later in groups
             # of beat and interval trials
             beat_trials = np.array([
-                tr for tr in trials if tr[0][:4] == 'beat'], dtype=object)
+                tr for tr in trials if tr[3][:4] == 'beat'], dtype=object)
             interval_trials = np.array([
-                tr for tr in trials if tr[0][:8] == 'interval'], dtype=object)
+                tr for tr in trials if tr[3][:8] == 'interval'], dtype=object)
 
-            # Append trial info as first elements of the row
-            sm = np.array([subject, task.partition(' ')[0].lower()])
+            # Append modality info in the third position of the row
+            modality = np.array([task.partition(' ')[0].lower()])
+            
+            mbeat = np.repeat(modality, beat_trials.shape[0])
+            table_beat = np.insert(beat_trials, 3, mbeat, axis=1)
 
-            smb_col = np.tile(sm, (beat_trials.shape[0], 1))
-            table_beat = np.hstack((smb_col, beat_trials))
-
-            smi_col = np.tile(sm, (interval_trials.shape[0], 1))
-            table_interval = np.hstack((smi_col, interval_trials))
+            minterval = np.repeat(modality, interval_trials.shape[0])
+            table_interval = np.insert(interval_trials, 3, minterval, axis=1)
 
             # Stack
             trials_arr = np.vstack((trials_arr, table_beat))
             trials_arr = np.vstack((trials_arr, table_interval))
 
     df = pd.DataFrame(trials_arr, columns=[
-        'Subject', 'Modality', 'Condition', 'Standard', 'Comparison',
-        'Response Time', 'Answer'])
+        'Subject', 'Session', 'Run', 'Modality', 'Condition', 'Standard',
+        'Comparison', 'Response Time', 'Answer'])
 
     # Save dataframe
     outpath = os.path.join(output_dir, 'df_perception_' + sesstag + '.tsv')
-    df.to_csv(outpath, index=False, sep='\t', na_rep="NaN")
+    df.to_csv(outpath, index=False, sep='\t', na_rep='NaN')
 
 
 # %%
@@ -195,4 +198,4 @@ if __name__ == "__main__":
 
     # Create the dataframe
     perception_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                         N_TRIALS, tag, 7, sessions=SESSIONS)
+                         N_TRIALS, tag, 9, sessions=SESSIONS)

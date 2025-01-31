@@ -34,16 +34,19 @@ def production_data(data):
     trials = []
     for dt, datum in enumerate(data):
         if datum[5] == 'interval_1':
+            subject = datum[0]
+            session = datum[1]
+            run_id = datum[2]
             condition = datum[4]
             theoretical_isi1 = int(datum[8])
-            real_isi1 = int(datum[9])
             if data[dt+8][5] == 'feedback' and data[dt+8][11] in ['o', 'b']:
                 rt = int(data[dt+7][7]) + int(data[dt+8][10])
             elif data[dt+8][5] == 'feedback' and data[dt+8][10] == 'None':
                 rt = np.nan
             else:
                 raise ValueError('No feedback entry!')
-            trials.append([condition[:-2], theoretical_isi1, real_isi1, rt])
+            trials.append([subject, session, run_id, condition[:-2],
+                           theoretical_isi1, rt])
 
     return trials
 
@@ -80,18 +83,14 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             # Get beat and interval trials to stack them later in groups
             # of beat and interval trials
             beat_trials = np.array([
-                tr for tr in trials if tr[0][:4] == 'beat'], dtype=object)
+                tr for tr in trials if tr[3][:4] == 'beat'], dtype=object)
             interval_trials = np.array([
-                tr for tr in trials if tr[0][:8] == 'interval'], dtype=object)
-
-            # Removing the third element (real standard) from each row
-            beat_trials = np.delete(beat_trials, 2, axis=1)
-            interval_trials = np.delete(interval_trials, 2, axis=1)
+                tr for tr in trials if tr[3][:8] == 'interval'], dtype=object)
 
             # Compute asynchronies, but return NaN if any value in...
             # ... the row is NaN
-            beat_numeric = beat_trials[:, 1:].astype(float)
-            interval_numeric = interval_trials[:, 1:].astype(float)
+            beat_numeric = beat_trials[:, 4:].astype(float)
+            interval_numeric = interval_trials[:, 4:].astype(float)
             with np.errstate(invalid='ignore'):  # Avoid warnings for NaN operations
                 ss_beat = np.where(
                     np.isnan(beat_numeric).any(axis=1), np.nan,
@@ -110,26 +109,26 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                                          ss_interval.reshape(-1, 1)
                                          ))
 
-            # Append trial info as first elements of the row
-            sm = np.array([subject, task.partition(' ')[0].lower()])
+            # Append modality info in the third position of the row
+            modality = np.array([task.partition(' ')[0].lower()])
             
-            smb_col = np.tile(sm, (beat_trials.shape[0], 1))
-            table_beat = np.hstack((smb_col, beat_trials))
+            mbeat = np.repeat(modality, beat_trials.shape[0])
+            table_beat = np.insert(beat_trials, 3, mbeat, axis=1)
 
-            smi_col = np.tile(sm, (interval_trials.shape[0], 1))
-            table_interval = np.hstack((smi_col, interval_trials))
+            minterval = np.repeat(modality, interval_trials.shape[0])
+            table_interval = np.insert(interval_trials, 3, minterval, axis=1)
 
             # Stack
             trials_arr = np.vstack((trials_arr, table_beat))
             trials_arr = np.vstack((trials_arr, table_interval))
 
     df = pd.DataFrame(trials_arr, columns=[
-        'Subject', 'Modality', 'Condition', 'Standard', 'Response Time',
-        'Signed Asynchrony'])
+        'Subject', 'Session', 'Run', 'Modality', 'Condition', 'Standard',
+        'Response Time', 'Signed Asynchrony'])
 
     # Save dataframe
     outpath = os.path.join(output_dir, 'df_production_' + sesstag + '.tsv')
-    df.to_csv(outpath, index=False, sep='\t', na_rep="NaN")
+    df.to_csv(outpath, index=False, sep='\t', na_rep='NaN')
 
 
 # %%
@@ -218,4 +217,4 @@ if __name__ == "__main__":
 
     # Create the dataframe
     production_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                         N_TRIALS, tag, 6, sessions=SESSIONS)
+                         N_TRIALS, tag, 8, sessions=SESSIONS)

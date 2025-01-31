@@ -1,12 +1,25 @@
 import os
 import glob
 import csv
+import re
 
 import numpy as np
 
 
+def extract_timestamp(filename):
+    """
+    Function to extract the timestamp from the filename
+    """
+    # Match the last 12-digit timestamp
+    match = re.search(r"(\d{12})\.xpd$", filename)
+    
+    # Convert timestamp to an integer for sorting and return
+    return int(match.group(1)) if match else 0 
+
+
 def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
-                  ttl=False, concatenate=True, sessions=None):
+                  ttl=False, concatenate=True, sessions=None,
+                  renumber_sessions=True):
 
     allsessions = []
     for sesstype in sesstypes:
@@ -30,7 +43,8 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
         for session in sessions:
             logpath = os.path.join(sesstype_path, session)
             logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
-            logfiles.sort()
+            logfiles.sort(key=extract_timestamp)
+
             inputs_lists = [[line for line in csv.reader(open(logfile),
                                                          delimiter=',')]
                             for logfile in logfiles]
@@ -79,6 +93,16 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                                 else:
                                     continue
                             trials_info = trials_info[li+1:]
+
+                        # Renumbering the imaging sessions
+                        if renumber_sessions:
+                            for trial in trials_info:
+                                if trial[1] == '1':
+                                    trial[1] = '4'
+                                else:
+                                    assert trial[1] == '2'
+                                    trial[1] = '5'
+
                     if concatenate:
                         allruns.extend(trials_info)
                     else:
@@ -96,23 +120,6 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                 allsessions.append(allruns)
 
     return allsessions
-
-
-def filter_trialtype(trs, category):
-    beat = [tr[1:] for tr in trs if tr[0][:4] == 'beat']
-    interval = [tr[1:] for tr in trs if tr[0][:8] == 'interval']
-    random = [tr[1:] for tr in trs if tr[0][:6] == 'random']
-
-    if category in ['production', 'ntfd']:
-        beat = [list(map(int, b)) if ~np.any(np.isnan(b)) else b
-                for b in beat]
-        interval = [list(map(int, i)) if ~np.any(np.isnan(i)) else i
-                    for i in interval]
-        if random:
-            random = [list(map(int, r)) if ~np.any(np.isnan(r)) else r
-                      for r in random]
-
-    return beat, interval, random
 
 
 def adjacent_values(vals, q1, q3):
