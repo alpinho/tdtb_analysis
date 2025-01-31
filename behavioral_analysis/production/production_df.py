@@ -111,12 +111,12 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                                          ))
 
             # Append trial info as first elements of the row
-            smb = np.array([subject, task.partition(' ')[0].lower()])
-            smb_col = np.tile(smb, (beat_trials.shape[0], 1))
+            sm = np.array([subject, task.partition(' ')[0].lower()])
+            
+            smb_col = np.tile(sm, (beat_trials.shape[0], 1))
             table_beat = np.hstack((smb_col, beat_trials))
 
-            smi = np.array([subject, task.partition(' ')[0].lower()])
-            smi_col = np.tile(smi, (interval_trials.shape[0], 1))
+            smi_col = np.tile(sm, (interval_trials.shape[0], 1))
             table_interval = np.hstack((smi_col, interval_trials))
 
             # Stack
@@ -129,7 +129,7 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 
     # Save dataframe
     outpath = os.path.join(output_dir, 'df_production_' + sesstag + '.tsv')
-    df.to_csv(outpath, index=False, sep='\t')
+    df.to_csv(outpath, index=False, sep='\t', na_rep="NaN")
 
 
 # %%
@@ -157,7 +157,7 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 N_TRIALS = 30
 
 # ### For 'All Sessions' ###
-sSUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
             44, 45, 46, 47]
 SESSTYPES = ['behavioral_session', 'imaging_session']
@@ -216,6 +216,6 @@ if __name__ == "__main__":
     if not os.path.exists(RESULTS_FOLDER):
         os.mkdir(RESULTS_FOLDER)
 
-    # Create dataframes
+    # Create the dataframe
     production_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
                          N_TRIALS, tag, 6, sessions=SESSIONS)

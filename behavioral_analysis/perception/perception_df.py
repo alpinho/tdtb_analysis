@@ -46,7 +46,7 @@ def perception_data(data):
             elif data[dt+10][5] == 'feedback' and \
                  data[dt+10][11] == 'None':
                 rt = np.nan
-                answer = np.nan
+                answer = 'None'
             else:
                 raise ValueError('No feedback entry!')
             trials.append([condition[:-2], theoretical_isi1, theoretical_isi5,
@@ -57,8 +57,7 @@ def perception_data(data):
 
 def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                          sesstag, n_columns, sessions=None,
-                         estimator='mle_expit',
-                         tasks = ['Auditory Perception', 'Visual Perception']):
+                         tasks=['Auditory Perception', 'Visual Perception']):
 
     logfiles_dir = os.path.join(
         os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
@@ -76,18 +75,18 @@ def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 
             # Get beat and interval trials to stack them later in groups
             # of beat and interval trials
-            beat_trials = np.array([tr for tr in trials
-                                    if tr[0][:4] == 'beat'])
-            interval_trials = np.array([tr for tr in trials
-                                        if tr[0][:8] == 'interval'])
+            beat_trials = np.array([
+                tr for tr in trials if tr[0][:4] == 'beat'], dtype=object)
+            interval_trials = np.array([
+                tr for tr in trials if tr[0][:8] == 'interval'], dtype=object)
 
             # Append trial info as first elements of the row
-            smb = np.array([subject, task.partition(' ')[0].lower()])
-            smb_col = np.tile(smb, (beat_trials.shape[0], 1))
+            sm = np.array([subject, task.partition(' ')[0].lower()])
+
+            smb_col = np.tile(sm, (beat_trials.shape[0], 1))
             table_beat = np.hstack((smb_col, beat_trials))
 
-            smi = np.array([subject, task.partition(' ')[0].lower()])
-            smi_col = np.tile(smi, (interval_trials.shape[0], 1))
+            smi_col = np.tile(sm, (interval_trials.shape[0], 1))
             table_interval = np.hstack((smi_col, interval_trials))
 
             # Stack
@@ -95,12 +94,12 @@ def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             trials_arr = np.vstack((trials_arr, table_interval))
 
     df = pd.DataFrame(trials_arr, columns=[
-        'Subject', 'Modality', 'Condition', 'Standard', 'Comparison', 'Answer',
-        'Response Time'])
+        'Subject', 'Modality', 'Condition', 'Standard', 'Comparison',
+        'Response Time', 'Answer'])
 
     # Save dataframe
     outpath = os.path.join(output_dir, 'df_perception_' + sesstag + '.tsv')
-    df.to_csv(outpath, index=False, sep='\t')
+    df.to_csv(outpath, index=False, sep='\t', na_rep="NaN")
 
 
 # %%
@@ -194,5 +193,6 @@ if __name__ == "__main__":
     if not os.path.exists(RESULTS_FOLDER):
         os.mkdir(RESULTS_FOLDER)
 
+    # Create the dataframe
     perception_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
                          N_TRIALS, tag, 7, sessions=SESSIONS)
