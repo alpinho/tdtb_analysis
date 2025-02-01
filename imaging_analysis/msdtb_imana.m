@@ -80,14 +80,14 @@ fs_dir   = 'surfaceFreeSurfer';
 wb_dir   = 'surfaceWB';
 
 % List of all subjects
-% subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+subj_n = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
 % subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-subj_n = [43];
+% subj_n = [3];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1394,14 +1394,14 @@ switch what
 %         msdtb_imana('FUNC:make_fieldmap')
 %         msdtb_imana('FUNC:realign_unwarp')
         
-        msdtb_imana('FUNC:realign_estimate')
+%         msdtb_imana('FUNC:realign_estimate')
 %         msdtb_imana('FUNC:calculate_vdm')
 %         msdtb_imana('FUNC:apply_vdm')
         
-%         msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
-%         msdtb_imana('FUNC:make_samealign', 'prefix', '')
-%         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
-%         msdtb_imana('FUNC:mask_normalization')
+        msdtb_imana('FUNC:coreg', 'prefix', '', 'step', 'auto')
+        msdtb_imana('FUNC:make_samealign', 'prefix', '')
+        msdtb_imana('FUNC:make_maskImage', 'prefix', '')
+        msdtb_imana('FUNC:mask_normalization')
 %         msdtb_imana('GROUP:mask')
 
     case 'GLM:copy_paradigm-descriptors'
@@ -1419,10 +1419,10 @@ switch what
         
         if isdir('/srv/diedrichsen/data')
             source = fullfile(homedir, ...
-                'tsclient/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events');
+                'tsclient/analu/mygit/music_sdtb/music-sdtb_analysis/imaging_analysis/events');
         else
             source = fullfile(...
-                '/home/analu/mygit/music-sdtb/music-sdtb_analysis/imaging_analysis/events');
+                '/home/analu/mygit/music_sdtb/music-sdtb_analysis/imaging_analysis/events');
         end
         destination = fullfile(workdir, ...
             'Cerebellum/music-sdtb/derivatives');
@@ -1432,6 +1432,9 @@ switch what
         else
             suffix = ['_' paradigm_type];
         end
+        
+        % Initialize an empty cache to track refreshed directories
+        refreshed_dirs = containers.Map();
 
         for s = sn
             
@@ -1458,6 +1461,9 @@ switch what
 %                             [subj_str{s} '*_events.tsv']);
 %                         delete(dold_files);
 %                     end
+
+                    % Refresh only new directories
+                    refresh_path(sfile, refreshed_dirs);
                     
                     % Copy new tsv files
                     system(['cp ' sfile ' ' dfolder]);
