@@ -5,9 +5,9 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: January 2023
-Last Update: October 2023
+Last Update: February 2025
 
-Compatibility: Python 3.10.4
+Compatibility: Python 3.10.14
 
 """
 
@@ -446,15 +446,15 @@ def extraction_drbb(data, cat, header, events_dir, ttl = True, flag=0,
 # =========================== INPUTS ===================================
 
 # All subjects
-# SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29,
-#             32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
+            28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # All Subjects without pilot (sub-04)
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 23, 28, 29,
-#             32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
+#             28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Working list
-SUBJECTS = [26]
+# SUBJECTS = [4]
 
 CATEGORIES = ['Production', 'Perception', 'No-Temporal Feature Discrimination']
 MODALITIES = ['Auditory', 'Visual']
@@ -488,13 +488,16 @@ if __name__ == "__main__":
                 task_data = []
                 task_data = parse_logfile(logpath, subject, SESSTYPE, task,
                                           N_TRIALS, ttl=True,
-                                          concatenate=False)
+                                          concatenate=False,
+                                          reject_pilot=False)
+
                 if category == 'No-Temporal Feature Discrimination':
                     task_data[0].extend([[], []])
                 behavioral_data.append(task_data)
 
             # Re-order behavioral data in a chronological way per run
             ## (tasks, sessions, runs) --> (sessions, runs, tasks)
+            behavioral_data = np.array(behavioral_data, dtype=object)
             sessions = np.moveaxis(behavioral_data, 0, -1)
             ## (sessions, runs, tasks) --> (sessions, runs)
             chrono_data = []
@@ -520,8 +523,8 @@ if __name__ == "__main__":
                 # Do flag = 0 only in the first function call of this
                 # if statement
                 extraction_dbb(chrono_data, category, HEADER, eventspath,
-                                flag=0, merge_decision=True, merge_rest=True)
+                               flag=0, merge_decision=True, merge_rest=True)
             # For Remaining tasks
             else:
                 extraction_dbb(chrono_data, category, HEADER, eventspath,
-                                flag=1, merge_decision=True, merge_rest=True)
+                               flag=1, merge_decision=True, merge_rest=True)

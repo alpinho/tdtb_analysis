@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: January, 2025
+Last update: February, 2025
 
 Compatibility: Python 3.10.14
 """
@@ -91,7 +91,8 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                 raise NameError('Task not valid!')
 
             data = parse_logfile(logfiles_dir, subject, sesstype, task,
-                                 n_trials, sessions=sessions)
+                                 n_trials, sessions=sessions,
+                                 renumber_sessions=True)
             if subject == 2 and \
                task == 'Visual No-Temporal Feature Discrimination':
                 data = data[:476]
