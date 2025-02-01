@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: January 2025
+Last update: February, 2025
 
 Compatibility: Python 3.10.14
 """
@@ -77,7 +77,8 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                 raise NameError('Task not valid!')
             
             data = parse_logfile(logfiles_dir, subject, sesstype, task,
-                                 n_trials, sessions=sessions)
+                                 n_trials, sessions=sessions,
+                                 renumber_sessions=True)
             trials = production_data(data)
 
             # Get beat and interval trials to stack them later in groups

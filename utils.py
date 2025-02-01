@@ -19,7 +19,7 @@ def extract_timestamp(filename):
 
 def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                   ttl=False, concatenate=True, sessions=None,
-                  renumber_sessions=True):
+                  renumber_sessions=False, reject_pilot=True):
 
     allsessions = []
     for sesstype in sesstypes:
@@ -29,9 +29,11 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
         if sesstype == 'imaging_session' and not os.path.exists(sesstype_path):
             break
 
-        # Do not consider behavioural data from imaging session of sub-04
-        # Comment to extract paradigm descriptors
-        elif sesstype == 'imaging_session' and subject_no == 4:
+        # Do not consider behavioural data from imaging session of
+        # sub-04 (pilot).
+        # Unless, we want to extract paradigm descriptors.
+        elif (sesstype == 'imaging_session'
+              and subject_no == 4 and reject_pilot):
             break
         elif sessions is None:
             sessions = []
