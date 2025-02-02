@@ -1507,12 +1507,12 @@ switch what
         % re-weight each image by the inverse of the variance. Make sure to use 
         % the rwls model-estimation module in SPM and not the standard
         % model-estimation module. If covariance_model is 'fast', standard
-        % serial-corrleation correction will be employed
+        % serial-correlation correction will be employed
         covariance_model = 'wls'; % 'wls' or 'fast'
         
         prefix = 'u'; % prefix of the preprocessed epi we want to use
         events_file_tag = 'events'; % with dbb model (this is the default)
-        output_folder = 'ffx_rwls_dbb_hrf128';
+        output_folder = 'ffx';
         
         vararginoptions(varargin, {'sn', 'design', 'hrf_cutoff', ...
             'covariance_model', 'events_file_tag', 'output_folder'});
@@ -1550,7 +1550,7 @@ switch what
                 % [0, 0] no derivatives
                 % [1, 0] time derivatives
                 % [1, 1] time and dispersion derivatives
-                J.bases.hrf.derivs = [1 1];
+                J.bases.hrf.derivs = [0 0];
                 
                 % p(1)	Delay of response (secs)	6
                 % p(2)	Delay of undershoot (secs)	16
