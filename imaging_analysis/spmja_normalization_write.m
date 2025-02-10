@@ -1,4 +1,4 @@
-function spmj_normalization_write(deformation_file, images,varargin)
+function spmja_normalization_write(deformation_file, images,varargin)
 % function spmj_normalization_write(deformation_file, images)
 % INPUTS:
 %   deformation_file:     the *_sn.mat file for the deformation

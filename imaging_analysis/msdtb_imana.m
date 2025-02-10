@@ -1391,8 +1391,8 @@ switch what
     case 'FUNC:run_all'
         % Example usage: msdtb_imana('FUNC:run_all')
         
-%         msdtb_imana('FUNC:make_fieldmap')
-%         msdtb_imana('FUNC:realign_unwarp')
+        msdtb_imana('FUNC:make_fieldmap')
+        msdtb_imana('FUNC:realign_unwarp')
         
 %         msdtb_imana('FUNC:realign_estimate')
 %         msdtb_imana('FUNC:calculate_vdm')
@@ -1402,13 +1402,12 @@ switch what
         msdtb_imana('FUNC:make_samealign', 'prefix', '')
         msdtb_imana('FUNC:make_maskImage', 'prefix', '')
         msdtb_imana('FUNC:mask_normalization')
-%         msdtb_imana('GROUP:mask')
 
     case 'GLM:copy_paradigm-descriptors'
         % Example usage: msdtb_imana('GLM:copy_paradigm-descriptors', ...
         %                            'paradigm_type', 'drbb')
 
-        sn  = subj_id;
+        sn = subj_id;
 
         paradigm_type = ''; % default: dbb
         % paradigm_type = 'drbb';
@@ -1708,9 +1707,9 @@ switch what
         %             'design', {'prod', 'percep', 'ntfd', 'allmain_tasks'}, ...
         %             'output_folder', 'ffx_rwls_drbb_hrf42')       
         
-        sn       = subj_id; % subject list
+        sn = subj_id; % subject list
         design = {'prod', 'percep', 'ntfd', 'rand_ntfd', 'allmain_tasks'};
-        output_folder = 'ffx_rwls_dbb_hrf128';
+        output_folder = 'ffx';
         vararginoptions(varargin, {'sn', 'design', 'output_folder'});
         
         for s = sn
@@ -1919,7 +1918,7 @@ switch what
         model_type = 'dbb';
         % model_type = 'drbb';
         
-        output_folder = 'ffx_rwls_dbb_hrf128';
+        output_folder = 'ffx';
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -1931,14 +1930,14 @@ switch what
             contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
                 'AllTasks: '};
             if strcmp(model_type, 'dbb')
-                contrasts_list = contrasts_timedisp;
+                contrasts_list = contrasts;
             elseif strcmp(model_type, 'drbb')
                 contrasts_list = contrasts_drbb;
             end
         elseif isequal(design, {'rand_ntfd'})
             contrast_prefix = {'Random NTFD: '};
             if strcmp(model_type, 'dbb')
-                contrasts_list = contrasts_random_timedisp;
+                contrasts_list = contrasts_random;
             elseif strcmp(model_type, 'drbb')
                 contrasts_list = contrasts_random_drbb;
             end
@@ -1987,7 +1986,7 @@ switch what
         % model_derivatives = 'time'
         % model_derivatives = 'timedisp'
         
-        output_folder = 'ffx_rwls_dbb_hrf128_timedispderiv';
+        output_folder = 'ffx';
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -2093,14 +2092,14 @@ switch what
         %                   'input_folder', 'ffx_rwls_drbb_hrf42', ...
         %                   'file_type', 'spmT')     
         
-        sn       = subj_id; % subject list
+        sn = subj_id; % subject list
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        input_folder = 'ffx_rwls_drbb_hrf128';
+        input_folder = 'ffx';
         
         file_type = 'con'; % the another one is 'spmT, ResMS or psc'
         smoothing_kernel = [8 8 8];
@@ -2237,15 +2236,15 @@ switch what
         %                   'file_type', 'spmT', ...
         %                   'masktag', 'gmmasked')     
         
-        sn       = subj_id; % subject list
+        sn = subj_id; % subject list
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        input_folder = 'ffx_rwls_drbb_hrf128';
-        output_folder = 'masked_derivatives_rwls_drbb_hrf128';
+        input_folder = 'ffx';
+        output_folder = 'masked_derivatives';
         
         file_type = 'con'; % the another one is 'spmT, ResMS or psc'
         smoothing_kernel = [8 8 8];
@@ -2385,73 +2384,73 @@ switch what
 %             ['ffx_' glm_type '_dbb_' hrf_cutoff])
         
 %         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
-%             'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
-%         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-%             'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%             'output_folder', 'ffx')
+%         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
+%             'design', {'rand_ntfd'}, 'output_folder', 'ffx')
                 
-        msdtb_imana('GLM:calc_PSC', 'sn', sbj, ...
-            'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('GLM:calc_PSC', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-            'output_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%         msdtb_imana('GLM:calc_PSC', 'sn', sbj, ...
+%             'output_folder', 'ffx')
+%         msdtb_imana('GLM:calc_PSC', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+%             'output_folder', 'ffx')
                 
 %         msdtb_imana('CON:norm_smooth', 'sn', sbj, ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%             'input_folder', 'ffx')
 %         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%             'input_folder', 'ffx')
 %         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT', ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%             'input_folder', 'ffx')
 %         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'psc', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
-        msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'psc', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff])
+%             'input_folder', 'ffx')
+%         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'psc', ...
+%             'input_folder', 'ffx')
+%         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'psc', ...
+%             'input_folder', 'ffx')
         
-        % msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
-        % msdtb_imana('GROUP:mask', 'sn', subj_id, 'mask_type', 'wrmask_gray') % gray-matter mask
+%         msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
+%         msdtb_imana('GROUP:mask', 'sn', subj_id, 'mask_type', 'wrmask_gray') % gray-matter mask
                 
-%         msdtb_imana('CON:masking', 'sn', sbj, ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-%         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-%         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-%         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+        msdtb_imana('CON:masking', 'sn', sbj, ...
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
+        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', ...
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'psc', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
         
-%         msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked', ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-%         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'masktag', 'gmmasked', ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-%         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
-%         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
-%             'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-%             'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+        msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked', ...
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'masktag', 'gmmasked', ...
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
+        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
         msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', 'masktag', 'gmmasked', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'psc', 'masktag', 'gmmasked', ...
-            'input_folder', ['ffx_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff])
+            'input_folder', 'ffx', ...
+            'output_folder', 'masked_derivatives')
         
     case 'GROUP:mean_t1'
         % Example usage: msdtb_imana('GROUP:mean_t1')
         
-        sn       = subj_id; % subject list
+        sn = subj_id; % subject list
         vararginoptions(varargin, {'sn'});
 
         deriv_folder = fullfile(base_dir, derivatives_dir)
@@ -2564,15 +2563,15 @@ switch what
         %                'output_folder', 'rfx_onesample_t_rwls_gm_drbb_hrf42', ...
         %                'suffix', 'sm8gmmasked')
         
-        sn       = subj_id; % subject list
+        sn = subj_id; % subject list
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        input_folder = 'masked_derivatives_rwls_dbb_hrf128';
-        output_folder = 'rfx_onesample_t_rwls_wb_dbb_hrf128';
+        input_folder = 'masked_derivatives';
+        output_folder = 'rfx_onesample_t';
         
         suffix = 'sm8wbmasked';
         
@@ -2641,14 +2640,14 @@ switch what
         %                            'design', {'rand_ntfd'}, ...
         %                            'model', {'rfx_onesample_t_rwls_wb_drbb_hrf42'})
         
-        sn       = subj_id; % subject list
+        sn = subj_id; % subject list
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        model = {'rfx_onesample_t_rwls_wb_dbb_hrf128'};
+        model = {'rfx_onesample_t'};
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -2694,14 +2693,14 @@ switch what
         %                            'design', {'rand_ntfd'}, ...
         %                            'model', {'rfx_onesample_t_rwls_wb_drbb_hrf42'})
         
-        sn       = subj_id; % subject list
+        sn = subj_id; % subject list
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        model = {'rfx_onesample_t_rwls_wb_dbb_hrf128'}; % or 'rfx_onesample_t_rwls_gm_dbb_hrf128'
+        model = {'rfx_onesample_t'}; % or 'rfx_onesample_t_rwls_gm_dbb_hrf128'
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -2762,43 +2761,43 @@ switch what
         % hrf_cutoff = 'hrf42';
         
         msdtb_imana('GROUP:onesample_t_design', 'sn', sbj, ...
-            'input_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['rfx_onesample_t_' glm_type '_wb_dbb_' hrf_cutoff])
+            'input_folder', 'masked_derivatives', ...
+            'output_folder', 'rfx_onesample_t')
         msdtb_imana('GROUP:onesample_t_design', 'sn', sbj, ...
             'design', {'rand_ntfd'}, ...
-            'input_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['rfx_onesample_t_' glm_type '_wb_dbb_' hrf_cutoff])
+            'input_folder', 'masked_derivatives', ...
+            'output_folder', 'rfx_onesample_t')
         msdtb_imana('GROUP:onesample_t_design', 'sn', sbj, ...
-            'input_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['rfx_onesample_t_' glm_type '_gm_dbb_' hrf_cutoff], ...
+            'input_folder', 'masked_derivatives', ...
+            'output_folder', 'rfx_onesample_t', ...
             'suffix', 'sm8gmmasked')
         msdtb_imana('GROUP:onesample_t_design', 'sn', sbj, ...
             'design', {'rand_ntfd'}, ...
-            'input_folder', ['masked_derivatives_' glm_type '_dbb_' hrf_cutoff], ...
-            'output_folder', ['rfx_onesample_t_' glm_type '_gm_dbb_' hrf_cutoff], ...
+            'input_folder', 'masked_derivatives', ...
+            'output_folder', 'rfx_onesample_t', ...
             'suffix', 'sm8gmmasked')
 
         msdtb_imana('GROUP:estimation', 'sn', sbj, ...
-            'model', {['rfx_onesample_t_' glm_type '_wb_dbb_' hrf_cutoff]})
+            'model', {'rfx_onesample_t'})
         msdtb_imana('GROUP:estimation', 'sn', sbj, ...
             'design', {'rand_ntfd'}, ...
-            'model', {['rfx_onesample_t_' glm_type '_wb_dbb_' hrf_cutoff]})
+            'model', {'rfx_onesample_t'})
         msdtb_imana('GROUP:estimation', 'sn', sbj, ...
-            'model', {['rfx_onesample_t_' glm_type '_gm_dbb_' hrf_cutoff]})
+            'model', {'rfx_onesample_t'})
         msdtb_imana('GROUP:estimation', 'sn', sbj, ...
             'design', {'rand_ntfd'}, ...
-            'model', {['rfx_onesample_t_' glm_type '_gm_dbb_' hrf_cutoff]})
+            'model', {'rfx_onesample_t'})
 
         msdtb_imana('GROUP:rfx_t', 'sn', sbj, ...
-            'model', {['rfx_onesample_t_' glm_type '_wb_dbb_' hrf_cutoff]})
+            'model', {'rfx_onesample_t'})
         msdtb_imana('GROUP:rfx_t', 'sn', sbj, ...
             'design', {'rand_ntfd'}, ...
-            'model', {['rfx_onesample_t_' glm_type '_wb_dbb_' hrf_cutoff]})
+            'model', {'rfx_onesample_t'})
         msdtb_imana('GROUP:rfx_t', 'sn', sbj, ...
-            'model', {['rfx_onesample_t_' glm_type '_gm_dbb_' hrf_cutoff]})
+            'model', {'rfx_onesample_t'})
         msdtb_imana('GROUP:rfx_t', 'sn', sbj, ...
             'design', {'rand_ntfd'}, ...
-            'model', {['rfx_onesample_t_' glm_type '_gm_dbb_' hrf_cutoff]})        
+            'model', {'rfx_onesample_t'})        
                 
     case 'GLM:dmtx_unf' 
         % Saves a copy of SPM.mat prepared to be loaded in python       
