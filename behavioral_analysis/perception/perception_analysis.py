@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February 2023
-Last update: January 2025
+Last update: February 2025
 
 Compatibility: Python 3.10.14
 """
@@ -230,27 +230,27 @@ def individual_perception(
                 raise NameError('Modality not valid!')
 
             beat_trials = df[
-                (df['Subject'] == subject) &
-                (df['Modality'] == modality) &
-                (df['Condition'] == 'beat')][[
-                    'Standard', 'Comparison', 'Answer']].values.tolist()
+                (df['subject'] == subject) &
+                (df['modality'] == modality) &
+                (df['condition'] == 'beat')][[
+                    'standard', 'comparison', 'answer']].values.tolist()
             interval_trials = df[
-                (df['Subject'] == subject) &
-                (df['Modality'] == modality) &
-                (df['Condition'] == 'interval')][[
-                    'Standard', 'Comparison', 'Answer']].values.tolist()
+                (df['subject'] == subject) &
+                (df['modality'] == modality) &
+                (df['condition'] == 'interval')][[
+                    'standard', 'comparison', 'answer']].values.tolist()
 
             # Count the number of trials
             filtered_df = df[
-                (df['Subject'] == subject) &
-                (df['Modality'] == modality) &
-                (df['Standard'] == 459)][
-                round(((df['Comparison'] - df['Standard']) / df['Standard']),
+                (df['subject'] == subject) &
+                (df['modality'] == modality) &
+                (df['standard'] == 459)][
+                round(((df['comparison'] - df['standard']) / df['standard']),
                       2) == .2]
             total_beat_trials = filtered_df[
-                (filtered_df['Condition'] == 'beat')].shape[0]
+                (filtered_df['condition'] == 'beat')].shape[0]
             total_interval_trials = filtered_df[
-                (filtered_df['Condition'] == 'interval')].shape[0]
+                (filtered_df['condition'] == 'interval')].shape[0]
             
             if condition == 'beat':
                 # Calculate frequencies of comparisons per standard
