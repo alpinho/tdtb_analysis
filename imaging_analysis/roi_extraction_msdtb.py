@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: October 2024
+Last update: February 2025
 
 Compatibility: Python 3.10.14
 
@@ -450,8 +450,10 @@ hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
 individual_derivatives_folder = 'masked_derivatives_' + model + '_' + \
     design + '_' + hrf_cutoff
 
-group_relative_path = 'group/allmain_tasks/rfx_onesample_t_' + model + '_'+ \
-    masking + '_' + design + '_' + hrf_cutoff
+# group_relative_path = 'group/allmain_tasks/rfx_onesample_t_' + model + '_'+ \
+#     masking + '_' + design + '_' + hrf_cutoff
+
+group_relative_path = 'group/allmain_tasks/rfx_onesample_t'
 
 group_encoding_folder = 'con_01_Encoding'
 gtmap_encoding = os.path.join(data_dir, group_relative_path,
@@ -471,7 +473,8 @@ atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 
-roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff)
+# roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff)
+roi_dir = os.path.join(working_dir, 'roi_analyses_vdmcorr')
 
 # All ROIs: 7 ROIs
 atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
