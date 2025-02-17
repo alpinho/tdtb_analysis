@@ -4,8 +4,8 @@ Analysis of behavioral data for the Perception Tasks of the Music-SDTB project
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
-Created: February 2023
-Last update: February 2025
+Created: February, 2023
+Last update: February, 2025
 
 Compatibility: Python 3.10.14
 """
