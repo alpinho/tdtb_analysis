@@ -75,15 +75,20 @@ def success(trials, subject):
 
 
 def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
-                   sesstag, n_columns, sessions=None,
+                   sesstag=None, sessions=None,
                    tasks=['Auditory No-Temporal Feature Discrimination',
                           'Visual No-Temporal Feature Discrimination']):
+
+    # Define columns of dataframe
+    df = pd.DataFrame(columns=[
+        'subject', 'session', 'run', 'modality', 'condition', 'standard',
+        'reaction_time', 'answer', 'score'])
 
     logfiles_dir = os.path.join(
         os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
         'logfiles')
 
-    trials_arr = np.empty((0, n_columns))
+    trials_arr = np.empty((0, df.columns.size))
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory No-Temporal Feature Discrimination',
@@ -138,40 +143,34 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
                 table_random = np.insert(random_trials, 3, mrandom, axis=1)
                 trials_arr = np.vstack((trials_arr, table_random))
 
-    df = pd.DataFrame(trials_arr, columns=[
-        'subject', 'session', 'run', 'modality', 'condition', 'standard',
-        'reaction_time', 'answer', 'score'])
+    # Add data to dataframe
+    df = pd.DataFrame(trials_arr, columns=df.columns)
 
     # Save dataframe
-    outpath = os.path.join(output_dir, 'df_ntfd_' + sesstag + '.tsv')
+    if sesstag:
+        outpath = os.path.join(output_dir, 'df_ntfd_' + sesstag + '.tsv')
+    else:
+        outpath = os.path.join(output_dir, 'df_ntfd.tsv')
     df.to_csv(outpath, index=False, sep='\t', na_rep='NaN')
 
 
 # %%
 # =========================== INPUTS ===================================
 
-# ################## Note about subjects ###############################
+# ##################### Subjects' lists ################################
 # All subjects
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
-#             40, 41, 42, 43, 44, 45, 46, 47]
+ALL_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36,
+                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # All good subjects including img pilot (sub-04)
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-#             44, 45, 46, 47]
+GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40,
+                 41, 42, 43, 44, 45, 46, 47]
 
-# Img subjects only
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-
-# This set of subjects are those that for the behavioral experiments did
-# the NTFD with the Random Condition
-# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-#                  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 
-#                  47]
-# RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 
-# 		   35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# Img subjects only (without pilot)
+IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
+                28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # #######################################################################
 
@@ -188,47 +187,37 @@ N_ISI_TRIALS_BEHAV = 36 # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 N_ISI_TRIALS_IMG = 16 # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
 
 # ### For 'All Sessions' ###
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-            44, 45, 46, 47]
+SUBJECTS = GOOD_SUBJECTS
 SESSTYPES = ['behavioral_session', 'imaging_session']
 SESSIONS = None
-tag = 'allses'
+# tag = 'allses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
+# SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-01']
 # tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
+# SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-02']
 # tag = SESSIONS[0]
 
 # ### For third behav session: 'ses-03' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
+# SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-03']
 # tag = SESSIONS[0]
 
 # ### For first img session: 'ses-04' ###
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = IMG_SUBJECTS
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-01']
 # tag = 'ses-04'
 
 # ### For second img session: 'ses-05' ###
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = IMG_SUBJECTS
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-02']
 # tag = 'ses-05'
@@ -256,14 +245,6 @@ if __name__ == "__main__":
     if not os.path.exists(RESULTS_FOLDER):
         os.mkdir(RESULTS_FOLDER)
 
-    # # Dataframe with beat and interval (i.e. no random) only for every isi
-    # ntfd_isi_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-    #                    N_TRIALS, N_ISI_TRIALS, tag, sessions=SESSIONS)
-
-    # # Dataframe with ffx of beat, interval and random
-    # ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
-    #                tag, sessions=SESSIONS)
-
     # Create dataframes
     ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
-                   tag, 9, sessions=SESSIONS)
+                   sessions=SESSIONS)
