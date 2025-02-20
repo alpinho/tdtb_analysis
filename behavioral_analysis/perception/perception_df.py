@@ -59,14 +59,19 @@ def perception_data(data):
 
 
 def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
-                         sesstag, n_columns, sessions=None,
+                         sesstag=None, sessions=None,
                          tasks=['Auditory Perception', 'Visual Perception']):
+
+    # Define columns of dataframe
+    df = pd.DataFrame(columns=[
+        'subject', 'session', 'run', 'modality', 'condition', 'standard',
+        'comparison', 'response_time', 'answer'])
 
     logfiles_dir = os.path.join(
         os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
         'logfiles')
 
-    trials_arr = np.empty((0, n_columns))
+    trials_arr = np.empty((0, df.columns.size))
     for s, subject in enumerate(subjects):
         for t, task in enumerate(tasks):
             if task not in ['Auditory Perception', 'Visual Perception']:
@@ -97,32 +102,34 @@ def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             trials_arr = np.vstack((trials_arr, table_beat))
             trials_arr = np.vstack((trials_arr, table_interval))
 
-    df = pd.DataFrame(trials_arr, columns=[
-        'subject', 'session', 'run', 'modality', 'condition', 'standard',
-        'comparison', 'response_time', 'answer'])
+    # Add data to dataframe
+    df = pd.DataFrame(trials_arr, columns=df.columns)
 
     # Save dataframe
-    outpath = os.path.join(output_dir, 'df_perception_' + sesstag + '.tsv')
+    if sesstag:
+        outpath = os.path.join(output_dir, 'df_perception_' + sesstag + '.tsv')
+    else:
+        outpath = os.path.join(output_dir, 'df_perception.tsv')
     df.to_csv(outpath, index=False, sep='\t', na_rep='NaN')
 
 
 # %%
 # =========================== INPUTS ===================================
 
-# ################## Note about subjects ###############################
+# ##################### Subjects' lists ################################
 # All subjects
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
-#             40, 41, 42, 43, 44, 45, 46, 47]
+ALL_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36,
+                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # All good subjects including img pilot (sub-04)
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-#             44, 45, 46, 47]
+GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40,
+                 41, 42, 43, 44, 45, 46, 47]
 
-# Img subjects only
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# Img subjects only (without pilot)
+IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
+                28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # #######################################################################
 
@@ -131,55 +138,43 @@ def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 N_TRIALS = 30
 
 # ### For 'All Sessions' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSIONS = None
-# tag = 'allses'
+SUBJECTS = GOOD_SUBJECTS
+SESSTYPES = ['behavioral_session', 'imaging_session']
+SESSIONS = None
+tag = 'allses'
 
 # ### For 'All Behavioral Sessions' ###
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-            44, 45, 46, 47]
-SESSTYPES = ['behavioral_session']
-SESSIONS = None
-tag = 'behavses'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = None
+# tag = 'behavses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
+# SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-01']
 # tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
+# SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-02']
 # tag = SESSIONS[0]
 
 # ### For third behav session: 'ses-03' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
+# SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-03']
 # tag = SESSIONS[0]
 
 # ### For first img session: 'ses-04' ###
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = IMG_SUBJECTS
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-01']
 # tag = 'ses-04'
 
 # ### For second img session: 'ses-05' ###
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = IMG_SUBJECTS
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-02']
 # tag = 'ses-05'
@@ -207,4 +202,4 @@ if __name__ == "__main__":
 
     # Create the dataframe
     perception_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                         N_TRIALS, tag, 9, sessions=SESSIONS)
+                         N_TRIALS, sessions=SESSIONS)

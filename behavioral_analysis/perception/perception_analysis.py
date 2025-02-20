@@ -206,15 +206,19 @@ def outliers(arr):
 
 
 def individual_perception(
-        subjects, this_dir, output_dir, sesstype, condition, n_trials, sesstag,
-        estimator='mle_expit', sessions=None,
+        subjects, this_dir, output_dir, condition, n_trials,
+        sessions, sesstag, estimator='mle_expit',
         modalities=['auditory', 'visual']):
 
-    dfs_path = os.path.join(
+    df_path = os.path.join(
         os.path.abspath(
-        os.path.join(this_dir, 'perception_results', 'raw_dataframes')),
-        'df_perception_' + tag + '.tsv')
-    df = pd.read_csv(dfs_path, sep='\t')
+            os.path.join(this_dir, 'perception_results',
+                         'raw_dataframes')),
+        'df_perception.tsv')
+    df = pd.read_csv(df_path, sep='\t')
+
+    # Filter Dataframe according to list of sessions
+    df = df[df['session'].isin(sessions)]
 
     all_rf1_audio = []
     all_rf2_audio = []
@@ -877,7 +881,8 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
             # Copy axis object to draw connection patch
             ax0 = ax
             # Draw small vertical line for annotation
-            if sesstag in ['allses', 'ses-01', 'ses-02', 'ses-03', 'ses-04']:
+            if sesstag in ['allses', 'behavses', 'imgses',
+                           'ses-01', 'ses-02', 'ses-03', 'ses-04']:
                 plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
             else:
                 assert sesstag == 'ses-05'
@@ -897,7 +902,8 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
             # ax.set_title('Visual Perception', fontweight='semibold', size=9,
             #              y=.95)
             # Draw small vertical line for annotation
-            if sesstag in ['allses', 'ses-01', 'ses-02', 'ses-03', 'ses-04']:
+            if sesstag in ['allses', 'behavses', 'imgses',
+                           'ses-01', 'ses-02', 'ses-03', 'ses-04']:
                 plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
             else:
                 assert sesstag == 'ses-05'
@@ -910,7 +916,8 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
         fig.text(.435, .025, 'Conditions', size=14)
 
     # Annotation
-    if sesstag in ['allses', 'ses-01', 'ses-02', 'ses-03']:
+    if sesstag in ['allses', 'behavses', 'imgses',
+                   'ses-01', 'ses-02', 'ses-03']:
         xa = (.5, .195)
         xb = (.5, .195)
         fig.text(.53, .75, '****', size=12)
@@ -941,20 +948,25 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
 # %%
 # =========================== INPUTS ===================================
 
-# ################## Note about subjects ###############################
+# ##################### Subjects' lists ################################
 # All subjects
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38, 39,
-#             40, 41, 42, 43, 44, 45, 46, 47]
+ALL_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36,
+                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # All good subjects including img pilot (sub-04)
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-#             44, 45, 46, 47]
+GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40,
+                 41, 42, 43, 44, 45, 46, 47]
 
-# Img subjects only
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# Img subjects only (without pilot)
+IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
+                28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# Subjects who did all behavioral sessions with the random condition...
+# ... in the NTFD task and img sessions
+BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
+                          39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # #######################################################################
 
@@ -963,52 +975,48 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
 N_TRIALS = 30
 
 # ### For 'All Sessions' ###
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-            44, 45, 46, 47]
-SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSIONS = None
-tag = 'allses'
+# SUBJECTS = BEHAVIMG_RAND_SUBJECTS
+# SESSIONS = [1, 2, 3, 4, 5]
+# tag = 'allses'
+
+# # ### For 'All Behavioral Sessionss' ###
+# SUBJECTS = BEHAVIMG_RAND_SUBJECTS
+# SESSIONS = [1, 2, 3]
+# tag = 'behavses'
+
+# # ### For 'All Imaging Sessionss' ###
+SUBJECTS = BEHAVIMG_RAND_SUBJECTS
+SESSIONS = [4, 5]
+tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01']
-# tag = SESSIONS[0]
+# SUBJECTS = GOOD_SUBJECTS
+# SESSIONS = [1]
+# tag = 'ses-01'
 
 # ### For second behav session: 'ses-02' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-02']
-# tag = SESSIONS[0]
+# SUBJECTS = GOOD_SUBJECTS
+# SESSIONS = [2]
+# tag = 'ses-02'
 
 # ### For third behav session: 'ses-03' ###
-# SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-#             22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43,
-#             44, 45, 46, 47]
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-03']
-# tag = SESSIONS[0]
+# SUBJECTS = GOOD_SUBJECTS
+# SESSIONS = [3]
+# tag = 'ses-03'
 
 # ### For first img session: 'ses-04' ###
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-# SESSTYPES = ['imaging_session']
-# SESSIONS = ['ses-01']
+# SUBJECTS = IMG_SUBJECTS
+# SESSIONS = [4]
 # tag = 'ses-04'
 
 # ### For second img session: 'ses-05' ###
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-# SESSTYPES = ['imaging_session']
-# SESSIONS = ['ses-02']
+# SUBJECTS = IMG_SUBJECTS
+# SESSIONS = [5]
 # tag = 'ses-05'
 
 sessions_dic = {'allses': 'All Sessions',
+                'behavses': 'All Behavioral Sessions',
+                'imgses': 'All Imaging Sessions',
                 'ses-01': 'Session 1',
                 'ses-02': 'Session 2',
                 'ses-03': 'Session 3',
@@ -1044,9 +1052,8 @@ if __name__ == "__main__":
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
                 individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
-                                      SESSTYPES, cond, N_TRIALS, tag,
-                                      estimator=estimator,
-                                      sessions=SESSIONS)
+                                      cond, N_TRIALS, SESSIONS, tag,
+                                      estimator=estimator)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
