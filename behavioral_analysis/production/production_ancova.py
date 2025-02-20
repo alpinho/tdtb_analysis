@@ -152,18 +152,18 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
             fig.text(.825, hline_yloc[1], hline_legend, fontsize=24,
                      color='dimgrey')
 
-    if fname[:4] == 'mean' and fname[-6:] == 'allses':
-        fig.text(.125, .2, r'$p_{Condition*Standard}=2\mathrm{e}{-3}$',
-                 fontsize=24)
-        fig.text(.6, .2, r'$p_{Condition*Standard}<1\mathrm{e}{-3}$',
-                 fontsize=24)
-    elif fname[:3] == 'std' and fname[-6:] == 'allses':
-        fig.text(.125, .2, r'$p_{Condition*Standard}: \mathrm{n.s.}$',
-                 fontsize=24)
-        fig.text(.6, .2, r'$p_{Condition*Standard}: \mathrm{n.s.}$',
-                 fontsize=24)
-    else:
-        pass
+    # if fname[:4] == 'mean' and fname[-6:] == 'allses':
+    #     fig.text(.125, .2, r'$p_{Condition*Standard}=2\mathrm{e}{-3}$',
+    #              fontsize=24)
+    #     fig.text(.6, .2, r'$p_{Condition*Standard}<1\mathrm{e}{-3}$',
+    #              fontsize=24)
+    # elif fname[:3] == 'std' and fname[-6:] == 'allses':
+    #     fig.text(.125, .2, r'$p_{Condition*Standard}: \mathrm{n.s.}$',
+    #              fontsize=24)
+    #     fig.text(.6, .2, r'$p_{Condition*Standard}: \mathrm{n.s.}$',
+    #              fontsize=24)
+    # else:
+    #     pass
 
     # Title
     # plt.suptitle(title, x=.5, y=.98, size=24, linespacing=.75)
