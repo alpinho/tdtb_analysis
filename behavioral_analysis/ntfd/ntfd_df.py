@@ -243,7 +243,7 @@ else:
 if __name__ == "__main__":
 
     if not os.path.exists(RESULTS_FOLDER):
-        os.mkdir(RESULTS_FOLDER)
+        os.makedirs(RESULTS_FOLDER)
 
     # Create dataframes
     ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,

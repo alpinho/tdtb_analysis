@@ -251,7 +251,7 @@ if __name__ == "__main__":
         df = df_subfiltered[df_subfiltered['session'].isin(sessions_list)]
 
         # Remove rows with 'NaN' entries
-        df = df.dropna(subset=["reaction_time"])
+        df = df.dropna(subset=['reaction_time'])
 
         # Remove column with 'answer'
         df = df.drop(columns=['answer'])

@@ -198,7 +198,7 @@ RESULTS_FOLDER = os.path.join(MAIN_DIR, 'perception_results/raw_dataframes')
 if __name__ == "__main__":
 
     if not os.path.exists(RESULTS_FOLDER):
-        os.mkdir(RESULTS_FOLDER)
+        os.makedirs(RESULTS_FOLDER)
 
     # Create the dataframe
     perception_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
