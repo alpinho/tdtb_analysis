@@ -1,13 +1,14 @@
 """
-ANCOVA analyses of behavioral data of Production Tasks of the Music-SDTB project
+ANCOVA analyses of behavioral data of Production Tasks of the
+ Music-SDTB project
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 5, 2024
-Last update: September 2024
+Last update: February, 2025
 
-Compatibility: Python 3.10.8
+Compatibility: Python 3.10.14
 """
 
 import os
@@ -25,39 +26,39 @@ from matplotlib import pyplot as plt
 
 def ffx_dvar(df, estimator='mean'):
     # Fixed Effects within subjects
-    df_ffx = df.drop(['Session'], axis=1)
+    df_ffx = df.drop(['session'], axis=1)
     if estimator == 'mean':
         df_ffx = df_ffx.groupby([
-            'Condition', 'Modality',
-            'Standard', 'Subject']).mean().reset_index()
+            'condition', 'modality',
+            'standard', 'subject']).mean().reset_index()
     else:
         assert estimator == 'std'
         df_ffx = df_ffx.groupby([
-            'Condition', 'Modality',
-            'Standard', 'Subject']).std().reset_index()
+            'condition', 'modality',
+            'standard', 'subject']).std().reset_index()
 
     return df_ffx
 
 
 def group_dvar(df_ffx, estimator='mean'):
     # Group effect for plotting
-    df_group = df_ffx.drop(['Subject'], axis=1)
+    df_group = df_ffx.drop(['subject'], axis=1)
     if estimator == 'mean':
         df_group = df_group.groupby([
-            'Condition', 'Modality', 'Standard']).mean().reset_index()
+            'condition', 'modality', 'standard']).mean().reset_index()
     else:
         assert estimator == 'std'
         df_group = df_group.groupby([
-            'Condition', 'Modality', 'Standard']).std().reset_index()
+            'condition', 'modality', 'standard']).std().reset_index()
 
-    async_ab = df_group[df_group.Modality=='audio'][
-        df_group.Condition=='beat'].Asynchronies.values
-    async_ai = df_group[df_group.Modality=='audio'][
-        df_group.Condition=='interval'].Asynchronies.values
-    async_vb = df_group[df_group.Modality=='visual'][
-        df_group.Condition=='beat'].Asynchronies.values
-    async_vi = df_group[df_group.Modality=='visual'][
-        df_group.Condition=='interval'].Asynchronies.values
+    async_ab = df_group[df_group.modality=='auditory'][
+        df_group.condition=='beat'].signed_asynchrony.values
+    async_ai = df_group[df_group.modality=='auditory'][
+        df_group.condition=='interval'].signed_asynchrony.values
+    async_vb = df_group[df_group.modality=='visual'][
+        df_group.condition=='beat'].signed_asynchrony.values
+    async_vi = df_group[df_group.modality=='visual'][
+        df_group.condition=='interval'].signed_asynchrony.values
 
     group_async = [[async_ab.tolist()] + [async_ai.tolist()]] + \
                    [[async_vb.tolist()] + [async_vi.tolist()]]
@@ -66,8 +67,9 @@ def group_dvar(df_ffx, estimator='mean'):
 
 
 def wide_dataframe(df, output_folder, estimator_id, sesstag):
-    wdf = pd.pivot(df, values='Asynchronies', index=['Subject', 'Standard'],
-                   columns=['Modality', 'Condition'])
+    wdf = pd.pivot(df, values='signed_asynchrony',
+                   index=['subject', 'standard'],
+                   columns=['modality', 'condition'])
 
     # Flatten the MultiIndex and capitalize the column names
     wdf.columns = [' '.join(col).strip().title()
@@ -176,6 +178,28 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
 # %%
 # ========================== INPUTS ====================================
 
+# ##################### Subjects' lists ################################
+# All subjects
+ALL_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36,
+                37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# All good subjects including img pilot (sub-04)
+GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40,
+                 41, 42, 43, 44, 45, 46, 47]
+
+# Img subjects only (without pilot)
+IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
+                28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# Subjects who did all behavioral sessions with the random condition...
+# ... in the NTFD task and img sessions
+BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
+                          39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# #######################################################################
+
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results')
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
@@ -187,7 +211,18 @@ sessions_dic = {'allses': 'All Sessions',
                 'ses-02': 'Session 2',
                 'ses-03': 'Session 3',
                 'ses-04': 'Session 4',
-                'ses-05': 'Session 5'}
+                'ses-05': 'Session 5',
+                'behavses': 'Behavioral Sessions',
+                'imgses': 'Imaging Sessions'}
+
+subjects_dic = {'allses': BEHAVIMG_RAND_SUBJECTS,
+                'ses-01': GOOD_SUBJECTS,
+                'ses-02': GOOD_SUBJECTS,
+                'ses-03': GOOD_SUBJECTS,
+                'ses-04': IMG_SUBJECTS,
+                'ses-05': IMG_SUBJECTS,
+                'behavses': BEHAVIMG_RAND_SUBJECTS,
+                'imgses': BEHAVIMG_RAND_SUBJECTS}
 
 # %%
 # ============================ RUN =====================================
@@ -195,30 +230,46 @@ sessions_dic = {'allses': 'All Sessions',
 if __name__ == "__main__":
 
     for key, value in sessions_dic.items():
-        # Open dataframe
+
+        # Define sessions_list
+        if key == 'allses':
+            sessions_list = [1, 2, 3, 4, 5]
+        elif key == 'ses-01':
+            sessions_list = [1]
+        elif key == 'ses-02':
+            sessions_list = [2]
+        elif key == 'ses-03':
+            sessions_list = [3]
+        elif key == 'ses-04':
+            sessions_list = [4]
+        elif key == 'ses-05':
+            sessions_list = [5]
+        elif key == 'behavses':
+            sessions_list = [1, 2, 3]
+        else:
+            assert key == 'imgses'
+            sessions_list = [4, 5]
+            
+        # Open dataframe     
         db_path = os.path.join(DATAFRAMES_FOLDER,
-                               'df_production_' + key + '.tsv')
+                               'df_production.tsv')
         db = pd.read_csv(db_path, sep='\t')
-        db['Asynchronies'] = db['Asynchronies'].astype('str')
 
-        # Remove rows with 'n/a' entries
-        na = db['Asynchronies'].str.contains('n/a')
-        filtered_db = db[~na]
+        # Filter Dataframe according to list of subjects
+        df_subfiltered = db[db['subject'].isin(subjects_dic[key])]
 
-        # Remove rows with nan's entries
-        nans = filtered_db['Asynchronies'].str.contains('nan')
-        filtered_db = filtered_db[~nans]
+        # Filter Dataframe according to list of sessions
+        df = df_subfiltered[df_subfiltered['session'].isin(sessions_list)]
 
-        # Convert Asynchronies to numbers
-        filtered_db['Asynchronies'] = \
-            filtered_db['Asynchronies'].apply(pd.to_numeric)
+        # Remove rows with 'NaN' entries
+        df = df.dropna(subset=['signed_asynchrony'])
 
         # Extract covariate
-        standards = np.unique(filtered_db['Standard'])
+        standards = np.unique(df['standard'])
 
         # Extract dependent variable
-        db_ffx_mean = ffx_dvar(filtered_db, estimator='mean')
-        db_ffx_std = ffx_dvar(filtered_db, estimator='std')
+        db_ffx_mean = ffx_dvar(df, estimator='mean')
+        db_ffx_std = ffx_dvar(df, estimator='std')
         mean_async = group_dvar(db_ffx_mean, estimator='mean')
         std_async = group_dvar(db_ffx_std, estimator='mean')
 
