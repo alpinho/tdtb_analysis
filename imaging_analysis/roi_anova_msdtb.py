@@ -32,7 +32,6 @@ def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
     # input data shape: (hemisphere, tasks, contrasts, subjects)
     # ## Open npy file
     data = np.load(data)
-    0/0
     subjects = ['sub-%02d' % s for s in n_subjects]
     category = [[contrast[s+1:] for s, char in enumerate(contrast[:-1])
                  if char == ' '][0] for contrast in contrasts]
@@ -929,8 +928,7 @@ hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
 # hrf_cutoff = 'hrf128_timederiv'
 # hrf_cutoff = 'hrf128_timedispderiv'
 
-# roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff)
-roi_dir = os.path.join(working_dir, 'roi_analyses_vdmcorr')
+roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff)
 
 # ### Define number of ROIs of the analysis ###
 # All ROIs: 7 ROIs
