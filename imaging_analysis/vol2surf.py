@@ -57,10 +57,11 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
         DR = surf.map.vol_to_surf([emap], wr, pr)
 
         # Transform numpy arrays in gifti files
+        contrast = contrast_tag.replace(" ", "-")
         GIFTIL = nt.gifti.make_func_gifti(DL, anatomical_struct='CortexLeft',
-                                          column_names=['Auditory-Encoding'])
+                                          column_names=[contrast])
         GIFTIR = nt.gifti.make_func_gifti(DR, anatomical_struct='CortexRight',
-                                          column_names=['Auditory-Encoding'])
+                                          column_names=[contrast])
 
         # Create CIFTI
         CIFTI = nt.cifti.join_giftis_to_cifti([GIFTIL, GIFTIR],
@@ -72,9 +73,9 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
             os.makedirs(output_folder)
 
         # Save CIFT file
-        contrast = contrast_tag.lower().replace(" ", "-")
         nib.save(CIFTI, os.path.join(
-            output_folder, 'sub-%02d_' % sb + contrast + '.dscalar.nii'))
+            output_folder,
+            'sub-%02d_' % sb + contrast.lower() + '.dscalar.nii'))
 
 
 # %%
