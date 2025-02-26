@@ -22,7 +22,7 @@ import surfAnalysisPy as surf
 # ========================== FUNCTIONS =================================
 
 def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
-                    surfspace_dir):
+                    surfspace_dir, output_folder, save='gifti'):
 
     # Paths of non-normalized individual contrast map for all subjects
     encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
@@ -63,19 +63,28 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
         GIFTIR = nt.gifti.make_func_gifti(DR, anatomical_struct='CortexRight',
                                           column_names=[contrast])
 
-        # Create CIFTI
-        CIFTI = nt.cifti.join_giftis_to_cifti([GIFTIL, GIFTIR],
-                                              mask=[None, None])
-
         # Create output folder if does not exist
-        output_folder = 'cifti_files'
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
-        # Save CIFT file
-        nib.save(CIFTI, os.path.join(
-            output_folder,
-            'sub-%02d_' % sb + contrast.lower() + '.dscalar.nii'))
+        # Save output
+        if save == 'gifti':
+            # Save Gifti files
+            nib.save(GIFTIL, os.path.join(
+                output_folder,
+                'sub-%02d_' % sb + contrast.lower() + '.hem-L.func.gii'))
+            nib.save(GIFTIR, os.path.join(
+                output_folder,
+                'sub-%02d_' % sb + contrast.lower() + '.hem-R.func.gii'))
+        else:
+            assert save == 'cifti'
+            # Create CIFTI
+            CIFTI = nt.cifti.join_giftis_to_cifti([GIFTIL, GIFTIR],
+                                                  mask=[None, None])
+            # Save CIFT file
+            nib.save(CIFTI, os.path.join(
+                output_folder,
+                'sub-%02d_' % sb + contrast.lower() + '.dscalar.nii'))
 
 
 # %%
@@ -87,6 +96,9 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 
 # Relative path for Individual fsl32K meshes
 surfWB_folder = os.path.join('surfaceWB', 'data')
+
+# Output Path
+output_dir = 'surface_files'
 
 task_tag = 'All Tasks'
 contrast_tag = 'Auditory Encoding'
@@ -135,4 +147,4 @@ if __name__ == '__main__':
     # Get individual cifti files with the volume to surface projection of...
     # ... the contrast map per participant
     individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                    surfWB_dir)
+                    surfWB_dir, output_dir)
