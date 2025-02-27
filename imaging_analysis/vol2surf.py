@@ -1,6 +1,6 @@
 """
 Script to do the volume to surface projection of data from the
- Music-SDTB project + smoothing
+ Music-SDTB project
 
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
@@ -101,7 +101,7 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
         print(DR.shape)
 
         # Transform numpy arrays in gifti files
-        contrast = all_contrasts[contrast_key].replace(" ", "-")
+        contrast = all_contrasts[contrast_key].replace(' ', '-')
         GIFTIL = nt.gifti.make_func_gifti(DL, anatomical_struct='CortexLeft',
                                           column_names=[contrast])
         GIFTIR = nt.gifti.make_func_gifti(DR, anatomical_struct='CortexRight',
@@ -118,22 +118,22 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
                 GIFTIL,
                 os.path.join(
                     surf_dir,
-                    "sub-{sb:02d}_".format(sb=sb)
+                    'sub-{sb:02d}_'.format(sb=sb)
                     + contrast.lower()
-                    + "_"
+                    + '_'
                     + surfspace
-                    + ".hem-L.func.gii",
+                    + '.hem-L.func.gii',
                 ),
             )
             nib.save(
                 GIFTIR,
                 os.path.join(
                     surf_dir,
-                    "sub-{sb:02d}_".format(sb=sb)
+                    'sub-{sb:02d}_'.format(sb=sb)
                     + contrast.lower()
-                    + "_"
+                    + '_'
                     + surfspace
-                    + ".hem-R.func.gii",
+                    + '.hem-R.func.gii',
                 ),
             )
         else:
@@ -162,7 +162,7 @@ def get_isurf(surf_dir, subjects, contrast, surfspace='fsaverage'):
         os.path.join(
             surf_dir,
             f'sub-{sub:02d}_{contrast}_{surfspace}.hem-R.func.gii'
-        ) 
+        )
         for sub in subjects
     ]
 
@@ -212,7 +212,7 @@ def threshold(z_vals, p_vals, alpha, height_control='fdr'):
 
 def group_surf(surf_dir, subjects, contrast_tag, surfspace='fsaverage'):
 
-    contrast = contrast_tag.lower().replace(" ", "-")
+    contrast = contrast_tag.lower().replace(' ', '-')
 
     # Get individual functional data projected on the surface
     gifti_left, gifti_right = get_isurf(surf_dir, subjects, contrast,
@@ -247,7 +247,7 @@ def group_surf(surf_dir, subjects, contrast_tag, surfspace='fsaverage'):
 def plot_flatmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
                  colormap='copper'):
 
-    contrast = contrast_tag.lower().replace(" ", "-")
+    contrast = contrast_tag.lower().replace(' ', '-')
 
     # Get border files
     meshes_dir = os.path.join(home, 'mygit', 'surfAnalysisPy', 'standard_mesh')
@@ -277,7 +277,7 @@ def plot_flatmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
                         fraction=0.05, pad=0.02)
 
     # Add label below colorbar
-    cbar.set_label("z-values", fontsize=12, labelpad=8)
+    cbar.set_label('z-values', fontsize=12, labelpad=8)
 
     # Set 4 evenly spaced tick positions
     tick_positions = np.linspace(vmin, vmax, 4)
@@ -299,7 +299,6 @@ def plot_flatmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
     fig.savefig(output_name, dpi=300, bbox_inches='tight', pad_inches=0)
 
 
-
 # %%
 # =========================== INPUTS ===================================
 
@@ -317,7 +316,7 @@ contrast_name = 'Auditory Encoding'
 # ========================= PARAMETERS =================================
 
 # Parent directories
-home = os.path.expanduser("~")
+home = os.path.expanduser('~')
 music = os.path.join(home, 'diedrichsen_data/data/Cerebellum/music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
 
@@ -351,8 +350,8 @@ contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 
 if __name__ == '__main__':
 
-    # Get individual cifti files with the volume to surface projection of...
-    # ... the contrast map per participant
+    # Compute individual gifti/cifti files with the volume to surface
+    # ... projection of the contrast map
     individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
                     surf_folder, surfspace='fslr32k')
 
@@ -365,5 +364,5 @@ if __name__ == '__main__':
     zvals_rh = np.split(z_values, 2, axis=0)[1]
     split_maps = [zvals_lh, zvals_rh]
 
-    # Plot static
+    # Plot static flatmap
     plot_flatmap(split_maps, thresh, contrast_name, hemi=['L', 'R'])
