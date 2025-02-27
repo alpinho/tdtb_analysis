@@ -367,31 +367,3 @@ if __name__ == '__main__':
 
     # Plot static
     plot_flatmap(split_maps, thresh, contrast_name, hemi=['L', 'R'])
-    
-    # from nilearn.plotting import plot_surf_stat_map
-    # from nilearn.datasets import load_fsaverage
-    # from nilearn.datasets import load_fsaverage_data
-
-    # fsaverage_meshes = load_fsaverage(mesh='fsaverage')
-
-    # curv_sign = load_fsaverage_data(mesh='fsaverage', data_type="curvature")
-    # for hemi, data in curv_sign.data.parts.items():
-    #     curv_sign.data.parts[hemi] = np.sign(data)
-
-    # # In this example we will plot both hemispheres, but you can choose one of
-    # # "left", "right" or "both".
-    # hemi = "left"
-
-    # fig = plot_surf_stat_map(
-    #     stat_map=zvals_lh,
-    #     surf_mesh=fsaverage_meshes["inflated"],
-    #     hemi=hemi,
-    #     title="Surface with matplotlib",
-    #     threshold=thresh,
-    #     bg_map=curv_sign,
-    #     output_file='left_hemi.png'
-    # )
-
-
-
-
