@@ -12,8 +12,8 @@ Compatibility: Python 3.10.14, nilearn 0.11.1
 """
 
 import os
-import numpy as np
 
+import numpy as np
 import nibabel as nib
 import nitools as nt
 import surfAnalysisPy as surf
@@ -350,10 +350,10 @@ contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 
 if __name__ == '__main__':
 
-    # Compute individual gifti/cifti files with the volume to surface
+    # Compute individual gifti/cifti files with the volume to surface...
     # ... projection of the contrast map
-    individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                    surf_folder, surfspace='fslr32k')
+    # individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
+    #                 surf_folder, surfspace='fslr32k')
 
     # Compute group func gifti
     z_values, thresh = group_surf(surf_folder, SUBJECTS, contrast_name,
