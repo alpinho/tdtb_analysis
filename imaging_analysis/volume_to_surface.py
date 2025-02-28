@@ -187,31 +187,32 @@ def zval_conversion(tval, dof):
     return zval
 
 
-def threshold(z_vals, p_vals, alpha, height_control='fdr'):
-    """
-    Return the Benjamini-Hochberg FDR or Bonferroni threshold for
-    the input correlations + corresponding p-values.
-    """
-    if alpha < 0 or alpha > 1:
-        raise ValueError(
-            'alpha should be between 0 and 1. {} was provided'.format(alpha))
+def group_surf(surf_dir, subjects, contrast_tag, surfspace='fslr32k'):
 
-    p_vals_ = np.sort(p_vals)
-    idx = np.argsort(p_vals)
+    contrast = contrast_tag.lower().replace(' ', '-')
 
-    z_vals_abs = np.abs(z_vals)
-    z_vals_ = z_vals_abs[idx]
+    # Get individual functional data projected on the surface
+    gifti_left, gifti_right = get_isurf(surf_dir, subjects, contrast,
+                                        surfspace=surfspace)
 
-    n_samples = len(p_vals_)
+    # Load individual surface data
+    data_left = np.array([load_surf_data(gl) for gl in gifti_left])
+    data_right = np.array([load_surf_data(gr) for gr in gifti_right])
 
-    if height_control == 'fdr':
-        pos = p_vals_ < alpha * np.linspace(1 / n_samples, 1, n_samples)
-    elif height_control == 'bonferroni':
-        pos = p_vals_ < alpha / n_samples
-    else:
-        raise ValueError('Height-control method not valid.')
+    # Substitute nan's by 0's
+    data_left[np.isnan(data_left)] = 0
+    data_right[np.isnan(data_right)] = 0
 
-    return (z_vals_[pos][-1] - 1.e-12) if pos.any() else np.infty
+    # Stack data
+    data = np.hstack((data_left, data_right))
+
+    # Calculate the one sample t-test
+    tvals, _ = stats.ttest_1samp(data, 0, axis=0, alternative='greater')
+
+    # Compute z-values from t-values
+    zvals = zval_conversion(tvals, len(subjects)-1)
+
+    return zvals
 
 
 def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
@@ -244,41 +245,13 @@ def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
     fdr_thresh = fdr_threshold(z_values.ravel(), alpha=0.05)
 
     # Print the estimated FDR threshold
-    print(f"Estimated FDR threshold: {fdr_thresh}")
+    print(f'Estimated FDR threshold: {fdr_thresh}')
 
     return fdr_thresh
 
 
-def group_surf(surf_dir, subjects, contrast_tag, surfspace='fslr32k'):
-
-    contrast = contrast_tag.lower().replace(' ', '-')
-
-    # Get individual functional data projected on the surface
-    gifti_left, gifti_right = get_isurf(surf_dir, subjects, contrast,
-                                        surfspace=surfspace)
-
-    # Load individual surface data
-    data_left = np.array([load_surf_data(gl) for gl in gifti_left])
-    data_right = np.array([load_surf_data(gr) for gr in gifti_right])
-
-    # Substitute nan's by 0's
-    data_left[np.isnan(data_left)] = 0
-    data_right[np.isnan(data_right)] = 0
-
-    # Stack data
-    data = np.hstack((data_left, data_right))
-
-    # Calculate the one sample t-test
-    tvals, _ = stats.ttest_1samp(data, 0, axis=0, alternative='two-sided')
-
-    # Compute z-values from t-values
-    zvals = zval_conversion(tvals, len(subjects)-1)
-
-    return zvals
-
-
 def plot_flatmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
-                 colormap='copper'):
+                 colormap='copper', vmax=10):
 
     contrast = contrast_tag.lower().replace(' ', '-')
 
@@ -300,8 +273,8 @@ def plot_flatmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
                                borders=borders[h],
                                )
 
-    # Define color limits
-    vmin, vmax = threshold, 10
+    # Define lower bound of color limits
+    vmin = threshold
 
     # Make colorbar
     norm = plt.Normalize(vmin=vmin, vmax=vmax)
@@ -408,4 +381,7 @@ if __name__ == '__main__':
     split_maps = [zvals_lh, zvals_rh]
 
     # Plot static flatmap
-    plot_flatmap(split_maps, fdr_thresh, contrast_name, hemi=['L', 'R'])
+    v_max = np.max(z_values[~np.isnan(z_values)])
+    print(f'Maximum Z value is: {v_max}')
+    plot_flatmap(split_maps, fdr_thresh, contrast_name, hemi=['L', 'R'],
+                 vmax=v_max)
