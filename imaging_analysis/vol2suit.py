@@ -17,6 +17,8 @@ import numpy as np
 import nibabel as nib
 import nitools as nt
 
+import matplotlib.pyplot as plt
+
 from SUITPy import flatmap
 from scipy import stats
 
@@ -141,6 +143,30 @@ def group_suit(surf_dir, subjects, contrast_tag):
     return zvals, fdr_thresh
 
 
+def plot_suitflat(stats, threshold, contrast_tag):
+
+    contrast = contrast_tag.lower().replace(' ', '-')
+
+    # Define color limits
+    vmin, vmax = 0, 10
+
+    # Do the flatmap
+    flatmap.plot(stats,
+                 cmap='jet',
+                 #cscale=[vmin, vmax],
+                 #underscale=[-1.5, 1],
+                 threshold=vmin,
+                 colorbar=True,
+                 render='matplotlib')
+
+    # Get the current figure created by flatmap.plot()
+    fig = plt.gcf()  # Get the figure from the active Matplotlib state
+
+    # Save figure
+    output_name = f'group_{contrast}_suit.png'
+    fig.savefig(output_name, dpi=300)
+
+
 # %%
 # =========================== INPUTS ===================================
 
@@ -194,8 +220,11 @@ if __name__ == '__main__':
 
     # Compute individual gifti files with the volume to suit...
     # ... projection of the contrast map
-    individual_suit(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                    suit_folder)
+    # individual_suit(derivatives_folder, SUBJECTS, task_id, contrast_id,
+    #                 suit_folder)
 
     # Compute group func gifti
     z_values, thresh = group_suit(suit_folder, SUBJECTS, contrast_name)
+
+    # Plot cerebellum flatmap
+    plot_suitflat(z_values, thresh, contrast_name)
