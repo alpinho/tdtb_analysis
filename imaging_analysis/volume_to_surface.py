@@ -14,6 +14,7 @@ Compatibility: Python 3.10.14, nilearn 0.11.1
 import os
 
 import numpy as np
+import pandas as pd
 import nibabel as nib
 import nitools as nt
 import surfAnalysisPy as surf
@@ -24,12 +25,15 @@ from matplotlib.cm import ScalarMappable
 from scipy import stats
 from nilearn.image import load_img
 from nilearn.surface import load_surf_data, vol_to_surf
+from nilearn.maskers import NiftiMasker
+from nilearn.glm.second_level import SecondLevelModel
+from nilearn.glm.thresholding import fdr_threshold
 
 
 # %%
 # ========================== FUNCTIONS =================================
 
-def get_imeshes(derivatives_dir, subjects, surfspace='fsaverage'):
+def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
 
     if surfspace == 'fsaverage':
         surfspace_dir = os.path.join(os.path.dirname(derivatives_dir),
@@ -74,9 +78,9 @@ def get_imeshes(derivatives_dir, subjects, surfspace='fsaverage'):
 
 
 def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
-                    surf_dir, surfspace='fsaverage', save='gifti'):
+                    surf_dir, surfspace='fslr32k', save='gifti'):
 
-    # Paths of non-normalized individual contrast map for all subjects
+    # Paths of the NON-NORMALIZED individual contrast map for all subjects
     encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
                                   'estimates', task_key, 'ffx_rwls_dbb_hrf128',
                                   'con_%04d' % contrast_key + '.nii')
@@ -147,7 +151,7 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
                 'sub-%02d_' % sb + contrast.lower() + '.dscalar.nii'))
 
 
-def get_isurf(surf_dir, subjects, contrast, surfspace='fsaverage'):
+def get_isurf(surf_dir, subjects, contrast, surfspace='fslr32k'):
     
     # Paths of individual gifti files per hemisphere
     gifti_left = [
@@ -210,7 +214,42 @@ def threshold(z_vals, p_vals, alpha, height_control='fdr'):
     return (z_vals_[pos][-1] - 1.e-12) if pos.any() else np.infty
 
 
-def group_surf(surf_dir, subjects, contrast_tag, surfspace='fsaverage'):
+def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
+
+    # Paths of the NORMALIZED individual contrast map for all subjects
+    encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
+                                  'estimates', task_key, 'ffx_rwls_dbb_hrf128',
+                                  'wcon_%04d' % contrast_key + '.nii')
+                     for sub in subjects]
+
+    # Create design matrix (one-sample t-test)
+    design_matrix = pd.DataFrame([1] * len(encoding_maps), columns=['intercept'])
+
+    # Initialize a NiftiMasker (it will create an implicit mask from the Z-map)
+    masker = NiftiMasker(mask_img=gmask)
+
+    # Initialize and fit the SecondLevelModel
+    second_level_model = SecondLevelModel(mask_img=masker, smoothing_fwhm=8)
+    second_level_model = second_level_model.fit(encoding_maps,
+                                                design_matrix=design_matrix)
+
+    # Compute the Z-Map
+    z_map = second_level_model.compute_contrast(output_type='z_score')
+
+    # Extract voxel values using fit_transform()
+    z_values = masker.fit_transform(z_map)  # Output shape: (1, p)
+
+    # Get FDR threshold at alpha = 0.05 (5% false discovery rate)
+    # One side: greater than (so, no need to divide by 2)
+    fdr_thresh = fdr_threshold(z_values.ravel(), alpha=0.05)
+
+    # Print the estimated FDR threshold
+    print(f"Estimated FDR threshold: {fdr_thresh}")
+
+    return fdr_thresh
+
+
+def group_surf(surf_dir, subjects, contrast_tag, surfspace='fslr32k'):
 
     contrast = contrast_tag.lower().replace(' ', '-')
 
@@ -230,18 +269,12 @@ def group_surf(surf_dir, subjects, contrast_tag, surfspace='fsaverage'):
     data = np.hstack((data_left, data_right))
 
     # Calculate the one sample t-test
-    tvals, pvals = stats.ttest_1samp(data, 0, axis=0, alternative='two-sided')
+    tvals, _ = stats.ttest_1samp(data, 0, axis=0, alternative='two-sided')
 
     # Compute z-values from t-values
     zvals = zval_conversion(tvals, len(subjects)-1)
 
-    # Threshold z-values, ...
-    # ... because pvalues are two-sided, ...
-    # ... alpha is corrected by a factor of 2
-    fdr_thresh = threshold(zvals, pvals, 0.05/2, height_control='fdr')
-    print(fdr_thresh)
-
-    return zvals, fdr_thresh
+    return zvals
 
 
 def plot_flatmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
@@ -319,6 +352,8 @@ contrast_name = 'Auditory Encoding'
 home = os.path.expanduser('~')
 music = os.path.join(home, 'diedrichsen_data/data/Cerebellum/music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
+wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
+                        'group_mask_noskull.nii')
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
@@ -356,13 +391,21 @@ if __name__ == '__main__':
     #                 surf_folder, surfspace='fslr32k')
 
     # Compute group func gifti
-    z_values, thresh = group_surf(surf_folder, SUBJECTS, contrast_name,
-                                  surfspace='fslr32k')
+    z_values = group_surf(surf_folder, SUBJECTS, contrast_name,
+                          surfspace='fslr32k')
 
+    # Compute whole-brain fdr threshold of volumetric data
+    # fdr_thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
+    #                              contrast_id, wb_gmask)
+    fdr_thresh = 2.7051156945711403
+
+    # ################## Plot ##################
+    # Note: This plotting only works for surfspace='fslr32k'
+    
     # Split results into the two hemispheres
     zvals_lh = np.split(z_values, 2, axis=0)[0]
     zvals_rh = np.split(z_values, 2, axis=0)[1]
     split_maps = [zvals_lh, zvals_rh]
 
     # Plot static flatmap
-    plot_flatmap(split_maps, thresh, contrast_name, hemi=['L', 'R'])
+    plot_flatmap(split_maps, fdr_thresh, contrast_name, hemi=['L', 'R'])
