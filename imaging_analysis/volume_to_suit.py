@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 from SUITPy import flatmap
 from scipy import stats
 
+from volume_to_surface import whole_brain_fdr
+
 
 # %%
 # ========================== FUNCTIONS =================================
@@ -29,7 +31,7 @@ from scipy import stats
 def individual_suit(derivatives_dir, subjects, task_key, contrast_key,
                     suit_dir):
 
-    # Paths of non-normalized individual contrast map for all subjects
+    # Paths of the NON-NORMALIZED individual contrast map for all subjects
     encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
                                   'estimates', task_key, 'ffx_rwls_dbb_hrf128',
                                   'con_%04d' % contrast_key + '.nii')
@@ -78,33 +80,6 @@ def zval_conversion(tval, dof):
     return zval
 
 
-def threshold(z_vals, p_vals, alpha, height_control='fdr'):
-    """
-    Return the Benjamini-Hochberg FDR or Bonferroni threshold for
-    the input correlations + corresponding p-values.
-    """
-    if alpha < 0 or alpha > 1:
-        raise ValueError(
-            'alpha should be between 0 and 1. {} was provided'.format(alpha))
-
-    p_vals_ = np.sort(p_vals)
-    idx = np.argsort(p_vals)
-
-    z_vals_abs = np.abs(z_vals)
-    z_vals_ = z_vals_abs[idx]
-
-    n_samples = len(p_vals_)
-
-    if height_control == 'fdr':
-        pos = p_vals_ < alpha * np.linspace(1 / n_samples, 1, n_samples)
-    elif height_control == 'bonferroni':
-        pos = p_vals_ < alpha / n_samples
-    else:
-        raise ValueError('Height-control method not valid.')
-
-    return (z_vals_[pos][-1] - 1.e-12) if pos.any() else np.infty
-
-
 def group_suit(surf_dir, subjects, contrast_tag):
 
     contrast = contrast_tag.lower().replace(' ', '-')
@@ -128,39 +103,39 @@ def group_suit(surf_dir, subjects, contrast_tag):
     data[np.isnan(data)] = 0
 
     # Calculate the one sample t-test
-    tvals, pvals = stats.ttest_1samp(data, 0, axis=0,
-                                     alternative='two-sided')
+    tvals, _ = stats.ttest_1samp(data, 0, axis=0, alternative='greater')
 
     # Compute z-values from t-values
     zvals = zval_conversion(tvals, len(subjects)-1)
 
-    # Threshold z-values, ...
-    # ... because pvalues are two-sided, ...
-    # ... alpha is corrected by a factor of 2
-    fdr_thresh = threshold(zvals, pvals, 0.05/2, height_control='fdr')
-    print(fdr_thresh)
-
-    return zvals, fdr_thresh
+    return zvals
 
 
-def plot_suitflat(stats, threshold, contrast_tag):
+def plot_suitflat(stats, threshold, contrast_tag, colormap='copper',
+                  vmax=10):
 
     contrast = contrast_tag.lower().replace(' ', '-')
 
     # Define color limits
-    vmin, vmax = 0, 10
+    vmin = threshold
 
     # Do the flatmap
     flatmap.plot(stats,
-                 cmap='jet',
-                 #cscale=[vmin, vmax],
-                 #underscale=[-1.5, 1],
+                 cmap=colormap,
+                 cscale=[vmin, vmax],
+                 underscale=[-1.5, 1],
                  threshold=vmin,
                  colorbar=True,
                  render='matplotlib')
 
     # Get the current figure created by flatmap.plot()
     fig = plt.gcf()  # Get the figure from the active Matplotlib state
+
+    # Define lower bound of color limits
+    vmin = threshold
+
+    # Make colorbar
+    # cbar = fig.colorbar(fraction=0.05, pad=0.02)
 
     # Save figure
     output_name = f'group_{contrast}_suit.png'
@@ -187,6 +162,8 @@ contrast_name = 'Auditory Encoding'
 home = os.path.expanduser('~')
 music = os.path.join(home, 'diedrichsen_data/data/Cerebellum/music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
+wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
+                        'group_mask_noskull.nii')
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
@@ -224,7 +201,14 @@ if __name__ == '__main__':
     #                 suit_folder)
 
     # Compute group func gifti
-    z_values, thresh = group_suit(suit_folder, SUBJECTS, contrast_name)
+    z_values = group_suit(suit_folder, SUBJECTS, contrast_name)
+
+    # Compute whole-brain fdr threshold of volumetric data
+    fdr_thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
+                                 contrast_id, wb_gmask)
+    # fdr_thresh = 2.7051156945711403
 
     # Plot cerebellum flatmap
-    plot_suitflat(z_values, thresh, contrast_name)
+    v_max = np.max(z_values[~np.isnan(z_values)])
+    print(f'Maximum Z value is: {v_max}')
+    plot_suitflat(z_values, fdr_thresh, contrast_name, vmax=v_max)
