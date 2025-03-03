@@ -6,9 +6,12 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 24th of February 2025
-Last Update: February 2025
+Last Update: March 2025
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
+
+Note: The all pipeline of this script only works for surf_files saved as
+      cifti in fs_LR32k.
 """
 
 import os
@@ -28,6 +31,7 @@ from nilearn.surface import load_surf_data, vol_to_surf
 from nilearn.maskers import NiftiMasker
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm.thresholding import fdr_threshold
+from Functional_Fusion.util import smooth_fs32k_data
 
 
 # %%
@@ -90,7 +94,6 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
     pial_left, pial_right, white_left, white_right = get_imeshes(
         derivatives_dir, subjects, surfspace=surfspace)
 
-
     # For each subject...
     for emap, pl, pr, wl, wr, sb in zip(encoding_maps, pial_left, pial_right,
                                         white_left, white_right, SUBJECTS):
@@ -146,19 +149,23 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
             CIFTI = nt.cifti.join_giftis_to_cifti([GIFTIL, GIFTIR],
                                                   mask=[None, None])
             # Save CIFT file
-            nib.save(CIFTI, os.path.join(
-                surf_dir,
-                'sub-%02d_' % sb + contrast.lower() + '.dscalar.nii'))
+            nib.save(
+                CIFTI,
+                os.path.join(
+                    surf_dir,
+                    f"sub-{sb:02d}_{contrast.lower()}_{surfspace}.dscalar.nii"
+                ),
+            )
 
 
-def get_isurf(surf_dir, subjects, contrast, surfspace='fslr32k'):
-    
-    # Paths of individual gifti files per hemisphere
+def get_isurf_gifti(surf_dir, subjects, contrast, surfspace='fslr32k'):
+
+    # Paths of individual files per hemisphere
     gifti_left = [
         os.path.join(
             surf_dir,
             f'sub-{sub:02d}_{contrast}_{surfspace}.hem-L.func.gii'
-        ) 
+        )
         for sub in subjects
     ]
 
@@ -171,6 +178,20 @@ def get_isurf(surf_dir, subjects, contrast, surfspace='fslr32k'):
     ]
 
     return gifti_left, gifti_right
+
+
+def get_isurf_cifti(surf_dir, subjects, contrast, surfspace='fslr32k'):
+
+    # Paths of individual files
+    cifti_file = [
+        os.path.join(
+            surf_dir,
+            f'sub-{sub:02d}_{contrast}_{surfspace}.dscalar.nii'
+        )
+        for sub in subjects
+    ]
+
+    return cifti_file
 
 
 def zval_conversion(tval, dof):
@@ -191,23 +212,26 @@ def group_surf(surf_dir, subjects, contrast_tag, surfspace='fslr32k'):
 
     contrast = contrast_tag.lower().replace(' ', '-')
 
-    # Get individual functional data projected on the surface
-    gifti_left, gifti_right = get_isurf(surf_dir, subjects, contrast,
-                                        surfspace=surfspace)
+    # Get paths of files with individual functional data projected on...
+    # ... the surface
+    cifti_paths = get_isurf_cifti(surf_dir, subjects, contrast,
+                                  surfspace=surfspace)
 
-    # Load individual surface data
-    data_left = np.array([load_surf_data(gl) for gl in gifti_left])
-    data_right = np.array([load_surf_data(gr) for gr in gifti_right])
+    # Substitute nan's by zeros and smooth the data
+    smoothed_data = np.array([smooth_fs32k_data(cifti_path, smooth=8,
+                                                kernel='fwhm',
+                                                return_data_only=True)
+                              for cifti_path in cifti_paths])
+
+    # Remove the middle dimension
+    smoothed_data = np.squeeze(smoothed_data, axis=1)
 
     # Substitute nan's by 0's
-    data_left[np.isnan(data_left)] = 0
-    data_right[np.isnan(data_right)] = 0
-
-    # Stack data
-    data = np.hstack((data_left, data_right))
+    smoothed_data[np.isnan(smoothed_data)] = 0
 
     # Calculate the one sample t-test
-    tvals, _ = stats.ttest_1samp(data, 0, axis=0, alternative='greater')
+    tvals, _ = stats.ttest_1samp(smoothed_data, 0, axis=0,
+                                 alternative='greater')
 
     # Compute z-values from t-values
     zvals = zval_conversion(tvals, len(subjects)-1)
@@ -361,16 +385,15 @@ if __name__ == '__main__':
     # Compute individual gifti/cifti files with the volume to surface...
     # ... projection of the contrast map
     # individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-    #                 surf_folder, surfspace='fslr32k')
+    #                 surf_folder, surfspace='fslr32k', save='cifti')
 
-    # Compute group func gifti
+    # Compute group func cifti
     z_values = group_surf(surf_folder, SUBJECTS, contrast_name,
                           surfspace='fslr32k')
 
     # Compute whole-brain fdr threshold of volumetric data
-    # fdr_thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
-    #                              contrast_id, wb_gmask)
-    fdr_thresh = 2.7051156945711403
+    fdr_thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
+                                 contrast_id, wb_gmask)
 
     # ################## Plot ##################
     # Note: This plotting only works for surfspace='fslr32k'
