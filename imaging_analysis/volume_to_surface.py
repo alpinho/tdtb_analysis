@@ -384,8 +384,8 @@ if __name__ == '__main__':
 
     # Compute individual gifti/cifti files with the volume to surface...
     # ... projection of the contrast map
-    # individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-    #                 surf_folder, surfspace='fslr32k', save='cifti')
+    individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
+                    surf_folder, surfspace='fslr32k', save='cifti')
 
     # Compute group func cifti
     z_values = group_surf(surf_folder, SUBJECTS, contrast_name,
