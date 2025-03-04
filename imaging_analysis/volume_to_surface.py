@@ -20,7 +20,6 @@ import numpy as np
 import pandas as pd
 import nibabel as nib
 import nitools as nt
-import surfAnalysisPy as surf
 
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
@@ -28,10 +27,12 @@ from matplotlib.cm import ScalarMappable
 from scipy import stats
 from nilearn.image import load_img
 from nilearn.surface import load_surf_data, vol_to_surf
+from nilearn.plotting import plot_surf_stat_map, view_surf
 from nilearn.maskers import NiftiMasker
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm.thresholding import fdr_threshold
 from Functional_Fusion.util import smooth_fs32k_data
+from SUITPy import flatmap
 
 
 # %%
@@ -236,6 +237,9 @@ def group_surf(surf_dir, subjects, contrast_tag, surfspace='fslr32k'):
     # Compute z-values from t-values
     zvals = zval_conversion(tvals, len(subjects)-1)
 
+    # Substitute nan's by 0's
+    zvals[np.isnan(zvals)] = 0
+
     return zvals
 
 
@@ -274,28 +278,49 @@ def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
     return fdr_thresh
 
 
-def plot_flatmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
+def plot_surfmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
                  colormap='copper', vmax=10):
 
     contrast = contrast_tag.lower().replace(' ', '-')
 
     # Get border files
-    meshes_dir = os.path.join(home, 'mygit', 'surfAnalysisPy', 'standard_mesh')
-    borders = {'L': os.path.join(meshes_dir, 'fs_L', 'fs_LR.32k.L.border'),
-               'R': os.path.join(meshes_dir, 'fs_R', 'fs_LR.32k.R.border')
+    meshes_dir = 'fslr32k_meshes'
+    borders = {'L': os.path.join(meshes_dir, 'flat', 'fs_LR.32k.L.border'),
+               'R': os.path.join(meshes_dir, 'flat', 'fs_LR.32k.R.border')
                }
+    # surfaces = {'L': os.path.join(meshes_dir, 'flat',
+    #                               'fs_LR.32k.L.flat.surf.gii'),
+    #             'R': os.path.join(meshes_dir, 'flat',
+    #                               'fs_LR.32k.R.flat.surf.gii')
+    #             }
+    underlays = {'L': os.path.join(meshes_dir, 'flat',
+                                   'fs_LR.32k.L.shape.gii'),
+                 'R': os.path.join(meshes_dir, 'flat',
+                                   'fs_LR.32k.R.shape.gii')
+                 }
+
+    surfaces = {'L': os.path.join(meshes_dir,
+                                  'tpl-fs32k_hemi-L_flat.surf.gii'),
+                'R': os.path.join(meshes_dir,
+                                  'tpl-fs32k_hemi-R_flat.surf.gii')
+                }
 
     # Define figure with two subplots
     fig, axs = plt.subplots(1, len(hemi), figsize=(8, 4),
                             gridspec_kw={'wspace': 0.05})
     for ax, stat, h in zip(axs, stats, hemi):
         plt.sca(ax)
-        ax = surf.plot.plotmap(stat,
-                               surf=f'fs32k_{h}',
-                               threshold=threshold,
-                               cmap=colormap,
-                               borders=borders[h],
-                               )
+        ax = flatmap.plot(stat,
+                          surf=surfaces[h],
+                          underlay=underlays[h],
+                          undermap='gray',
+                          underscale=[-1.5, 1],
+                          threshold=threshold,
+                          cmap=colormap,
+                          borders=borders[h],
+                          new_figure=False,
+                          frame = None
+                          )
 
     # Define lower bound of color limits
     vmin = threshold
@@ -384,8 +409,8 @@ if __name__ == '__main__':
 
     # Compute individual gifti/cifti files with the volume to surface...
     # ... projection of the contrast map
-    individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                    surf_folder, surfspace='fslr32k', save='cifti')
+    # individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
+    #                 surf_folder, surfspace='fslr32k', save='cifti')
 
     # Compute group func cifti
     z_values = group_surf(surf_folder, SUBJECTS, contrast_name,
@@ -406,5 +431,15 @@ if __name__ == '__main__':
     # Plot static flatmap
     v_max = np.max(z_values[~np.isnan(z_values)])
     print(f'Maximum Z value is: {v_max}')
-    plot_flatmap(split_maps, fdr_thresh, contrast_name, hemi=['L', 'R'],
+    plot_surfmap(split_maps, fdr_thresh, contrast_name, hemi=['L', 'R'],
                  vmax=v_max)
+
+    # Plot dynamic inflated map
+    fslr_32k_L = 'fslr32k_meshes/fs_LR.32k.L.inflated.surf.gii'
+    fslr_32k_R = 'fslr32k_meshes/fs_LR.32k.R.inflated.surf.gii'    
+    view = view_surf(
+        surf_mesh=fslr_32k_L,
+        surf_map=zvals_lh,
+        title="3D visualization in a web browser",
+    )
+    view.open_in_browser()
