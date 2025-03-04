@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of February 2025
-Last Update: February 2025
+Last Update: March 2025
 
 Compatibility: Python 3.10.14, SUITPy 1.3.2
 """
@@ -16,55 +16,16 @@ import os
 import numpy as np
 import nibabel as nib
 import nitools as nt
-
 import matplotlib.pyplot as plt
 
-from SUITPy import flatmap
 from scipy import stats
+from SUITPy import flatmap
 
 from volume_to_surface import whole_brain_fdr
 
 
 # %%
 # ========================== FUNCTIONS =================================
-
-def individual_suit(derivatives_dir, subjects, task_key, contrast_key,
-                    suit_dir):
-
-    # Paths of the NON-NORMALIZED individual contrast map for all subjects
-    encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
-                                  'estimates', task_key, 'ffx_rwls_dbb_hrf128',
-                                  'con_%04d' % contrast_key + '.nii')
-                     for sub in subjects]
-
-    # Maps volume-based data onto the suit surface as numpy arrfays
-    suit_maps = [flatmap.vol_to_surf(emap, space='SUIT')
-                 for emap in encoding_maps]
-
-    # Transform numpy arrays in gifti files
-    contrast = all_contrasts[contrast_key].replace(' ', '-')    
-    giftis = [nt.gifti.make_func_gifti(suit_map,
-                                       anatomical_struct='Cerebellum',
-                                       column_names=[contrast])
-              for suit_map in suit_maps]
-
-    # Create directory to save outputs if does not exist
-    if not os.path.exists(suit_dir):
-        os.makedirs(suit_dir)
-
-    # Save the data
-    for s, sb in enumerate(subjects):
-        nib.save(
-            giftis[s],
-            os.path.join(
-                suit_dir,
-                'sub-{sb:02d}_'.format(sb=sb)
-                + contrast.lower()
-                + '_'
-                + 'suit.func.gii',
-            ),
-        )
-
 
 def zval_conversion(tval, dof):
     pval = stats.t.sf(tval, dof)
@@ -80,35 +41,47 @@ def zval_conversion(tval, dof):
     return zval
 
 
-def group_suit(surf_dir, subjects, contrast_tag):
+def group_suit(group_dir, task_key, contrast_key, subjects, suit_dir):
 
-    contrast = contrast_tag.lower().replace(' ', '-')
+    contrast = all_contrasts[contrast_key].replace(' ', '_')
 
-    # Get individual functional data projected on suit space
-    igiftis_paths = [
-        os.path.join(
-            surf_dir,
-            f'sub-{sub:02d}_{contrast}_suit.func.gii'
-        )
-        for sub in subjects
-    ]
+    # Paths of the group contrast t-map
+    encoding_map = os.path.join(
+        group_dir, task_key, 'rfx_onesample_t_rwls_dbb_hrf128_wb',
+        'con_%02d' % contrast_key + '_%s' % contrast, 'spmT_0001.nii')
 
-    # Load individual suit data
-    igiftis = [nib.load(gl) for gl in igiftis_paths]
-    data = np.array([nt.get_gifti_data_matrix(igifti)
-                     for igifti in igiftis])
-    data = np.squeeze(data, axis=-1)
+    # Maps volume-based data onto the suit surface as numpy arrays
+    suit_tvals = flatmap.vol_to_surf(encoding_map, space='SUIT')
 
-    # Substitute nan's by 0's
-    data[np.isnan(data)] = 0
-
-    # Calculate the one sample t-test
-    tvals, _ = stats.ttest_1samp(data, 0, axis=0, alternative='greater')
+    # Remove the second dimension
+    suit_tvals = np.squeeze(suit_tvals, axis=1)
 
     # Compute z-values from t-values
-    zvals = zval_conversion(tvals, len(subjects)-1)
+    suit_zvals = zval_conversion(suit_tvals, len(subjects)-1)
 
-    return zvals
+    # Transform numpy arrays in gifti files
+    contrast = all_contrasts[contrast_key].replace('_', '-')
+    gifti = nt.gifti.make_func_gifti(suit_zvals,
+                                     anatomical_struct='Cerebellum',
+                                     column_names=[contrast])
+
+    # Create directory to save outputs if does not exist
+    if not os.path.exists(suit_dir):
+        os.makedirs(suit_dir)
+
+    # Save the data
+    nib.save(
+        gifti,
+        os.path.join(
+            suit_dir,
+            'group_'
+            + contrast.lower()
+            + '_'
+            + 'suit.func.gii',
+        ),
+    )
+
+    return suit_zvals
 
 
 def plot_suitflat(stats, threshold, contrast_tag, colormap='copper',
@@ -133,9 +106,6 @@ def plot_suitflat(stats, threshold, contrast_tag, colormap='copper',
 
     # Define lower bound of color limits
     vmin = threshold
-
-    # Make colorbar
-    # cbar = fig.colorbar(fraction=0.05, pad=0.02)
 
     # Save figure
     output_name = f'group_{contrast}_suit.png'
@@ -162,8 +132,8 @@ contrast_name = 'Auditory Encoding'
 home = os.path.expanduser('~')
 music = os.path.join(home, 'diedrichsen_data/data/Cerebellum/music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
-wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
-                        'group_mask_noskull.nii')
+group_folder = os.path.join(derivatives_folder, 'group')
+wb_gmask = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
@@ -195,20 +165,17 @@ contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 
 if __name__ == '__main__':
 
-    # Compute individual gifti files with the volume to suit...
-    # ... projection of the contrast map
-    # individual_suit(derivatives_folder, SUBJECTS, task_id, contrast_id,
-    #                 suit_folder)
-
-    # Compute group func gifti
-    z_values = group_suit(suit_folder, SUBJECTS, contrast_name)
+    # Get z-values of group contrast in SUIT space
+    z_values = group_suit(group_folder, task_id, contrast_id, SUBJECTS,
+                          suit_folder)
 
     # Compute whole-brain fdr threshold of volumetric data
     fdr_thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
                                  contrast_id, wb_gmask)
-    # fdr_thresh = 2.7051156945711403
 
     # Plot cerebellum flatmap
     v_max = np.max(z_values[~np.isnan(z_values)])
     print(f'Maximum Z value is: {v_max}')
-    plot_suitflat(z_values, fdr_thresh, contrast_name, vmax=v_max)
+    zmax_cortex_auditory_encoding = 7.5705155593408024
+    plot_suitflat(z_values, fdr_thresh, contrast_name,
+                  vmax=zmax_cortex_auditory_encoding)
