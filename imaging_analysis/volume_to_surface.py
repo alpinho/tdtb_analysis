@@ -692,7 +692,7 @@ def plotly_surfmap(
     )
 
     # Save as interactive HTML.
-    pio.write_html(fig, outfname + '.html', auto_open=True)
+    pio.write_html(fig, outfname, auto_open=True)
     print(f"Saved HTML figure: {outfname}.html")
 
 
@@ -809,9 +809,9 @@ if __name__ == '__main__':
             os.path.join(
                 surf_folder,
                 'group_'
-                + cname.lower()
+                + cname.lower().replace(' ', '-')
                 + '_'
-                + 'fslr32k.func.gii',
+                + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
             ),
         )
 
@@ -821,15 +821,21 @@ if __name__ == '__main__':
     # Open gifti
     zmap_lh = nib.load(
         os.path.join(
-            contrasts_folder,
-            f"{contrast_name.lower().replace(' ', '-')}_zvals_lh_masked.gii"
+            surf_folder,
+            'group_'
+            + contrast_name.lower().replace(' ', '-')
+            + '_'
+            + 'fslr32k.L.func.gii',
         )
     )
     zvals_lh_masked = zmap_lh.darrays[0].data
     zmap_rh = nib.load(
         os.path.join(
-            contrasts_folder,
-            f"{contrast_name.lower().replace(' ', '-')}_zvals_rh_masked.gii"
+            surf_folder,
+            'group_'
+            + contrast_name.lower().replace(' ', '-')
+            + '_'
+            + 'fslr32k.R.func.gii',
         )
     )
     zvals_rh_masked = zmap_rh.darrays[0].data
