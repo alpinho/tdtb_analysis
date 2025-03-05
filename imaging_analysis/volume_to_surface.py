@@ -711,20 +711,21 @@ if __name__ == '__main__':
     zvals_rh_masked = mask_cortical_activation(
         zvals_rh, rh_medial_wall_mask_path)
 
-    # # Plot static flatmap
+    # ################ Plot static flatmap #############################
+ 
     split_maps = [zvals_lh_masked, zvals_rh_masked]
-    v_max = np.max(z_values[~np.isnan(z_values)])
+    zvals_masked = np.concatenate((zvals_lh_masked, zvals_rh_masked))
+    v_max = np.max(z_values[~np.isnan(zvals_masked)])
     print(f'Maximum Z value is: {v_max}')
     plot_flatmap(split_maps, fdr_thresh, contrast_name, output_folder,
                  hemi=['L', 'R'], colormap='viridis', vmax=v_max)
 
-    # Plot dynamic inflated map with threshold applied and...
-    # ... background sulc image
+    # ################## Plot dynamic map ##############################
 
     # Create Left and Right sulc gifti files
     # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
     
-    # #################### Left Hemisphere #############################
+    # Left Hemisphere 
     lh_output_path = os.path.join(
         output_folder,
         contrast_name.lower().replace(' ', '-') + '_lh_veryinflated.html')
@@ -734,12 +735,12 @@ if __name__ == '__main__':
                    zvals_lh_masked,
                    fdr_thresh,
                    lh_output_path,
-                   resolution=10,
+                   resolution=5,
                    radius=.5,
                    cmap='viridis'
                    )
 
-    # ################### Right Hemisphere #############################
+    # Right Hemisphere
     rh_output_path = os.path.join(
         output_folder,
         contrast_name.lower().replace(' ', '-') + '_rh_veryinflated.html')
@@ -749,7 +750,7 @@ if __name__ == '__main__':
                    zvals_rh_masked,
                    fdr_thresh,
                    rh_output_path,
-                   resolution=10,
+                   resolution=5,
                    radius=.5,
                    cmap='viridis'
                    )
