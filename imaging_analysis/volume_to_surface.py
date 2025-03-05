@@ -20,7 +20,6 @@ import pandas as pd
 import nibabel as nib
 import nitools as nt
 
-import xml.etree.ElementTree as ET
 import plotly.graph_objects as go
 import plotly.io as pio
 
@@ -29,8 +28,7 @@ from matplotlib.cm import ScalarMappable
 
 from scipy import stats
 from nilearn.image import load_img
-from nilearn.surface import load_surf_data, vol_to_surf
-from nilearn.plotting import plot_surf_stat_map, view_surf
+from nilearn.surface import vol_to_surf
 from nilearn.maskers import NiftiMasker
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm.thresholding import fdr_threshold
