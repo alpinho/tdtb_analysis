@@ -15,7 +15,6 @@ Note: The all pipeline of this script only works for surf_files saved as
 """
 
 import os
-
 import numpy as np
 import pandas as pd
 import nibabel as nib
@@ -39,68 +38,7 @@ from Functional_Fusion.util import smooth_fs32k_data
 from SUITPy import flatmap
 
 
-# %%
 # ========================== FUNCTIONS =================================
-
-def generate_sphere(res=3, radius=1.0):
-    """
-    Generate a UV sphere mesh with `res` subdivisions in phi & theta,
-    returning (sphere_vertices, sphere_faces).
-    - res=3 or 4 is a moderate resolution.
-    """
-    verts = []
-    faces = []
-
-    # Spherical coordinates subdiv
-    for i in range(res + 1):
-        theta = np.pi * i / res  # 0..pi
-        for j in range(res * 2 + 1):
-            phi = 2 * np.pi * j / (2 * res)  # 0..2pi
-            x = radius * np.sin(theta) * np.cos(phi)
-            y = radius * np.sin(theta) * np.sin(phi)
-            z = radius * np.cos(theta)
-            verts.append([x, y, z])
-
-    verts = np.array(verts)
-    n_verts_per_row = 2 * res + 1
-
-    # Build faces by connecting the grid
-    for i in range(res):
-        for j in range(2 * res):
-            idx = i * n_verts_per_row + j
-            idx_next = idx + n_verts_per_row
-
-            # Two triangles per "quad"
-            faces.append([idx, idx + 1, idx_next])
-            faces.append([idx + 1, idx_next + 1, idx_next])
-
-    faces = np.array(faces, dtype=int)
-    return verts, faces
-
-def replicate_spheres_for_vertices(coords, sphere_verts, sphere_faces):
-    """
-    Replicate a single sphere mesh (sphere_verts, sphere_faces)
-    at each point in coords. Returns (all_verts, all_faces).
-    """
-    all_verts = []
-    all_faces = []
-    vert_count = 0
-
-    for c in coords:
-        # Shift sphere to center c
-        shifted_verts = sphere_verts + c
-        all_verts.append(shifted_verts)
-
-        # Faces need to be offset by current vert_count
-        shifted_faces = sphere_faces + vert_count
-        all_faces.append(shifted_faces)
-
-        vert_count += len(sphere_verts)
-
-    all_verts = np.vstack(all_verts)
-    all_faces = np.vstack(all_faces)
-    return all_verts, all_faces
-
 
 def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
 
@@ -218,7 +156,7 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
                 CIFTI,
                 os.path.join(
                     surf_dir,
-                    f"sub-{sb:02d}_{contrast.lower()}_{surfspace}.dscalar.nii"
+                    f'sub-{sb:02d}_{contrast.lower()}_{surfspace}.dscalar.nii'
                 ),
             )
 
@@ -342,31 +280,27 @@ def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
     return fdr_thresh
 
 
-def plot_surfmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
-                 colormap='copper', vmax=10):
+def plot_flatmap(stats, threshold, contrast_tag, output_dir, hemi=['L', 'R'],
+                 colormap='viridis', vmax=10):
 
     contrast = contrast_tag.lower().replace(' ', '-')
 
-    # Get border files
-    meshes_dir = 'fslr32k_meshes'
-    borders = {'L': os.path.join(meshes_dir, 'flat', 'fs_LR.32k.L.border'),
-               'R': os.path.join(meshes_dir, 'flat', 'fs_LR.32k.R.border')
+    # Set paths
+    _base_dir = os.path.dirname(os.path.abspath(__file__))
+    _surf_dir = os.path.join(_base_dir, 'fslr32k_meshes')
+
+    borders = {'L': os.path.join(_surf_dir, 'borders', 'fs_LR.32k.L.border'),
+               'R': os.path.join(_surf_dir, 'borders', 'fs_LR.32k.R.border')
                }
-    # surfaces = {'L': os.path.join(meshes_dir, 'flat',
-    #                               'fs_LR.32k.L.flat.surf.gii'),
-    #             'R': os.path.join(meshes_dir, 'flat',
-    #                               'fs_LR.32k.R.flat.surf.gii')
-    #             }
-    underlays = {'L': os.path.join(meshes_dir, 'flat',
+    underlays = {'L': os.path.join(_surf_dir, 'flat',
                                    'fs_LR.32k.L.shape.gii'),
-                 'R': os.path.join(meshes_dir, 'flat',
+                 'R': os.path.join(_surf_dir, 'flat',
                                    'fs_LR.32k.R.shape.gii')
                  }
-
-    surfaces = {'L': os.path.join(meshes_dir,
-                                  'tpl-fs32k_hemi-L_flat.surf.gii'),
-                'R': os.path.join(meshes_dir,
-                                  'tpl-fs32k_hemi-R_flat.surf.gii')
+    surfaces = {'L': os.path.join(_surf_dir, 'flat',
+                                  'fs_LR.32k.L.flat.surf.gii'),
+                'R': os.path.join(_surf_dir, 'flat',
+                                  'fs_LR.32k.R.flat.surf.gii')
                 }
 
     # Define figure with two subplots
@@ -383,7 +317,7 @@ def plot_surfmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
                           cmap=colormap,
                           borders=borders[h],
                           new_figure=False,
-                          frame = None
+                          frame=None
                           )
 
     # Define lower bound of color limits
@@ -396,7 +330,7 @@ def plot_surfmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
                         fraction=0.05, pad=0.02)
 
     # Add label below colorbar
-    cbar.set_label('z-values', fontsize=12, labelpad=8)
+    cbar.set_label('Z-values', fontsize=12, labelpad=8)
 
     # Set 4 evenly spaced tick positions
     tick_positions = np.linspace(vmin, vmax, 4)
@@ -415,11 +349,231 @@ def plot_surfmap(stats, threshold, contrast_tag, hemi=['L', 'R'],
     # Save figure with tight cropping
     output_name = f'group_{contrast}_fslr32k.png' if len(hemi) == 2 else \
         f'group_{contrast}_fslr32k_{hemi[0]}.png'
-    fig.savefig(output_name, dpi=300, bbox_inches='tight', pad_inches=0)
+    output_path = os.path.join(output_dir, output_name)
+    fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0)
 
 
-# %%
-# =========================== INPUTS ===================================
+def split_and_save_sulc_cifti(cifti_path, output_dir):
+    """
+    Load a CIFTI-2 dscalar file, split the sulcal depth data into
+    left and right hemispheres, and save them as separate GIFTI files.
+
+    Parameters:
+    - cifti_path: str, path to the CIFTI file (.dscalar.nii)
+    - output_dir: str, directory to save the GIFTI files
+    """
+    # Load the CIFTI file
+    cifti_img = nib.load(cifti_path)
+    sulc_data = np.array(cifti_img.get_fdata()).flatten() # Convert to 1D
+
+    # Split data
+    # (assuming first half = left hemisphere, second half = right)
+    n_vertices = sulc_data.shape[0] // 2
+    sulc_L, sulc_R = sulc_data[:n_vertices], sulc_data[n_vertices:]
+
+    # Convert to GIFTI
+    gifti_L = nib.GiftiImage(darrays=[nib.gifti.GiftiDataArray(
+        sulc_L.astype(np.float32))])
+    gifti_R = nib.GiftiImage(darrays=[nib.gifti.GiftiDataArray(
+        sulc_R.astype(np.float32))])
+
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Define output paths
+    gifti_L_path = os.path.join(output_dir, "fs_LR.32k.L.sulc.dscalar.gii")
+    gifti_R_path = os.path.join(output_dir, "fs_LR.32k.R.sulc.dscalar.gii")
+
+    # Save the GIFTI files
+    nib.save(gifti_L, gifti_L_path)
+    nib.save(gifti_R, gifti_R_path)
+
+    print(f"Saved Left Hemisphere sulc: {gifti_L_path}")
+    print(f"Saved Right Hemisphere sulc: {gifti_R_path}")
+
+
+def generate_sphere(res=3, radius=1.0):
+    """
+    Generate a UV sphere mesh with `res` subdivisions in phi & theta,
+    returning (sphere_vertices, sphere_faces).
+    - res=3 or 4 is a moderate resolution.
+    """
+    verts = []
+    faces = []
+
+    # Spherical coordinates subdiv
+    for i in range(res + 1):
+        theta = np.pi * i / res  # 0..pi
+        for j in range(res * 2 + 1):
+            phi = 2 * np.pi * j / (2 * res)  # 0..2pi
+            x = radius * np.sin(theta) * np.cos(phi)
+            y = radius * np.sin(theta) * np.sin(phi)
+            z = radius * np.cos(theta)
+            verts.append([x, y, z])
+
+    verts = np.array(verts)
+    n_verts_per_row = 2 * res + 1
+
+    # Build faces by connecting the grid
+    for i in range(res):
+        for j in range(2 * res):
+            idx = i * n_verts_per_row + j
+            idx_next = idx + n_verts_per_row
+
+            # Two triangles per "quad"
+            faces.append([idx, idx + 1, idx_next])
+            faces.append([idx + 1, idx_next + 1, idx_next])
+
+    faces = np.array(faces, dtype=int)
+    return verts, faces
+
+
+def replicate_spheres_for_vertices(coords, sphere_verts, sphere_faces):
+    """
+    Replicate a single sphere mesh (sphere_verts, sphere_faces)
+    at each point in coords. Returns (all_verts, all_faces).
+    """
+    all_verts = []
+    all_faces = []
+    vert_count = 0
+
+    for c in coords:
+        # Shift sphere to center c
+        shifted_verts = sphere_verts + c
+        all_verts.append(shifted_verts)
+
+        # Faces need to be offset by current vert_count
+        shifted_faces = sphere_faces + vert_count
+        all_faces.append(shifted_faces)
+
+        vert_count += len(sphere_verts)
+
+    all_verts = np.vstack(all_verts)
+    all_faces = np.vstack(all_faces)
+    return all_verts, all_faces
+
+
+def plotly_surfmap(
+        sulc_path, borders_path, surf_path, data, threshold, outfname,
+        gray_scale=[[0, 'rgb(105,105,105)'], [1, 'rgb(211,211,211)']],
+        resolution=3, radius=.5, plot_title=None, cmap='viridis',
+        cbar_title='Z-values'):
+
+    # ------------------------------------------------------------
+    # Load the sulc and border files
+    # ------------------------------------------------------------
+    sulc_gifti = nib.load(sulc_path)
+    sulc_data = sulc_gifti.darrays[0].data
+
+    borders_gifti = nib.load(borders_path)
+    borders_data = borders_gifti.darrays[0].data
+
+    # Get border vertex indices from the border file
+    # (binary mask: 1 = border)
+    border_indices = np.where(borders_data > 0)[0]
+
+    # ------------------------------------------------------------
+    # Load the surface mesh to extract vertex coordinates and faces
+    # ------------------------------------------------------------
+    surf_mesh = nib.load(surf_path)
+    surf_coords = surf_mesh.darrays[0].data  # shape: (N, 3)
+    faces = surf_mesh.darrays[1].data        # shape: (M, 3)
+    border_coords = surf_coords[border_indices]
+
+    # ------------------------------------------------------------
+    # Apply threshold to the activation map
+    # Create a new set of faces for which all vertices have...
+    # ... stat_values >= thresh.
+    # ------------------------------------------------------------
+    active_face_mask = np.all(data[faces] >= threshold, axis=1)
+    active_faces = faces[active_face_mask]
+
+    # ------------------------------------------------------------
+    # Create Plotly layers:
+    #   a) Background surface using sulc data
+    #      (using a customized gray colorscale)
+    #   b) Activation map with threshold applied
+    #      (only faces above threshold)
+    #   c) Border spheres overlay
+    # ------------------------------------------------------------
+
+    background_surface = go.Mesh3d(
+        x=surf_coords[:, 0],
+        y=surf_coords[:, 1],
+        z=surf_coords[:, 2],
+        i=faces[:, 0],
+        j=faces[:, 1],
+        k=faces[:, 2],
+        intensity=sulc_data,
+        colorscale=gray_scale, # 'gray'
+        cmin=np.min(sulc_data),
+        cmax=np.max(sulc_data),
+        showscale=False,
+        opacity=1,
+        name='Sulc Background'
+    )
+
+    activation_surface = go.Mesh3d(
+        x=surf_coords[:, 0],
+        y=surf_coords[:, 1],
+        z=surf_coords[:, 2],
+        i=active_faces[:, 0],
+        j=active_faces[:, 1],
+        k=active_faces[:, 2],
+        intensity=data,
+        colorscale=cmap,
+        cmin=threshold,
+        cmax=np.max(data),
+        colorbar=dict(title=cbar_title),
+        showscale=True,
+        opacity=1,
+        name='Activation Map'
+    )
+
+    # 2) Create a small sphere mesh for a single “dot”
+    sphere_verts, sphere_faces = generate_sphere(res=resolution, radius=radius)
+
+    # 3) Replicate spheres at each border vertex
+    all_verts, all_faces = replicate_spheres_for_vertices(
+        border_coords, sphere_verts, sphere_faces)
+
+    # 4) Create a single Mesh3d for all black spheres (borders)
+    borders_spheres = go.Mesh3d(
+        x=all_verts[:, 0],
+        y=all_verts[:, 1],
+        z=all_verts[:, 2],
+        i=all_faces[:, 0],
+        j=all_faces[:, 1],
+        k=all_faces[:, 2],
+        color='black',     # All spheres are black
+        opacity=1.0,
+        flatshading=True, # Smoother sphere shading
+        name='Border Spheres',
+        showscale=False
+    )
+
+    # 5) Combine all layers into a single figure
+    fig = go.Figure(data=[background_surface, activation_surface,
+                          borders_spheres])
+    fig.update_layout(
+        title=plot_title,
+        scene=dict(
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            zaxis=dict(visible=False),
+            # Optionally use orthographic projection:
+            # camera=dict(projection=dict(type='orthographic'))
+        ),
+        margin=dict(l=0, r=0, b=0, t=50)
+    )
+
+    # ------------------------------------------------------------
+    # Save the interactive figure as an HTML file and open in browser
+    # ------------------------------------------------------------
+    pio.write_html(fig, outfname, auto_open=True)
+
+
+# ============================ INPUTS ===================================
 
 # Subjects without pilot
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
@@ -428,10 +582,12 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 # Relative path for output folder
 surf_folder = 'surface_files'
 
+# Output folder
+output_folder = 'control_contrasts'
+
 task_tag = 'All Tasks'
 contrast_name = 'Auditory Encoding'
 
-# %%
 # ========================= PARAMETERS =================================
 
 # Parent directories
@@ -440,6 +596,27 @@ music = os.path.join(home, 'diedrichsen_data/data/Cerebellum/music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
 wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
                         'group_mask_noskull.nii')
+
+# ###################### fs_LR32k Meshes ###############################
+fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'fslr32k_meshes')
+lh_veryinflated = os.path.join(fslr32k_folder, 'templates',
+                               'tpl-fs32k_hemi-L_veryinflated.surf.gii')
+rh_veryinflated = os.path.join(fslr32k_folder, 'templates',
+                               'tpl-fs32k_hemi-R_veryinflated.surf.gii')
+sulc_folder = os.path.join(fslr32k_folder, 'sulc')
+lr_sulc_path = os.path.join(sulc_folder,
+                            'fs_LR.32k.LR.sulc.dscalar.nii')
+lh_sulc_path = os.path.join(sulc_folder,
+                            'fs_LR.32k.L.sulc.dscalar.gii')
+rh_sulc_path = os.path.join(sulc_folder,
+                            'fs_LR.32k.R.sulc.dscalar.gii')
+lh_borders_path = os.path.join(fslr32k_folder, 'borders',
+                               'fs_LR.32k.L.border.label.gii')
+rh_borders_path = os.path.join(fslr32k_folder, 'borders',
+                               'fs_LR.32k.R.border.label.gii')
+
+# ######################################################################
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
@@ -466,7 +643,6 @@ all_contrasts = {1: 'Encoding',
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 
-# %%
 # ============================ RUN =====================================
 
 if __name__ == '__main__':
@@ -493,106 +669,27 @@ if __name__ == '__main__':
     split_maps = [zvals_lh, zvals_rh]
 
     # # Plot static flatmap
-    # v_max = np.max(z_values[~np.isnan(z_values)])
-    # print(f'Maximum Z value is: {v_max}')
-    # plot_surfmap(split_maps, fdr_thresh, contrast_name, hemi=['L', 'R'],
-    #              vmax=v_max)
+    v_max = np.max(z_values[~np.isnan(z_values)])
+    print(f'Maximum Z value is: {v_max}')
+    plot_flatmap(split_maps, fdr_thresh, contrast_name, output_folder,
+                 hemi=['L', 'R'], colormap='viridis', vmax=v_max)
 
-    # Plot dynamic inflated map
+    # Create Left and Right sulc gifti files
+    split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
 
-    import plotly.graph_objects as go
-    import plotly.io as pio
-
-    # ------------------------------------------------------------
-    # Step 1: Define file paths for surface, sulc, and borders
-    # ------------------------------------------------------------
-    fslr_32k_L = 'fslr32k_meshes/fs_LR.32k.L.inflated.surf.gii'
-    fslr_32k_R = 'fslr32k_meshes/fs_LR.32k.R.inflated.surf.gii'
-    sulc_path = 'fslr32k_meshes/fs_LR.32k.LR.sulc.dscalar.gii'
-    lh_borders_path = 'fslr32k_meshes/flat/fs_LR.32k.L.border.label.gii'
-
-    # ------------------------------------------------------------
-    # Step 2: Load the sulc and border files
-    # ------------------------------------------------------------
-    sulc_gifti = nib.load(sulc_path)
-    lh_borders_gifti = nib.load(lh_borders_path)
-
-    # Extract data arrays
-    sulc_data = sulc_gifti.darrays[0].data
-    lh_borders_data = lh_borders_gifti.darrays[0].data
-
-    # Split sulcus data into hemispheres
-    lh_sulc_data, rh_sulc_data = np.split(sulc_data, 2)
-
-    # Get border vertex indices from the left border file (binary mask: 1 = border)
-    lh_border_indices = np.where(lh_borders_data > 0)[0]
-
-    # ------------------------------------------------------------
-    # Step 3: Load the left surface mesh to extract vertex coordinates and faces
-    # ------------------------------------------------------------
-    lh_surf_mesh = nib.load(fslr_32k_L)
-    lh_surf_coords = lh_surf_mesh.darrays[0].data  # shape: (N, 3)
-    lh_faces = lh_surf_mesh.darrays[1].data          # shape: (M, 3)
-    lh_border_coords = lh_surf_coords[lh_border_indices]
-
-    # ------------------------------------------------------------
-    # Step 4: Normalize the functional data (zvals_lh) for coloring
-    # ------------------------------------------------------------
-    zvals_norm = (zvals_lh - np.min(zvals_lh)) / (np.max(zvals_lh) - np.min(zvals_lh))
-
-    # ------------------------------------------------------------
-    # Step 5: Create the Plotly figure using Mesh3d and add border markers
-    # ------------------------------------------------------------
-    brain_surface = go.Mesh3d(
-        x=lh_surf_coords[:, 0],
-        y=lh_surf_coords[:, 1],
-        z=lh_surf_coords[:, 2],
-        i=lh_faces[:, 0],
-        j=lh_faces[:, 1],
-        k=lh_faces[:, 2],
-        intensity=zvals_norm,
-        colorscale="RdBu_r",
-        showscale=True,
-        opacity=1,
-        name="Brain Surface"
-    )
-
-    # 2) Create a small sphere mesh for a single “dot”
-    sphere_verts, sphere_faces = generate_sphere(res=3, radius=0.5)  # radius=0.5 => adjust as needed
-
-    # 3) Replicate spheres at each border vertex
-    all_verts, all_faces = replicate_spheres_for_vertices(lh_border_coords, sphere_verts, sphere_faces)
-
-    # 4) Create a single Mesh3d for all black spheres
-    borders_spheres = go.Mesh3d(
-        x=all_verts[:, 0],
-        y=all_verts[:, 1],
-        z=all_verts[:, 2],
-        i=all_faces[:, 0],
-        j=all_faces[:, 1],
-        k=all_faces[:, 2],
-        color='black',     # All spheres are black
-        opacity=1.0,
-        flatshading=False, # Smoother sphere shading
-        name="Border Spheres",
-        showscale=False
-    )
-
-    # 5) Combine into a single figure
-    fig = go.Figure(data=[brain_surface, borders_spheres])
-    fig.update_layout(
-        title="Brain with Perfect 3D Spherical Borders",
-        scene=dict(
-            xaxis=dict(visible=False),
-            yaxis=dict(visible=False),
-            zaxis=dict(visible=False),
-            # Optionally use orthographic projection
-            # camera=dict(projection=dict(type='orthographic'))
-        ),
-        margin=dict(l=0, r=0, b=0, t=50)
-    )
-
-    # ------------------------------------------------------------
-    # Step 6: Save the interactive figure as an HTML file and open in browser
-    # ------------------------------------------------------------
-    pio.write_html(fig, "brain_with_borders.html", auto_open=True)
+    # Plot dynamic inflated map with threshold applied and...
+    # ... background sulc image
+    # #################### Left Hemisphere ##############################
+    lh_output_path = os.path.join(
+        output_folder,
+        contrast_name.lower().replace(' ', '-') + '_lh_veryinflated.html')
+    plotly_surfmap(
+        lh_sulc_path, lh_borders_path, lh_veryinflated, zvals_lh, fdr_thresh,
+        lh_output_path, resolution=10, radius=.5, cmap='viridis')
+    # ################### Right Hemisphere ##############################
+    rh_output_path = os.path.join(
+        output_folder,
+        contrast_name.lower().replace(' ', '-') + '_rh_veryinflated.html')
+    plotly_surfmap(
+        rh_sulc_path, rh_borders_path, rh_veryinflated, zvals_rh, fdr_thresh,
+        rh_output_path, resolution=10, radius=.5, cmap='viridis')
