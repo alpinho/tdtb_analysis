@@ -243,6 +243,41 @@ def group_surf(surf_dir, subjects, contrast_tag, surfspace='fslr32k'):
     return zvals
 
 
+def mask_cortical_activation(activation_data, medial_wall_mask_path):
+    """
+    Masks activation data using a medial wall mask so that only cortical
+    vertices retain their activation. Vertices where the mask is 0
+    (non-cortical) will be set to 0.
+    
+    Parameters:
+      activation_data : np.array
+          1D array of activation values for each vertex.
+      medial_wall_mask_path : str
+          Path to the medial wall mask GIFTI file
+    
+    Returns:
+      masked_activation : np.array
+          Activation values with non-cortical vertices set to 0.
+    """
+    
+    # Load the medial wall mask
+    mask_img = nib.load(medial_wall_mask_path)
+    
+    # Depending on the file, the data may be stored...
+    # ... in the first data array.
+    mask_data = mask_img.darrays[0].data
+    
+    # Ensure mask is boolean
+    # (True = cortical, False = non-cortical)
+    cortex_mask = mask_data.astype(bool)
+    
+    # Apply the mask: set activation to 0 for non-cortical vertices.
+    masked_activation = activation_data.copy()
+    masked_activation[~cortex_mask] = 0
+    
+    return masked_activation
+
+
 def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
 
     # Paths of the NORMALIZED individual contrast map for all subjects
@@ -613,6 +648,10 @@ lh_borders_path = os.path.join(fslr32k_folder, 'borders',
                                'fs_LR.32k.L.border.label.gii')
 rh_borders_path = os.path.join(fslr32k_folder, 'borders',
                                'fs_LR.32k.R.border.label.gii')
+lh_medial_wall_mask_path = os.path.join(fslr32k_folder, 'medialwall_masks',
+                                        'fs_LR.32k.L.medialwall.mask.gii')
+rh_medial_wall_mask_path = os.path.join(fslr32k_folder, 'medialwall_masks',
+                                        'fs_LR.32k.R.medialwall.mask.gii')
 
 # ######################################################################
 
@@ -664,30 +703,53 @@ if __name__ == '__main__':
     # Split results into the two hemispheres
     zvals_lh = np.split(z_values, 2, axis=0)[0]
     zvals_rh = np.split(z_values, 2, axis=0)[1]
-    split_maps = [zvals_lh, zvals_rh]
+
+    # For each hemisphere, mask the activation values so that only...
+    # ... cortical vertices retain their value.
+    zvals_lh_masked = mask_cortical_activation(
+        zvals_lh, lh_medial_wall_mask_path)
+    zvals_rh_masked = mask_cortical_activation(
+        zvals_rh, rh_medial_wall_mask_path)
 
     # # Plot static flatmap
+    split_maps = [zvals_lh_masked, zvals_rh_masked]
     v_max = np.max(z_values[~np.isnan(z_values)])
     print(f'Maximum Z value is: {v_max}')
     plot_flatmap(split_maps, fdr_thresh, contrast_name, output_folder,
                  hemi=['L', 'R'], colormap='viridis', vmax=v_max)
 
-    # Create Left and Right sulc gifti files
-    split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
-
     # Plot dynamic inflated map with threshold applied and...
     # ... background sulc image
-    # #################### Left Hemisphere ##############################
+
+    # Create Left and Right sulc gifti files
+    # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
+    
+    # #################### Left Hemisphere #############################
     lh_output_path = os.path.join(
         output_folder,
         contrast_name.lower().replace(' ', '-') + '_lh_veryinflated.html')
-    plotly_surfmap(
-        lh_sulc_path, lh_borders_path, lh_veryinflated, zvals_lh, fdr_thresh,
-        lh_output_path, resolution=10, radius=.5, cmap='viridis')
-    # ################### Right Hemisphere ##############################
+    plotly_surfmap(lh_sulc_path,
+                   lh_borders_path,
+                   lh_veryinflated,
+                   zvals_lh_masked,
+                   fdr_thresh,
+                   lh_output_path,
+                   resolution=10,
+                   radius=.5,
+                   cmap='viridis'
+                   )
+
+    # ################### Right Hemisphere #############################
     rh_output_path = os.path.join(
         output_folder,
         contrast_name.lower().replace(' ', '-') + '_rh_veryinflated.html')
-    plotly_surfmap(
-        rh_sulc_path, rh_borders_path, rh_veryinflated, zvals_rh, fdr_thresh,
-        rh_output_path, resolution=10, radius=.5, cmap='viridis')
+    plotly_surfmap(rh_sulc_path,
+                   rh_borders_path,
+                   rh_veryinflated,
+                   zvals_rh_masked,
+                   fdr_thresh,
+                   rh_output_path,
+                   resolution=10,
+                   radius=.5,
+                   cmap='viridis'
+                   )
