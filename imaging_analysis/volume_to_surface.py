@@ -21,6 +21,10 @@ import pandas as pd
 import nibabel as nib
 import nitools as nt
 
+import xml.etree.ElementTree as ET
+import plotly.graph_objects as go
+import plotly.io as pio
+
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 
@@ -37,6 +41,66 @@ from SUITPy import flatmap
 
 # %%
 # ========================== FUNCTIONS =================================
+
+def generate_sphere(res=3, radius=1.0):
+    """
+    Generate a UV sphere mesh with `res` subdivisions in phi & theta,
+    returning (sphere_vertices, sphere_faces).
+    - res=3 or 4 is a moderate resolution.
+    """
+    verts = []
+    faces = []
+
+    # Spherical coordinates subdiv
+    for i in range(res + 1):
+        theta = np.pi * i / res  # 0..pi
+        for j in range(res * 2 + 1):
+            phi = 2 * np.pi * j / (2 * res)  # 0..2pi
+            x = radius * np.sin(theta) * np.cos(phi)
+            y = radius * np.sin(theta) * np.sin(phi)
+            z = radius * np.cos(theta)
+            verts.append([x, y, z])
+
+    verts = np.array(verts)
+    n_verts_per_row = 2 * res + 1
+
+    # Build faces by connecting the grid
+    for i in range(res):
+        for j in range(2 * res):
+            idx = i * n_verts_per_row + j
+            idx_next = idx + n_verts_per_row
+
+            # Two triangles per "quad"
+            faces.append([idx, idx + 1, idx_next])
+            faces.append([idx + 1, idx_next + 1, idx_next])
+
+    faces = np.array(faces, dtype=int)
+    return verts, faces
+
+def replicate_spheres_for_vertices(coords, sphere_verts, sphere_faces):
+    """
+    Replicate a single sphere mesh (sphere_verts, sphere_faces)
+    at each point in coords. Returns (all_verts, all_faces).
+    """
+    all_verts = []
+    all_faces = []
+    vert_count = 0
+
+    for c in coords:
+        # Shift sphere to center c
+        shifted_verts = sphere_verts + c
+        all_verts.append(shifted_verts)
+
+        # Faces need to be offset by current vert_count
+        shifted_faces = sphere_faces + vert_count
+        all_faces.append(shifted_faces)
+
+        vert_count += len(sphere_verts)
+
+    all_verts = np.vstack(all_verts)
+    all_faces = np.vstack(all_faces)
+    return all_verts, all_faces
+
 
 def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
 
@@ -422,24 +486,113 @@ if __name__ == '__main__':
 
     # ################## Plot ##################
     # Note: This plotting only works for surfspace='fslr32k'
-    
+ 
     # Split results into the two hemispheres
     zvals_lh = np.split(z_values, 2, axis=0)[0]
     zvals_rh = np.split(z_values, 2, axis=0)[1]
     split_maps = [zvals_lh, zvals_rh]
 
-    # Plot static flatmap
-    v_max = np.max(z_values[~np.isnan(z_values)])
-    print(f'Maximum Z value is: {v_max}')
-    plot_surfmap(split_maps, fdr_thresh, contrast_name, hemi=['L', 'R'],
-                 vmax=v_max)
+    # # Plot static flatmap
+    # v_max = np.max(z_values[~np.isnan(z_values)])
+    # print(f'Maximum Z value is: {v_max}')
+    # plot_surfmap(split_maps, fdr_thresh, contrast_name, hemi=['L', 'R'],
+    #              vmax=v_max)
 
     # Plot dynamic inflated map
+
+    import plotly.graph_objects as go
+    import plotly.io as pio
+
+    # ------------------------------------------------------------
+    # Step 1: Define file paths for surface, sulc, and borders
+    # ------------------------------------------------------------
     fslr_32k_L = 'fslr32k_meshes/fs_LR.32k.L.inflated.surf.gii'
-    fslr_32k_R = 'fslr32k_meshes/fs_LR.32k.R.inflated.surf.gii'    
-    view = view_surf(
-        surf_mesh=fslr_32k_L,
-        surf_map=zvals_lh,
-        title="3D visualization in a web browser",
+    fslr_32k_R = 'fslr32k_meshes/fs_LR.32k.R.inflated.surf.gii'
+    sulc_path = 'fslr32k_meshes/fs_LR.32k.LR.sulc.dscalar.gii'
+    lh_borders_path = 'fslr32k_meshes/flat/fs_LR.32k.L.border.label.gii'
+
+    # ------------------------------------------------------------
+    # Step 2: Load the sulc and border files
+    # ------------------------------------------------------------
+    sulc_gifti = nib.load(sulc_path)
+    lh_borders_gifti = nib.load(lh_borders_path)
+
+    # Extract data arrays
+    sulc_data = sulc_gifti.darrays[0].data
+    lh_borders_data = lh_borders_gifti.darrays[0].data
+
+    # Split sulcus data into hemispheres
+    lh_sulc_data, rh_sulc_data = np.split(sulc_data, 2)
+
+    # Get border vertex indices from the left border file (binary mask: 1 = border)
+    lh_border_indices = np.where(lh_borders_data > 0)[0]
+
+    # ------------------------------------------------------------
+    # Step 3: Load the left surface mesh to extract vertex coordinates and faces
+    # ------------------------------------------------------------
+    lh_surf_mesh = nib.load(fslr_32k_L)
+    lh_surf_coords = lh_surf_mesh.darrays[0].data  # shape: (N, 3)
+    lh_faces = lh_surf_mesh.darrays[1].data          # shape: (M, 3)
+    lh_border_coords = lh_surf_coords[lh_border_indices]
+
+    # ------------------------------------------------------------
+    # Step 4: Normalize the functional data (zvals_lh) for coloring
+    # ------------------------------------------------------------
+    zvals_norm = (zvals_lh - np.min(zvals_lh)) / (np.max(zvals_lh) - np.min(zvals_lh))
+
+    # ------------------------------------------------------------
+    # Step 5: Create the Plotly figure using Mesh3d and add border markers
+    # ------------------------------------------------------------
+    brain_surface = go.Mesh3d(
+        x=lh_surf_coords[:, 0],
+        y=lh_surf_coords[:, 1],
+        z=lh_surf_coords[:, 2],
+        i=lh_faces[:, 0],
+        j=lh_faces[:, 1],
+        k=lh_faces[:, 2],
+        intensity=zvals_norm,
+        colorscale="RdBu_r",
+        showscale=True,
+        opacity=1,
+        name="Brain Surface"
     )
-    view.open_in_browser()
+
+    # 2) Create a small sphere mesh for a single “dot”
+    sphere_verts, sphere_faces = generate_sphere(res=3, radius=0.5)  # radius=0.5 => adjust as needed
+
+    # 3) Replicate spheres at each border vertex
+    all_verts, all_faces = replicate_spheres_for_vertices(lh_border_coords, sphere_verts, sphere_faces)
+
+    # 4) Create a single Mesh3d for all black spheres
+    borders_spheres = go.Mesh3d(
+        x=all_verts[:, 0],
+        y=all_verts[:, 1],
+        z=all_verts[:, 2],
+        i=all_faces[:, 0],
+        j=all_faces[:, 1],
+        k=all_faces[:, 2],
+        color='black',     # All spheres are black
+        opacity=1.0,
+        flatshading=False, # Smoother sphere shading
+        name="Border Spheres",
+        showscale=False
+    )
+
+    # 5) Combine into a single figure
+    fig = go.Figure(data=[brain_surface, borders_spheres])
+    fig.update_layout(
+        title="Brain with Perfect 3D Spherical Borders",
+        scene=dict(
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            zaxis=dict(visible=False),
+            # Optionally use orthographic projection
+            # camera=dict(projection=dict(type='orthographic'))
+        ),
+        margin=dict(l=0, r=0, b=0, t=50)
+    )
+
+    # ------------------------------------------------------------
+    # Step 6: Save the interactive figure as an HTML file and open in browser
+    # ------------------------------------------------------------
+    pio.write_html(fig, "brain_with_borders.html", auto_open=True)
