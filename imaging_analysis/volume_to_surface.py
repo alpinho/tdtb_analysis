@@ -388,41 +388,91 @@ def plot_flatmap(stats, threshold, contrast_tag, output_dir, hemi=['L', 'R'],
 
 def split_and_save_sulc_cifti(cifti_path, output_dir):
     """
-    Load a CIFTI-2 dscalar file, split the sulcal depth data into
-    left and right hemispheres, and save them as separate GIFTI files.
+    Load a CIFTI-2 dscalar file containing sulcal depth, split the data
+    into left and right hemispheres, and save them as GIFTI metric files
+    with the correct metadata for Workbench.
 
-    Parameters:
-    - cifti_path: str, path to the CIFTI file (.dscalar.nii)
-    - output_dir: str, directory to save the GIFTI files
+    Parameters
+    ----------
+    cifti_path : str
+        Path to the CIFTI file (.dscalar.nii).
+    output_dir : str
+        Directory where the GIFTI files will be saved.
+
+    The files will be saved as:
+      sulc.L.32k_fs_LR.gii   (for CortexLeft)
+      sulc.R.32k_fs_LR.gii   (for CortexRight)
     """
     # Load the CIFTI file
-    cifti_img = nib.load(cifti_path)
-    sulc_data = np.array(cifti_img.get_fdata()).flatten() # Convert to 1D
+    cifti = nib.load(cifti_path)
+    data = cifti.get_fdata() # Expected shape: (num_maps, num_vertices)
 
-    # Split data
-    # (assuming first half = left hemisphere, second half = right)
-    n_vertices = sulc_data.shape[0] // 2
-    sulc_L, sulc_R = sulc_data[:n_vertices], sulc_data[n_vertices:]
+    # Get the brain models (a list of brain model objects)
+    brain_models = cifti.header.get_index_map(1).brain_models
 
-    # Convert to GIFTI
-    gifti_L = nib.GiftiImage(darrays=[nib.gifti.GiftiDataArray(
-        sulc_L.astype(np.float32))])
-    gifti_R = nib.GiftiImage(darrays=[nib.gifti.GiftiDataArray(
-        sulc_R.astype(np.float32))])
+    # Initialize variables for left and right hemisphere data
+    lh_data = None
+    rh_data = None
+
+    # Loop through the brain models to extract data by hemisphere
+    for bm in brain_models:
+        if bm.brain_structure.upper() == 'CIFTI_STRUCTURE_CORTEX_LEFT':
+            lh_data = data[0, bm.index_offset:bm.index_offset + bm.index_count]
+        elif bm.brain_structure.upper() == 'CIFTI_STRUCTURE_CORTEX_RIGHT':
+            rh_data = data[0, bm.index_offset:bm.index_offset + bm.index_count]
+
+    if lh_data is None or rh_data is None:
+        error_message = (
+            "Could not find both left and right cortical data in "
+            "the CIFTI file."
+        )
+        raise ValueError(error_message)
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
-    # Define output paths
-    gifti_L_path = os.path.join(output_dir, "fs_LR.32k.L.sulc.dscalar.gii")
-    gifti_R_path = os.path.join(output_dir, "fs_LR.32k.R.sulc.dscalar.gii")
+    # Define output file paths
+    gifti_l_path = os.path.join(output_dir, 'fs_LR.32k.L.sulc.dscalar.gii')
+    gifti_r_path = os.path.join(output_dir, 'fs_LR.32k.R.sulc.dscalar.gii')
 
-    # Save the GIFTI files
-    nib.save(gifti_L, gifti_L_path)
-    nib.save(gifti_R, gifti_R_path)
+    # Define metadata for left and right hemispheres
+    meta_l_dict = {
+        "Name": "Sulcal Depth",
+        "GeometricType": "Metric",
+        "Caret-Version": "5.64",
+        "encoding": "GZipBase64Binary",
+        "structure": "CortexLeft",
+    }
+    meta_r_dict = {
+        "Name": "Sulcal Depth",
+        "GeometricType": "Metric",
+        "Caret-Version": "5.64",
+        "encoding": "GZipBase64Binary",
+        "structure": "CortexRight",
+    }
 
-    print(f"Saved Left Hemisphere sulc: {gifti_L_path}")
-    print(f"Saved Right Hemisphere sulc: {gifti_R_path}")
+    # Convert dictionaries to GiftiMetaData objects
+    meta_l = nib.gifti.GiftiMetaData(meta_l_dict)
+    meta_r = nib.gifti.GiftiMetaData(meta_r_dict)
+
+    # Create and save left hemisphere GIFTI file
+    gifti_img_l = nib.gifti.GiftiImage()
+    darray_l = nib.gifti.GiftiDataArray(lh_data.astype(np.float32))
+    darray_l.intent = 2005  # NIFTI_INTENT_SHAPE for surface-based data
+    darray_l.meta = meta_l
+    gifti_img_l.add_gifti_data_array(darray_l)
+    nib.save(gifti_img_l, gifti_l_path)
+
+    # Create and save right hemisphere GIFTI file
+    gifti_img_r = nib.gifti.GiftiImage()
+    darray_r = nib.gifti.GiftiDataArray(rh_data.astype(np.float32))
+    darray_r.intent = 2005
+    darray_r.meta = meta_r
+    gifti_img_r.add_gifti_data_array(darray_r)
+    nib.save(gifti_img_r, gifti_r_path)
+
+    print("Saved Left Hemisphere sulc:", gifti_l_path)
+    print("Saved Right Hemisphere sulc:", gifti_r_path)
 
 
 def grid_sample_border_vertices_snap(coords, cell_size=5.0):
@@ -652,11 +702,9 @@ def plotly_surfmap(
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# Relative path for output folder
+# Relative path for output folders
 surf_folder = 'surface_files'
-
-# Output folder
-output_folder = 'control_contrasts'
+contrasts_folder = 'control_contrasts'
 
 task_tag = 'All Tasks'
 contrast_name = 'Auditory Encoding'
@@ -749,32 +797,38 @@ if __name__ == '__main__':
         zvals_rh, rh_medial_wall_mask_path)
 
     # Create and save z-maps gifti files
-    for zm, hemi in zip([zvals_lh_masked, zvals_rh_masked], ['lh', 'rh']):
-        gifti_data = nib.gifti.GiftiDataArray(zm.astype(np.float32))
-        gifti_img = nib.GiftiImage(darrays=[gifti_data])
-        outpath = os.path.join(
-            output_folder,
-            (
-                f"{contrast_name.lower().replace(' ', '-')}_zvals_"
-                f"{hemi}_masked.gii"
+    cname = contrast_name.replace('_', '-')
+    for zm, structure, hemi in zip([zvals_lh_masked, zvals_rh_masked],
+                                   ['CortexLeft', 'CortexRight'],
+                                   ['lh', 'rh']):
+        gifti_img = nt.gifti.make_func_gifti(
+            zm, anatomical_struct=structure, column_names=[cname])
+        # Save the data
+        nib.save(
+            gifti_img,
+            os.path.join(
+                surf_folder,
+                'group_'
+                + cname.lower()
+                + '_'
+                + 'fslr32k.func.gii',
             ),
         )
-        nib.save(gifti_img, outpath)
-    
+
     # ################## Plot ##################
     # Note: This plotting only works for surfspace='fslr32k'
 
     # Open gifti
     zmap_lh = nib.load(
         os.path.join(
-            output_folder,
+            contrasts_folder,
             f"{contrast_name.lower().replace(' ', '-')}_zvals_lh_masked.gii"
         )
     )
     zvals_lh_masked = zmap_lh.darrays[0].data
     zmap_rh = nib.load(
         os.path.join(
-            output_folder,
+            contrasts_folder,
             f"{contrast_name.lower().replace(' ', '-')}_zvals_rh_masked.gii"
         )
     )
@@ -786,17 +840,17 @@ if __name__ == '__main__':
     zvals_masked = np.concatenate((zvals_lh_masked, zvals_rh_masked))
     v_max = np.max(z_values[~np.isnan(zvals_masked)])
     print(f'Maximum Z value is: {v_max}')
-    plot_flatmap(split_maps, fdr_thresh, contrast_name, output_folder,
+    plot_flatmap(split_maps, fdr_thresh, contrast_name, contrasts_folder,
                  hemi=['L', 'R'], colormap='viridis', vmax=v_max)
 
     # ################## Plot dynamic map ##############################
 
     # Create Left and Right sulc gifti files
-    # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
+    split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
     
     # Left Hemisphere 
     lh_output_path = os.path.join(
-        output_folder,
+        contrasts_folder,
         contrast_name.lower().replace(' ', '-') + '_lh_veryinflated.html')
     plotly_surfmap(
         sulc_path=lh_sulc_path,
@@ -816,7 +870,7 @@ if __name__ == '__main__':
 
     # Right Hemisphere
     rh_output_path = os.path.join(
-        output_folder,
+        contrasts_folder,
         contrast_name.lower().replace(' ', '-') + '_rh_veryinflated.html')
     plotly_surfmap(
         sulc_path=rh_sulc_path,
