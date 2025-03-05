@@ -425,111 +425,150 @@ def split_and_save_sulc_cifti(cifti_path, output_dir):
     print(f"Saved Right Hemisphere sulc: {gifti_R_path}")
 
 
+def grid_sample_border_vertices_snap(coords, cell_size=5.0):
+    """
+    Divide the space into a 3D grid with cells of size `cell_size`
+    and for each cell that contains border vertices, compute the centroid
+    and then snap it to the nearest original vertex in that cell.
+    
+    Parameters:
+      coords : (N, 3) array of border vertex coordinates.
+      cell_size : float, the size of each grid cell
+                  (in the same units as your surface).
+    
+    Returns:
+      representative : (M, 3) array of representative vertex coordinates
+      (one per occupied cell).
+    """
+    coords = np.array(coords)
+    # Determine grid indices for each vertex.
+    min_coords = np.min(coords, axis=0)
+    grid_indices = np.floor((coords - min_coords) / cell_size).astype(int)
+ 
+    # Group indices by grid cell.
+    cell_dict = {}
+    for i, idx in enumerate(grid_indices):
+        key = tuple(idx)
+        if key not in cell_dict:
+            cell_dict[key] = []
+        cell_dict[key].append(i)
+    
+    # For each cell, compute the centroid and then pick the vertex...
+    # ... closest to the centroid.
+    representative = []
+    for key, indices in cell_dict.items():
+        cell_points = coords[indices]
+        centroid = np.mean(cell_points, axis=0)
+        distances = np.linalg.norm(cell_points - centroid, axis=1)
+        min_index_in_cell = np.argmin(distances)
+        # Snap: choose the actual vertex from the cell.
+        representative.append(coords[indices[min_index_in_cell]])
+    
+    return np.array(representative)
+
+
 def generate_sphere(res=3, radius=1.0):
     """
-    Generate a UV sphere mesh with `res` subdivisions in phi & theta,
-    returning (sphere_vertices, sphere_faces).
-    - res=3 or 4 is a moderate resolution.
+    Generate a UV sphere mesh with subdivisions defined by `res`
+    and given radius.
+    
+    Returns:
+      verts : numpy array of shape (N,3) for sphere vertices.
+      faces : numpy array of shape (M,3) for triangular faces.
     """
     verts = []
     faces = []
-
-    # Spherical coordinates subdiv
     for i in range(res + 1):
-        theta = np.pi * i / res  # 0..pi
-        for j in range(res * 2 + 1):
-            phi = 2 * np.pi * j / (2 * res)  # 0..2pi
+        theta = np.pi * i / res  # 0 to pi
+        for j in range(2 * res + 1):
+            phi = 2 * np.pi * j / (2 * res)  # 0 to 2pi
             x = radius * np.sin(theta) * np.cos(phi)
             y = radius * np.sin(theta) * np.sin(phi)
             z = radius * np.cos(theta)
             verts.append([x, y, z])
-
     verts = np.array(verts)
     n_verts_per_row = 2 * res + 1
-
-    # Build faces by connecting the grid
     for i in range(res):
         for j in range(2 * res):
             idx = i * n_verts_per_row + j
             idx_next = idx + n_verts_per_row
-
-            # Two triangles per "quad"
             faces.append([idx, idx + 1, idx_next])
             faces.append([idx + 1, idx_next + 1, idx_next])
-
-    faces = np.array(faces, dtype=int)
-    return verts, faces
+    return np.array(verts), np.array(faces, dtype=int)
 
 
 def replicate_spheres_for_vertices(coords, sphere_verts, sphere_faces):
     """
-    Replicate a single sphere mesh (sphere_verts, sphere_faces)
-    at each point in coords. Returns (all_verts, all_faces).
+    Replicate a sphere mesh (sphere_verts, sphere_faces)
+    at each coordinate in `coords`.
+    
+    Returns:
+      all_verts : combined vertices from all replicated spheres.
+      all_faces : combined faces (with proper index offsets).
     """
     all_verts = []
     all_faces = []
     vert_count = 0
-
     for c in coords:
-        # Shift sphere to center c
-        shifted_verts = sphere_verts + c
-        all_verts.append(shifted_verts)
-
-        # Faces need to be offset by current vert_count
-        shifted_faces = sphere_faces + vert_count
-        all_faces.append(shifted_faces)
-
+        shifted = sphere_verts + c
+        all_verts.append(shifted)
+        all_faces.append(sphere_faces + vert_count)
         vert_count += len(sphere_verts)
-
-    all_verts = np.vstack(all_verts)
-    all_faces = np.vstack(all_faces)
-    return all_verts, all_faces
+    return np.vstack(all_verts), np.vstack(all_faces)
 
 
 def plotly_surfmap(
         sulc_path, borders_path, surf_path, data, threshold, outfname,
         gray_scale=[[0, 'rgb(105,105,105)'], [1, 'rgb(211,211,211)']],
-        resolution=3, radius=.5, plot_title=None, cmap='viridis',
-        cbar_title='Z-values'):
+        resolution=3, radius=0.5, plot_title=None, cmap='viridis',
+        cbar_title='Z-values', cell_size=5.0, marker_size=5):
+    """
+    Generates an interactive Plotly HTML render of an inflated brain
+    surface with:
+      - Sulcal depth background.
+      - Thresholded activation overlay.
+      - Border markers computed via grid-based sampling with snapping to
+        the nearest border vertex.
+    
+    Parameters:
+      sulc_path: str, path to the sulcal depth GIFTI file (.gii).
+      borders_path: str, path to the borders GIFTI file (.label.gii).
+      surf_path: str, path to the inflated surface mesh (.surf.gii).
+      data: np.array, activation values per vertex.
+      threshold: float, activation threshold.
+      outfname: str, output filename (without extension) for the HTML
+                file.
+      gray_scale: list, colorscale for sulcal depth.
+      resolution: int, resolution for sphere used as border markers.
+      radius: float, radius of the sphere used for border markers.
+      plot_title: str, title of the figure.
+      cmap: str, colormap for activation overlay.
+      cbar_title: str, label for the activation colorbar.
+      cell_size: float, grid cell size for sampling border vertices.
+      marker_size: int, size (scale factor) for the sphere markers.
+    """
+    # Load sulcal depth.
+    sulc_img = nib.load(sulc_path)
+    sulc_data = sulc_img.darrays[0].data
 
-    # ------------------------------------------------------------
-    # Load the sulc and border files
-    # ------------------------------------------------------------
-    sulc_gifti = nib.load(sulc_path)
-    sulc_data = sulc_gifti.darrays[0].data
+    # Load surface mesh.
+    surf_img = nib.load(surf_path)
+    surf_coords = surf_img.darrays[0].data  # shape: (N,3)
+    faces = surf_img.darrays[1].data        # shape: (M,3)
 
-    borders_gifti = nib.load(borders_path)
-    borders_data = borders_gifti.darrays[0].data
-
-    # Get border vertex indices from the border file
-    # (binary mask: 1 = border)
+    # Load border data.
+    borders_img = nib.load(borders_path)
+    borders_data = borders_img.darrays[0].data
     border_indices = np.where(borders_data > 0)[0]
-
-    # ------------------------------------------------------------
-    # Load the surface mesh to extract vertex coordinates and faces
-    # ------------------------------------------------------------
-    surf_mesh = nib.load(surf_path)
-    surf_coords = surf_mesh.darrays[0].data  # shape: (N, 3)
-    faces = surf_mesh.darrays[1].data        # shape: (M, 3)
+    # Extract border vertex coordinates.
     border_coords = surf_coords[border_indices]
 
-    # ------------------------------------------------------------
-    # Apply threshold to the activation map
-    # Create a new set of faces for which all vertices have...
-    # ... stat_values >= thresh.
-    # ------------------------------------------------------------
+    # Determine active faces
+    # (where all vertices have activation >= threshold).
     active_face_mask = np.all(data[faces] >= threshold, axis=1)
     active_faces = faces[active_face_mask]
 
-    # ------------------------------------------------------------
-    # Create Plotly layers:
-    #   a) Background surface using sulc data
-    #      (using a customized gray colorscale)
-    #   b) Activation map with threshold applied
-    #      (only faces above threshold)
-    #   c) Border spheres overlay
-    # ------------------------------------------------------------
-
+    # Create sulcal background surface.
     background_surface = go.Mesh3d(
         x=surf_coords[:, 0],
         y=surf_coords[:, 1],
@@ -538,7 +577,7 @@ def plotly_surfmap(
         j=faces[:, 1],
         k=faces[:, 2],
         intensity=sulc_data,
-        colorscale=gray_scale, # 'gray'
+        colorscale=gray_scale,
         cmin=np.min(sulc_data),
         cmax=np.max(sulc_data),
         showscale=False,
@@ -546,6 +585,7 @@ def plotly_surfmap(
         name='Sulc Background'
     )
 
+    # Create activation overlay.
     activation_surface = go.Mesh3d(
         x=surf_coords[:, 0],
         y=surf_coords[:, 1],
@@ -557,53 +597,53 @@ def plotly_surfmap(
         colorscale=cmap,
         cmin=threshold,
         cmax=np.max(data),
-        colorbar=dict(title=cbar_title),
+        colorbar=dict(title=cbar_title, x=0.8, y=0.5, len=0.5),
         showscale=True,
         opacity=1,
         name='Activation Map'
     )
 
-    # 2) Create a small sphere mesh for a single “dot”
+    # Grid-sample the border vertices:
+    # compute one representative per cell,
+    # then snap to the nearest vertex in that cell.
+    sampled_border_coords = grid_sample_border_vertices_snap(
+        border_coords, cell_size=cell_size)
+
+    # Now, generate a sphere mesh (for a single dot).
     sphere_verts, sphere_faces = generate_sphere(res=resolution, radius=radius)
-
-    # 3) Replicate spheres at each border vertex
+    # Replicate the sphere at each sampled border vertex.
     all_verts, all_faces = replicate_spheres_for_vertices(
-        border_coords, sphere_verts, sphere_faces)
-
-    # 4) Create a single Mesh3d for all black spheres (borders)
-    borders_spheres = go.Mesh3d(
+        sampled_border_coords, sphere_verts, sphere_faces)
+    border_spheres = go.Mesh3d(
         x=all_verts[:, 0],
         y=all_verts[:, 1],
         z=all_verts[:, 2],
         i=all_faces[:, 0],
         j=all_faces[:, 1],
         k=all_faces[:, 2],
-        color='black',     # All spheres are black
+        color='black',
         opacity=1.0,
-        flatshading=True, # Smoother sphere shading
-        name='Border Spheres',
+        flatshading=True,
+        name='Border Markers',
         showscale=False
     )
 
-    # 5) Combine all layers into a single figure
+    # Combine all layers into a figure.
     fig = go.Figure(data=[background_surface, activation_surface,
-                          borders_spheres])
+                          border_spheres])
     fig.update_layout(
         title=plot_title,
         scene=dict(
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
-            zaxis=dict(visible=False),
-            # Optionally use orthographic projection:
-            # camera=dict(projection=dict(type='orthographic'))
+            zaxis=dict(visible=False)
         ),
         margin=dict(l=0, r=0, b=0, t=50)
     )
 
-    # ------------------------------------------------------------
-    # Save the interactive figure as an HTML file and open in browser
-    # ------------------------------------------------------------
-    pio.write_html(fig, outfname, auto_open=True)
+    # Save as interactive HTML.
+    pio.write_html(fig, outfname + '.html', auto_open=True)
+    print(f"Saved HTML figure: {outfname}.html")
 
 
 # ============================ INPUTS ===================================
@@ -697,9 +737,6 @@ if __name__ == '__main__':
     fdr_thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
                                  contrast_id, wb_gmask)
 
-    # ################## Plot ##################
-    # Note: This plotting only works for surfspace='fslr32k'
- 
     # Split results into the two hemispheres
     zvals_lh = np.split(z_values, 2, axis=0)[0]
     zvals_rh = np.split(z_values, 2, axis=0)[1]
@@ -710,6 +747,38 @@ if __name__ == '__main__':
         zvals_lh, lh_medial_wall_mask_path)
     zvals_rh_masked = mask_cortical_activation(
         zvals_rh, rh_medial_wall_mask_path)
+
+    # Create and save z-maps gifti files
+    for zm, hemi in zip([zvals_lh_masked, zvals_rh_masked], ['lh', 'rh']):
+        gifti_data = nib.gifti.GiftiDataArray(zm.astype(np.float32))
+        gifti_img = nib.GiftiImage(darrays=[gifti_data])
+        outpath = os.path.join(
+            output_folder,
+            (
+                f"{contrast_name.lower().replace(' ', '-')}_zvals_"
+                f"{hemi}_masked.gii"
+            ),
+        )
+        nib.save(gifti_img, outpath)
+    
+    # ################## Plot ##################
+    # Note: This plotting only works for surfspace='fslr32k'
+
+    # Open gifti
+    zmap_lh = nib.load(
+        os.path.join(
+            output_folder,
+            f"{contrast_name.lower().replace(' ', '-')}_zvals_lh_masked.gii"
+        )
+    )
+    zvals_lh_masked = zmap_lh.darrays[0].data
+    zmap_rh = nib.load(
+        os.path.join(
+            output_folder,
+            f"{contrast_name.lower().replace(' ', '-')}_zvals_rh_masked.gii"
+        )
+    )
+    zvals_rh_masked = zmap_rh.darrays[0].data
 
     # ################ Plot static flatmap #############################
  
@@ -729,28 +798,38 @@ if __name__ == '__main__':
     lh_output_path = os.path.join(
         output_folder,
         contrast_name.lower().replace(' ', '-') + '_lh_veryinflated.html')
-    plotly_surfmap(lh_sulc_path,
-                   lh_borders_path,
-                   lh_veryinflated,
-                   zvals_lh_masked,
-                   fdr_thresh,
-                   lh_output_path,
-                   resolution=5,
-                   radius=.5,
-                   cmap='viridis'
-                   )
+    plotly_surfmap(
+        sulc_path=lh_sulc_path,
+        borders_path=lh_borders_path,
+        surf_path=lh_veryinflated,
+        data=zvals_lh_masked,
+        threshold=fdr_thresh,
+        outfname=lh_output_path,
+        resolution=5,
+        radius=.65,
+        plot_title=contrast_name + '- Left Hemisphere',
+        cmap='viridis',
+        cbar_title='Z-values',
+        cell_size=3.5,         # adjust this for the desired dot sparsity
+        marker_size=3          # adjust for the size of the dots
+        )
 
     # Right Hemisphere
     rh_output_path = os.path.join(
         output_folder,
         contrast_name.lower().replace(' ', '-') + '_rh_veryinflated.html')
-    plotly_surfmap(rh_sulc_path,
-                   rh_borders_path,
-                   rh_veryinflated,
-                   zvals_rh_masked,
-                   fdr_thresh,
-                   rh_output_path,
-                   resolution=5,
-                   radius=.5,
-                   cmap='viridis'
-                   )
+    plotly_surfmap(
+        sulc_path=rh_sulc_path,
+        borders_path=rh_borders_path,
+        surf_path=rh_veryinflated,
+        data=zvals_rh_masked,
+        threshold=fdr_thresh,
+        outfname=rh_output_path,
+        resolution=5,
+        radius=.65,
+        plot_title=contrast_name + '- Right Hemisphere',
+        cmap='viridis',
+        cbar_title='Z-values',
+        cell_size=3.5,         # adjust this for the desired dot sparsity
+        marker_size=3          # adjust for the size of the dots
+        )
