@@ -97,6 +97,9 @@ rh_white_path = os.path.join(templates_folder,
 # Output folder
 medialwall_folder = os.path.join(fslr32k_folder, 'medialwall_masks')
 
+threshold = 1.
+suffix = '1'
+
 
 # ============================ RUN =====================================
 
@@ -107,14 +110,14 @@ if __name__ == '__main__':
 
     # --- Generate and save the left medial wall mask ---
     lh_mask = generate_medialwall_mask(
-        lh_pial_path, lh_white_path, thickness_thresh=1.0)
+        lh_pial_path, lh_white_path, thickness_thresh=threshold)
     lh_mask_output = os.path.join(
-        medialwall_folder, 'fs_LR.32k.L.medialwall.mask.gii')
+        medialwall_folder, 'fs_LR.32k.L.medialwall.mask' + suffix + '.gii')
     save_mask(lh_mask, lh_mask_output)
 
     # --- Generate and save the right medial wall mask ---
     rh_mask = generate_medialwall_mask(
-        rh_pial_path, rh_white_path, thickness_thresh=1.0)
+        rh_pial_path, rh_white_path, thickness_thresh=threshold)
     rh_mask_output = os.path.join(
-        medialwall_folder, 'fs_LR.32k.R.medialwall.mask.gii')
+        medialwall_folder, 'fs_LR.32k.R.medialwall.mask' + suffix + '.gii')
     save_mask(rh_mask, rh_mask_output)
