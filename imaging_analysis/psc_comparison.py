@@ -23,8 +23,27 @@ import matplotlib.pyplot as plt
 
 # ========================== FUNCTIONS =================================
 
-def plot_boxplots(data, y_label="Percent Signal Change (%)",
-                  output_dir="./", fname="boxplot",
+def create_df(data, con_mask, subjects, output_dir='./', fname='dataframe'):
+
+    if con_mask == 'Auditory Encoding':
+        cols = ['auditory_beat', 'auditory_interval']
+    elif con_mask == 'Visual Encoding':
+        cols = ['visual_beat', 'visual_interval']
+    else:
+        assert con_mask == 'Encoding'
+        cols = ['auditory_beat', 'auditory_interval',
+                'visual_beat', 'visual_interval']
+
+    # Create DataFrame
+    df = pd.DataFrame(data, columns=cols)
+    # Insert Subject column
+    df.insert(0, 'subject', subjects)
+    # Save as TSV file
+    df.to_csv(os.path.join(output_dir, fname + '.tsv'), sep='\t', index=False) 
+
+
+def plot_boxplots(data, y_label='Percent Signal Change (%)',
+                  output_dir='./', fname='boxplot',
                   subplot_titles=None):
     """
     Parameters
@@ -32,14 +51,14 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
     data : numpy.ndarray
         A (31,2) or (31,4) array representing data for two or four conditions.
     y_label : str, optional
-        Label for the y-axis (default is "Percent Signal Change (%)").
+        Label for the y-axis (default is 'Percent Signal Change (%)').
     output_dir : str, optional
-        Directory where the plot will be saved (default is "./").
+        Directory where the plot will be saved (default is './').
     fname : str, optional
-        Name of the output file without extension (default is "boxplot").
+        Name of the output file without extension (default is 'boxplot').
     subplot_titles : list of str, optional
         Custom titles for the subplots. Should match the number of subplots.
-        Default is ["Auditory Conditions", "Visual Conditions"].
+        Default is ['Auditory Conditions', 'Visual Conditions'].
 
     Returns
     -------
@@ -54,7 +73,7 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
     # Default subplot titles if not provided
     if subplot_titles is None:
         subplot_titles = [
-            "Auditory Conditions", "Visual Conditions"][:num_subplots]
+            'Auditory Conditions', 'Visual Conditions'][:num_subplots]
 
     # Set up figure with one or two subplots
     fig, ax = plt.subplots(1, num_subplots, figsize=(4 * num_subplots, 6),
@@ -68,8 +87,8 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
         ax = [ax]  # Convert to list for consistency
 
     # Condition labels and their original colors
-    condition_labels = ["Beat", "Interval"]
-    condition_colors = ["tab:blue", "tab:orange"]
+    condition_labels = ['Beat', 'Interval']
+    condition_colors = ['tab:blue', 'tab:orange']
 
     for i, ax_i in enumerate(ax):
         # Select appropriate data columns
@@ -79,11 +98,11 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
         means = np.mean(conditions, axis=0)
         print(f"Means for subplot '{subplot_titles[i]}':")
         for cond, mean in zip(condition_labels, means):
-            print(f"  {cond}: {mean:.4f}")
+            print(f"{cond}: {mean:.4f}")
 
         # Prepare data for Seaborn
         datum = {
-            "Conditions": np.repeat(condition_labels, data.shape[0]),
+            'Conditions': np.repeat(condition_labels, data.shape[0]),
             y_label: np.concatenate((conditions[:, 0], conditions[:, 1]))
         }
         df = pd.DataFrame(data=datum)
@@ -91,7 +110,7 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
         # Create boxplot with reduced width and no dodge
         sns.boxplot(
             ax=ax_i,
-            x="Conditions",
+            x='Conditions',
             y=y_label,
             data=df,
             width=0.5,  # Keep width at 0.4
@@ -99,22 +118,22 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
             dodge=False,  # Prevents extra spacing between boxes
             showmeans=True,
             meanline=True,
-            meanprops={"color": "black", "linewidth": 1.5},
-            medianprops={"visible": False},  # Removes black median line
-            boxprops={"facecolor": "none", "edgecolor": "black"},
-            whiskerprops={"color": "black"},
-            capprops={"color": "black"}
+            meanprops={'color': 'black', 'linewidth': 1.5},
+            medianprops={'visible': False},  # Removes black median line
+            boxprops={'facecolor': "none", "edgecolor": "black"},
+            whiskerprops={'color': 'black'},
+            capprops={'color': 'black'}
         )
 
         # Overlay individual data points as spheres with colored contours
         x_positions = [0, 1]  # Categorical x-axis positions
         for j, (condition, color) in enumerate(zip(condition_labels,
                                                    condition_colors)):
-            y_values = df[df["Conditions"] == condition][y_label].values
+            y_values = df[df['Conditions'] == condition][y_label].values
             ax_i.scatter(
                 np.full_like(y_values, x_positions[j], dtype=float),
                 y_values,
-                facecolors="none",  # No fill
+                facecolors='none',  # No fill
                 edgecolors=color,  # Use original condition colors for contour
                 s=80,  # Size of spheres
                 linewidth=1.5,  # Thickness of the contour
@@ -122,23 +141,23 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
             )
 
         # Add dashed gray line at y=0
-        ax_i.axhline(0, color="gray", linestyle="dashed", linewidth=1.5)
+        ax_i.axhline(0, color='gray', linestyle='dashed', linewidth=1.5)
 
         # Set labels and titles
-        ax_i.set_xlabel(subplot_titles[i], fontweight="bold", labelpad=16,
+        ax_i.set_xlabel(subplot_titles[i], fontweight='bold', labelpad=16,
                         fontsize=16)
         if i == 0:
             ax_i.set_ylabel(y_label, fontsize=16, labelpad=5)
-            ax_i.tick_params(axis="y", labelsize=14)
+            ax_i.tick_params(axis='y', labelsize=14)
         else:
             ax_i.axes.get_yaxis().set_visible(False)
-            ax_i.spines["left"].set_visible(False)
+            ax_i.spines['left'].set_visible(False)
 
-        ax_i.tick_params(axis="x", labelsize=14)
+        ax_i.tick_params(axis='x', labelsize=14)
 
         # Hide unnecessary spines
-        ax_i.spines["right"].set_visible(False)
-        ax_i.spines["top"].set_visible(False)
+        ax_i.spines['right'].set_visible(False)
+        ax_i.spines['top'].set_visible(False)
 
         # Reduce white space inside each subplot
         ax_i.set_xlim(-0.6, 1.6)  # Adjust the x-axis to remove extra space
@@ -146,7 +165,7 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
     plt.tight_layout()
     
     # Save figure
-    plt.savefig(os.path.join(output_dir, fname + ".pdf"))
+    plt.savefig(os.path.join(output_dir, fname + '.pdf'))
     # plt.show()
 
 
@@ -160,8 +179,8 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 contrasts_folder = 'control_contrasts'
 
 task_tag = 'All Tasks'
-contrast_mask = 'Visual Encoding'
-roi = 'cerebellum' # dstr or cerebellum
+contrast_mask = 'Auditory Encoding'
+roi = 'dstr' # dstr or cerebellum
 
 # ========================= PARAMETERS =================================
 
@@ -240,6 +259,11 @@ if __name__ == '__main__':
 
     # Swap axes in order to have shape: (subjects, contrasts)
     roi_data = np.swapaxes(roi_data, 0, 1)
+
+    # Save dataframe
+    create_df(
+        roi_data, contrast_mask, SUBJECTS, output_dir=contrasts_folder,
+        fname='ipscs_' + roi + '_' + contrast_mask.lower().replace(' ', '-'))
 
     # Plot
     plot_boxplots(
