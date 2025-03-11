@@ -57,12 +57,12 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
             "Auditory Conditions", "Visual Conditions"][:num_subplots]
 
     # Set up figure with one or two subplots
-    fig, ax = plt.subplots(1, num_subplots, figsize=(3 * num_subplots, 6),
+    fig, ax = plt.subplots(1, num_subplots, figsize=(4 * num_subplots, 6),
                            sharey=True)
 
     # Adjust subplot spacing
-    fig.subplots_adjust(left=0.15, right=0.95, bottom=0.15,
-                        top=0.85, wspace=0.25)
+    fig.subplots_adjust(left=0.275, right=0.95, bottom=0.15,
+                        top=0.85, wspace=0.1)
 
     if num_subplots == 1:
         ax = [ax]  # Convert to list for consistency
@@ -122,7 +122,7 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
         ax_i.set_xlabel(subplot_titles[i], fontweight="bold", labelpad=16,
                         fontsize=16)
         if i == 0:
-            ax_i.set_ylabel(y_label, fontsize=16, labelpad=0)
+            ax_i.set_ylabel(y_label, fontsize=16, labelpad=5)
             ax_i.tick_params(axis="y", labelsize=14)
         else:
             ax_i.axes.get_yaxis().set_visible(False)
@@ -137,7 +137,7 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
         # Reduce white space inside each subplot
         ax_i.set_xlim(-0.6, 1.6)  # Adjust the x-axis to remove extra space
 
-    # plt.tight_layout()
+    plt.tight_layout()
     
     # Save figure
     plt.savefig(os.path.join(output_dir, fname + ".pdf"))
@@ -155,7 +155,7 @@ contrasts_folder = 'control_contrasts'
 
 task_tag = 'All Tasks'
 contrast_mask = 'Encoding'
-roi = 'dstr' # or cerebellum
+roi = 'cerebellum' # dstr or cerebellum
 
 # ========================= PARAMETERS =================================
 
