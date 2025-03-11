@@ -75,12 +75,18 @@ def plot_boxplots(data, y_label="Percent Signal Change (%)",
         # Select appropriate data columns
         conditions = data[:, i * 2: (i + 1) * 2]
 
+        # Compute and print means
+        means = np.mean(conditions, axis=0)
+        print(f"Means for subplot '{subplot_titles[i]}':")
+        for cond, mean in zip(condition_labels, means):
+            print(f"  {cond}: {mean:.4f}")
+
         # Prepare data for Seaborn
-        d = {
+        datum = {
             "Conditions": np.repeat(condition_labels, data.shape[0]),
-            y_label: conditions.flatten()
+            y_label: np.concatenate((conditions[:, 0], conditions[:, 1]))
         }
-        df = pd.DataFrame(data=d)
+        df = pd.DataFrame(data=datum)
 
         # Create boxplot with reduced width and no dodge
         sns.boxplot(
@@ -154,7 +160,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 contrasts_folder = 'control_contrasts'
 
 task_tag = 'All Tasks'
-contrast_mask = 'Encoding'
+contrast_mask = 'Visual Encoding'
 roi = 'cerebellum' # dstr or cerebellum
 
 # ========================= PARAMETERS =================================
