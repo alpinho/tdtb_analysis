@@ -44,10 +44,10 @@ J.defaults.defaultsval.blipdir = 1;
 % TOTAL_EPI_READOUT_TIME = (EchoSpacing/IPatGRAPPA) * BaseResolution
 % This is also equivalent to:
 % TOTAL_EPI_READOUT_TIME = (EffectiveEchoSpacing*1000) * BaseResolution
-% J.defaults.defaultsval.tert = 30.24; % tert = 0.72/2 * 84
+J.defaults.defaultsval.tert = 30.24; % tert = 0.72/2 * 84
 % OR
 % TOTAL_EPI_READOUT_TIME = (EchoSpacing/IPatGRAPPA) * NumberOfPhaseEncodingSteps
-J.defaults.defaultsval.tert = 26.28; % tert = 0.72/2 * 73
+% J.defaults.defaultsval.tert = 26.28; % tert = 0.72/2 * 73
 
 J.defaults.defaultsval.epifm = 0;                                                                       
 J.defaults.defaultsval.ajm = 0;                                                                         
