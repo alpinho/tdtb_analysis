@@ -20,7 +20,8 @@ import matplotlib.pyplot as plt
 
 # ############################ FUNCTIONS ################################
 
-def plot_pvalues(weights, pvals, output_path='./pcorr_plot_final.png'):
+def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
+                 output_path='./pval_plot.png'):
     """
     Plots corrected p-values as a function of the weighting factor for
     ROI individualization, ensuring the markers at the boundaries are
@@ -32,7 +33,7 @@ def plot_pvalues(weights, pvals, output_path='./pcorr_plot_final.png'):
     weights : array-like
         Weighting factors for individualization (numeric values).
     pvals : array-like
-        Corrected p-values corresponding to the weighting factors.
+        p-values corresponding to the weighting factors.
     output_path : str, optional (default='./pcorr_plot_final.png')
         File path where the plot will be saved.
 
@@ -43,14 +44,12 @@ def plot_pvalues(weights, pvals, output_path='./pcorr_plot_final.png'):
     plt.figure(figsize=(8, 5))
     # Use clip_on=False to ensure markers are fully drawn even if...
     # ... slightly outside the axes.
-    plt.scatter(weights, pvals, color='b', s=70, edgecolors='black',
-                linewidth=1.2, clip_on=False)
-    plt.plot(weights, pvals, linestyle='--', alpha=.7, linewidth=2.5)
+    plt.scatter(weights, pvals, color='b', s=80, edgecolors='black',
+                linewidth=1.5, clip_on=False)
+    plt.plot(weights, pvals, linestyle='--', alpha=.7, linewidth=3.)
 
-    plt.xlabel(r'Weighting Factor for ROI Individualization ($w$)',
-               labelpad=12, fontsize=14)
-    plt.ylabel(r'Corrected p-value $p_{\mathrm{FWE}}(w)$', labelpad=12,
-               fontsize=14)
+    plt.xlabel(r'$w_{i}$', labelpad=12, fontsize=14)
+    plt.ylabel(ylabel, labelpad=12, fontsize=14)
 
     ax = plt.gca()
     # Remove top and right spines
@@ -58,24 +57,24 @@ def plot_pvalues(weights, pvals, output_path='./pcorr_plot_final.png'):
     ax.spines["right"].set_visible(False)
 
     # Increase space between axes and grid by moving spines outward
-    ax.spines["bottom"].set_position(("outward", 10))
-    ax.spines["left"].set_position(("outward", 10))
+    ax.spines["bottom"].set_position(('outward', 10))
+    ax.spines["left"].set_position(('outward', 10))
     ax.spines["bottom"].set_bounds(0, 1)
 
     # Set axis limits and ticks
-    plt.xlim(0, 1)
-    plt.ylim(0.025, 0.05)
-    plt.xticks(np.linspace(0, 1, 11), fontsize=14)
-    plt.yticks(np.linspace(0.025, 0.05, 6), fontsize=14)
+    plt.xlim(0., 1.)
+    plt.ylim(ylim_min, ylim_max)
+    plt.xticks(np.linspace(0, 1., 11), fontsize=14)
+    plt.yticks(np.linspace(ylim_min, ylim_max, y_step), fontsize=14)
 
     # Add margin to avoid clipping markers at the edges
-    plt.margins(x=0.05)
+    plt.margins(x=.05)
 
     # Set grid
     plt.grid(True)
 
     # Adjust layout to prevent the x-label from being cut off.
-    plt.subplots_adjust(bottom=0.2)
+    plt.subplots_adjust(bottom=.2)
 
     # Remove spaces in the borders
     plt.tight_layout()
@@ -122,9 +121,17 @@ if __name__ == '__main__':
     p_uncorr_vals = [round(df.loc[df['ROI'] == 'dstr', 'p-unc'].iloc[-1], 3)
                      for df in df_list]
 
-    # Plot
-    ws = np.round(np.arange(0, 1.1, 0.1), 1)  # Ensures numeric values
+    # #### Plot ####
+    ws = np.round(np.arange(0, 1.1, .1), 1)  # Ensures numeric values
+ 
+    pcorr_label = r'$p_{\mathrm{FWE}}(w_{i})$'    
     pcorr_path = os.path.join(output_dir, 'pcorr_plot.png')
-    plot_pvalues(ws, p_corr_vals, output_path=pcorr_path)
+    ycorr_min, ycorr_max, ycorr_step = .025, .05, 6
+    plot_pvalues(ws, p_corr_vals, pcorr_label, ycorr_min, ycorr_max,
+                 ycorr_step, output_path=pcorr_path)
+
+    puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
     puncorr_path = os.path.join(output_dir, 'punc_plot.png')
-    plot_pvalues(ws, p_corr_vals, output_path=puncorr_path)
+    yunc_min, yunc_max, yunc_step = .01, .025, 4
+    plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
+                 yunc_step, output_path=puncorr_path)
