@@ -20,51 +20,69 @@ import matplotlib.pyplot as plt
 
 # ############################ FUNCTIONS ################################
 
-def plot_pvalues(weights, pvals, output_path='./'):
+def plot_pvalues(weights, pvals, output_path='./pcorr_plot_final.png'):
     """
     Plots corrected p-values as a function of the weighting factor for
-    ROI individualization.
+    ROI individualization, ensuring the markers at the boundaries are
+    fully visible, increasing the spacing between axes and grid, and
+    adjusting the layout so the x-label is not cut off.
 
     Parameters:
     -----------
     weights : array-like
-        Weighting factors for individualization.
+        Weighting factors for individualization (numeric values).
     pvals : array-like
         Corrected p-values corresponding to the weighting factors.
-    output_path : str, optional (default='./')
+    output_path : str, optional (default='./pcorr_plot_final.png')
         File path where the plot will be saved.
 
     Returns:
     --------
     None
     """
-
     plt.figure(figsize=(8, 5))
-    plt.scatter(weights, pvals, color='b')
-    plt.plot(weights, pvals, linestyle='--', alpha=0.7)
+    # Use clip_on=False to ensure markers are fully drawn even if...
+    # ... slightly outside the axes.
+    plt.scatter(weights, pvals, color='b', s=70, edgecolors='black',
+                linewidth=1.2, clip_on=False)
+    plt.plot(weights, pvals, linestyle='--', alpha=.7, linewidth=2.5)
 
-    plt.xlabel(r'Weighting Factor for ROI Individualization ($w$)')
-    plt.ylabel(r'Corrected p-value $p_{\mathrm{FWE}}(w)$')
-    # plt.title(
-    #     r'Effect of ROI Individualization on p-value: '
-    #     r'$p_{\mathrm{corr}} = f(w)$')
+    plt.xlabel(r'Weighting Factor for ROI Individualization ($w$)',
+               labelpad=12, fontsize=14)
+    plt.ylabel(r'Corrected p-value $p_{\mathrm{FWE}}(w)$', labelpad=12,
+               fontsize=14)
 
-    # Remove top and right axis
     ax = plt.gca()
+    # Remove top and right spines
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    # Extend x-axis slightly to prevent edge clipping
-    plt.xlim(-0.05, 1.05)  # Small padding to keep end dots fully visible
+    # Increase space between axes and grid by moving spines outward
+    ax.spines["bottom"].set_position(("outward", 10))
+    ax.spines["left"].set_position(("outward", 10))
+    ax.spines["bottom"].set_bounds(0, 1)
 
-    # Explicitly set x-ticks and y-ticks
-    plt.xticks(np.linspace(0, 1, 11))  # Ensures x-ticks at [0, 0.1, ..., 1]
-    plt.yticks(np.linspace(.025, .05, 6))  # Ensures y-ticks at [0, 0.01, ..., 0.05]
+    # Set axis limits and ticks
+    plt.xlim(0, 1)
+    plt.ylim(0.025, 0.05)
+    plt.xticks(np.linspace(0, 1, 11), fontsize=14)
+    plt.yticks(np.linspace(0.025, 0.05, 6), fontsize=14)
 
+    # Add margin to avoid clipping markers at the edges
+    plt.margins(x=0.05)
+
+    # Set grid
     plt.grid(True)
-    # plt.legend()
+
+    # Adjust layout to prevent the x-label from being cut off.
+    plt.subplots_adjust(bottom=0.2)
+
+    # Remove spaces in the borders
+    plt.tight_layout()
+
+    # Save figure
     plt.savefig(output_path, dpi=300)
-    plt.close()
+    # plt.show()
 
 
 # ############################# INPUTS ##################################
