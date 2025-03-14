@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: February 2025
+Last update: March 2025
 
 Compatibility: Python 3.10.14
 
@@ -488,10 +488,13 @@ roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
 # region_names = ['dorsal_striatum', 'cerebellum']
 # roi_names = ['dstr', 'cereb']
 
-tags = ['i', 'a', 'g']
+# tags = ['i', 'a', 'g']
+tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
 # Tuple: (individual_weight, average_weight, group_weight)
-weights_list = [(1.,0.), (.5,.5), (0.,1.)]
+# weights_list = [(1.,0.), (.5,.5), (0.,1.)]
+weights_list = [(1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
+                (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)]
 
 
 # ############################## RUN ####################################
