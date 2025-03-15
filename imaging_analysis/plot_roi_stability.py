@@ -86,7 +86,7 @@ def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
 
 # ############################# INPUTS ##################################
 
-encoding_mask_type = 'all'
+encoding_mask_type = 'auditory'
 anova_type = '2way-anova_cat2rois_auditory'
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
@@ -125,13 +125,15 @@ if __name__ == '__main__':
     ws = np.round(np.arange(0, 1.1, .1), 1)  # Ensures numeric values
  
     pcorr_label = r'$p_{\mathrm{FWE}}(w_{i})$'    
-    pcorr_path = os.path.join(output_dir, 'pcorr_plot.png')
+    pcorr_path = os.path.join(
+        output_dir, 'pcorr_' + encoding_mask_type + '_plot.png')
     ycorr_min, ycorr_max, ycorr_step = .025, .05, 6
     plot_pvalues(ws, p_corr_vals, pcorr_label, ycorr_min, ycorr_max,
                  ycorr_step, output_path=pcorr_path)
 
     puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
-    puncorr_path = os.path.join(output_dir, 'punc_plot.png')
+    puncorr_path = os.path.join(
+        output_dir, 'punc_' + encoding_mask_type + '_plot.png')
     yunc_min, yunc_max, yunc_step = .01, .025, 4
     plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
                  yunc_step, output_path=puncorr_path)
