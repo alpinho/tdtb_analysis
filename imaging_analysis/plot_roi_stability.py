@@ -86,8 +86,13 @@ def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
 
 # ############################# INPUTS ##################################
 
-encoding_mask_type = 'auditory'
-anova_type = '2way-anova_cat2rois_auditory'
+# ### Mask Type
+encoding_mask_type = 'all' # all, auditory, visual
+
+# ### Tasks Modality Included
+anova_type = '2way-anova_cat2rois'        # all
+# anova_type = '2way-anova_cat2rois_auditory' # auditory
+# anova_type = '2way-anova_cat2rois_visual'   # visual
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 hemisphere = 'bh'
@@ -98,11 +103,14 @@ task = 'allmain_tasks'
 working_dir = os.path.dirname(os.path.abspath(__file__))
 anovas_dir = os.path.join(working_dir , 'roi_analyses_rwls_hrf128',
                           encoding_mask_type, anova_type)
-output_dir = os.path.join(working_dir, 'control_contrasts')
+output_dir = os.path.join(working_dir, 'pvalues_stability_plots')
 
 # ############################## RUN ####################################
 
 if __name__ == '__main__':
+
+    # Create output_dir if it does not exist
+    os.makedirs(output_dir, exist_ok=True)
 
     reversed_tags = tags[::-1]
 
@@ -123,17 +131,42 @@ if __name__ == '__main__':
 
     # #### Plot ####
     ws = np.round(np.arange(0, 1.1, .1), 1)  # Ensures numeric values
+
+    if anova_type == '2way-anova_cat2rois':
+        pcorr_path = os.path.join(
+            output_dir,
+            f'puncorrected_mask-{encoding_mask_type}_task-all_plot.png'
+        )
+        puncorr_path = os.path.join(
+            output_dir,
+            f'puncorrected_mask-{encoding_mask_type}_task-all_plot.png'
+        )
+    elif anova_type == '2way-anova_cat2rois_auditory':
+        pcorr_path = os.path.join(
+            output_dir,
+            f'puncorrected_mask-{encoding_mask_type}_task-auditory_plot.png'
+        )
+        puncorr_path = os.path.join(
+            output_dir,
+            f'puncorrected_mask-{encoding_mask_type}_task-auditory_plot.png'
+        )
+    else:
+        assert anova_type == '2way-anova_cat2rois_visual'
+        pcorr_path = os.path.join(
+            output_dir,
+            f'puncorrected_mask-{encoding_mask_type}_task-visual_plot.png'
+        )
+        puncorr_path = os.path.join(
+            output_dir,
+            f'puncorrected_mask-{encoding_mask_type}_task-visual_plot.png'
+        )
  
     pcorr_label = r'$p_{\mathrm{FWE}}(w_{i})$'    
-    pcorr_path = os.path.join(
-        output_dir, 'pcorr_' + encoding_mask_type + '_plot.png')
     ycorr_min, ycorr_max, ycorr_step = .025, .05, 6
     plot_pvalues(ws, p_corr_vals, pcorr_label, ycorr_min, ycorr_max,
                  ycorr_step, output_path=pcorr_path)
 
     puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
-    puncorr_path = os.path.join(
-        output_dir, 'punc_' + encoding_mask_type + '_plot.png')
     yunc_min, yunc_max, yunc_step = .01, .025, 4
     plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
                  yunc_step, output_path=puncorr_path)
