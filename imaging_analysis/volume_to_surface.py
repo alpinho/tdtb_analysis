@@ -571,7 +571,7 @@ def plotly_surfmap(
         sulc_path, borders_path, surf_path, data, threshold, outfname,
         gray_scale=[[0, 'rgb(105,105,105)'], [1, 'rgb(211,211,211)']],
         resolution=3, radius=0.5, plot_title=None, cmap='viridis',
-        cbar_title='Z-values', cell_size=5.0, marker_size=5):
+        cbar_title='Z-values', cell_size=5.0, marker_size=5, borders=False):
     """
     Generates an interactive Plotly HTML render of an inflated brain
     surface with:
@@ -679,8 +679,12 @@ def plotly_surfmap(
     )
 
     # Combine all layers into a figure.
-    fig = go.Figure(data=[background_surface, activation_surface,
-                          border_spheres])
+    if borders:
+        fig = go.Figure(data=[background_surface, activation_surface,
+                              border_spheres])
+    else:
+        fig = go.Figure(data=[background_surface, activation_surface])
+
     fig.update_layout(
         title=plot_title,
         scene=dict(
@@ -707,7 +711,7 @@ surf_folder = 'surface_files'
 contrasts_folder = 'control_contrasts'
 
 task_tag = 'All Tasks'
-contrast_name = 'Encoding'
+contrast_name = 'Visual Encoding'
 
 # ========================= PARAMETERS =================================
 
@@ -858,42 +862,44 @@ if __name__ == '__main__':
     # # Create Left and Right sulc gifti files
     # # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
     
-    # # Left Hemisphere 
-    # lh_output_path = os.path.join(
-    #     contrasts_folder,
-    #     contrast_name.lower().replace(' ', '-') + '_lh_veryinflated.html')
-    # plotly_surfmap(
-    #     sulc_path=lh_sulc_path,
-    #     borders_path=lh_borders_path,
-    #     surf_path=lh_veryinflated,
-    #     data=zvals_lh_masked,
-    #     threshold=fdr_thresh,
-    #     outfname=lh_output_path,
-    #     resolution=5,
-    #     radius=.65,
-    #     plot_title=contrast_name + '- Left Hemisphere',
-    #     cmap='viridis',
-    #     cbar_title='Z-values',
-    #     cell_size=3.5,         # adjust this for the desired dot sparsity
-    #     marker_size=3          # adjust for the size of the dots
-    #     )
+    # Left Hemisphere 
+    lh_output_path = os.path.join(
+        contrasts_folder,
+        contrast_name.lower().replace(' ', '-') + '_lh_veryinflated.html')
+    plotly_surfmap(
+        sulc_path=lh_sulc_path,
+        borders_path=lh_borders_path,
+        surf_path=lh_veryinflated,
+        data=zvals_lh_masked,
+        threshold=fdr_thresh,
+        outfname=lh_output_path,
+        resolution=5,
+        radius=.65,
+        plot_title=contrast_name + '- Left Hemisphere',
+        cmap='viridis',
+        cbar_title='Z-values',
+        cell_size=3.5,         # adjust this for the desired dot sparsity
+        marker_size=3,          # adjust for the size of the dots
+        borders=False
+        )
 
-    # # Right Hemisphere
-    # rh_output_path = os.path.join(
-    #     contrasts_folder,
-    #     contrast_name.lower().replace(' ', '-') + '_rh_veryinflated.html')
-    # plotly_surfmap(
-    #     sulc_path=rh_sulc_path,
-    #     borders_path=rh_borders_path,
-    #     surf_path=rh_veryinflated,
-    #     data=zvals_rh_masked,
-    #     threshold=fdr_thresh,
-    #     outfname=rh_output_path,
-    #     resolution=5,
-    #     radius=.65,
-    #     plot_title=contrast_name + '- Right Hemisphere',
-    #     cmap='viridis',
-    #     cbar_title='Z-values',
-    #     cell_size=3.5,         # adjust this for the desired dot sparsity
-    #     marker_size=3          # adjust for the size of the dots
-    #     )
+    # Right Hemisphere
+    rh_output_path = os.path.join(
+        contrasts_folder,
+        contrast_name.lower().replace(' ', '-') + '_rh_veryinflated.html')
+    plotly_surfmap(
+        sulc_path=rh_sulc_path,
+        borders_path=rh_borders_path,
+        surf_path=rh_veryinflated,
+        data=zvals_rh_masked,
+        threshold=fdr_thresh,
+        outfname=rh_output_path,
+        resolution=5,
+        radius=.65,
+        plot_title=contrast_name + '- Right Hemisphere',
+        cmap='viridis',
+        cbar_title='Z-values',
+        cell_size=3.5,         # adjust this for the desired dot sparsity
+        marker_size=3,          # adjust for the size of the dots
+        borders=False
+        )
