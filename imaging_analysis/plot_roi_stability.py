@@ -67,6 +67,10 @@ def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
     plt.xticks(np.linspace(0, 1., 11), fontsize=14)
     plt.yticks(np.linspace(ylim_min, ylim_max, y_step), fontsize=14)
 
+    # Set y-axis labels to exactly three decimals
+    ax.set_yticklabels([f'{tick:.3f}' for tick in ax.get_yticks()],
+                       fontsize=14)
+
     # Add margin to avoid clipping markers at the edges
     plt.margins(x=.05)
 
@@ -90,13 +94,15 @@ def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
 encoding_mask_type = 'all' # all, auditory, visual
 
 # ### Tasks Modality Included
-anova_type = '2way-anova_cat2rois'        # all
-# anova_type = '2way-anova_cat2rois_auditory' # auditory
+# anova_type = '2way-anova_cat2rois'        # all
+anova_type = '2way-anova_cat2rois_auditory' # auditory
 # anova_type = '2way-anova_cat2rois_visual'   # visual
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 hemisphere = 'bh'
 task = 'allmain_tasks'
+
+step = .005
 
 # ########################### PARAMETERS ################################
 
@@ -123,11 +129,19 @@ if __name__ == '__main__':
     df_list = [pd.read_csv(posthoc_path, sep='\t')
                for posthoc_path in posthoc_paths]
 
-    p_corr_vals = [round(df.loc[df['ROI'] == 'dstr', 'p-corr'].iloc[-1], 3)
-                   for df in df_list]
+    p_corr_vals = np.array(
+        [
+            round(df.loc[df['ROI'] == 'dstr', 'p-corr'].iloc[-1], 3)
+            for df in df_list
+        ]
+    )
 
-    p_uncorr_vals = [round(df.loc[df['ROI'] == 'dstr', 'p-unc'].iloc[-1], 3)
-                     for df in df_list]
+    p_uncorr_vals = np.array(
+        [
+            round(df.loc[df['ROI'] == 'dstr', 'p-unc'].iloc[-1], 3)
+            for df in df_list
+        ]
+    )
 
     # #### Plot ####
     ws = np.round(np.arange(0, 1.1, .1), 1)  # Ensures numeric values
@@ -160,13 +174,27 @@ if __name__ == '__main__':
             output_dir,
             f'puncorrected_mask-{encoding_mask_type}_task-visual_plot.png'
         )
- 
-    pcorr_label = r'$p_{\mathrm{FWE}}(w_{i})$'    
-    ycorr_min, ycorr_max, ycorr_step = .025, .05, 6
+
+    # Determine the nearest lower multiple of 0.005 for y_min
+    ycorr_min = np.round(
+        np.floor((np.amin(p_corr_vals) - 1e-8) / step) * step, 3)
+    yunc_min = np.round(
+        np.floor((np.amin(p_uncorr_vals) - 1e-8) / step) * step, 3)
+
+    # Determine the nearest higher multiple of 0.005 for y_max
+    ycorr_max = np.round(
+        np.ceil((np.amax(p_corr_vals) + 1e-8) / step) * step, 3)
+    yunc_max = np.round(
+        np.ceil((np.amax(p_uncorr_vals) + 1e-8) / step) * step, 3)
+
+    # Steps
+    ycorr_step = int((ycorr_max - ycorr_min) / step)
+    yunc_step = int((yunc_max - yunc_min) / step)
+
+    pcorr_label = r'$p_{\mathrm{FWE}}(w_{i})$'
     plot_pvalues(ws, p_corr_vals, pcorr_label, ycorr_min, ycorr_max,
-                 ycorr_step, output_path=pcorr_path)
+                 4, output_path=pcorr_path)
 
     puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
-    yunc_min, yunc_max, yunc_step = .01, .025, 4
     plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
-                 yunc_step, output_path=puncorr_path)
+                 4, output_path=puncorr_path)
