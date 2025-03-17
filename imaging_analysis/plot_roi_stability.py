@@ -135,7 +135,7 @@ if __name__ == '__main__':
     if anova_type == '2way-anova_cat2rois':
         pcorr_path = os.path.join(
             output_dir,
-            f'puncorrected_mask-{encoding_mask_type}_task-all_plot.png'
+            f'pcorrected_mask-{encoding_mask_type}_task-all_plot.png'
         )
         puncorr_path = os.path.join(
             output_dir,
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     elif anova_type == '2way-anova_cat2rois_auditory':
         pcorr_path = os.path.join(
             output_dir,
-            f'puncorrected_mask-{encoding_mask_type}_task-auditory_plot.png'
+            f'pcorrected_mask-{encoding_mask_type}_task-auditory_plot.png'
         )
         puncorr_path = os.path.join(
             output_dir,
@@ -154,7 +154,7 @@ if __name__ == '__main__':
         assert anova_type == '2way-anova_cat2rois_visual'
         pcorr_path = os.path.join(
             output_dir,
-            f'puncorrected_mask-{encoding_mask_type}_task-visual_plot.png'
+            f'pcorrected_mask-{encoding_mask_type}_task-visual_plot.png'
         )
         puncorr_path = os.path.join(
             output_dir,
