@@ -726,7 +726,7 @@ surf_folder = 'results/surface_files'
 contrasts_folder = 'results/control_contrasts'
 
 task_tag = 'All Tasks'
-contrast_name = 'Visual Encoding'
+contrast_name = 'Encoding'
 
 # ========================= PARAMETERS =================================
 
@@ -878,7 +878,8 @@ if __name__ == '__main__':
  
     split_maps = [zvals_lh_masked, zvals_rh_masked]
     zvals_masked = np.concatenate((zvals_lh_masked, zvals_rh_masked))
-    v_max = np.max(zvals_masked[~np.isnan(zvals_masked)])
+    v_max = np.amax(zvals_masked[~np.isnan(zvals_masked)])
+
     print(f'Maximum Z value is: {v_max}')
     plot_flatmap(split_maps, thresh, task_id, contrast_name,
                  contrasts_folder, hemi=['L', 'R'], colormap='viridis',
@@ -889,7 +890,7 @@ if __name__ == '__main__':
     # Create Left and Right sulc gifti files
     # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
     
-    # Left Hemisphere 
+    # Left Hemisphere
     lh_output_path = os.path.join(
         contrasts_folder,
         (

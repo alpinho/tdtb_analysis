@@ -75,6 +75,8 @@ def group_suit(group_dir, task_key, contrast_key, subjects, suit_dir):
         os.path.join(
             suit_dir,
             'group_'
+            + task_key.replace('_', '-')
+            + '_'
             + contrast.lower()
             + '_'
             + 'suit.func.gii',
@@ -84,19 +86,20 @@ def group_suit(group_dir, task_key, contrast_key, subjects, suit_dir):
     return suit_zvals
 
 
-def plot_suitflat(stats, threshold, contrast_tag, colormap='copper',
-                  vmax=10):
+def plot_suitflat(stats, threshold, task_key, contrast_tag, output_dir,
+                  colormap='viridis', vmax=10):
 
     contrast = contrast_tag.lower().replace(' ', '-')
+    task_name = task_key.replace('_', '-')
 
-    # Define color limits
+    # Define lower bound of color limits
     vmin = threshold
 
     # Do the flatmap
     flatmap.plot(stats,
                  cmap=colormap,
                  cscale=[vmin, vmax],
-                 underscale=[-1.5, 1],
+                 underscale=[-5., 5.], # (default: [-1, 0.5])
                  threshold=vmin,
                  colorbar=True,
                  render='matplotlib')
@@ -104,12 +107,17 @@ def plot_suitflat(stats, threshold, contrast_tag, colormap='copper',
     # Get the current figure created by flatmap.plot()
     fig = plt.gcf()  # Get the figure from the active Matplotlib state
 
-    # Define lower bound of color limits
-    vmin = threshold
+    # Change fontsize of numbers in colorbar
+    cbar = fig.axes[-1]
+    cbar.tick_params(labelsize=14)
+
+    # Title of colormap
+    plt.text(-1., 7.9, "Z-values", fontsize=15, color="black")
 
     # Save figure
-    output_name = f'group_{contrast}_suit.png'
-    fig.savefig(output_name, dpi=300)
+    output_name = f'group_{task_name}_{contrast}_suit.png'
+    output_path = os.path.join(output_dir, output_name)
+    fig.savefig(output_path, dpi=300)
 
 
 # %%
@@ -120,10 +128,11 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Relative path for output folder
-suit_folder = 'suit_files'
+suit_folder = 'results/suit_files'
+contrasts_folder = 'results/control_contrasts'
 
 task_tag = 'All Tasks'
-contrast_name = 'Auditory Encoding'
+contrast_name = 'Encoding'
 
 # %%
 # ========================= PARAMETERS =================================
@@ -165,6 +174,9 @@ contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 
 if __name__ == '__main__':
 
+    # Create contrasts folder if it does not exist
+    os.makedirs(contrasts_folder, exist_ok=True)
+
     # Get z-values of group contrast in SUIT space
     z_values = group_suit(group_folder, task_id, contrast_id, SUBJECTS,
                           suit_folder)
@@ -174,8 +186,8 @@ if __name__ == '__main__':
                                  contrast_id, wb_gmask)
 
     # Plot cerebellum flatmap
-    v_max = np.max(z_values[~np.isnan(z_values)])
+    v_max = np.amax(z_values[~np.isnan(z_values)])
     print(f'Maximum Z value is: {v_max}')
-    zmax_cortex_auditory_encoding = 7.5705155593408024
-    plot_suitflat(z_values, fdr_thresh, contrast_name,
-                  vmax=zmax_cortex_auditory_encoding)
+    zmax_cortex_encoding = 7.3521457
+    plot_suitflat(z_values, fdr_thresh, task_id, contrast_name,
+                  contrasts_folder, vmax=zmax_cortex_encoding)
