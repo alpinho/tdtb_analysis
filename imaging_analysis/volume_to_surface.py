@@ -127,6 +127,8 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
                 os.path.join(
                     surf_dir,
                     'sub-{sb:02d}_'.format(sb=sb)
+                    + task_key.replace('_', '-')
+                    + '_'
                     + contrast.lower()
                     + '_'
                     + surfspace
@@ -138,6 +140,8 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
                 os.path.join(
                     surf_dir,
                     'sub-{sb:02d}_'.format(sb=sb)
+                    + task_key.replace('_', '-')
+                    + '_'
                     + contrast.lower()
                     + '_'
                     + surfspace
@@ -154,18 +158,22 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
                 CIFTI,
                 os.path.join(
                     surf_dir,
-                    f'sub-{sb:02d}_{contrast.lower()}_{surfspace}.dscalar.nii'
-                ),
+                    f'sub-{sb:02d}_{task_key.replace("_", "-")}_'
+                    f'{contrast.lower()}_{surfspace}.dscalar.nii'
+                )
             )
 
 
-def get_isurf_gifti(surf_dir, subjects, contrast, surfspace='fslr32k'):
+def get_isurf_gifti(surf_dir, subjects, task_key, contrast,
+                    surfspace='fslr32k'):
 
     # Paths of individual files per hemisphere
     gifti_left = [
         os.path.join(
             surf_dir,
-            f'sub-{sub:02d}_{contrast}_{surfspace}.hem-L.func.gii'
+            f"sub-{sub:02d}_"
+            f"{task_key.replace('_', '-')}_"
+            f"{contrast}_{surfspace}.hem-L.func.gii",
         )
         for sub in subjects
     ]
@@ -173,7 +181,9 @@ def get_isurf_gifti(surf_dir, subjects, contrast, surfspace='fslr32k'):
     gifti_right = [
         os.path.join(
             surf_dir,
-            f'sub-{sub:02d}_{contrast}_{surfspace}.hem-R.func.gii'
+            f"sub-{sub:02d}_"
+            f"{task_key.replace('_', '-')}_"
+            f"{contrast}_{surfspace}.hem-R.func.gii",
         )
         for sub in subjects
     ]
@@ -181,13 +191,16 @@ def get_isurf_gifti(surf_dir, subjects, contrast, surfspace='fslr32k'):
     return gifti_left, gifti_right
 
 
-def get_isurf_cifti(surf_dir, subjects, contrast, surfspace='fslr32k'):
+def get_isurf_cifti(surf_dir, subjects, task_key, contrast,
+                    surfspace='fslr32k'):
 
     # Paths of individual files
     cifti_file = [
         os.path.join(
             surf_dir,
-            f'sub-{sub:02d}_{contrast}_{surfspace}.dscalar.nii'
+            f"sub-{sub:02d}_"
+            f"{task_key.replace('_', '-')}_"
+            f"{contrast}_{surfspace}.dscalar.nii",
         )
         for sub in subjects
     ]
@@ -209,13 +222,13 @@ def zval_conversion(tval, dof):
     return zval
 
 
-def group_surf(surf_dir, subjects, contrast_tag, surfspace='fslr32k'):
+def group_surf(surf_dir, subjects, task_key, contrast_tag, surfspace='fslr32k'):
 
     contrast = contrast_tag.lower().replace(' ', '-')
 
     # Get paths of files with individual functional data projected on...
     # ... the surface
-    cifti_paths = get_isurf_cifti(surf_dir, subjects, contrast,
+    cifti_paths = get_isurf_cifti(surf_dir, subjects, task_key, contrast,
                                   surfspace=surfspace)
 
     # Substitute nan's by zeros and smooth the data
@@ -313,10 +326,11 @@ def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
     return fdr_thresh
 
 
-def plot_flatmap(stats, threshold, contrast_tag, output_dir, hemi=['L', 'R'],
-                 colormap='viridis', vmax=10):
+def plot_flatmap(stats, threshold, task_key, contrast_tag, output_dir,
+                 hemi=['L', 'R'], colormap='viridis', vmax=10):
 
     contrast = contrast_tag.lower().replace(' ', '-')
+    task_name = task_key.replace('_', '-')
 
     # Set paths
     _base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -380,8 +394,9 @@ def plot_flatmap(stats, threshold, contrast_tag, output_dir, hemi=['L', 'R'],
     fig.set_size_inches(6, 2.5)
     
     # Save figure with tight cropping
-    output_name = f'group_{contrast}_fslr32k.png' if len(hemi) == 2 else \
-        f'group_{contrast}_fslr32k_{hemi[0]}.png'
+    output_name = \
+        f'group_{task_name}_{contrast}_flat_fslr32k.png' if len(hemi) == 2 \
+        else f'group_{task_name}_{contrast}_flat_fslr32k_{hemi[0]}.png'
     output_path = os.path.join(output_dir, output_name)
     fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0)
 
@@ -707,8 +722,8 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Relative path for output folders
-surf_folder = 'surface_files'
-contrasts_folder = 'control_contrasts'
+surf_folder = 'results/surface_files'
+contrasts_folder = 'results/control_contrasts'
 
 task_tag = 'All Tasks'
 contrast_name = 'Visual Encoding'
@@ -782,16 +797,14 @@ if __name__ == '__main__':
 
     # Compute individual gifti/cifti files with the volume to surface...
     # ... projection of the contrast map
-    # individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-    #                 surf_folder, surfspace='fslr32k', save='cifti')
+    individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
+                    surf_folder, surfspace='fslr32k', save='gifti')
+    individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
+                    surf_folder, surfspace='fslr32k', save='cifti')
 
     # Compute group func cifti
-    z_values = group_surf(surf_folder, SUBJECTS, contrast_name,
+    z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_name,
                           surfspace='fslr32k')
-
-    # Compute whole-brain fdr threshold of volumetric data
-    fdr_thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
-                                 contrast_id, wb_gmask)
 
     # Split results into the two hemispheres
     zvals_lh = np.split(z_values, 2, axis=0)[0]
@@ -817,6 +830,8 @@ if __name__ == '__main__':
             os.path.join(
                 surf_folder,
                 'group_'
+                + task_id.replace(' ', '-')
+                + '_'
                 + cname.lower().replace(' ', '-')
                 + '_'
                 + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
@@ -824,54 +839,70 @@ if __name__ == '__main__':
         )
 
     # # ################## Plot ##################
-    # # Note: This plotting only works for surfspace='fslr32k'
+    # Note: This plotting only works for surfspace='fslr32k'
 
-    # # Open gifti
-    # zmap_lh = nib.load(
-    #     os.path.join(
-    #         surf_folder,
-    #         'group_'
-    #         + contrast_name.lower().replace(' ', '-')
-    #         + '_'
-    #         + 'fslr32k.L.func.gii',
-    #     )
-    # )
-    # zvals_lh_masked = zmap_lh.darrays[0].data
-    # zmap_rh = nib.load(
-    #     os.path.join(
-    #         surf_folder,
-    #         'group_'
-    #         + contrast_name.lower().replace(' ', '-')
-    #         + '_'
-    #         + 'fslr32k.R.func.gii',
-    #     )
-    # )
-    # zvals_rh_masked = zmap_rh.darrays[0].data
+    # Open gifti
+    zmap_lh = nib.load(
+        os.path.join(
+            surf_folder,
+            'group_'
+            + task_id.replace(' ', '-')
+            + '_'
+            + contrast_name.lower().replace(' ', '-')
+            + '_'
+            + 'fslr32k.L.func.gii',
+        )
+    )
+    zvals_lh_masked = zmap_lh.darrays[0].data
+    zmap_rh = nib.load(
+        os.path.join(
+            surf_folder,
+            'group_'
+            + task_id.replace(' ', '-')
+            + '_'
+            + contrast_name.lower().replace(' ', '-')
+            + '_'
+            + 'fslr32k.R.func.gii',
+        )
+    )
+    zvals_rh_masked = zmap_rh.darrays[0].data
+
+    # Compute whole-brain fdr threshold of volumetric data
+    thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
+                             contrast_id, wb_gmask)
 
     # # ################ Plot static flatmap #############################
  
-    # split_maps = [zvals_lh_masked, zvals_rh_masked]
-    # zvals_masked = np.concatenate((zvals_lh_masked, zvals_rh_masked))
-    # v_max = np.max(z_values[~np.isnan(zvals_masked)])
-    # print(f'Maximum Z value is: {v_max}')
-    # plot_flatmap(split_maps, fdr_thresh, contrast_name, contrasts_folder,
-    #              hemi=['L', 'R'], colormap='viridis', vmax=v_max)
+    split_maps = [zvals_lh_masked, zvals_rh_masked]
+    zvals_masked = np.concatenate((zvals_lh_masked, zvals_rh_masked))
+    v_max = np.max(zvals_masked[~np.isnan(zvals_masked)])
+    print(f'Maximum Z value is: {v_max}')
+    plot_flatmap(split_maps, thresh, task_id, contrast_name,
+                 contrasts_folder, hemi=['L', 'R'], colormap='viridis',
+                 vmax=v_max)
 
     # # ################## Plot dynamic map ##############################
 
-    # # Create Left and Right sulc gifti files
-    # # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
+    # Create Left and Right sulc gifti files
+    # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
     
     # Left Hemisphere 
     lh_output_path = os.path.join(
         contrasts_folder,
-        contrast_name.lower().replace(' ', '-') + '_lh_veryinflated.html')
+        (
+            'group_'
+            + task_id.replace('_', '-')
+            + '_'
+            + contrast_name.lower().replace(' ', '-')
+            + '_lh_veryinflated_fslr32k.html'
+        ),
+    )
     plotly_surfmap(
         sulc_path=lh_sulc_path,
         borders_path=lh_borders_path,
         surf_path=lh_veryinflated,
         data=zvals_lh_masked,
-        threshold=fdr_thresh,
+        threshold=thresh,
         outfname=lh_output_path,
         resolution=5,
         radius=.65,
@@ -879,20 +910,27 @@ if __name__ == '__main__':
         cmap='viridis',
         cbar_title='Z-values',
         cell_size=3.5,         # adjust this for the desired dot sparsity
-        marker_size=3,          # adjust for the size of the dots
+        marker_size=3,         # adjust for the size of the dots
         borders=False
         )
 
     # Right Hemisphere
     rh_output_path = os.path.join(
         contrasts_folder,
-        contrast_name.lower().replace(' ', '-') + '_rh_veryinflated.html')
+        (
+            'group_'
+            + task_id.replace('_', '-')
+            + '_'
+            + contrast_name.lower().replace(' ', '-')
+            + '_rh_veryinflated_fslr32k.html'
+        ),
+    )
     plotly_surfmap(
         sulc_path=rh_sulc_path,
         borders_path=rh_borders_path,
         surf_path=rh_veryinflated,
         data=zvals_rh_masked,
-        threshold=fdr_thresh,
+        threshold=thresh,
         outfname=rh_output_path,
         resolution=5,
         radius=.65,
@@ -900,6 +938,6 @@ if __name__ == '__main__':
         cmap='viridis',
         cbar_title='Z-values',
         cell_size=3.5,         # adjust this for the desired dot sparsity
-        marker_size=3,          # adjust for the size of the dots
+        marker_size=3,         # adjust for the size of the dots
         borders=False
         )
