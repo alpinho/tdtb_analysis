@@ -291,7 +291,8 @@ def mask_cortical_activation(activation_data, medial_wall_mask_path):
     return masked_activation
 
 
-def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
+def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
+                           gmask):
 
     # Paths of the NORMALIZED individual contrast map for all subjects
     encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
@@ -323,7 +324,13 @@ def whole_brain_fdr(derivatives_dir, subjects, task_key, contrast_key, gmask):
     # Print the estimated FDR threshold
     print(f'Estimated FDR threshold: {fdr_thresh}')
 
-    return fdr_thresh
+    # Get maximum peak value
+    z_max = np.amax(z_values[~np.isnan(z_values)])
+
+    # Print z_max
+    print(f'Maximum Z value is: {z_max}')
+
+    return fdr_thresh, z_max
 
 
 def plot_flatmap(stats, threshold, task_key, contrast_tag, output_dir,
@@ -871,16 +878,12 @@ if __name__ == '__main__':
     zvals_rh_masked = zmap_rh.darrays[0].data
 
     # Compute whole-brain fdr threshold of volumetric data
-    thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
-                             contrast_id, wb_gmask)
+    thresh, v_max = whole_brain_thresholds(derivatives_folder, SUBJECTS,
+                                           task_id, contrast_id, wb_gmask)
 
     # # ################ Plot static flatmap #############################
- 
-    split_maps = [zvals_lh_masked, zvals_rh_masked]
-    zvals_masked = np.concatenate((zvals_lh_masked, zvals_rh_masked))
-    v_max = np.amax(zvals_masked[~np.isnan(zvals_masked)])
 
-    print(f'Maximum Z value is: {v_max}')
+    split_maps = [zvals_lh_masked, zvals_rh_masked]
     plot_flatmap(split_maps, thresh, task_id, contrast_name,
                  contrasts_folder, hemi=['L', 'R'], colormap='viridis',
                  vmax=v_max)
