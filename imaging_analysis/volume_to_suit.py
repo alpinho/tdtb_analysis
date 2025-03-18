@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from SUITPy import flatmap
 
-from volume_to_surface import whole_brain_fdr
+from volume_to_surface import whole_brain_thresholds
 
 
 # %%
@@ -169,6 +169,17 @@ all_contrasts = {1: 'Encoding',
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 
+# Already pre-computed thresholds for the three first contrasts...
+# ... considering all tasks together (allmain_tasks)
+fdr_thresh_encoding = 2.7166013496886174
+zmax_encoding = 6.796930745609075
+
+fdr_thresh_audio_encoding = 2.7051156945711403
+zmax_audio_encoding = 7.366581723533498
+
+fdr_thresh_visual_encoding = 2.6649611311019035
+zmax_visual_encoding = 6.896651056145507
+
 # %%
 # ============================ RUN =====================================
 
@@ -182,12 +193,11 @@ if __name__ == '__main__':
                           suit_folder)
 
     # Compute whole-brain fdr threshold of volumetric data
-    fdr_thresh = whole_brain_fdr(derivatives_folder, SUBJECTS, task_id,
-                                 contrast_id, wb_gmask)
+    # fdr_thresh, zmax = whole_brain_thresholds(
+    #     derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask)
 
     # Plot cerebellum flatmap
     v_max = np.amax(z_values[~np.isnan(z_values)])
     print(f'Maximum Z value is: {v_max}')
-    zmax_cortex_encoding = 7.3521457
-    plot_suitflat(z_values, fdr_thresh, task_id, contrast_name,
-                  contrasts_folder, vmax=zmax_cortex_encoding)
+    plot_suitflat(z_values, fdr_thresh_encoding, task_id, contrast_name,
+                  contrasts_folder, vmax=zmax_encoding)
