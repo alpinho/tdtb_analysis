@@ -830,7 +830,7 @@ if __name__ == '__main__':
             os.path.join(
                 surf_folder,
                 'group_'
-                + task_id.replace(' ', '-')
+                + task_id.replace('_', '-')
                 + '_'
                 + cname.lower().replace(' ', '-')
                 + '_'
@@ -841,12 +841,15 @@ if __name__ == '__main__':
     # # ################## Plot ##################
     # Note: This plotting only works for surfspace='fslr32k'
 
+    # Create contrasts folder if it does not exist
+    os.makedirs(contrasts_folder, exist_ok=True)
+
     # Open gifti
     zmap_lh = nib.load(
         os.path.join(
             surf_folder,
             'group_'
-            + task_id.replace(' ', '-')
+            + task_id.replace('_', '-')
             + '_'
             + contrast_name.lower().replace(' ', '-')
             + '_'
@@ -858,7 +861,7 @@ if __name__ == '__main__':
         os.path.join(
             surf_folder,
             'group_'
-            + task_id.replace(' ', '-')
+            + task_id.replace('_', '-')
             + '_'
             + contrast_name.lower().replace(' ', '-')
             + '_'
