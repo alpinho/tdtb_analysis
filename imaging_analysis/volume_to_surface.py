@@ -377,6 +377,8 @@ def plot_flatmap(stats, threshold, task_key, contrast_tag, output_dir,
     # Define lower bound of color limits
     vmin = threshold
 
+    # ###################### COLORBAR ###################################
+
     # Make colorbar
     norm = plt.Normalize(vmin=vmin, vmax=vmax)
     sm = ScalarMappable(norm=norm, cmap=colormap)
@@ -393,6 +395,8 @@ def plot_flatmap(stats, threshold, task_key, contrast_tag, output_dir,
     # Format tick labels to 1 decimal place
     cbar.ax.set_xticklabels([f'{tick:.1f}' for tick in tick_positions],
                             fontsize=12)
+
+    # ###################################################################
 
     # Reduce extra whitespace
     plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05, wspace=0.02)
@@ -802,48 +806,48 @@ contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 
 if __name__ == '__main__':
 
-    # Compute individual gifti/cifti files with the volume to surface...
-    # ... projection of the contrast map
-    individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                    surf_folder, surfspace='fslr32k', save='gifti')
-    individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                    surf_folder, surfspace='fslr32k', save='cifti')
+    # # Compute individual gifti/cifti files with the volume to surface...
+    # # ... projection of the contrast map
+    # individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
+    #                 surf_folder, surfspace='fslr32k', save='gifti')
+    # individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
+    #                 surf_folder, surfspace='fslr32k', save='cifti')
 
-    # Compute group func cifti
-    z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_name,
-                          surfspace='fslr32k')
+    # # Compute group func cifti
+    # z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_name,
+    #                       surfspace='fslr32k')
 
-    # Split results into the two hemispheres
-    zvals_lh = np.split(z_values, 2, axis=0)[0]
-    zvals_rh = np.split(z_values, 2, axis=0)[1]
+    # # Split results into the two hemispheres
+    # zvals_lh = np.split(z_values, 2, axis=0)[0]
+    # zvals_rh = np.split(z_values, 2, axis=0)[1]
 
-    # For each hemisphere, mask the activation values so that only...
-    # ... cortical vertices retain their value.
-    zvals_lh_masked = mask_cortical_activation(
-        zvals_lh, lh_medial_wall_mask_path)
-    zvals_rh_masked = mask_cortical_activation(
-        zvals_rh, rh_medial_wall_mask_path)
+    # # For each hemisphere, mask the activation values so that only...
+    # # ... cortical vertices retain their value.
+    # zvals_lh_masked = mask_cortical_activation(
+    #     zvals_lh, lh_medial_wall_mask_path)
+    # zvals_rh_masked = mask_cortical_activation(
+    #     zvals_rh, rh_medial_wall_mask_path)
 
-    # Create and save z-maps gifti files
-    cname = contrast_name.replace('_', '-')
-    for zm, structure, hemi in zip([zvals_lh_masked, zvals_rh_masked],
-                                   ['CortexLeft', 'CortexRight'],
-                                   ['lh', 'rh']):
-        gifti_img = nt.gifti.make_func_gifti(
-            zm, anatomical_struct=structure, column_names=[cname])
-        # Save the data
-        nib.save(
-            gifti_img,
-            os.path.join(
-                surf_folder,
-                'group_'
-                + task_id.replace('_', '-')
-                + '_'
-                + cname.lower().replace(' ', '-')
-                + '_'
-                + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
-            ),
-        )
+    # # Create and save z-maps gifti files
+    # cname = contrast_name.replace('_', '-')
+    # for zm, structure, hemi in zip([zvals_lh_masked, zvals_rh_masked],
+    #                                ['CortexLeft', 'CortexRight'],
+    #                                ['lh', 'rh']):
+    #     gifti_img = nt.gifti.make_func_gifti(
+    #         zm, anatomical_struct=structure, column_names=[cname])
+    #     # Save the data
+    #     nib.save(
+    #         gifti_img,
+    #         os.path.join(
+    #             surf_folder,
+    #             'group_'
+    #             + task_id.replace('_', '-')
+    #             + '_'
+    #             + cname.lower().replace(' ', '-')
+    #             + '_'
+    #             + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
+    #         ),
+    #     )
 
     # # ################## Plot ##################
     # Note: This plotting only works for surfspace='fslr32k'
