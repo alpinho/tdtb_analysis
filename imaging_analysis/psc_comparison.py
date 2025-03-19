@@ -42,9 +42,9 @@ def create_df(data, con_mask, subjects, output_dir='./', fname='dataframe'):
     df.to_csv(os.path.join(output_dir, fname + '.tsv'), sep='\t', index=False) 
 
 
-def plot_boxplots(data, y_label='Percent Signal Change (%)',
-                  output_dir='./', fname='boxplot',
-                  subplot_titles=None):
+def plot_boxplots_mod(data, y_label='Percent Signal Change (%)',
+                      output_dir='./', fname='boxplot',
+                      subplot_titles=None):
     """
     Parameters
     ----------
@@ -163,8 +163,7 @@ def plot_boxplots(data, y_label='Percent Signal Change (%)',
         ax_i.set_xlim(-0.6, 1.6)  # Adjust the x-axis to remove extra space
 
     plt.tight_layout()
-    
-    # Save figure
+
     plt.savefig(os.path.join(output_dir, fname + '.pdf'))
     # plt.show()
 
@@ -176,11 +175,10 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Relative path for output folders
-contrasts_folder = 'control_contrasts'
+output_folder = 'results/ipscs'
 
 task_tag = 'All Tasks'
-contrast_mask = 'Auditory Encoding'
-roi = 'dstr' # dstr or cerebellum
+contrast_mask = 'Encoding'
 
 # ========================= PARAMETERS =================================
 
@@ -242,31 +240,34 @@ contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_mask)
 
 if __name__ == '__main__':
 
-    # Load individual PSC's for a certain ROI
-    # Shape (hemisphere, tasks, contrasts, subjects)
-    # hemisphere: lh, rh, bh
-    # tasks: prod, percep, ntfd, allmain_tasks
-    # contrasts: Auditory Beat, Auditory Interval, Visual Beat, Visual Interval
-    # subjects: list of subjects' ids
-    if roi == 'dstr':
-        roi_data = np.load(dstr_file)
-    else:
-        assert roi == 'cerebellum'
-        roi_data = np.load(cerebellum_file)
+    for roi in ['dstr', 'cerebellum']:
+        # Load individual PSC's for a certain ROI
+        # Shape (hemisphere, tasks, contrasts, subjects)
+        # hemisphere: lh, rh, bh
+        # tasks: prod, percep, ntfd, allmain_tasks
+        # contrasts: Auditory Beat, Auditory Interval, Visual Beat,
+        #            Visual Interval
+        # subjects: list of subjects' ids
+        if roi == 'dstr':
+            roi_data = np.load(dstr_file)
+        else:
+            assert roi == 'cerebellum'
+            roi_data = np.load(cerebellum_file)
 
-    # Extract only bh data and task data specified in task_tag
-    roi_data = roi_data[-1, position, :, :]
+        # Extract only bh data and task data specified in task_tag
+        roi_data = roi_data[-1, position, :, :]
 
-    # Swap axes in order to have shape: (subjects, contrasts)
-    roi_data = np.swapaxes(roi_data, 0, 1)
+        # Swap axes in order to have shape: (subjects, contrasts)
+        roi_data = np.swapaxes(roi_data, 0, 1)
 
-    # Save dataframe
-    create_df(
-        roi_data, contrast_mask, SUBJECTS, output_dir=contrasts_folder,
-        fname='ipscs_' + roi + '_' + contrast_mask.lower().replace(' ', '-'))
+        # Name of output files
+        outname = 'ipscs_roi-' + roi + '_task-' + task_id.replace('_', '-') + \
+            '_mask-' + contrast_mask.lower().replace(' ', '-')
+        
+        # Save dataframe
+        create_df(roi_data, contrast_mask, SUBJECTS, output_dir=output_folder,
+                  fname=outname)
 
-    # Plot
-    plot_boxplots(
-        roi_data, output_dir=contrasts_folder,
-        fname='ipscs_' + roi + '_' + contrast_mask.lower().replace(' ', '-'),
-        subplot_titles=x_label)
+        # Plot
+        plot_boxplots_mod(roi_data, output_dir=output_folder,
+                          fname=outname, subplot_titles=x_label)
