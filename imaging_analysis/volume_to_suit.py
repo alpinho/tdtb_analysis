@@ -110,9 +110,11 @@ def plot_suitflat(stats, threshold, task_key, contrast_tag, output_dir,
     # Change fontsize of numbers in colorbar
     cbar = fig.axes[-1]
     cbar.tick_params(labelsize=14)
+    # Change position of colorbar
+    cbar.set_position([.85, .2, .03, .6])  # Adjust (x, y, width, height)
 
     # Title of colormap
-    plt.text(-1., 7.9, "Z-values", fontsize=15, color="black")
+    plt.text(-1., 7.25, "Z-values", fontsize=15, color="black")
 
     # Save figure
     output_name = f'group_{task_name}_{contrast}_suit.png'
