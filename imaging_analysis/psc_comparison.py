@@ -42,7 +42,7 @@ def create_df(data, con_mask, subjects, output_dir='./', fname='dataframe'):
     df.to_csv(os.path.join(output_dir, fname + '.tsv'), sep='\t', index=False) 
 
 
-def plot_boxplots_mod(data, y_label='Percent Signal Change (%)',
+def plot_boxplots_mod(data, roi_name, y_label='Percent Signal Change (%)',
                       output_dir='./', fname='boxplot',
                       subplot_titles=None):
     """
@@ -96,7 +96,10 @@ def plot_boxplots_mod(data, y_label='Percent Signal Change (%)',
 
         # Compute and print means
         means = np.mean(conditions, axis=0)
-        print(f"Means for subplot '{subplot_titles[i]}':")
+        print(
+            f"Means for subplot '{subplot_titles[i]}'"
+            f"of '{roi_name}':"
+        )
         for cond, mean in zip(condition_labels, means):
             print(f"{cond}: {mean:.4f}")
 
@@ -236,6 +239,16 @@ def plot_boxplots_rois(rois_data, condition='both',
     )
     fig.text(0.5, .875, "95% CI for the Mean of PSC", fontsize=14, ha='center')
 
+    # Compute and print mean values for each ROI and condition
+    dstr_means = np.mean(dstr_data, axis=0)
+    cerebellum_means = np.mean(cerebellum_data, axis=0)
+    print(f"Dorsal Striatum ({condition.capitalize()}):")
+    print(f"  Beat: {dstr_means[0]:.4f}, Interval: {dstr_means[1]:.4f}")
+    print(f"Cerebellum ({condition.capitalize()}):")
+    print(f"  Beat: {cerebellum_means[0]:.4f},"
+          f"  Interval: {cerebellum_means[1]:.4f}"
+          )
+
     for i, (roi_data, ax, title) in enumerate(
             zip([dstr_data, cerebellum_data], axes,
                 ['Dorsal Striatum', 'Cerebellum'])):
@@ -279,6 +292,7 @@ def plot_boxplots_rois(rois_data, condition='both',
         ax.set_xlabel(title, fontweight='bold', fontsize=14, labelpad=20)
         if i == 0:
             ax.set_ylabel(y_label, fontsize=14, labelpad=-2)
+            ax.tick_params(axis='y', labelsize=14)
         else:
             ax.set_ylabel('')
             ax.tick_params(axis='y', left=False, labelleft=False)
@@ -403,7 +417,7 @@ if __name__ == '__main__':
                   fname=outname_roi)
 
         # Plot
-        plot_boxplots_mod(roi_data, output_dir=output_folder,
+        plot_boxplots_mod(roi_data, roi, output_dir=output_folder,
                           fname=outname_roi, subplot_titles=x_label)
 
     # Final shape: (rois, subjects, contrasts)
