@@ -113,7 +113,7 @@ def plot_boxplots_mod(data, y_label='Percent Signal Change (%)',
             x='Conditions',
             y=y_label,
             data=df,
-            width=0.5,  # Keep width at 0.4
+            width=.5,  # Keep width at 0.4
             notch=True,
             dodge=False,  # Prevents extra spacing between boxes
             showmeans=True,
@@ -168,6 +168,132 @@ def plot_boxplots_mod(data, y_label='Percent Signal Change (%)',
     # plt.show()
 
 
+def plot_boxplots_rois(rois_data, condition='both',
+                       y_label='Percent Signal Change (%)',
+                       output_dir='./', fname='roi_comparison'):
+    """
+    Plots two subplots, each for a different ROI
+    (dorsal striatum and cerebellum),
+    for Auditory conditions, Visual conditions, or both.
+
+    Parameters
+    ----------
+    rois_data : numpy.ndarray
+        Data array of shape (2, subjects, contrasts), where
+        rois_data[0] corresponds to the dorsal striatum and
+        rois_data[1] corresponds to the cerebellum.
+    condition : str, optional
+        Choose from 'Auditory', 'Visual', or 'both' (default: 'both').
+    y_label : str, optional
+        Label for the y-axis (default is 'Percent Signal Change (%)').
+    output_dir : str, optional
+        Directory where the plot will be saved (default is './').
+    fname : str, optional
+        Name of the output file without extension
+        (default is 'roi_comparison').
+
+    Returns
+    -------
+    None
+        Displays the plot and saves it as a PDF.
+    """
+
+    # Define conditions
+    if condition == 'auditory':
+        indices = [0, 1]  # Select only auditory columns
+        condition_labels = ['Auditory Beat', 'Auditory Interval']
+        tag = 'auditory'
+    elif condition == 'visual':
+        indices = [2, 3]  # Select only visual columns
+        condition_labels = ['Visual Beat', 'Visual Interval']
+        tag = 'visual'
+    else:
+        assert condition == 'both'
+        indices = [0, 1, 2, 3]  # Merge auditory and visual
+        condition_labels = ['Beat', 'Interval']
+        tag = 'both'
+
+    # Extract the relevant conditions
+    dstr_data = rois_data[0][:, indices]
+    cerebellum_data = rois_data[1][:, indices]
+
+    # If both conditions are selected, merge auditory and visual in...
+    # ... the same boxplot
+    if condition == 'both':
+        dstr_data = np.column_stack((
+            dstr_data[:, [0, 2]], dstr_data[:, [1, 3]]))
+        cerebellum_data = np.column_stack((
+            cerebellum_data[:, [0, 2]], cerebellum_data[:, [1, 3]]))
+
+    # Setup figure with two subplots
+    fig, axes = plt.subplots(1, 2, figsize=(8, 6), sharey=True)
+    fig.suptitle(
+        ('Both Modalities' if condition == 'both'
+         else f'{condition.capitalize()} Tasks'),
+        fontsize=16,
+        fontweight='bold',
+        y=.98
+    )
+    fig.text(0.5, .875, "95% CI for the Mean of PSC", fontsize=14, ha='center')
+
+    for i, (roi_data, ax, title) in enumerate(
+            zip([dstr_data, cerebellum_data], axes,
+                ['Dorsal Striatum', 'Cerebellum'])):
+
+        # Prepare data for Seaborn
+        datum = {
+            'Conditions': np.repeat(condition_labels, roi_data.shape[0]),
+            y_label: np.concatenate((roi_data[:, 0], roi_data[:, 1]))
+        }
+        df = pd.DataFrame(data=datum)
+
+        # Create boxplot
+        sns.boxplot(
+            ax=ax,
+            x='Conditions',
+            y=y_label,
+            data=df,
+            width=.5,
+            notch=True,
+            showmeans=True,
+            meanline=True,
+            meanprops={'color': 'black', 'linewidth': 1.5},
+            medianprops={'visible': False},
+            boxprops={'facecolor': "none", "edgecolor": "black"},
+            whiskerprops={'color': 'black'}, capprops={'color': 'black'}
+        )
+
+        # Overlay individual data points
+        x_positions = [0, 1]
+        for j, condition in enumerate(condition_labels):
+            y_values = df[df['Conditions'] == condition][y_label].values
+            ax.scatter(
+                np.full_like(y_values, x_positions[j], dtype=float),
+                y_values, facecolors='none',
+                edgecolors='tab:blue' if j == 0 else 'tab:orange', s=80,
+                linewidth=1.5, marker='o'
+            )
+
+        # Formatting
+        ax.axhline(0, color='gray', linestyle='dashed', linewidth=1.5)
+        ax.set_xlabel(title, fontweight='bold', fontsize=14, labelpad=20)
+        if i == 0:
+            ax.set_ylabel(y_label, fontsize=14, labelpad=-2)
+        else:
+            ax.set_ylabel('')
+            ax.tick_params(axis='y', left=False, labelleft=False)
+            ax.spines['left'].set_visible(False)
+        ax.tick_params(axis='x', labelsize=12)
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+    # Adjust layout to fit the title
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    
+    plt.savefig(os.path.join(output_dir, f"{fname}_modality-{tag}.pdf"))
+    # plt.show()
+
+
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
@@ -191,13 +317,16 @@ rois_folder = os.path.join(
 if contrast_mask == 'Auditory Encoding':
     contrast_mask_folder = os.path.join(rois_folder, 'auditory')
     x_label = ['Auditory Conditions']
+    n_conditions = 2
 elif contrast_mask == 'Visual Encoding':
     contrast_mask_folder = os.path.join(rois_folder, 'visual')
     x_label = ['Visual Conditions']
+    n_conditions = 2
 else:
     assert contrast_mask == 'Encoding'
     contrast_mask_folder = os.path.join(rois_folder, 'all')
     x_label = ['Auditory Conditions', 'Visual Conditions']
+    n_conditions = 4
 
 dstr_folder = os.path.join(contrast_mask_folder, 'dorsal_striatum', 'hos',
                            'rois_extraction')
@@ -240,6 +369,7 @@ contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_mask)
 
 if __name__ == '__main__':
 
+    rois_data_list = []
     for roi in ['dstr', 'cerebellum']:
         # Load individual PSC's for a certain ROI
         # Shape (hemisphere, tasks, contrasts, subjects)
@@ -260,14 +390,28 @@ if __name__ == '__main__':
         # Swap axes in order to have shape: (subjects, contrasts)
         roi_data = np.swapaxes(roi_data, 0, 1)
 
+        # Append to rois_data
+        rois_data_list.append(roi_data) 
+
         # Name of output files
-        outname = 'ipscs_roi-' + roi + '_task-' + task_id.replace('_', '-') + \
-            '_mask-' + contrast_mask.lower().replace(' ', '-')
+        outname_roi = 'ipscs_roi-' + roi + '_task-' + \
+            task_id.replace('_', '-') + '_mask-' + \
+            contrast_mask.lower().replace(' ', '-')
         
         # Save dataframe
         create_df(roi_data, contrast_mask, SUBJECTS, output_dir=output_folder,
-                  fname=outname)
+                  fname=outname_roi)
 
         # Plot
         plot_boxplots_mod(roi_data, output_dir=output_folder,
-                          fname=outname, subplot_titles=x_label)
+                          fname=outname_roi, subplot_titles=x_label)
+
+    # Final shape: (rois, subjects, contrasts)
+    rois_data = np.stack(rois_data_list, axis=0)
+    outname_rois = 'ipscs_two-rois_task-' + \
+        task_id.replace('_', '-') + '_mask-' + \
+        contrast_mask.lower().replace(' ', '-')
+    for modality in ['auditory', 'visual', 'both']:
+        plot_boxplots_rois(rois_data, condition=modality,
+                           y_label='Percent Signal Change (%)',
+                           output_dir=output_folder, fname=outname_rois)
