@@ -44,9 +44,9 @@ def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
     plt.figure(figsize=(8, 5))
     # Use clip_on=False to ensure markers are fully drawn even if...
     # ... slightly outside the axes.
-    plt.scatter(weights, pvals, color='b', s=80, edgecolors='black',
+    plt.scatter(weights, pvals, color='k', s=80, edgecolors='black',
                 linewidth=1.5, clip_on=False)
-    plt.plot(weights, pvals, linestyle='--', alpha=.7, linewidth=3.)
+    plt.plot(weights, pvals, linestyle='-', alpha=.7, linewidth=3., color='k')
 
     plt.xlabel(r'$w_{i}$', labelpad=12, fontsize=14)
     plt.ylabel(ylabel, labelpad=12, fontsize=14)
@@ -109,7 +109,7 @@ step = .005
 working_dir = os.path.dirname(os.path.abspath(__file__))
 anovas_dir = os.path.join(working_dir , 'roi_analyses_rwls_hrf128',
                           encoding_mask_type, anova_type)
-output_dir = os.path.join(working_dir, 'pvalues_stability_plots')
+output_dir = os.path.join(working_dir, 'results/pvalues_stability_plots')
 
 # ############################## RUN ####################################
 
