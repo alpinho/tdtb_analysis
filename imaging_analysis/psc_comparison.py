@@ -171,9 +171,10 @@ def plot_boxplots_mod(data, roi_name, y_label='Percent Signal Change (%)',
     # plt.show()
 
 
-def plot_boxplots_rois(rois_data, condition='both',
+def plot_boxplots_rois(rois_data, modality='both',
                        y_label='Percent Signal Change (%)',
-                       output_dir='./', fname='roi_comparison'):
+                       output_dir='./', fname='roi_comparison',
+                       annotate=False):
     """
     Plots two subplots, each for a different ROI
     (dorsal striatum and cerebellum),
@@ -185,7 +186,7 @@ def plot_boxplots_rois(rois_data, condition='both',
         Data array of shape (2, subjects, contrasts), where
         rois_data[0] corresponds to the dorsal striatum and
         rois_data[1] corresponds to the cerebellum.
-    condition : str, optional
+    modality : str, optional
         Choose from 'Auditory', 'Visual', or 'both' (default: 'both').
     y_label : str, optional
         Label for the y-axis (default is 'Percent Signal Change (%)').
@@ -201,16 +202,14 @@ def plot_boxplots_rois(rois_data, condition='both',
         Displays the plot and saves it as a PDF.
     """
 
-    # Define conditions
-    if condition in ['auditory', 'visual']:
+    # Define modality
+    if modality in ['auditory', 'visual']:
         indices = [0, 1]  # Select only auditory columns
         condition_labels = ['Auditory Beat', 'Auditory Interval']
-        tag = 'auditory'
     else:
-        assert condition == 'both'
+        assert modality == 'both'
         indices = [0, 1, 2, 3]  # Merge auditory and visual
         condition_labels = ['Beat', 'Interval']
-        tag = 'both'
 
     # Extract the relevant conditions
     dstr_data = rois_data[0][:, indices]
@@ -218,7 +217,7 @@ def plot_boxplots_rois(rois_data, condition='both',
 
     # If both conditions are selected, merge auditory and visual in...
     # ... the same boxplot
-    if condition == 'both':
+    if modality == 'both':
         dstr_data = np.vstack((
             np.concatenate((dstr_data[:, 0], dstr_data[:, 2])),
             np.concatenate((dstr_data[:, 1], dstr_data[:, 3])))).T
@@ -228,21 +227,28 @@ def plot_boxplots_rois(rois_data, condition='both',
 
     # Setup figure with two subplots
     fig, axes = plt.subplots(1, 2, figsize=(8, 6), sharey=True)
+
+    # Adjust subplot spacing
+    # fig.subplots_adjust(left=0.275, right=0.95, bottom=0.15,
+    #                     top=0.85, wspace=0.1)
+    fig.subplots_adjust(bottom=0.)
+
+    # Titles and text info
     fig.suptitle(
-        ('Both Modalities' if condition == 'both'
-         else f'{condition.capitalize()} Tasks'),
+        ('Both Modalities' if modality == 'both'
+         else f'{modality.capitalize()} Tasks'),
         fontsize=16,
         fontweight='bold',
         y=.98
     )
-    fig.text(0.5, .875, "95% CI for the Mean of PSC", fontsize=14, ha='center')
+    fig.text(0.5, .9, "95% CI for the Mean of PSC", fontsize=14, ha='center')
 
-    # Compute and print mean values for each ROI and condition
+    # Compute and print mean values for each ROI and modality
     dstr_means = np.mean(dstr_data, axis=0)
     cerebellum_means = np.mean(cerebellum_data, axis=0)
-    print(f"Dorsal Striatum ({condition.capitalize()}):")
+    print(f"Dorsal Striatum ({modality.capitalize()}):")
     print(f"  Beat: {dstr_means[0]:.4f}, Interval: {dstr_means[1]:.4f}")
-    print(f"Cerebellum ({condition.capitalize()}):")
+    print(f"Cerebellum ({modality.capitalize()}):")
     print(f"  Beat: {cerebellum_means[0]:.4f},"
           f"  Interval: {cerebellum_means[1]:.4f}"
           )
@@ -299,10 +305,21 @@ def plot_boxplots_rois(rois_data, condition='both',
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
 
+        # Add Annotation
+        if annotate and modality == 'auditory' and title == 'Dorsal Striatum':
+            y_max = np.max(roi_data) * 1.1
+            ax.plot(x_positions, [y_max, y_max], color='k', linestyle='-',
+                    linewidth=1.5)
+            ax.vlines(x_positions, y_max, y_max * 0.975, color='k',
+                      linewidth=1.5)
+            ax.text(np.mean(x_positions), y_max * 1.01, f'*',
+                    ha='center', va='bottom', fontsize=12)
+
     # Adjust layout to fit the title
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    
-    plt.savefig(os.path.join(output_dir, f"{fname}_modality-{tag}.pdf"))
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])  
+    plt.savefig(os.path.join(output_dir,
+                             f"{fname}_modality-{modality}.pdf"))
+
     # plt.show()
 
 
@@ -316,7 +333,8 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 output_folder = 'results/ipscs'
 
 task_tag = 'All Tasks'
-contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', 'Visual Encoding'
+contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', or
+                           # 'Visual Encoding'
 
 # ========================= PARAMETERS =================================
 
@@ -426,7 +444,13 @@ if __name__ == '__main__':
     outname_rois = 'ipscs_two-rois_task-' + \
         task_id.replace('_', '-') + '_mask-' + \
         contrast_mask.lower().replace(' ', '-')
-    for modality in modalities:
-        plot_boxplots_rois(rois_data, condition=modality,
-                           y_label='Percent Signal Change (%)',
-                           output_dir=output_folder, fname=outname_rois)
+    for tmod in modalities:
+        if contrast_mask == 'Encoding':
+            plot_boxplots_rois(rois_data, modality=tmod,
+                               y_label='Percent Signal Change (%)',
+                               output_dir=output_folder, fname=outname_rois,
+                               annotate=True)
+        else:
+            plot_boxplots_rois(rois_data, modality=tmod,
+                               y_label='Percent Signal Change (%)',
+                               output_dir=output_folder, fname=outname_rois)
