@@ -202,14 +202,10 @@ def plot_boxplots_rois(rois_data, condition='both',
     """
 
     # Define conditions
-    if condition == 'auditory':
+    if condition in ['auditory', 'visual']:
         indices = [0, 1]  # Select only auditory columns
         condition_labels = ['Auditory Beat', 'Auditory Interval']
         tag = 'auditory'
-    elif condition == 'visual':
-        indices = [2, 3]  # Select only visual columns
-        condition_labels = ['Visual Beat', 'Visual Interval']
-        tag = 'visual'
     else:
         assert condition == 'both'
         indices = [0, 1, 2, 3]  # Merge auditory and visual
@@ -223,10 +219,12 @@ def plot_boxplots_rois(rois_data, condition='both',
     # If both conditions are selected, merge auditory and visual in...
     # ... the same boxplot
     if condition == 'both':
-        dstr_data = np.column_stack((
-            dstr_data[:, [0, 2]], dstr_data[:, [1, 3]]))
-        cerebellum_data = np.column_stack((
-            cerebellum_data[:, [0, 2]], cerebellum_data[:, [1, 3]]))
+        dstr_data = np.vstack((
+            np.concatenate((dstr_data[:, 0], dstr_data[:, 2])),
+            np.concatenate((dstr_data[:, 1], dstr_data[:, 3])))).T
+        cerebellum_data = np.vstack((
+            np.concatenate((cerebellum_data[:, 0], cerebellum_data[:, 2])),
+            np.concatenate((cerebellum_data[:, 1], cerebellum_data[:, 3])))).T
 
     # Setup figure with two subplots
     fig, axes = plt.subplots(1, 2, figsize=(8, 6), sharey=True)
@@ -318,7 +316,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 output_folder = 'results/ipscs'
 
 task_tag = 'All Tasks'
-contrast_mask = 'Encoding'
+contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', 'Visual Encoding'
 
 # ========================= PARAMETERS =================================
 
@@ -332,23 +330,26 @@ if contrast_mask == 'Auditory Encoding':
     contrast_mask_folder = os.path.join(rois_folder, 'auditory')
     x_label = ['Auditory Conditions']
     n_conditions = 2
+    modalities = ['auditory']
 elif contrast_mask == 'Visual Encoding':
     contrast_mask_folder = os.path.join(rois_folder, 'visual')
     x_label = ['Visual Conditions']
     n_conditions = 2
+    modalities = ['visual']
 else:
     assert contrast_mask == 'Encoding'
     contrast_mask_folder = os.path.join(rois_folder, 'all')
     x_label = ['Auditory Conditions', 'Visual Conditions']
     n_conditions = 4
+    modalities = ['auditory', 'visual', 'both']
 
 dstr_folder = os.path.join(contrast_mask_folder, 'dorsal_striatum', 'hos',
                            'rois_extraction')
 cerebellum_folder = os.path.join(contrast_mask_folder, 'cerebellum',
                                  'ntk_symmni128', 'cereb', 'rois_extraction')
 
-dstr_file = os.path.join(dstr_folder, 'i_dstr_psc.npy')
-cerebellum_file = os.path.join(cerebellum_folder, 'i_cereb_psc.npy')
+dstr_file = os.path.join(dstr_folder, 'i8a_dstr_psc.npy')
+cerebellum_file = os.path.join(cerebellum_folder, 'i8a_cereb_psc.npy')
 
 # ######################################################################
 
@@ -405,7 +406,7 @@ if __name__ == '__main__':
         roi_data = np.swapaxes(roi_data, 0, 1)
 
         # Append to rois_data
-        rois_data_list.append(roi_data) 
+        rois_data_list.append(roi_data)
 
         # Name of output files
         outname_roi = 'ipscs_roi-' + roi + '_task-' + \
@@ -425,7 +426,7 @@ if __name__ == '__main__':
     outname_rois = 'ipscs_two-rois_task-' + \
         task_id.replace('_', '-') + '_mask-' + \
         contrast_mask.lower().replace(' ', '-')
-    for modality in ['auditory', 'visual', 'both']:
+    for modality in modalities:
         plot_boxplots_rois(rois_data, condition=modality,
                            y_label='Percent Signal Change (%)',
                            output_dir=output_folder, fname=outname_rois)
