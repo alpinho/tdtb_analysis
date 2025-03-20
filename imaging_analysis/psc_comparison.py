@@ -241,14 +241,14 @@ def plot_boxplots_rois(rois_data, modality='both',
     fig.subplots_adjust(bottom=0.)
 
     # Titles and text info
-    fig.suptitle(
-        ('Both Modalities' if modality == 'both'
-         else f'{modality.capitalize()} Tasks'),
-        fontsize=16,
-        fontweight='bold',
-        y=.98
-    )
-    fig.text(0.5, .9, "95% CI for the Mean of PSC", fontsize=14, ha='center')
+    # fig.suptitle(
+    #     ('Both Modalities' if modality == 'both'
+    #      else f'{modality.capitalize()} Tasks'),
+    #     fontsize=16,
+    #     fontweight='bold',
+    #     y=.98
+    # )
+    fig.text(0.81, .94, "95% CI for the Mean of PSC", fontsize=14, ha='center')
 
     # Compute and print mean values for each ROI and modality
     dstr_means = np.mean(dstr_data, axis=0)
@@ -340,7 +340,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 output_folder = 'results/ipscs'
 
 task_tag = 'All Tasks'
-contrast_mask = 'Visual Encoding' # 'Encoding', 'Auditory Encoding', or
+contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', or
                            # 'Visual Encoding'
 
 # ========================= PARAMETERS =================================
