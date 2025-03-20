@@ -5,6 +5,8 @@ import re
 
 import numpy as np
 
+from scipy import stats
+
 
 def extract_timestamp(filename):
     """
@@ -197,3 +199,17 @@ def ffx(audio_beat, audio_interval, visual_beat, visual_interval,
 
     return (ffx_audio_beat, ffx_audio_interval, ffx_visual_beat,
             ffx_visual_interval)
+
+
+def zval_conversion(tval, dof):
+    pval = stats.t.sf(tval, dof)
+    one_minus_pval = stats.t.cdf(tval, dof)
+    zval_sf = stats.norm.isf(pval)
+    zval_cdf = stats.norm.ppf(one_minus_pval)
+    zval = np.empty(pval.shape)
+    use_cdf = zval_sf < 0
+    use_sf = np.logical_not(use_cdf)
+    zval[np.atleast_1d(use_cdf)] = zval_cdf[use_cdf]
+    zval[np.atleast_1d(use_sf)] = zval_sf[use_sf]
+
+    return zval

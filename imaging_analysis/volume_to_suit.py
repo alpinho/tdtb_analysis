@@ -11,6 +11,7 @@ Last Update: March 2025
 Compatibility: Python 3.10.14, SUITPy 1.3.2
 """
 
+import sys
 import os
 
 import numpy as np
@@ -18,28 +19,17 @@ import nibabel as nib
 import nitools as nt
 import matplotlib.pyplot as plt
 
-from scipy import stats
 from SUITPy import flatmap
-
 from volume_to_surface import whole_brain_thresholds
+
+# setting path
+sys.path.append('../')
+# importing
+from utils import zval_conversion
 
 
 # %%
 # ========================== FUNCTIONS =================================
-
-def zval_conversion(tval, dof):
-    pval = stats.t.sf(tval, dof)
-    one_minus_pval = stats.t.cdf(tval, dof)
-    zval_sf = stats.norm.isf(pval)
-    zval_cdf = stats.norm.ppf(one_minus_pval)
-    zval = np.empty(pval.shape)
-    use_cdf = zval_sf < 0
-    use_sf = np.logical_not(use_cdf)
-    zval[np.atleast_1d(use_cdf)] = zval_cdf[use_cdf]
-    zval[np.atleast_1d(use_sf)] = zval_sf[use_sf]
-
-    return zval
-
 
 def group_suit(group_dir, task_key, contrast_key, subjects, suit_dir):
 
@@ -195,8 +185,8 @@ if __name__ == '__main__':
                           suit_folder)
 
     # Compute whole-brain fdr threshold of volumetric data
-    # fdr_thresh, zmax = whole_brain_thresholds(
-    #     derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask)
+    fdr_thresh, zmax = whole_brain_thresholds(
+        derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask)
 
     # Plot cerebellum flatmap
     v_max = np.amax(z_values[~np.isnan(z_values)])

@@ -14,7 +14,9 @@ Note: The all pipeline of this script only works for surf_files saved as
       cifti in fs_LR32k.
 """
 
+import sys
 import os
+
 import numpy as np
 import pandas as pd
 import nibabel as nib
@@ -34,6 +36,11 @@ from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm.thresholding import fdr_threshold
 from Functional_Fusion.util import smooth_fs32k_data
 from SUITPy import flatmap
+
+# setting path
+sys.path.append('../')
+# importing
+from utils import zval_conversion
 
 
 # ========================== FUNCTIONS =================================
@@ -206,20 +213,6 @@ def get_isurf_cifti(surf_dir, subjects, task_key, contrast,
     ]
 
     return cifti_file
-
-
-def zval_conversion(tval, dof):
-    pval = stats.t.sf(tval, dof)
-    one_minus_pval = stats.t.cdf(tval, dof)
-    zval_sf = stats.norm.isf(pval)
-    zval_cdf = stats.norm.ppf(one_minus_pval)
-    zval = np.empty(pval.shape)
-    use_cdf = zval_sf < 0
-    use_sf = np.logical_not(use_cdf)
-    zval[np.atleast_1d(use_cdf)] = zval_cdf[use_cdf]
-    zval[np.atleast_1d(use_sf)] = zval_sf[use_sf]
-
-    return zval
 
 
 def group_surf(surf_dir, subjects, task_key, contrast_tag, surfspace='fslr32k'):
