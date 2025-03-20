@@ -203,12 +203,19 @@ def plot_boxplots_rois(rois_data, modality='both',
     """
 
     # Define modality
-    if modality in ['auditory', 'visual']:
-        indices = [0, 1]  # Select only auditory columns
+    if modality == 'auditory':
+        indices = [0, 1]
         condition_labels = ['Auditory Beat', 'Auditory Interval']
+    elif modality == 'visual':
+        if rois_data.shape[2] == 2:
+            indices = [0, 1]
+        else:
+            assert rois_data.shape[2] == 4
+            indices = [2, 3]
+        condition_labels = ['Visual Beat', 'Visual Interval']
     else:
         assert modality == 'both'
-        indices = [0, 1, 2, 3]  # Merge auditory and visual
+        indices = [0, 1, 2, 3]
         condition_labels = ['Beat', 'Interval']
 
     # Extract the relevant conditions
@@ -333,7 +340,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 output_folder = 'results/ipscs'
 
 task_tag = 'All Tasks'
-contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', or
+contrast_mask = 'Visual Encoding' # 'Encoding', 'Auditory Encoding', or
                            # 'Visual Encoding'
 
 # ========================= PARAMETERS =================================
