@@ -218,6 +218,9 @@ def plot_boxplots_rois(rois_data, modality='both',
         indices = [0, 1, 2, 3]
         condition_labels = ['Beat', 'Interval']
 
+    # Apply line break for better formatting
+    condition_labels = [label.replace(' ', '\n') for label in condition_labels]
+
     # Extract the relevant conditions
     dstr_data = rois_data[0][:, indices]
     cerebellum_data = rois_data[1][:, indices]
@@ -248,7 +251,7 @@ def plot_boxplots_rois(rois_data, modality='both',
     #     fontweight='bold',
     #     y=.98
     # )
-    fig.text(0.81, .94, "95% CI for the Mean of PSC", fontsize=14, ha='center')
+    fig.text(0.79, .94, "95% CI for the Mean of PSC", fontsize=16, ha='center')
 
     # Compute and print mean values for each ROI and modality
     dstr_means = np.mean(dstr_data, axis=0)
@@ -281,10 +284,12 @@ def plot_boxplots_rois(rois_data, modality='both',
             notch=True,
             showmeans=True,
             meanline=True,
-            meanprops={'color': 'black', 'linewidth': 1.5},
+            meanprops={'color': 'black', 'linewidth': 2.},
             medianprops={'visible': False},
-            boxprops={'facecolor': "none", "edgecolor": "black"},
-            whiskerprops={'color': 'black'}, capprops={'color': 'black'}
+            boxprops={'facecolor': "none", "edgecolor": "black",
+                      'linewidth': 2.},
+            whiskerprops={'color': 'black', 'linewidth': 2.},
+            capprops={'color': 'black'}
         )
 
         # Overlay individual data points
@@ -295,37 +300,39 @@ def plot_boxplots_rois(rois_data, modality='both',
                 np.full_like(y_values, x_positions[j], dtype=float),
                 y_values, facecolors='none',
                 edgecolors='tab:blue' if j == 0 else 'tab:orange', s=80,
-                linewidth=1.5, marker='o'
+                linewidth=2., marker='o'
             )
 
         # Formatting
-        ax.axhline(0, color='gray', linestyle='dashed', linewidth=1.5)
-        ax.set_xlabel(title, fontweight='bold', fontsize=14, labelpad=20)
+        ax.axhline(0, color='gray', linestyle='dashed', linewidth=2.5)
+        ax.set_xlabel(title, fontweight='bold', fontsize=22, labelpad=22)
         if i == 0:
-            ax.set_ylabel(y_label, fontsize=14, labelpad=-2)
-            ax.tick_params(axis='y', labelsize=14)
+            ax.set_ylabel(y_label, fontsize=20, labelpad=5)
+            ax.tick_params(axis='y', labelsize=20, width=2.)
         else:
             ax.set_ylabel('')
             ax.tick_params(axis='y', left=False, labelleft=False)
             ax.spines['left'].set_visible(False)
-        ax.tick_params(axis='x', labelsize=12)
+        ax.tick_params(axis='x', labelsize=20, pad=10, width=2.)
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_linewidth(2.)  # X-axis
+        ax.spines['left'].set_linewidth(2.)    # Y-axis
 
         # Add Annotation
         if annotate and modality == 'auditory' and title == 'Dorsal Striatum':
             y_max = np.max(roi_data) * 1.1
             ax.plot(x_positions, [y_max, y_max], color='k', linestyle='-',
-                    linewidth=1.5)
+                    linewidth=2.5)
             ax.vlines(x_positions, y_max, y_max * 0.975, color='k',
-                      linewidth=1.5)
+                      linewidth=2.5)
             ax.text(np.mean(x_positions), y_max * 1.01, f'*',
-                    ha='center', va='bottom', fontsize=12)
+                    ha='center', va='bottom', fontsize=20)
 
     # Adjust layout to fit the title
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])  
-    plt.savefig(os.path.join(output_dir,
-                             f"{fname}_modality-{modality}.pdf"))
+    plt.savefig(os.path.join(output_dir, f"{fname}_modality-{modality}.png"),
+                dpi=300)
 
     # plt.show()
 
@@ -349,7 +356,7 @@ contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', or
 home = os.path.expanduser('~')
 rois_folder = os.path.join(
     home, os.path.dirname(os.path.abspath(__file__)),
-    'roi_analyses_rwls_hrf128')
+    'roi_analyses_rwls_hrf128_wb')
 
 if contrast_mask == 'Auditory Encoding':
     contrast_mask_folder = os.path.join(rois_folder, 'auditory')

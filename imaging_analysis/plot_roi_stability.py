@@ -42,14 +42,18 @@ def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
     None
     """
     plt.figure(figsize=(8, 5))
+
+    # Set grid
+    plt.grid(True, linewidth=2., zorder=0)
+    
     # Use clip_on=False to ensure markers are fully drawn even if...
     # ... slightly outside the axes.
     plt.scatter(weights, pvals, color='k', s=80, edgecolors='black',
-                linewidth=1.5, clip_on=False)
+                linewidth=1.5, clip_on=False, zorder=3)
     plt.plot(weights, pvals, linestyle='-', alpha=.7, linewidth=3., color='k')
 
-    plt.xlabel(r'$w_{i}$', labelpad=12, fontsize=14)
-    plt.ylabel(ylabel, labelpad=12, fontsize=14)
+    plt.xlabel(r'$w_{i}$', labelpad=14, fontsize=24)
+    plt.ylabel(ylabel, labelpad=14, fontsize=24)
 
     ax = plt.gca()
     # Remove top and right spines
@@ -61,21 +65,24 @@ def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
     ax.spines["left"].set_position(('outward', 10))
     ax.spines["bottom"].set_bounds(0, 1)
 
+    # Increase width of axis
+    ax.spines['bottom'].set_linewidth(2.)  # X-axis
+    ax.spines['left'].set_linewidth(2.)    # Y-axis
+
     # Set axis limits and ticks
     plt.xlim(0., 1.)
     plt.ylim(ylim_min, ylim_max)
-    plt.xticks(np.linspace(0, 1., 11), fontsize=14)
-    plt.yticks(np.linspace(ylim_min, ylim_max, y_step), fontsize=14)
+    plt.xticks(np.linspace(0, 1., 11), fontsize=18)
+    ax.set_xticklabels([str(tick) if tick in [0.0, 0.5, 1.0] else ''
+                        for tick in np.arange(0.0, 1.1, 0.1)], fontsize=18)
+    plt.yticks(np.linspace(ylim_min, ylim_max, y_step), fontsize=18)
 
     # Set y-axis labels to exactly three decimals
     ax.set_yticklabels([f'{tick:.3f}' for tick in ax.get_yticks()],
-                       fontsize=14)
+                       fontsize=20)
 
     # Add margin to avoid clipping markers at the edges
     plt.margins(x=.05)
-
-    # Set grid
-    plt.grid(True)
 
     # Adjust layout to prevent the x-label from being cut off.
     plt.subplots_adjust(bottom=.2)
@@ -107,7 +114,7 @@ step = .005
 # ########################### PARAMETERS ################################
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
-anovas_dir = os.path.join(working_dir , 'roi_analyses_rwls_hrf128',
+anovas_dir = os.path.join(working_dir , 'roi_analyses_rwls_hrf128_wb',
                           encoding_mask_type, anova_type)
 output_dir = os.path.join(working_dir, 'results/pvalues_stability_plots')
 
@@ -187,14 +194,10 @@ if __name__ == '__main__':
     yunc_max = np.round(
         np.ceil((np.amax(p_uncorr_vals) + 1e-8) / step) * step, 3)
 
-    # Steps
-    ycorr_step = int((ycorr_max - ycorr_min) / step)
-    yunc_step = int((yunc_max - yunc_min) / step)
-
     pcorr_label = r'$p_{\mathrm{FWE}}(w_{i})$'
     plot_pvalues(ws, p_corr_vals, pcorr_label, ycorr_min, ycorr_max,
-                 4, output_path=pcorr_path)
+                 6, output_path=pcorr_path)
 
-    puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
-    plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
-                 4, output_path=puncorr_path)
+    # puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
+    # plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
+    #              4, output_path=puncorr_path)
