@@ -18,6 +18,7 @@ import numpy as np
 import nibabel as nib
 import nitools as nt
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 from SUITPy import flatmap
 from volume_to_surface import whole_brain_thresholds
@@ -76,11 +77,12 @@ def group_suit(group_dir, task_key, contrast_key, subjects, suit_dir):
     return suit_zvals
 
 
-def plot_suitflat(stats, threshold, task_key, contrast_tag, output_dir,
-                  colormap='viridis', vmax=10):
+def scientific_notation(x, pos):
+    return f"{x:.1e}"  # 1 decimal in scientific notation (e.g., 1.2e3)
 
-    contrast = contrast_tag.lower().replace(' ', '-')
-    task_name = task_key.replace('_', '-')
+
+def plot_suitflat(stats, threshold, outpath, colormap='viridis', vmax=10,
+                  sci_notation=False):
 
     # Define lower bound of color limits
     vmin = threshold
@@ -101,15 +103,19 @@ def plot_suitflat(stats, threshold, task_key, contrast_tag, output_dir,
     cbar = fig.axes[-1]
     cbar.tick_params(labelsize=14)
     # Change position of colorbar
-    cbar.set_position([.85, .2, .03, .6])  # Adjust (x, y, width, height)
+    cbar.set_position([.825, .2, .03, .6])  # Adjust (x, y, width, height)
+
+    if sci_notation:
+        # If scientific notation
+        # Apply formatter to the colorbar
+        formatter = ticker.FuncFormatter(scientific_notation)
+        cbar.yaxis.set_major_formatter(formatter)
 
     # Title of colormap
-    plt.text(-1., 7.25, "Z-values", fontsize=15, color="black")
+    fig.text(.775, .69, "Z-values", fontsize=15, color="black")
 
     # Save figure
-    output_name = f'group_{task_name}_{contrast}_suit.png'
-    output_path = os.path.join(output_dir, output_name)
-    fig.savefig(output_path, dpi=300)
+    fig.savefig(outpath, dpi=300)
 
 
 # %%
@@ -122,6 +128,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 # Relative path for output folder
 suit_folder = 'results/suit_files'
 contrasts_folder = 'results/control_contrasts'
+irois_folder = 'results/irois'
 
 task_tag = 'All Tasks'
 contrast_name = 'Encoding'
@@ -134,7 +141,12 @@ home = os.path.expanduser('~')
 music = os.path.join(home, 'diedrichsen_data/data/Cerebellum/music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
 group_folder = os.path.join(derivatives_folder, 'group')
-wb_gmask = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
+wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
+
+iroi_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         'roi_analyses_rwls_hrf128_wb', 'all',
+                         'cerebellum', 'ntk_symmni128', 'cereb',
+                         'overlaid_masks', 'i8a_cereb_bh_mask.nii.gz')
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
@@ -177,8 +189,9 @@ zmax_visual_encoding = 6.896651056145507
 
 if __name__ == '__main__':
 
-    # Create contrasts folder if it does not exist
+    # Create output folders if they do not exist
     os.makedirs(contrasts_folder, exist_ok=True)
+    os.makedirs(irois_folder, exist_ok=True)
 
     # Get z-values of group contrast in SUIT space
     z_values = group_suit(group_folder, task_id, contrast_id, SUBJECTS,
@@ -186,10 +199,25 @@ if __name__ == '__main__':
 
     # Compute whole-brain fdr threshold of volumetric data
     fdr_thresh, zmax = whole_brain_thresholds(
-        derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask)
+        derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask_path)
 
-    # Plot cerebellum flatmap
+    # Plot cerebellum encoding vs. rest stat flatmap
     v_max = np.amax(z_values[~np.isnan(z_values)])
     print(f'Maximum Z value is: {v_max}')
-    plot_suitflat(z_values, fdr_thresh_encoding, task_id, contrast_name,
-                  contrasts_folder, vmax=zmax_encoding)
+    contrast_fname = (
+        f"group_{task_id.replace('_', '-')}_"
+        f"{contrast_name.lower().replace(' ', '-')}_suit.png"
+    )
+    contrast_fpath = os.path.join(contrasts_folder, contrast_fname)
+    plot_suitflat(z_values, fdr_thresh_encoding, contrast_fpath,
+                  vmax=zmax_encoding)
+
+    # Plot cerebellum overlaid iroi
+    iroi = nib.load(iroi_path)
+    iroi_suitdata = flatmap.vol_to_surf(iroi, space='SUIT')
+    thresh = np.unique(iroi_suitdata)[1]
+    # iroi_suitdata[iroi_suitdata == 0.] = np.nan
+    iroi_fname = 'iroi_cerebellum_suit.png'
+    iroi_fpath = os.path.join(irois_folder, iroi_fname)
+    plot_suitflat(iroi_suitdata, 1/len(SUBJECTS), iroi_fpath,
+                  colormap='cividis', vmax=1, sci_notation=True)
