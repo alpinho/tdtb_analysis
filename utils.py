@@ -6,6 +6,7 @@ import re
 import numpy as np
 
 from scipy import stats
+from nilearn.image import load_img, new_img_like, math_img
 
 
 def extract_timestamp(filename):
@@ -213,3 +214,29 @@ def zval_conversion(tval, dof):
     zval[np.atleast_1d(use_sf)] = zval_sf[use_sf]
 
     return zval
+
+
+def combine_maps(mpath1, mpath2, combined_mpaths):
+
+    # Load
+    map1 = load_img(mpath1)
+    map2 = load_img(mpath2)
+
+    # Get data
+    map1_val = map1.get_fdata()
+    map2_val = map2.get_fdata()
+
+    # Merge masks in one single file
+    combined_map_vals = map1_val + map2_val
+    combined_map = new_img_like(map1, combined_map_vals)
+
+    # Save file
+    combined_map.to_filename(combined_map)
+
+
+def mask_map(map_path, mask_path, masked_map_path):
+    # Apply the mask: retain values where mask > 0, set others to zero
+    masked_map_img = math_img('map * (mask > 0)', map=map_path, mask=mask_path)
+
+    # Save the masked image
+    masked_map_img.to_filename(masked_map_path + '.nii.gz')
