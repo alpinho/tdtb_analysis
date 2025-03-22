@@ -231,7 +231,7 @@ def combine_maps(mpath1, mpath2, combined_mpaths):
     combined_map = new_img_like(map1, combined_map_vals)
 
     # Save file
-    combined_map.to_filename(combined_map)
+    combined_map.to_filename(combined_mpaths)
 
 
 def mask_map(map_path, mask_path, masked_map_path):
