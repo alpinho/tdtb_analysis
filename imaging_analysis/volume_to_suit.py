@@ -82,7 +82,8 @@ def scientific_notation(x, pos):
 
 
 def plot_suitflat(stats, threshold, outpath, colormap='viridis', vmax=10,
-                  sci_notation=False):
+                  sci_notation=False, cmap_title_loc=(.775, .69),
+                  cmap_title = 'Z-values'):
 
     # Define lower bound of color limits
     vmin = threshold
@@ -112,7 +113,8 @@ def plot_suitflat(stats, threshold, outpath, colormap='viridis', vmax=10,
         cbar.yaxis.set_major_formatter(formatter)
 
     # Title of colormap
-    fig.text(.775, .69, "Z-values", fontsize=15, color="black")
+    x, y = cmap_title_loc
+    fig.text(x, y, cmap_title, fontsize=15, color='black')
 
     # Save figure
     fig.savefig(outpath, dpi=300)
@@ -220,4 +222,6 @@ if __name__ == '__main__':
     iroi_fname = 'iroi_cerebellum_suit.png'
     iroi_fpath = os.path.join(irois_folder, iroi_fname)
     plot_suitflat(iroi_suitdata, 1/len(SUBJECTS), iroi_fpath,
-                  colormap='cividis', vmax=1, sci_notation=True)
+                  colormap='cividis', vmax=1, sci_notation=True,
+                  cmap_title_loc=(.7, .69),
+                  cmap_title='Fraction of \n Participants')
