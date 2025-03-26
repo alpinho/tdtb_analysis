@@ -382,7 +382,7 @@ def twoway_rmanova_catroi(df, tasks_dic, output_dir, prefix,
             posthoc_results = pg.pairwise_tests(
                 data=db, dv='PSC', within=['ROI', 'Category'],
                 subject='Subject', alternative=alternative, return_desc=True,
-                padjust='holm', effsize='eta-square')
+                padjust='holm', effsize='cohen')
 
             # Create output_dir, if it does not exist
             if not os.path.exists(output_dir):
