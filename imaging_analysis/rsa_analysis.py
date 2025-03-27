@@ -205,13 +205,15 @@ def update_dataframe(df_input, subjects, output_path=None):
         # Assume the original path is of the form:
         # .../sub-XX/estimates/task_id/ffx_rwls_dbb_hrf128/beta_XXXX.nii
         # We want to change it to:
-        # .../sub-XX/estimates/task_id/masked_derivatives/wbeta_XXXX_desc-prewhitened_desc-sm8wbmasked.nii
+        # .../sub-XX/estimates/task_id/masked_derivatives/
+        #     wbeta_XXXX_desc-prewhitened_desc-sm8wbmasked.nii
 
         # Get the folder of the betamap (i.e., the ffx folder)
         old_folder = os.path.dirname(betamap_path)
         # Get the parent folder (e.g., .../estimates/prod)
         base_folder = os.path.dirname(old_folder)
-        # Construct new folder: masked_derivatives inside the estimates/task folder
+        # Construct new folder:
+        # masked_derivatives inside the estimates/task folder
         new_folder = os.path.join(base_folder, 'masked_derivatives')
         if not os.path.exists(new_folder):
             os.makedirs(new_folder, exist_ok=True)
@@ -222,15 +224,18 @@ def update_dataframe(df_input, subjects, output_path=None):
             # Remove the "beta_" prefix and split extension
             number_part = orig_fname[5:]  # e.g., "0001.nii"
             number, ext = os.path.splitext(number_part)  # "0001", ".nii"
-            new_fname = f"wbeta_{number}_desc-prewhitened_desc-sm8wbmasked{ext}"
+            new_fname = (
+                f"wbeta_{number}_desc-prewhitened_desc-sm8wbmasked"
+                f"{ext}"
+            )
         else:
             # Fallback: if file name does not start with "beta_"
             base_name, ext = os.path.splitext(orig_fname)
             new_fname = f"w{base_name}_desc-prewhitened_desc-sm8wbmasked{ext}"
-        
+       
         new_path = os.path.join(new_folder, new_fname)
         swmasked_paths.append(new_path)
-    
+  
     # Add the new column to the new DataFrame
     new_df['swmasked_betamap_path'] = swmasked_paths
     
