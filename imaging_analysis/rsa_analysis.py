@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 from nitools import spm
+from nilearn import image
 
 
 # =========================== FUNCTIONS ================================
@@ -80,11 +81,79 @@ def create_rsa_dataframe(subjects, task_ids, derivatives_dir, cond_mapping,
     return df
 
 
+def prewhiten_beta_maps(df_input, subjects):
+    """
+    Loads the RSA input DataFrame or uses the given DataFrame,
+    processes each beta map by dividing it by the square root of the
+    ResMS map, and saves the prewhitened beta map as a new NIfTI file
+    with the suffix '_desc-prewhitened' in the same directory.
+
+    Parameters
+    ----------
+    df_input : str or pd.DataFrame
+        Either the path to the input DataFrame (TSV file) or a
+        DataFrame object.
+
+    Returns
+    -------
+    None
+    """
+    # Load the DataFrame if a path is provided
+    if isinstance(df_input, str):
+        df_unfiltered = pd.read_csv(df_input, sep='\t')
+    elif isinstance(df_input, pd.DataFrame):
+        df_unfiltered = df_input.copy()
+    else:
+        raise ValueError(
+            f"df_input must be either a path to a TSV file or"
+            f"a pandas DataFrame."
+        )
+
+    # Filter the DataFrame according to subjects list
+    df = df_unfiltered[df_unfiltered['subject'].isin(subjects)]
+
+    # Process each row in the DataFrame
+    for _, row in df.iterrows():
+        beta_map_path = row['betamap_path']
+        resms_path = row['resms_path']
+
+        # Load beta map using nilearn and get data as a numpy array
+        beta_img = image.load_img(beta_map_path)
+        beta_data = beta_img.get_fdata()
+
+        # Load ResMS map using nilearn and get data as a numpy array
+        resms_img = image.load_img(resms_path)
+        resms_data = resms_img.get_fdata()
+
+        # Compute square root of ResMS and avoid division by zero
+        sqrt_resms = np.sqrt(resms_data)
+        epsilon = 1e-6
+        sqrt_resms[sqrt_resms < epsilon] = epsilon
+
+        # Compute the prewhitened beta map
+        beta_prewhitened = beta_data / sqrt_resms
+
+        # Create a new image with the prewhitened beta data,
+        # preserving the affine and header of the original beta map.
+        new_img = image.new_img_like(beta_img, beta_prewhitened)
+
+        # Build new filename with the suffix '_desc-prewhitened'
+        base, ext = os.path.splitext(beta_map_path)
+        if ext == '.gz':
+            base, ext2 = os.path.splitext(base)
+            ext = ext2 + ext  # ext becomes '.nii.gz'
+        new_fname = base + '_desc-prewhitened' + ext
+
+        # Save the new prewhitened beta map using nilearn
+        new_img.to_filename(new_fname)
+
+
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SUBJECTS = [3]
 
 # Relative path for output folders
 rsa_folder = 'results/rsa'
@@ -117,5 +186,8 @@ if __name__ == '__main__':
     
     # Create dataframe
     db_path = os.path.join(rsa_folder, 'rsa_inputs.tsv')
-    db = create_rsa_dataframe(SUBJECTS, tasks, derivatives_folder,
-                              conditions_mapping, db_path)
+    # db = create_rsa_dataframe(SUBJECTS, tasks, derivatives_folder,
+    #                           conditions_mapping, db_path)
+
+    # Prewhiten beta maps and save them
+    prewhiten_beta_maps(db_path, SUBJECTS)
