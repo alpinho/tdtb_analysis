@@ -203,6 +203,32 @@ def ffx(audio_beat, audio_interval, visual_beat, visual_interval,
 
 
 def zval_conversion(tval, dof):
+    """
+    Convert t-values to z-values, given the degrees of freedom.
+
+    This function converts t-values (from a t-distribution with the
+        specified degrees of freedom) to z-values (from a standard
+        normal distribution). It does so by computing the upper-tail
+        probability using the survival function (sf) and the lower-tail
+        probability using the cumulative distribution function (cdf) of
+        the t-distribution, then converting these probabilities to
+        z-values using the inverse survival function (isf) and the
+        percent point function (ppf) of the normal distribution.
+        For cases where the z-value obtained via isf is negative, the
+        corresponding ppf value is used instead.
+
+    Parameters
+    ----------
+    tval : array_like
+        t-values (or an array of t-values) from a t-distribution.
+    dof : int or array_like
+        Degrees of freedom for the t-distribution.
+
+    Returns
+    -------
+    zval : ndarray
+        z-values corresponding to the input t-values.
+    """
     pval = stats.t.sf(tval, dof)
     one_minus_pval = stats.t.cdf(tval, dof)
     zval_sf = stats.norm.isf(pval)
@@ -214,6 +240,48 @@ def zval_conversion(tval, dof):
     zval[np.atleast_1d(use_sf)] = zval_sf[use_sf]
 
     return zval
+
+
+def tval_conversion(zval, dof):
+    """
+    Convert z-values back into t-values, given the degrees of freedom.
+    
+    For positive z-values, we assume:
+        p = norm.sf(z)
+        t = t.isf(p, dof)
+    
+    For negative z-values, we assume:
+        one_minus_p = norm.cdf(z)
+        t = t.ppf(one_minus_p, dof)
+    
+    Parameters
+    ----------
+    zval : array_like
+        Input z-values.
+    dof : int or array_like
+        Degrees of freedom for the t distribution.
+    
+    Returns
+    -------
+    tval : array_like
+        The corresponding t-values.
+    """
+    zval = np.asarray(zval)
+    tval = np.empty(zval.shape)
+    
+    pos_mask = zval >= 0
+    neg_mask = ~pos_mask
+    
+    if np.any(pos_mask):
+        p = stats.norm.sf(zval[pos_mask])
+        # t.isf(q, dof) is equivalent to t.ppf(1-q, dof)
+        tval[pos_mask] = stats.t.isf(p, dof)
+    
+    if np.any(neg_mask):
+        one_minus_p = stats.norm.cdf(zval[neg_mask])
+        tval[neg_mask] = stats.t.ppf(one_minus_p, dof)
+    
+    return tval
 
 
 def combine_maps(mpath1, mpath2, combined_mpaths):
