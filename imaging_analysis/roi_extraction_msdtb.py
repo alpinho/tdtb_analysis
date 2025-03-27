@@ -276,8 +276,9 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir,
 
 def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                        group_tmap_path, contrasts_dic, contype, prefix,
-                       derivatives_folder, mask, weights=None, subregion=False,
-                       hems=['lh', 'rh', 'bh']):
+                       derivatives_folder, mask, 
+                       con_thresh_min=3.385, weights=None, 
+                       subregion=False, hems=['lh', 'rh', 'bh']):
 
     if subregion:
         roi_dir = os.path.join(main_dir, region, atlas, roi)
@@ -318,7 +319,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                 gmask, cluster_size = create_group_roimask(
                     group_tmap_path,
                     atlasreg_maskpath,
-                    gencoding_atlasreg_maskpath)
+                    gencoding_atlasreg_maskpath, 
+                    con_thresh_min=con_thresh_min)
             else:
                 assert hem == 'bh'
                 gmask_lh = os.path.join(
@@ -463,6 +465,11 @@ group_visualencoding_folder = 'con_03_Visual_Encoding'
 gtmap_visualencoding = os.path.join(data_dir, group_relative_path,
                                     group_visualencoding_folder, 'spmT_0001.nii')
 
+#### Group-level cluster size
+
+# t_threshold = 3.385 ## for a Z value = 3.1 (p < 0.001 - one tail) and dof = 30 -1 (for one sample t-test)
+t_threshold = 2.91931699 ## for a Z value = 2.7166013496886174 (p < 0.05 FDR-corrected) and dof = 30 -1 (for one sample t-test)
+
 working_dir = os.path.dirname(os.path.abspath(__file__))
 
 atlases_dir = os.path.join(working_dir, 'atlases')
@@ -538,12 +545,14 @@ if __name__ == '__main__':
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
                     roi_name, gtmap, filtered_contrasts, 'wpsc', tag,
-                    individual_derivatives_folder, masking, weights=wpair)
+                    individual_derivatives_folder, masking,
+                    con_thresh_min=t_threshold, weights=wpair)
             else:
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
                     roi_name, gtmap, filtered_contrasts, 'wpsc', tag,
-                    individual_derivatives_folder, masking, weights=wpair,
+                    individual_derivatives_folder, masking,
+                    con_thresh_min=t_threshold, weights=wpair,
                     subregion=True)
 
             # Define output-dir path
