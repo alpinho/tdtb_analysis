@@ -2099,9 +2099,9 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        input_folder = 'ffx';
+        input_folder = 'ffx_rwls_dbb_hrf128';
         
-        file_type = 'con'; % the another one is 'spmT, ResMS or psc'
+        file_type = 'con'; % options: 'con, spmT, ResMS, psc, beta' (beta refers to the prewhitened files)
         smoothing_kernel = [8 8 8];
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2133,6 +2133,11 @@ switch what
                 if strcmp(file_type, 'ResMS')
                     cname = sprintf('%s.nii', file_type);
                     confiles = {fullfile(estdesign_folder, cname)};
+                elseif strcmp(file_type, 'beta')
+                    beta_files = dir([estdesign_folder '/' file_type ...
+                        '_*_desc-prewhitened.nii']);
+                    beta_paths = fullfile(estdesign_folder, {beta_files.name});
+                    confiles = beta_paths(:);  % Convert to an n x 1 cell array
                 else
                     % List of contrasts in source folder
                     n_contrasts = numel(dir([estdesign_folder '/' file_type ...
@@ -2243,8 +2248,8 @@ switch what
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
         
-        input_folder = 'ffx';
-        output_folder = 'masked_derivatives';
+        input_folder = 'ffx_rwls_dbb_hrf128';
+        output_folder = 'masked_derivatives_rwls_dbb_hrf128';
         
         file_type = 'con'; % the another one is 'spmT, ResMS or psc'
         smoothing_kernel = [8 8 8];
