@@ -25,9 +25,13 @@ from nilearn import image
 
 # =========================== FUNCTIONS ================================
 
-def create_rsa_dataframe(subjects, task_ids, derivatives_dir, cond_mapping,
+def create_rsa_dataframe(subjects, task_ids, base_dir, cond_mapping,
                          output_path):
     """Builds the inputs DataFrame, saves it, and returns it."""
+
+    derivatives_dir = os.path.join(
+        base_dir, 'data', 'Cerebellum', 'music-sdtb', 'derivatives')
+
     rows = []
     for subj in subjects:
         # Format subject with leading zero if needed, e.g., "sub-03"
@@ -65,14 +69,19 @@ def create_rsa_dataframe(subjects, task_ids, derivatives_dir, cond_mapping,
                     betamap_path = os.path.join(spm_dir, betamap_fname)
                     # Get the corresponding run number
                     run_num = run_numbers[i]
+
+                    # Convert full paths to paths relative to base_dir
+                    relative_resms_path = os.path.relpath(resms_path, base_dir)
+                    relative_betamap_path = os.path.relpath(betamap_path,
+                                                            base_dir)
                     rows.append({
                         'subject': subj,
                         'task_id': task_id,
                         'run_number': run_num,
                         'condition_type': cond,
                         'condition_name': condition_name,
-                        'resms_path': resms_path,
-                        'betamap_path': betamap_path
+                        'resms_path': relative_resms_path,
+                        'betamap_path': relative_betamap_path
                     })
 
     # Create the DataFrame
@@ -85,7 +94,7 @@ def create_rsa_dataframe(subjects, task_ids, derivatives_dir, cond_mapping,
     return df
 
 
-def prewhiten_beta_maps(df_input, subjects):
+def prewhiten_beta_maps(df_input, subjects, base_dir):
     """
     Loads the input DataFrame or uses the given DataFrame,
     processes each beta map by dividing it by the square root of the
@@ -102,6 +111,7 @@ def prewhiten_beta_maps(df_input, subjects):
     -------
     None
     """
+    
     # Load the DataFrame if a path is provided
     if isinstance(df_input, str):
         df_unfiltered = pd.read_csv(df_input, sep='\t')
@@ -116,17 +126,25 @@ def prewhiten_beta_maps(df_input, subjects):
     # Filter the DataFrame according to subjects list
     df = df_unfiltered[df_unfiltered['subject'].isin(subjects)]
 
+    # List to store new file paths
+    swmasked_paths = []
+
     # Process each row in the DataFrame
     for _, row in df.iterrows():
-        beta_map_path = row['betamap_path']
-        resms_path = row['resms_path']
+        # The paths stored in the DataFrame are relative to base_dir
+        rel_beta_map_path = row['betamap_path']
+        rel_resms_path = row['resms_path']
+
+        # Build full paths for opening the files
+        full_beta_map_path = os.path.join(base_dir, rel_beta_map_path)
+        full_resms_path = os.path.join(base_dir, rel_resms_path)
 
         # Load beta map using nilearn and get data as a numpy array
-        beta_img = image.load_img(beta_map_path)
+        beta_img = image.load_img(full_beta_map_path)
         beta_data = beta_img.get_fdata()
 
         # Load ResMS map using nilearn and get data as a numpy array
-        resms_img = image.load_img(resms_path)
+        resms_img = image.load_img(full_resms_path)
         resms_data = resms_img.get_fdata()
 
         # Compute square root of ResMS and avoid division by zero
@@ -141,109 +159,25 @@ def prewhiten_beta_maps(df_input, subjects):
         # preserving the affine and header of the original beta map.
         new_img = image.new_img_like(beta_img, beta_prewhitened)
 
-        # Build new filename with the suffix '_desc-prewhitened'
-        base, ext = os.path.splitext(beta_map_path)
+        # Build new full filename with the suffix '_desc-prewhitened'
+        full_base, ext = os.path.splitext(full_beta_map_path)
         if ext == '.gz':
-            base, ext2 = os.path.splitext(base)
+            full_base, ext2 = os.path.splitext(full_base)
             ext = ext2 + ext  # ext becomes '.nii.gz'
-        new_fname = base + '_desc-prewhitened' + ext
+        new_full_fname = full_base + '_desc-prewhitened' + ext
 
         # Save the new prewhitened beta map using nilearn
-        new_img.to_filename(new_fname)
+        new_img.to_filename(new_full_fname)
 
+        # Convert the new full filename back to a relative path...
+        # ... (relative to base_dir)
+        new_rel_fname = os.path.relpath(new_full_fname, base_dir)
 
-def update_dataframe(df_input, subjects, output_path=None):
-    """
-    Loads the input DataFrame (or uses the provided DataFrame) and adds
-    a new column 'swmasked_betamap_path'. The new path is constructed by
-    replacing the original betamap_path's directory and filename with the
-    masked derivatives version. For example, if the original betamap_path
-    is:
-    
-        /home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/
-            derivatives/sub-03/estimates/prod/ffx_rwls_dbb_hrf128/
-            beta_0001.nii
+        # Append the relative path to the list
+        swmasked_paths.append(new_rel_fname)
 
-    the new swmasked_betamap_path will be:
-    
-        /home/analu/diedrichsen_data/data/Cerebellum/music-sdtb/
-            derivatives/sub-03/estimates/prod/masked_derivatives/
-            wbeta_0001_desc-prewhitened_desc-sm8wbmasked.nii
-
-    Parameters
-    ----------
-    df_input : str or pd.DataFrame
-        Either the path to the RSA input DataFrame (TSV file) or a
-        DataFrame object.
-    output_path : str, optional
-        If provided, the updated DataFrame will be saved to this path
-        (TSV format).
-
-    Returns
-    -------
-    df : pd.DataFrame
-        DataFrame with the new column 'swmasked_betamap_path'.
-    """
-    
-    # Load the DataFrame if a path is provided
-    if isinstance(df_input, str):
-        df_unfiltered = pd.read_csv(df_input, sep='\t')
-    elif isinstance(df_input, pd.DataFrame):
-        df_unfiltered = df_input.copy(deep=True)
-    else:
-        raise ValueError("df_input must be a path or a pandas DataFrame.")
-
-    # Filter the DataFrame according to subjects list
-    df = df_unfiltered[df_unfiltered['subject'].isin(subjects)]
-
-    # Create a new DataFrame by copying the old one
-    new_df = df.copy(deep=True)
-    
-    swmasked_paths = []
-    for idx, row in new_df.iterrows():
-        betamap_path = row['betamap_path']
-        # Assume the original path is of the form:
-        # .../sub-XX/estimates/task_id/ffx_rwls_dbb_hrf128/beta_XXXX.nii
-        # We want to change it to:
-        # .../sub-XX/estimates/task_id/masked_derivatives/
-        #     wbeta_XXXX_desc-prewhitened_desc-sm8wbmasked.nii
-
-        # Get the folder of the betamap (i.e., the ffx folder)
-        old_folder = os.path.dirname(betamap_path)
-        # Get the parent folder (e.g., .../estimates/prod)
-        base_folder = os.path.dirname(old_folder)
-        # Construct new folder:
-        # masked_derivatives inside the estimates/task folder
-        new_folder = os.path.join(base_folder, 'masked_derivatives')
-        if not os.path.exists(new_folder):
-            os.makedirs(new_folder, exist_ok=True)
-        
-        orig_fname = os.path.basename(betamap_path)
-        # Process the filename: expect something like "beta_0001.nii"
-        if orig_fname.startswith("beta_"):
-            # Remove the "beta_" prefix and split extension
-            number_part = orig_fname[5:]  # e.g., "0001.nii"
-            number, ext = os.path.splitext(number_part)  # "0001", ".nii"
-            new_fname = (
-                f"wbeta_{number}_desc-prewhitened_desc-sm8wbmasked"
-                f"{ext}"
-            )
-        else:
-            # Fallback: if file name does not start with "beta_"
-            base_name, ext = os.path.splitext(orig_fname)
-            new_fname = f"w{base_name}_desc-prewhitened_desc-sm8wbmasked{ext}"
-       
-        new_path = os.path.join(new_folder, new_fname)
-        swmasked_paths.append(new_path)
-  
-    # Add the new column to the new DataFrame
-    new_df['swmasked_betamap_path'] = swmasked_paths
-    
-    # Save the DataFrame if an output path is provided
-    if output_path is not None:
-        new_df.to_csv(output_path, index=False, sep='\t')
-    
-    return df
+    # Register the new paths in a new column
+    df['swmasked_betamap_path'] = swmasked_paths
 
 
 # =========================== INPUTS ===================================
@@ -260,9 +194,12 @@ rsa_folder = 'results/rsa'
 
 # Parent directories
 home = os.path.expanduser('~')
-music = os.path.join(home, 'diedrichsen_data', 'data', 'Cerebellum',
-                     'music-sdtb')
-derivatives_folder = os.path.join(music, 'derivatives')
+
+if home == '/home/analu':
+    data_storage = os.path.join(home, 'diedrichsen_data')
+else:
+    assert home == '/home/ROBARTS/agrilopi'
+    data_storage = '/srv/diedrichsen'
 
 # Define tasks
 tasks = ['prod', 'percep', 'ntfd', 'allmain_tasks']
@@ -281,20 +218,14 @@ if __name__ == '__main__':
 
     # Create output folder if it does not exist
     os.makedirs(rsa_folder, exist_ok=True)
-    
+   
     # Create dataframe
     db_path = os.path.join(rsa_folder, 'rsa_inputs.tsv')
-    # db = create_rsa_dataframe(SUBJECTS, tasks, derivatives_folder,
+    # db = create_rsa_dataframe(SUBJECTS, tasks, data_storage,
     #                           conditions_mapping, db_path)
 
     # Prewhiten beta maps and save them
-    # prewhiten_beta_maps(db_path, SUBJECTS)
+    prewhiten_beta_maps(db_path, SUBJECTS, data_storage)
 
     # Note: The next steps rely on prewhiten_beta_maps that were normalized,
     #       smoothed and masked. These steps were done in MATLAB.
-
-    # Add paths of beta maps that were normalized, smoothed and masked...
-    # ... to a new dataframe
-    updated_db_path = os.path.join('results', 'rsa',
-                                   'rsa_inputs_with_swmasked.tsv')
-    _ = update_dataframe(db_path, SUBJECTS, output_path=updated_db_path)
