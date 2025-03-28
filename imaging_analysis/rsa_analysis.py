@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 
 from nitools import spm
 from nilearn import image
+from nilearn.input_data import NiftiMasker
 
 
 # =========================== FUNCTIONS ================================
@@ -94,7 +95,7 @@ def create_rsa_dataframe(subjects, task_ids, base_dir, cond_mapping,
     return df
 
 
-def prewhiten_beta_maps(df_input, subjects, base_dir):
+def prewhiten_beta_maps(df_input, subjects, base_dir, output_path):
     """
     Loads the input DataFrame or uses the given DataFrame,
     processes each beta map by dividing it by the square root of the
@@ -179,6 +180,32 @@ def prewhiten_beta_maps(df_input, subjects, base_dir):
     # Register the new paths in a new column
     df['swmasked_betamap_path'] = swmasked_paths
 
+    # Save the DataFrame in the rsa_folder
+    df.to_csv(output_path, index=False, sep='\t')
+
+    return df
+
+
+def extract_roi_signals_from_dataframe(df_input, subjects, rois, tags):
+    # Load DataFrame if needed
+    if isinstance(df_input, str):
+        df_unfiltered = pd.read_csv(df_input, sep='\t')
+    elif isinstance(df_input, pd.DataFrame):
+        df_unfiltered = df_input.copy()
+    else:
+        raise ValueError("df_input must be a path or a pandas DataFrame.")
+
+    # Filter the DataFrame according to subjects list
+    df = df_unfiltered[df_unfiltered['subject'].isin(subjects)]
+
+    # Filter tasks
+    tasks = [t for t in tasks if t != 'allmain_tasks']
+    
+    # Loop over each tag and each ROI.
+    for tag, wpair in zip(tags, weights_list):
+        for atlas_dirname, atlas_name, region_name, roi_name in zip(
+                atlas_dirnames, atlas_names, region_names, roi_names):
+        
 
 # =========================== INPUTS ===================================
 
@@ -187,10 +214,32 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 # SUBJECTS = [3]
 
-# Relative path for output folders
-rsa_folder = 'results/rsa'
+# Path for output folders
+rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          'results', 'rsa')
 
-# ========================= PARAMETERS =================================
+# ########################### ROIs ######################################
+# All ROIs: 7 ROIs
+region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
+                'motor_area', 'motor_area', 'motor_area']
+atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+               'hmat', 'hmat', 'hmat']
+roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
+             'pmd', 'sma', 'presma']
+
+# Paths of ROIs
+# irois_paths = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                            'roi_analyses_rwls_hrf128_wb_puncorr',
+#                            'all',
+#                            region_name,
+#                            atlas_name)
+
+# irois_masks_paths = os.path.join(irois_paths, 'individual_roi_masks')
+# irois_signals_paths = os.path.join(irois_paths, 'rois_extraction')
+
+itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+
+# #######################################################################
 
 # Parent directories
 home = os.path.expanduser('~')
@@ -218,14 +267,19 @@ if __name__ == '__main__':
 
     # Create output folder if it does not exist
     os.makedirs(rsa_folder, exist_ok=True)
+
+    # Path of dataframe
+    db_path = os.path.join(rsa_folder, 'rsa_inputs.tsv')
    
     # Create dataframe
-    db_path = os.path.join(rsa_folder, 'rsa_inputs.tsv')
     # db = create_rsa_dataframe(SUBJECTS, tasks, data_storage,
     #                           conditions_mapping, db_path)
 
     # Prewhiten beta maps and save them
-    prewhiten_beta_maps(db_path, SUBJECTS, data_storage)
+    # db = prewhiten_beta_maps(db_path, SUBJECTS, data_storage, db_path)
 
     # Note: The next steps rely on prewhiten_beta_maps that were normalized,
     #       smoothed and masked. These steps were done in MATLAB.
+
+    # Extract signals from prewhitened data using the individualized ROIs
+    extract_roi_signals_from_dataframe(db_path, SUBJECTS, roi_names, itags)
