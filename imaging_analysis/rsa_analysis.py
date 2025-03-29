@@ -12,6 +12,7 @@ Compatibility: Python 3.10.14
 """
 
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -26,23 +27,27 @@ from nilearn.input_data import NiftiMasker
 
 # =========================== FUNCTIONS ================================
 
-def create_rsa_dataframe(subjects, task_ids, base_dir, cond_mapping,
-                         output_path):
+def rsa_dataframe(subjects, task_models, base_dir, cond_mapping, output_path,
+                  glm_type='task_glm'):
     """Builds the inputs DataFrame, saves it, and returns it."""
 
     derivatives_dir = os.path.join(
         base_dir, 'data', 'Cerebellum', 'music-sdtb', 'derivatives')
 
+    if glm_type == 'task_glm':
+        filtered_models = [tm for tm in task_models if tm != 'allmain_tasks']
+    else:
+        assert glm_type == 'grand_glm'
+        filtered_models = ['allmain_tasks']
+
     rows = []
     for subj in subjects:
         # Format subject with leading zero if needed, e.g., "sub-03"
         subj_str = f"sub-{subj:02d}"
-        for task_id in task_ids:
-            if task_id == 'allmain_tasks':
-                continue  # Skip the grand GLM of all tasks together
+        for model in filtered_models:
 
             spm_dir = os.path.join(
-                derivatives_dir, subj_str, 'estimates', task_id,
+                derivatives_dir, subj_str, 'estimates', model,
                 'ffx_rwls_dbb_hrf128'
             )
             resms_path = os.path.join(spm_dir, 'ResMS.nii')
@@ -51,39 +56,76 @@ def create_rsa_dataframe(subjects, task_ids, base_dir, cond_mapping,
             SPM = spm.SpmGlm(spm_dir)
             SPM.get_info_from_spm_mat()  # retrieve SPM.mat info
 
-            # Retrieve beta names and run_numbers as numpy arrays
+            # Retrieve beta names, rawdata_files, and run_numbers...
+            # ... as numpy arrays
             beta_names = np.array(SPM.beta_names)
-            run_numbers = np.array(SPM.run_number)
+            rawdata_files = np.array(SPM.rawdata_files)
+
+            if glm_type == 'task_glm':
+                run_numbers = np.array(SPM.run_number)
+            else:
+                assert glm_type == 'grand_glm'
+                run_numbers = np.repeat(
+                    [1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4], 4)
+
+            # Remove volume numbers from rawdata_files
+            rawdata_files_cleaned = np.array(
+                [re.sub(r', \d+\s*$', '', rawdata_file)
+                 for rawdata_file in rawdata_files])
+            # Get unique elements while preserving the original order...
+            _, unique_indices = np.unique(rawdata_files_cleaned,
+                                          return_index=True)
+            # ... and sort by original order
+            rawdata_unique = rawdata_files_cleaned[np.sort(unique_indices)]
+            # Match its length with the number of encoding entries...
+            # ... in beta_names
+            rawdata_repeat = np.repeat(rawdata_unique, 4)
+
+            # Filter beta_names to keep only encoding-related ones
+            mask = np.char.find(beta_names, 'encoding') >= 0
+            # Apply mask to get filtered names
+            filtered_beta_names = beta_names[mask] 
+
+            # Corresponding full list of beta files
+            beta_files = np.array([f"beta_{i+1:04d}.nii"
+                                   for i in range(len(beta_names))])
+            # Apply the same mask to filter beta_files
+            filtered_beta_files = beta_files[mask]
 
             # Loop over the original beta_names with their index
-            for i, name in enumerate(beta_names):
-                if name.endswith('_encoding*bf(1)'):
-                    # Remove the suffix to get the condition type
-                    cond = name[:-len('_encoding*bf(1)')]
-                    # Map condition type to its abbreviation and combine...
-                    # ... with task_id
-                    cond_abbr = cond_mapping.get(cond, cond)
-                    condition_name = f"{cond_abbr}_{task_id}"
-                    # Use the original beta index (1-indexed) for the...
-                    # ... betamap filename
-                    betamap_fname = f"beta_{i+1:04d}.nii"
-                    betamap_path = os.path.join(spm_dir, betamap_fname)
-                    # Get the corresponding run number
-                    run_num = run_numbers[i]
+            for i, name in enumerate(filtered_beta_names):
+                # Remove the suffix to get the condition type
+                cond = name[:-len('_encoding*bf(1)')]
 
-                    # Convert full paths to paths relative to base_dir
-                    relative_resms_path = os.path.relpath(resms_path, base_dir)
-                    relative_betamap_path = os.path.relpath(betamap_path,
-                                                            base_dir)
-                    rows.append({
-                        'subject': subj,
-                        'task_id': task_id,
-                        'run_number': run_num,
-                        'condition_type': cond,
-                        'condition_name': condition_name,
-                        'resms_path': relative_resms_path,
-                        'betamap_path': relative_betamap_path
-                    })
+                # Get task_id
+                match = re.search(r'task-(.*?)_run', rawdata_repeat[i])
+                task_id = match.group(1) if match else None
+
+                # Map condition type to its abbreviation and combine...
+                # ... with task_id
+                cond_abbr = cond_mapping.get(cond, cond)
+                condition_name = f"{cond_abbr}_{task_id}"
+
+                # Use the original beta index (1-indexed) for the...
+                # ... betamap filename
+                betamap_path = os.path.join(spm_dir, filtered_beta_files[i])
+
+                # Get the corresponding run number
+                run_num = run_numbers[i]
+
+                # Convert full paths to paths relative to base_dir
+                relative_resms_path = os.path.relpath(resms_path, base_dir)
+                relative_betamap_path = os.path.relpath(betamap_path,
+                                                        base_dir)
+                rows.append({
+                    'subject': subj,
+                    'task_id': task_id,
+                    'run_number': run_num,
+                    'condition_type': cond,
+                    'condition_name': condition_name,
+                    'resms_path': relative_resms_path,
+                    'betamap_path': relative_betamap_path
+                })
 
     # Create the DataFrame
     df = pd.DataFrame(rows)
@@ -95,7 +137,7 @@ def create_rsa_dataframe(subjects, task_ids, base_dir, cond_mapping,
     return df
 
 
-def prewhiten_beta_maps(df_input, subjects, base_dir, output_path):
+def prewhiten_taskglm_betas(df_input, subjects, base_dir, output_path):
     """
     Loads the input DataFrame or uses the given DataFrame,
     processes each beta map by dividing it by the square root of the
@@ -202,9 +244,9 @@ def extract_roi_signals_from_dataframe(df_input, subjects, rois, tags):
     tasks = [t for t in tasks if t != 'allmain_tasks']
     
     # Loop over each tag and each ROI.
-    for tag, wpair in zip(tags, weights_list):
-        for atlas_dirname, atlas_name, region_name, roi_name in zip(
-                atlas_dirnames, atlas_names, region_names, roi_names):
+    # for tag, wpair in zip(tags, weights_list):
+    #     for atlas_dirname, atlas_name, region_name, roi_name in zip(
+    #             atlas_dirnames, atlas_names, region_names, roi_names):
         
 
 # =========================== INPUTS ===================================
@@ -268,18 +310,27 @@ if __name__ == '__main__':
     # Create output folder if it does not exist
     os.makedirs(rsa_folder, exist_ok=True)
 
-    # Path of dataframe
-    db_path = os.path.join(rsa_folder, 'rsa_inputs.tsv')
+    # Paths of dataframes
+    db_taskglm_path = os.path.join(rsa_folder, 'rsa_taskglm_inputs.tsv')
+    db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm_inputs.tsv')
    
-    # Create dataframe
-    # db = create_rsa_dataframe(SUBJECTS, tasks, data_storage,
-    #                           conditions_mapping, db_path)
+    # Create dataframes
+    db_taskglm = rsa_dataframe(
+        SUBJECTS, tasks, data_storage, conditions_mapping, db_taskglm_path,
+        glm_type='task_glm')
+    db_grandglm = rsa_dataframe(
+        SUBJECTS, tasks, data_storage, conditions_mapping, db_grandglm_path,
+        glm_type='grand_glm')
 
-    # Prewhiten beta maps and save them
-    # db = prewhiten_beta_maps(db_path, SUBJECTS, data_storage, db_path)
+    # Prewhiten task glm beta maps and save them
+    # db_taskglm = prewhiten_taskglm_betas(
+    #     db_taskglm_path, SUBJECTS, data_storage, db_taskglm_path)
+
+    # Prewhiten grand glm beta maps and save them
 
     # Note: The next steps rely on prewhiten_beta_maps that were normalized,
     #       smoothed and masked. These steps were done in MATLAB.
 
     # Extract signals from prewhitened data using the individualized ROIs
-    extract_roi_signals_from_dataframe(db_path, SUBJECTS, roi_names, itags)
+    # extract_roi_signals_from_dataframe(db_taskglm_path, SUBJECTS, roi_names,
+    #                                    itags)
