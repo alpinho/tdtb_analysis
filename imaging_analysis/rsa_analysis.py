@@ -137,7 +137,7 @@ def rsa_dataframe(subjects, task_models, base_dir, cond_mapping, output_path,
     return df
 
 
-def prewhiten_taskglm_betas(df_input, subjects, base_dir, output_path):
+def prewhiten_betas(df_input, subjects, base_dir, output_path):
     """
     Loads the input DataFrame or uses the given DataFrame,
     processes each beta map by dividing it by the square root of the
@@ -315,16 +315,18 @@ if __name__ == '__main__':
     db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm_inputs.tsv')
    
     # Create dataframes
-    db_taskglm = rsa_dataframe(
-        SUBJECTS, tasks, data_storage, conditions_mapping, db_taskglm_path,
-        glm_type='task_glm')
-    db_grandglm = rsa_dataframe(
-        SUBJECTS, tasks, data_storage, conditions_mapping, db_grandglm_path,
-        glm_type='grand_glm')
+    # db_taskglm = rsa_dataframe(
+    #     SUBJECTS, tasks, data_storage, conditions_mapping, db_taskglm_path,
+    #     glm_type='task_glm')
+    # db_grandglm = rsa_dataframe(
+    #     SUBJECTS, tasks, data_storage, conditions_mapping, db_grandglm_path,
+    #     glm_type='grand_glm')
 
     # Prewhiten task glm beta maps and save them
-    # db_taskglm = prewhiten_taskglm_betas(
+    # db_taskglm = prewhiten_betas(
     #     db_taskglm_path, SUBJECTS, data_storage, db_taskglm_path)
+    db_grandglm = prewhiten_betas(
+        db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path)
 
     # Prewhiten grand glm beta maps and save them
 
