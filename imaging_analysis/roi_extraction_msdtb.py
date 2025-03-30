@@ -478,7 +478,8 @@ atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 
-roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff)
+roi_dir = os.path.join(
+    working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff + '_' + masking)
 
 # All ROIs: 7 ROIs
 atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
