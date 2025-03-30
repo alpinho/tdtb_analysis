@@ -167,7 +167,7 @@ def plot_boxplots_mod(data, roi_name, y_label='Percent Signal Change (%)',
 
     plt.tight_layout()
 
-    plt.savefig(os.path.join(output_dir, fname + '.pdf'))
+    plt.savefig(os.path.join(output_dir, fname + '.png'), dpi=300)
     # plt.show()
 
 
@@ -327,7 +327,7 @@ def plot_boxplots_rois(rois_data, modality='both',
             ax.vlines(x_positions, y_max, y_max * 0.975, color='k',
                       linewidth=2.5)
             ax.text(np.mean(x_positions), y_max * 1.01, f'*',
-                    ha='center', va='bottom', fontsize=20)
+                    ha='center', va='bottom', fontsize=28)
 
     # Adjust layout to fit the title
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])  
@@ -356,7 +356,7 @@ contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', or
 home = os.path.expanduser('~')
 rois_folder = os.path.join(
     home, os.path.dirname(os.path.abspath(__file__)),
-    'roi_analyses_rwls_hrf128_wb')
+    'roi_analyses_rwls_hrf128_wb_puncorr')
 
 if contrast_mask == 'Auditory Encoding':
     contrast_mask_folder = os.path.join(rois_folder, 'auditory')
