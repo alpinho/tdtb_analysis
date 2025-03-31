@@ -217,7 +217,7 @@ def compute_sulc_gii(surf_gii_path, sulc_gii_path):
             v1, v2 = face[i], face[(i + 1) % 3]
             curvature[v1] += np.linalg.norm(coords[v2] - coords[v1])
             curvature[v2] += np.linalg.norm(coords[v1] - coords[v2])
-    curvature /= np.max(curvature)  # Normalize to [0, 1]
+    curvature /= np.amax(curvature)  # Normalize to [0, 1]
     sulc_img = nib.gifti.GiftiImage()
     sulc_img.add_gifti_data_array(nib.gifti.GiftiDataArray(data=curvature))
     nib.save(sulc_img, sulc_gii_path)
@@ -299,7 +299,7 @@ def vol_to_surf_max(nifti_img, surf_mesh, inner_mesh, n_samples=20,
         voxel_coords = nib.affines.apply_affine(inv_affine, line_coords)
         sampled_values = map_coordinates(vol_data, voxel_coords.T,
                                          order=1, mode='nearest')
-        proj_data[idx] = np.max(sampled_values)
+        proj_data[idx] = np.amax(sampled_values)
     return proj_data
 
 
@@ -374,8 +374,8 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
         k=faces[:, 2],
         intensity=bg_data,
         colorscale=bg_colorscale,
-        cmin=np.min(bg_data),
-        cmax=np.max(bg_data),
+        cmin=np.amin(bg_data),
+        cmax=np.amax(bg_data),
         showscale=False,
         opacity=1,
         flatshading=False,
