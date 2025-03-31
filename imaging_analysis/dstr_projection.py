@@ -439,7 +439,7 @@ rh_dstr_spec_path = os.path.join(dstr_meshes_folder, 'rh.striatum.spec.gii')
 # Surface and related files
 lh_dstr_surf_path = os.path.join(dstr_meshes_folder, 'lh.dstr.surf.gii')
 lh_dstr_rs_surf_path = os.path.join(dstr_meshes_folder,
-                                    'lh.dstr.refined.surf.gii')
+                                    'lh.dstr-refsmooth.surf.gii')
 lh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
                                        'lh.dstr-inner.surf.gii')
 # Compute sulc from the refined surface for consistent vertex count
@@ -447,13 +447,18 @@ lh_dstr_sulc_path = os.path.join(dstr_meshes_folder, 'lh.dstr.sulc.gii')
 
 rh_dstr_surf_path = os.path.join(dstr_meshes_folder, 'rh.dstr.surf.gii')
 rh_dstr_rs_surf_path = os.path.join(dstr_meshes_folder,
-                                    'rh.dstr.refined.surf.gii')
+                                    'rh.dstr-refsmooth.surf.gii')
 rh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
                                        'rh.dstr-inner.surf.gii')
 rh_dstr_sulc_path = os.path.join(dstr_meshes_folder, 'rh.dstr.sulc.gii')
 
+# ###############################################
+
+# Note: These inputs are specific to the projection of the individual
+#       ROIs overlay
+
 # Overlay image (NIfTI)
-bh_dstr_overlay_masks_path = os.path.join(
+activation_map = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     'roi_analyses_rwls_hrf128_wb_puncorr',
     'all',
@@ -468,9 +473,15 @@ outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               'results', 'irois')
 
 # Define threshold and intensity range.
-threshold = 1 / 31
-vmin = threshold
-vmax = 1
+THRESHOLD = 1 / 31  # vmin
+VMAX = 1
+
+OVERLAY_CMAP = 'cividis'
+
+# ###############################################
+
+# Note: These inputs are specific to the projection of the contrast
+#       "Encoding vs. Rest"
 
 # ============================ RUN =====================================
 
@@ -486,20 +497,20 @@ if __name__ == "__main__":
             [lh_dstr_sulc_path, rh_dstr_sulc_path],
             ['lh', 'rh']):
 
-        # Build the original surface.
+        # Build the original surface
         build_surf_gii(coord, topo, surf, spec_file_path=spec)
-        # Refine and smooth the surface mesh.
+        # Refine and smooth the surface mesh
         refine_and_smooth_mesh(surf, rs_surf, iterations=2, lamb=0.5,
                                smooth_iters=15)
-        # Compute sulcal depth from the refined surface.
+        # Compute sulcal depth from the refined and smoothed surface
         compute_sulc_gii(rs_surf, sulc)
-        # Create an inner mesh from the refined surface.
+        # Create an inner mesh from the refined and smoothed surface
         _ = create_inner_mesh(rs_surf, scale=0.95, output_path=inner_surf)
 
-        # Load the overlay image.
-        dstr_overlay_img = load_img(bh_dstr_overlay_masks_path)
+        # Load the activation map
+        dstr_activation_img = load_img(activation_map)
         # Project the overlay volume onto the refined surface.
-        surf_data = vol_to_surf_max(dstr_overlay_img, rs_surf, inner_surf,
+        surf_data = vol_to_surf_max(dstr_activation_img, rs_surf, inner_surf,
                                     n_samples=10, extrapolation_factor=5.0)
 
         # Load sulcal data from the refined sulc file.
@@ -517,14 +528,14 @@ if __name__ == "__main__":
             surf_gii_path=rs_surf,
             surf_map=surf_data,
             bg_map=sulc_data,
-            threshold=threshold,
-            vmin=vmin,
-            vmax=vmax,
-            overlay_colorscale='cividis',
+            threshold=THRESHOLD,
+            vmin=THRESHOLD,
+            vmax=VMAX,
+            overlay_colorscale=OVERLAY_CMAP,
             bg_colorscale=[[0, 'rgb(200,200,200)'], [1, 'rgb(240,240,240)']],
             bg_smoothing_iterations=0,
-            lighting_params=dict(ambient=0.4, diffuse=0.8, specular=0.3,
-                                 roughness=0.2),
+            lighting_params={'ambient': .4, 'diffuse': .8, 'specular': .3,
+                             'roughness': .2},
             title='3D Dorsal Striatum'
         )
 
