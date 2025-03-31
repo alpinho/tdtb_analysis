@@ -25,7 +25,7 @@ from nilearn.image import load_img
 from nilearn.surface import load_surf_mesh
 
 
-# ========================== HELPER FUNCTIONS ==========================
+# ========================== FUNCTIONS =================================
 
 def smooth_surf_data_custom(data, coords, faces, n_iter=5):
     """
@@ -452,23 +452,32 @@ dstr_meshes_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "dstr_meshes"
 )
 
+# ########### Original CARET files ###############
 lh_dstr_coord_path = os.path.join(dstr_meshes_folder, "lh.striatum.coord.gii")
 lh_dstr_topo_path = os.path.join(dstr_meshes_folder, "lh.striatum.topo.gii")
 lh_dstr_spec_path = os.path.join(dstr_meshes_folder, "lh.striatum.spec.gii")
-lh_dstr_surf_path = os.path.join(dstr_meshes_folder, "lh.dstr.surf.gii")
-lh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
-                                       "lh.dstr-inner.surf.gii")
-lh_dstr_sulc_path = os.path.join(dstr_meshes_folder, "lh.dstr.sulc.gii")
 
 rh_dstr_coord_path = os.path.join(dstr_meshes_folder, "rh.striatum.coord.gii")
 rh_dstr_topo_path = os.path.join(dstr_meshes_folder, "rh.striatum.topo.gii")
 rh_dstr_spec_path = os.path.join(dstr_meshes_folder, "rh.striatum.spec.gii")
+
+# ################################################
+
+lh_dstr_surf_path = os.path.join(dstr_meshes_folder, "lh.dstr.surf.gii")
+lh_dstr_rs_surf_path = os.path.join(dstr_meshes_folder,
+                                    "lh.striatum.refined_smoothed.surf.gii")
+lh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
+                                       "lh.dstr-inner.surf.gii")
+lh_dstr_sulc_path = os.path.join(dstr_meshes_folder, "lh.dstr.sulc.gii")
+
 rh_dstr_surf_path = os.path.join(dstr_meshes_folder, "rh.dstr.surf.gii")
+rh_dstr_rs_surf_path = os.path.join(dstr_meshes_folder,
+                                    "rh.striatum.refined_smoothed.surf.gii")
 rh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
                                        "rh.dstr-inner.surf.gii")
 rh_dstr_sulc_path = os.path.join(dstr_meshes_folder, "rh.dstr.sulc.gii")
 
-lh_dstr_overlay_masks_path = os.path.join(
+bh_dstr_overlay_masks_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "roi_analyses_rwls_hrf128_wb_puncorr",
     "all",
@@ -478,61 +487,79 @@ lh_dstr_overlay_masks_path = os.path.join(
     "i8a_dstr_bh_mask_gmmasked.nii.gz"
 )
 
-# Relative path for output folder
-irois_folder = 'results/irois'
+# #######################################################################
 
+# Note: These inputs are specific to the projection of...
+# ... the overlay of individual ROIs
+
+# Relative path for output folder
+outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'results', 'irois')
+
+# Define threshold and intensity range.
+threshold = 1 / 31
+vmin = threshold
+vmax = 1
+
+# ========================= PARAMETERS =================================
+
+dstr_coord_paths = [lh_dstr_coord_path, rh_dstr_coord_path]
+dstr_topo_paths = [lh_dstr_topo_path, rh_dstr_topo_path]
+dstr_spec_paths = [lh_dstr_spec_path, rh_dstr_spec_path]
+dstr_surf_paths = [lh_dstr_surf_path, rh_dstr_surf_path]
+dstr_rs_surf_paths = [lh_dstr_rs_surf_path, rh_dstr_rs_surf_path]
+dstr_inner_surf_paths = [lh_dstr_inner_surf_path, rh_dstr_inner_surf_path]
+dstr_sulc_paths = [lh_dstr_sulc_path, rh_dstr_sulc_path]
 
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
-    # Create surf file for left hemisphere.
-    build_surf_gii(lh_dstr_coord_path, lh_dstr_topo_path, lh_dstr_surf_path,
-                   spec_file_path=lh_dstr_spec_path)
-    # Compute sulc GIFTI file for left hemisphere.
-    compute_sulc_gii(lh_dstr_surf_path, lh_dstr_sulc_path)
-    # Refine the surface mesh to increase vertex density and smooth geometry.
-    refined_surf_path = os.path.join(dstr_meshes_folder,
-                                     "lh.striatum.refined_smoothed.surf.gii")
-    refine_and_smooth_mesh(lh_dstr_surf_path, refined_surf_path, iterations=2,
-                           lamb=.5, smooth_iters=15)
-    # Create an inner mesh from the refined (and smoothed) surface.
-    _ = create_inner_mesh(refined_surf_path, scale=0.95,
-                          output_path=lh_dstr_inner_surf_path)
 
-    # Load the NIfTI overlay image.
-    lh_dstr_overlay_img = load_img(lh_dstr_overlay_masks_path)
+    for coord, topo, spec, surf, rs_surf, inner_surf, sulc, hem in zip(
+            dstr_coord_paths, dstr_topo_paths, dstr_spec_paths,
+            dstr_surf_paths, dstr_rs_surf_paths, dstr_inner_surf_paths,
+            dstr_sulc_paths, ['lh', 'rh']):
 
-    # Project the overlay volume onto the refined left hemisphere surface.
-    lh_surf_data = vol_to_surf_max(lh_dstr_overlay_img, refined_surf_path,
-                                   lh_dstr_inner_surf_path,
-                                   n_samples=10, extrapolation_factor=5.)
+        # Create surf file for left hemisphere.
+        build_surf_gii(coord, topo, surf, spec_file_path=spec)
+        # Compute sulc GIFTI file for left hemisphere.
+        compute_sulc_gii(surf, sulc)
+        # Refine the surface mesh to increase vertex density and...
+        # ... smooth geometry.
+        refine_and_smooth_mesh(surf, rs_surf, iterations=2, lamb=.5,
+                               smooth_iters=15)
+        # Create an inner mesh from the refined (and smoothed) surface
+        _ = create_inner_mesh(rs_surf, scale=0.95, output_path=inner_surf)
 
-    # Define activation threshold and intensity range.
-    threshold = 1 / 31
-    vmin = threshold
-    vmax = 1
+        # Load the NIfTI overlay image.
+        dstr_overlay_img = load_img(bh_dstr_overlay_masks_path)
 
-    # Create the custom Plotly figure using the sulc file as background.
-    fig = custom_view_surf_with_bg(
-        surf_gii_path=refined_surf_path,
-        surf_map=lh_surf_data,
-        bg_map=lh_dstr_sulc_path,
-        threshold=threshold,
-        vmin=vmin,
-        vmax=vmax,
-        overlay_colorscale="cividis",
-        bg_colorscale=[[0, "rgb(200,200,200)"], [1, "rgb(240,240,240)"]],
-        bg_smoothing_iterations=0,
-        lighting_params=dict(ambient=0.4, diffuse=0.8,
-                             specular=0.3, roughness=0.2),
-        title="3D Basal Ganglia: Fraction of Participants"
-    )
+        # Project the overlay volume onto the refined left hemisphere surface
+        surf_data = vol_to_surf_max(dstr_overlay_img, rs_surf, inner_surf,
+                                    n_samples=10, extrapolation_factor=5.)
 
-    # Define the output HTML file path
-    output_html_path = os.path.join( irois_folder, "iroi_dstr_surf_lh.html")
+        # Create the custom Plotly figure using the sulc file as background.
+        fig = custom_view_surf_with_bg(
+            surf_gii_path=rs_surf,
+            surf_map=surf_data,
+            bg_map=sulc,
+            threshold=threshold,
+            vmin=vmin,
+            vmax=vmax,
+            overlay_colorscale="cividis",
+            bg_colorscale=[[0, "rgb(200,200,200)"], [1, "rgb(240,240,240)"]],
+            bg_smoothing_iterations=0,
+            lighting_params=dict(ambient=0.4, diffuse=0.8,
+                                 specular=0.3, roughness=0.2),
+            title="3D Basal Ganglia: Fraction of Participants"
+        )
 
-    # Save the figure as an interactive HTML file
-    pio.write_html(fig, output_html_path)
+        # Define the output HTML file path
+        output_html_path = os.path.join(
+            outputs_folder, 'iroi_dstr_surf_' + hem + '.html')
 
-    # Display the figure in the browser
-    fig.show()
+        # Save the figure as an interactive HTML file
+        pio.write_html(fig, output_html_path)
+
+        # Display the figure in the browser
+        fig.show()
