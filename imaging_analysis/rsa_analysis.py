@@ -8,7 +8,7 @@ Email: agrilopi@uwo.ca
 Creation: 26th of March 2025
 Last Update: March 2025
 
-Compatibility: Python 3.10.14
+Compatibility: Python 3.10.16
 """
 
 import os
@@ -170,6 +170,7 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
     df = df_unfiltered[df_unfiltered['subject'].isin(subjects)]
 
     # List to store new file paths
+    beta_paths = []
     swmasked_paths = []
 
     # Process each row in the DataFrame
@@ -217,10 +218,24 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
         new_rel_fname = os.path.relpath(new_full_fname, base_dir)
 
         # Append the relative path to the list
-        swmasked_paths.append(new_rel_fname)
+        beta_paths.append(new_rel_fname)
+
+        # Create the relative path for the normalized, smoothed...
+        # ... and masked pre-whiten beta maps
+        swmasked_path = os.path.join(
+            os.path.dirname(os.path.dirname(new_full_fname)),
+            'masked_derivatives_rwls_dbb_hrf128',
+            'w'
+            + os.path.basename(new_full_fname)[:-4]
+            + '_desc-sm8wbmasked.nii',
+        )
+
+        # Append the relative path of the swmasked files
+        swmasked_paths.append(swmasked_path)
 
     # Register the new paths in a new column
-    df['swmasked_betamap_path'] = swmasked_paths
+    df['betamap_prewhitened_path'] = beta_paths
+    df['swmasked_betamap_prewhitened_path'] = swmasked_paths
 
     # Save the DataFrame in the rsa_folder
     df.to_csv(output_path, index=False, sep='\t')
@@ -311,8 +326,8 @@ if __name__ == '__main__':
     os.makedirs(rsa_folder, exist_ok=True)
 
     # Paths of dataframes
-    db_taskglm_path = os.path.join(rsa_folder, 'rsa_taskglm_inputs.tsv')
-    db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm_inputs.tsv')
+    db_taskglm_path = os.path.join(rsa_folder, 'rsa_taskglm.tsv')
+    db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm.tsv')
    
     # Create dataframes
     # db_taskglm = rsa_dataframe(
