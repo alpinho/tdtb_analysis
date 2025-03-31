@@ -12,9 +12,13 @@ Last Update: March 2025
 Compatibility: Python 3.10.16, nilearn 0.11.1
 """
 
+import sys
 import os
+
 import nibabel as nib
 import numpy as np
+import pandas as pd
+
 import plotly.graph_objects as go
 import plotly.io as pio
 import trimesh
@@ -22,6 +26,14 @@ import trimesh
 from scipy.ndimage import map_coordinates
 from nilearn.image import load_img
 from nilearn.surface import load_surf_mesh
+from nilearn.maskers import NiftiMasker
+from nilearn.glm.second_level import SecondLevelModel
+from nilearn.glm.thresholding import fdr_threshold
+
+# setting path
+sys.path.append('../')
+# importing
+from utils import zval_conversion
 
 
 # ========================== FUNCTIONS =================================
@@ -261,7 +273,7 @@ def vol_to_surf_max(nifti_img, surf_mesh, inner_mesh, n_samples=20,
                     extrapolation_factor=1.0):
     """
     Custom volume-to-surface projection using maximum intensity
-    sampling. Samples along the line from pial to inner (extended by
+    sampling. Samples along the line from outer to inner (extended by
     extrapolation_factor) and returns the maximum intensity per vertex.
 
     Parameters
@@ -269,7 +281,7 @@ def vol_to_surf_max(nifti_img, surf_mesh, inner_mesh, n_samples=20,
     nifti_img : nibabel.Nifti1Image
         Volume image from which to sample.
     surf_mesh : str or tuple
-        Pial surface mesh.
+        outer surface mesh.
     inner_mesh : str or tuple
         Inner surface mesh (pseudo inner mesh).
     n_samples : int, optional
@@ -421,6 +433,51 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
     return fig
 
 
+def compute_zmap(derivatives_dir, subjects, task_key, contrast_key, gmask,
+                 out_path, threshold=.05):
+
+    # Paths of the NORMALIZED individual contrast map for all subjects
+    encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
+                                  'estimates', task_key, 'ffx_rwls_dbb_hrf128',
+                                  'wcon_%04d' % contrast_key + '.nii')
+                     for sub in subjects]
+
+    # Create design matrix (one-sample t-test)
+    design_matrix = pd.DataFrame([1] * len(encoding_maps), columns=['intercept'])
+
+    # Initialize a NiftiMasker (it will create an implicit mask from the Z-map)
+    masker = NiftiMasker(mask_img=gmask)
+
+    # Initialize and fit the SecondLevelModel
+    second_level_model = SecondLevelModel(mask_img=masker, smoothing_fwhm=8)
+    second_level_model = second_level_model.fit(encoding_maps,
+                                                design_matrix=design_matrix)
+
+    # Compute the Z-Map
+    z_map = second_level_model.compute_contrast(output_type='z_score')
+
+    # Save the Z-map
+    z_map.to_filename(out_path)
+
+    # Extract voxel values using fit_transform()
+    z_values = masker.fit_transform(z_map)  # Output shape: (1, p)
+
+    # Get FDR threshold at alpha = 0.05 (5% false discovery rate)
+    # One side: greater than (so, no need to divide by 2)
+    fdr_thresh = fdr_threshold(z_values.ravel(), alpha=threshold)
+
+    # Print the estimated FDR threshold
+    print(f'Estimated FDR threshold: {fdr_thresh}')
+
+    # Get maximum peak value
+    z_max = np.amax(z_values[~np.isnan(z_values)])
+
+    # Print z_max
+    print(f'Maximum Z value is: {z_max}')
+
+    return fdr_thresh, z_max
+
+
 # ============================ INPUTS ===================================
 
 dstr_meshes_folder = os.path.join(
@@ -452,36 +509,70 @@ rh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
                                        'rh.dstr-inner.surf.gii')
 rh_dstr_sulc_path = os.path.join(dstr_meshes_folder, 'rh.dstr.sulc.gii')
 
+# Subjects without pilot
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
 # ###############################################
 
-# Note: These inputs are specific to the projection of the individual
-#       ROIs overlay
+# # Note: These inputs are specific to the projection of the individual
+# #       ROIs overlay
 
-# Overlay image (NIfTI)
-activation_map = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'roi_analyses_rwls_hrf128_wb_puncorr',
-    'all',
-    'dorsal_striatum',
-    'hos',
-    'overlaid_masks',
-    'i8a_dstr_bh_mask_gmmasked.nii.gz'
-)
+# # Overlay image (NIfTI)
+# activation_map = os.path.join(
+#     os.path.dirname(os.path.abspath(__file__)),
+#     'roi_analyses_rwls_hrf128_wb_puncorr',
+#     'all',
+#     'dorsal_striatum',
+#     'hos',
+#     'overlaid_masks',
+#     'i8a_dstr_bh_mask_gmmasked.nii.gz'
+# )
 
-# Output folder for HTML
-outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'results', 'irois')
+# # Output folder for HTML
+# outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                               'results', 'irois')
+# outfile_prefix = 'iroi_dstr_surf'
 
-# Define threshold and intensity range.
-THRESHOLD = 1 / 31  # vmin
-VMAX = 1
+# # Define threshold and intensity range.
+# THRESHOLD = 1 / len(SUBJECTS)  # vmin
+# VMAX = 1
 
-OVERLAY_CMAP = 'cividis'
+# OVERLAY_CMAP = 'cividis'
 
 # ###############################################
 
 # Note: These inputs are specific to the projection of the contrast
 #       "Encoding vs. Rest"
+
+home = os.path.expanduser('~')
+derivatives_folder = os.path.join(
+    home,
+    'diedrichsen_data',
+    'data',
+    'Cerebellum',
+    'music-sdtb',
+    'derivatives'
+)
+group_folder = os.path.join(derivatives_folder, 'group')
+wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
+
+volfile_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'results', 'volume_files')
+activation_map = os.path.join(volfile_folder,
+                              'group_allmain-tasks_encoding_wb_zmap.nii')
+
+THRESHOLD, VMAX = compute_zmap(derivatives_folder, SUBJECTS, 'allmain_tasks',
+                               1, wb_gmask_path, activation_map,
+                               threshold=.05)
+
+# Output folder for HTML
+outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'results', 'control_contrasts')
+outfile_prefix = 'group_allmain-tasks_encoding_dstr'
+
+OVERLAY_CMAP = 'viridis'
+
 
 # ============================ RUN =====================================
 
@@ -540,8 +631,9 @@ if __name__ == "__main__":
         )
 
         # Define output HTML file path.
-        output_html_path = os.path.join(outputs_folder,
-                                        f'iroi_dstr_surf_{hem}.html')
+        output_html_path = os.path.join(
+            outputs_folder, outfile_prefix + '_' + hem + '.html')
+
         pio.write_html(fig, output_html_path)
         print(f'Interactive HTML saved at: {output_html_path}')
         fig.show()
