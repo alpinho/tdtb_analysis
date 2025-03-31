@@ -1,7 +1,7 @@
 """
-Script to project cluster of activation in the basal ganglia with a refined
-and smoothed surface mesh for smoother visualization (no additional smoothing
-of the projected data is applied).
+Script to project cluster of activation in the basal ganglia with a
+ refined and smoothed surface mesh for smoother visualization
+ (no additional smoothing of the projected data is applied).
 
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
@@ -15,13 +15,14 @@ Compatibility: Python 3.10.16, nilearn 0.11.1
 import os
 import nibabel as nib
 import numpy as np
+
 import plotly.graph_objects as go
+import plotly.io as pio
+import trimesh
 
 from scipy.ndimage import map_coordinates
 from nilearn.image import load_img
-from nilearn.surface import vol_to_surf, load_surf_mesh
-import trimesh
-import trimesh.smoothing
+from nilearn.surface import load_surf_mesh
 
 
 # ========================== HELPER FUNCTIONS ==========================
@@ -60,17 +61,20 @@ def smooth_surf_data_custom(data, coords, faces, n_iter=5):
         for i in range(n_vertices):
             neigh = list(neighbors[i])
             if neigh:
-                new_data[i] = (smoothed_data[i] + np.mean(smoothed_data[neigh])) / 2.0
+                new_data[i] = (
+                    smoothed_data[i] + np.mean(smoothed_data[neigh])
+                ) / 2.0
             else:
                 new_data[i] = smoothed_data[i]
         smoothed_data = new_data
+
     return smoothed_data
 
 
 def max_preserving_smooth(data, size=3, sigma=1):
     """
-    Smooth data with a maximum filter followed by a Gaussian filter so that peak
-    values are preserved while noise is reduced.
+    Smooth data with a maximum filter followed by a Gaussian filter so
+    that peak values are preserved while noise is reduced.
     
     Parameters
     ----------
@@ -89,20 +93,24 @@ def max_preserving_smooth(data, size=3, sigma=1):
     from scipy.ndimage import maximum_filter, gaussian_filter
     data_max = maximum_filter(data, size=size)
     data_smooth = gaussian_filter(data_max, sigma=sigma)
+
     return data_smooth
 
 
-def refine_and_smooth_mesh(surf_gii_path, output_path, iterations=1, lamb=0.5, smooth_iters=10):
+def refine_and_smooth_mesh(surf_gii_path, output_path, iterations=1, lamb=0.5,
+                           smooth_iters=10):
     """
-    Refines a surface mesh by subdividing its triangles and then applies Laplacian
-    smoothing to reduce high-frequency variations, yielding a smoother geometry.
+    Refines a surface mesh by subdividing its triangles and then applies
+    Laplacian smoothing to reduce high-frequency variations, yielding a
+    smoother geometry.
 
     Parameters
     ----------
     surf_gii_path : str
         Path to the input surface GIFTI (.surf.gii) file.
     output_path : str
-        Path where the refined & smoothed surface GIFTI file will be saved.
+        Path where the refined & smoothed surface GIFTI file will be
+        saved.
     iterations : int, optional
         Number of subdivision iterations to perform. Default is 1.
     lamb : float, optional
@@ -124,7 +132,8 @@ def refine_and_smooth_mesh(surf_gii_path, output_path, iterations=1, lamb=0.5, s
     for _ in range(iterations):
         mesh = mesh.subdivide()
     # Apply Laplacian smoothing.
-    trimesh.smoothing.filter_laplacian(mesh, lamb=lamb, iterations=smooth_iters)
+    trimesh.smoothing.filter_laplacian(mesh, lamb=lamb,
+                                       iterations=smooth_iters)
     refined_coords = mesh.vertices.astype(np.float32)
     refined_faces = mesh.faces.astype(np.int32)
     refined_surf = nib.gifti.GiftiImage()
@@ -137,13 +146,15 @@ def refine_and_smooth_mesh(surf_gii_path, output_path, iterations=1, lamb=0.5, s
     refined_surf.add_gifti_data_array(da_coords)
     refined_surf.add_gifti_data_array(da_faces)
     nib.save(refined_surf, output_path)
+
     return refined_coords, refined_faces
 
 
-def build_surf_gii(coord_path, topo_path, output_path, spec_file_path=None, spec_info=None):
+def build_surf_gii(coord_path, topo_path, output_path, spec_file_path=None,
+                   spec_info=None):
     """
-    Build a complete surf.gii file by combining coordinate and topology GIFTI files,
-    optionally embedding spec information as metadata.
+    Build a complete surf.gii file by combining coordinate and topology
+    GIFTI files, optionally embedding spec information as metadata.
 
     Parameters
     ----------
@@ -167,9 +178,11 @@ def build_surf_gii(coord_path, topo_path, output_path, spec_file_path=None, spec
     topo_img = nib.load(topo_path)
     faces = topo_img.darrays[0].data.astype(np.int32)
     surf_img = nib.gifti.GiftiImage()
-    da_coords = nib.gifti.GiftiDataArray(data=coords, intent='NIFTI_INTENT_POINTSET')
+    da_coords = nib.gifti.GiftiDataArray(data=coords,
+                                         intent='NIFTI_INTENT_POINTSET')
     surf_img.add_gifti_data_array(da_coords)
-    da_faces = nib.gifti.GiftiDataArray(data=faces, intent='NIFTI_INTENT_TRIANGLE')
+    da_faces = nib.gifti.GiftiDataArray(data=faces,
+                                        intent='NIFTI_INTENT_TRIANGLE')
     surf_img.add_gifti_data_array(da_faces)
     if spec_file_path is not None and os.path.isfile(spec_file_path):
         if spec_file_path.lower().endswith('.gii'):
@@ -194,8 +207,9 @@ def build_surf_gii(coord_path, topo_path, output_path, spec_file_path=None, spec
 
 def compute_sulc_gii(surf_gii_path, sulc_gii_path):
     """
-    Computes a simple vertex-wise curvature measure (proxy for sulcal depth)
-    from a surf.gii file and saves it as a sulc.gii file.
+    Computes a simple vertex-wise curvature measure
+    (proxy for sulcal depth) from a surf.gii file and saves it as a
+    sulc.gii file.
 
     Parameters
     ----------
@@ -254,12 +268,15 @@ def create_inner_mesh(surf_gii_path, scale=0.95, output_path=None):
     faces = surf.darrays[1].data.astype(np.int32)
     inner_coords = coords * scale
     inner_mesh = nib.gifti.GiftiImage()
-    da_coords = nib.gifti.GiftiDataArray(data=inner_coords, intent='NIFTI_INTENT_POINTSET')
-    da_faces = nib.gifti.GiftiDataArray(data=faces, intent='NIFTI_INTENT_TRIANGLE')
+    da_coords = nib.gifti.GiftiDataArray(data=inner_coords,
+                                         intent='NIFTI_INTENT_POINTSET')
+    da_faces = nib.gifti.GiftiDataArray(data=faces,
+                                        intent='NIFTI_INTENT_TRIANGLE')
     inner_mesh.add_gifti_data_array(da_coords)
     inner_mesh.add_gifti_data_array(da_faces)
     if output_path is not None:
         nib.save(inner_mesh, output_path)
+
     return inner_mesh
 
 
@@ -267,8 +284,8 @@ def vol_to_surf_max(nifti_img, surf_mesh, inner_mesh, n_samples=20,
                     extrapolation_factor=1.0):
     """
     Custom volume-to-surface projection using maximum intensity sampling.
-    Samples along the line from pial to inner (extended by extrapolation_factor)
-    and returns the maximum intensity.
+    Samples along the line from pial to inner
+    (extended by extrapolation_factor) and returns the maximum intensity.
 
     Parameters
     ----------
@@ -286,7 +303,8 @@ def vol_to_surf_max(nifti_img, surf_mesh, inner_mesh, n_samples=20,
     Returns
     -------
     proj_data : np.ndarray
-        Array of shape (n_vertices,) with the maximum intensity per vertex.
+        Array of shape (n_vertices,) with the maximum intensity per
+        vertex.
     """
     vol_data = nifti_img.get_fdata()
     affine = nifti_img.affine
@@ -305,6 +323,7 @@ def vol_to_surf_max(nifti_img, surf_mesh, inner_mesh, n_samples=20,
         sampled_values = map_coordinates(vol_data, voxel_coords.T,
                                          order=1, mode='nearest')
         proj_data[idx] = np.max(sampled_values)
+
     return proj_data
 
 
@@ -316,8 +335,10 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
                              lighting_params=None, title="3D Surface"):
     """
     Render a surface with two layers:
-      1. A background layer (e.g., sulcal depth) displayed in a lighter gray texture.
-      2. An activation overlay (only for faces with all vertices >= threshold).
+      1. A background layer (e.g., sulcal depth) displayed in a lighter
+         gray texture.
+      2. An activation overlay (only for faces with all
+         vertices >= threshold).
 
     Parameters
     ----------
@@ -326,7 +347,8 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
     surf_map : np.ndarray
         Activation data per vertex.
     bg_map : str or np.ndarray
-        Background data (e.g., sulcal values); if a string, treated as file path.
+        Background data (e.g., sulcal values); if a string, treated as
+        file path.
     threshold : float
         Activation threshold.
     vmin : float
@@ -420,6 +442,7 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
         margin=dict(l=0, r=0, t=50, b=0)
     )
     fig = go.Figure(data=[background_mesh, overlay_mesh], layout=layout)
+    
     return fig
 
 
@@ -433,14 +456,16 @@ lh_dstr_coord_path = os.path.join(dstr_meshes_folder, "lh.striatum.coord.gii")
 lh_dstr_topo_path = os.path.join(dstr_meshes_folder, "lh.striatum.topo.gii")
 lh_dstr_spec_path = os.path.join(dstr_meshes_folder, "lh.striatum.spec.gii")
 lh_dstr_surf_path = os.path.join(dstr_meshes_folder, "lh.dstr.surf.gii")
-lh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder, "lh.dstr-inner.surf.gii")
+lh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
+                                       "lh.dstr-inner.surf.gii")
 lh_dstr_sulc_path = os.path.join(dstr_meshes_folder, "lh.dstr.sulc.gii")
 
 rh_dstr_coord_path = os.path.join(dstr_meshes_folder, "rh.striatum.coord.gii")
 rh_dstr_topo_path = os.path.join(dstr_meshes_folder, "rh.striatum.topo.gii")
 rh_dstr_spec_path = os.path.join(dstr_meshes_folder, "rh.striatum.spec.gii")
 rh_dstr_surf_path = os.path.join(dstr_meshes_folder, "rh.dstr.surf.gii")
-rh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder, "rh.dstr-inner.surf.gii")
+rh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
+                                       "rh.dstr-inner.surf.gii")
 rh_dstr_sulc_path = os.path.join(dstr_meshes_folder, "rh.dstr.sulc.gii")
 
 lh_dstr_overlay_masks_path = os.path.join(
@@ -453,6 +478,9 @@ lh_dstr_overlay_masks_path = os.path.join(
     "i8a_dstr_bh_mask_gmmasked.nii.gz"
 )
 
+# Relative path for output folder
+irois_folder = 'results/irois'
+
 
 # ============================ RUN =====================================
 
@@ -463,7 +491,8 @@ if __name__ == "__main__":
     # Compute sulc GIFTI file for left hemisphere.
     compute_sulc_gii(lh_dstr_surf_path, lh_dstr_sulc_path)
     # Refine the surface mesh to increase vertex density and smooth geometry.
-    refined_surf_path = os.path.join(dstr_meshes_folder, "lh.striatum.refined_smoothed.surf.gii")
+    refined_surf_path = os.path.join(dstr_meshes_folder,
+                                     "lh.striatum.refined_smoothed.surf.gii")
     refine_and_smooth_mesh(lh_dstr_surf_path, refined_surf_path, iterations=2,
                            lamb=.5, smooth_iters=15)
     # Create an inner mesh from the refined (and smoothed) surface.
@@ -476,7 +505,7 @@ if __name__ == "__main__":
     # Project the overlay volume onto the refined left hemisphere surface.
     lh_surf_data = vol_to_surf_max(lh_dstr_overlay_img, refined_surf_path,
                                    lh_dstr_inner_surf_path,
-                                   n_samples=10, extrapolation_factor=10.)
+                                   n_samples=10, extrapolation_factor=5.)
 
     # Define activation threshold and intensity range.
     threshold = 1 / 31
@@ -496,8 +525,14 @@ if __name__ == "__main__":
         bg_smoothing_iterations=0,
         lighting_params=dict(ambient=0.4, diffuse=0.8,
                              specular=0.3, roughness=0.2),
-        title="3D Basal Ganglia: Activation with Refined & Smoothed Surface"
+        title="3D Basal Ganglia: Fraction of Participants"
     )
 
-    # Display the figure in the browser.
+    # Define the output HTML file path
+    output_html_path = os.path.join( irois_folder, "iroi_dstr_surf_lh.html")
+
+    # Save the figure as an interactive HTML file
+    pio.write_html(fig, output_html_path)
+
+    # Display the figure in the browser
     fig.show()
