@@ -304,7 +304,7 @@ def vol_to_surf_max(nifti_img, surf_mesh, inner_mesh, n_samples=20,
 
 
 def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
-                             vmax, overlay_colorscale="viridis",
+                             vmax, overlay_colorscale='viridis',
                              bg_colorscale=[[0, "rgb(200,200,200)"],
                                             [1, "rgb(240,240,240)"]],
                              bg_smoothing_iterations=0,
@@ -379,7 +379,7 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
         showscale=False,
         opacity=1,
         flatshading=False,
-        name="Sulc Background"
+        name='Sulc Background'
     )
 
     active_face_mask = np.all(surf_map[faces] >= threshold, axis=1)
@@ -396,9 +396,9 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
         cmin=vmin,
         cmax=vmax,
         showscale=True,
-        colorbar=dict(title="Activation"),
+        colorbar=dict(title='Activation'),
         opacity=1,
-        name="Activation Overlay"
+        name='Activation Overlay'
     )
 
     if lighting_params is None:
@@ -413,7 +413,7 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
             xaxis=dict(visible=False),
             yaxis=dict(visible=False),
             zaxis=dict(visible=False),
-            aspectmode="data"
+            aspectmode='data'
         ),
         margin=dict(l=0, r=0, t=50, b=0)
     )
@@ -424,48 +424,48 @@ def custom_view_surf_with_bg(surf_gii_path, surf_map, bg_map, threshold, vmin,
 # ============================ INPUTS ===================================
 
 dstr_meshes_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "dstr_meshes"
+    os.path.dirname(os.path.abspath(__file__)), 'dstr_meshes'
 )
 
 # Original CARET files (for coordinates, topology, spec)
-lh_dstr_coord_path = os.path.join(dstr_meshes_folder, "lh.striatum.coord.gii")
-lh_dstr_topo_path = os.path.join(dstr_meshes_folder, "lh.striatum.topo.gii")
-lh_dstr_spec_path = os.path.join(dstr_meshes_folder, "lh.striatum.spec.gii")
+lh_dstr_coord_path = os.path.join(dstr_meshes_folder, 'lh.striatum.coord.gii')
+lh_dstr_topo_path = os.path.join(dstr_meshes_folder, 'lh.striatum.topo.gii')
+lh_dstr_spec_path = os.path.join(dstr_meshes_folder, 'lh.striatum.spec.gii')
 
-rh_dstr_coord_path = os.path.join(dstr_meshes_folder, "rh.striatum.coord.gii")
-rh_dstr_topo_path = os.path.join(dstr_meshes_folder, "rh.striatum.topo.gii")
-rh_dstr_spec_path = os.path.join(dstr_meshes_folder, "rh.striatum.spec.gii")
+rh_dstr_coord_path = os.path.join(dstr_meshes_folder, 'rh.striatum.coord.gii')
+rh_dstr_topo_path = os.path.join(dstr_meshes_folder, 'rh.striatum.topo.gii')
+rh_dstr_spec_path = os.path.join(dstr_meshes_folder, 'rh.striatum.spec.gii')
 
 # Surface and related files
-lh_dstr_surf_path = os.path.join(dstr_meshes_folder, "lh.dstr.surf.gii")
+lh_dstr_surf_path = os.path.join(dstr_meshes_folder, 'lh.dstr.surf.gii')
 lh_dstr_rs_surf_path = os.path.join(dstr_meshes_folder,
-                                    "lh.striatum.refined_smoothed.surf.gii")
+                                    'lh.dstr.refined.surf.gii')
 lh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
-                                       "lh.dstr-inner.surf.gii")
+                                       'lh.dstr-inner.surf.gii')
 # Compute sulc from the refined surface for consistent vertex count
-lh_dstr_sulc_path = os.path.join(dstr_meshes_folder, "lh.dstr.sulc.gii")
+lh_dstr_sulc_path = os.path.join(dstr_meshes_folder, 'lh.dstr.sulc.gii')
 
-rh_dstr_surf_path = os.path.join(dstr_meshes_folder, "rh.dstr.surf.gii")
+rh_dstr_surf_path = os.path.join(dstr_meshes_folder, 'rh.dstr.surf.gii')
 rh_dstr_rs_surf_path = os.path.join(dstr_meshes_folder,
-                                    "rh.striatum.refined_smoothed.surf.gii")
+                                    'rh.dstr.refined.surf.gii')
 rh_dstr_inner_surf_path = os.path.join(dstr_meshes_folder,
-                                       "rh.dstr-inner.surf.gii")
-rh_dstr_sulc_path = os.path.join(dstr_meshes_folder, "rh.dstr.sulc.gii")
+                                       'rh.dstr-inner.surf.gii')
+rh_dstr_sulc_path = os.path.join(dstr_meshes_folder, 'rh.dstr.sulc.gii')
 
 # Overlay image (NIfTI)
 bh_dstr_overlay_masks_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    "roi_analyses_rwls_hrf128_wb_puncorr",
-    "all",
-    "dorsal_striatum",
-    "hos",
-    "overlaid_masks",
-    "i8a_dstr_bh_mask_gmmasked.nii.gz"
+    'roi_analyses_rwls_hrf128_wb_puncorr',
+    'all',
+    'dorsal_striatum',
+    'hos',
+    'overlaid_masks',
+    'i8a_dstr_bh_mask_gmmasked.nii.gz'
 )
 
 # Output folder for HTML
 outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "results", "irois")
+                              'results', 'irois')
 
 # Define threshold and intensity range.
 threshold = 1 / 31
@@ -484,7 +484,7 @@ if __name__ == "__main__":
             [lh_dstr_rs_surf_path, rh_dstr_rs_surf_path],
             [lh_dstr_inner_surf_path, rh_dstr_inner_surf_path],
             [lh_dstr_sulc_path, rh_dstr_sulc_path],
-            ["lh", "rh"]):
+            ['lh', 'rh']):
 
         # Build the original surface.
         build_surf_gii(coord, topo, surf, spec_file_path=spec)
@@ -507,11 +507,10 @@ if __name__ == "__main__":
         sulc_data = sulc_img.darrays[0].data
         if surf_data.shape != sulc_data.shape:
             print(
-                f"Shape mismatch: "
-                f"surf_data {surf_data.shape} vs. "
-                f"sulc_data {sulc_data.shape}"
+                f'Shape mismatch: '
+                f'surf_data {surf_data.shape} vs. '
+                f'sulc_data {sulc_data.shape}'
             )
-
 
         # Create the custom Plotly figure.
         fig = custom_view_surf_with_bg(
@@ -521,17 +520,17 @@ if __name__ == "__main__":
             threshold=threshold,
             vmin=vmin,
             vmax=vmax,
-            overlay_colorscale="cividis",
-            bg_colorscale=[[0, "rgb(200,200,200)"], [1, "rgb(240,240,240)"]],
-            bg_smoothing_iterations=5,
+            overlay_colorscale='cividis',
+            bg_colorscale=[[0, 'rgb(200,200,200)'], [1, 'rgb(240,240,240)']],
+            bg_smoothing_iterations=0,
             lighting_params=dict(ambient=0.4, diffuse=0.8, specular=0.3,
                                  roughness=0.2),
-            title="3D Dorsal Striatum"
+            title='3D Dorsal Striatum'
         )
 
         # Define output HTML file path.
         output_html_path = os.path.join(outputs_folder,
                                         f'iroi_dstr_surf_{hem}.html')
         pio.write_html(fig, output_html_path)
-        print(f"Interactive HTML saved at: {output_html_path}")
+        print(f'Interactive HTML saved at: {output_html_path}')
         fig.show()
