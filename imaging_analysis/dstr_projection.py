@@ -7,7 +7,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 30th of March 2025
-Last Update: March 2025
+Last Update: April 2025
 
 Compatibility: Python 3.10.16, nilearn 0.11.1
 """
@@ -78,6 +78,7 @@ def smooth_surf_data_custom(data, coords, faces, n_iter=5):
             else:
                 new_data[i] = smoothed_data[i]
         smoothed_data = new_data
+
     return smoothed_data
 
 
@@ -237,7 +238,8 @@ def compute_sulc_gii(surf_gii_path, sulc_gii_path):
 
 def create_inner_mesh(surf_gii_path, scale=0.95, output_path=None):
     """
-    Creates a pseudo inner mesh by scaling vertex coordinates inward.
+    Creates a pseudo inner mesh by shifting the mesh to its centroid,
+    scaling inward, then shifting back.
 
     Parameters
     ----------
@@ -256,62 +258,169 @@ def create_inner_mesh(surf_gii_path, scale=0.95, output_path=None):
     surf = nib.load(surf_gii_path)
     coords = surf.darrays[0].data
     faces = surf.darrays[1].data.astype(np.int32)
-    inner_coords = coords * scale
+
+    # 1) Compute the centroid of the vertices (mean of coords).
+    centroid = coords.mean(axis=0)
+
+    # 2) Shift the mesh so that centroid is at origin.
+    shifted_coords = coords - centroid
+
+    # 3) Scale the shifted mesh.
+    scaled_coords = shifted_coords * scale
+
+    # 4) Shift back by adding the centroid.
+    inner_coords = scaled_coords + centroid
+
+    # 5) Build the new GIFTI for the inner mesh.
     inner_mesh = nib.gifti.GiftiImage()
-    da_coords = nib.gifti.GiftiDataArray(data=inner_coords,
-                                         intent='NIFTI_INTENT_POINTSET')
-    da_faces = nib.gifti.GiftiDataArray(data=faces,
-                                        intent='NIFTI_INTENT_TRIANGLE')
+    da_coords = nib.gifti.GiftiDataArray(
+        data=inner_coords, intent="NIFTI_INTENT_POINTSET"
+    )
+    da_faces = nib.gifti.GiftiDataArray(
+        data=faces, intent="NIFTI_INTENT_TRIANGLE"
+    )
     inner_mesh.add_gifti_data_array(da_coords)
     inner_mesh.add_gifti_data_array(da_faces)
+
+    # 6) Optionally, save if an output path is specified.
     if output_path is not None:
         nib.save(inner_mesh, output_path)
+
     return inner_mesh
 
 
-def vol_to_surf_max(nifti_img, surf_mesh, inner_mesh, n_samples=20,
-                    extrapolation_factor=1.0):
+def vol_to_surf(nifti_img,
+                outer_mesh,
+                inner_mesh,
+                method='single_nearest',
+                n_samples=20,
+                extrapolation_factor=1.0
+                ):
     """
-    Custom volume-to-surface projection using maximum intensity
-    sampling. Samples along the line from outer to inner (extended by
-    extrapolation_factor) and returns the maximum intensity per vertex.
+    A single function that supports three main volume-to-surface
+    projection approaches:
+      1) Single-sample nearest neighbor ('single_nearest')
+      2) Single-sample trilinear ('single_linear')
+      3) Multi-sample line maximum-intensity projection with nearest
+         neighbor ('multisample_max_nearest')
+      4) Multi-sample line maximum-intensity projection with trilinear
+         ('multisample_max_linear')
 
     Parameters
     ----------
     nifti_img : nibabel.Nifti1Image
-        Volume image from which to sample.
-    surf_mesh : str or tuple
-        outer surface mesh.
-    inner_mesh : str or tuple
-        Inner surface mesh (pseudo inner mesh).
+        A 3D or 4D volume from which to sample.
+    outer_mesh : str or (coords, faces)
+        The outer mesh (pial). If a filepath (e.g., a .gii file), loaded
+        via nilearn.surface.load_surf_mesh.
+    inner_mesh : str or (coords, faces)
+        The inner mesh. If a filepath, loaded similarly.
+        For single-sample approaches, inner_mesh is ignored.
+    method : {"single_nearest", "single_linear",
+              "multisample_max_nearest", "multisample_max_linear"}
+        Which approach to use:
+          - "single_nearest": single-sample from outer coords with
+                              nearest neighbor
+          - "single_linear": single-sample from outer coords with
+                             trilinear
+          - "multisample_max_nearest": multi-sample line from
+                                       outer->inner with nearest neighbor
+                                       at each sample, then take max
+          - "multisample_max_linear": multi-sample line from outer->inner
+                                      with trilinear at each sample, then
+                                      take max
     n_samples : int, optional
-        Number of sample points along the line (default 20).
+        Number of sample points along the line from outer to inner
+        (only used if method starts with "multisample_"). Default=20.
     extrapolation_factor : float, optional
-        Factor by which to extend the line (default 1.0).
+        Extends the line beyond the inner mesh. e.g., 1.0 = exactly
+        outer->inner, 1.5 = 50% beyond. Only used in multi-sample modes.
+        Default=1.0.
 
     Returns
     -------
-    proj_data : np.ndarray
-        Array of shape (n_vertices,) with the maximum intensity per
-        vertex.
+    proj_data : np.ndarray, shape (n_vertices,) or (n_vertices, n_volumes)
+        Projected intensity for each vertex. If the NIfTI is 4D, shape is
+        (n_vertices, n_volumes).
     """
-    vol_data = nifti_img.get_fdata()
+
+    vol_data = nifti_img.get_fdata()  # 3D or 4D
     affine = nifti_img.affine
     inv_affine = np.linalg.inv(affine)
-    pial = load_surf_mesh(surf_mesh)
-    inner = load_surf_mesh(inner_mesh)
-    pial_coords = pial[0]
-    inner_coords = inner[0]
-    n_vertices = pial_coords.shape[0]
-    proj_data = np.zeros(n_vertices, dtype=np.float64)
-    fractions = np.linspace(0, extrapolation_factor, n_samples)
-    for idx in range(n_vertices):
-        line_coords = (np.outer(1 - fractions, pial_coords[idx]) +
-                       np.outer(fractions, inner_coords[idx]))
-        voxel_coords = nib.affines.apply_affine(inv_affine, line_coords)
-        sampled_values = map_coordinates(vol_data, voxel_coords.T,
-                                         order=1, mode='nearest')
-        proj_data[idx] = np.amax(sampled_values)
+
+    # Decide interpolation order
+    if method in ("single_nearest", "multisample_max_nearest"):
+        order = 0  # nearest neighbor
+    elif method in ("single_linear", "multisample_max_linear"):
+        order = 1  # trilinear
+    else:
+        raise ValueError("Invalid method: " + method)
+
+    # Load outer mesh
+    outer = load_surf_mesh(outer_mesh)
+    outer_coords = outer[0]  # shape=(n_vertices,3)
+    n_vertices = outer_coords.shape[0]
+
+    # Prepare output array
+    if vol_data.ndim == 3:
+        proj_data = np.zeros(n_vertices, dtype=np.float64)
+    else:
+        # 4D => e.g. shape=(x, y, z, n_volumes)
+        n_vols = vol_data.shape[3]
+        proj_data = np.zeros((n_vertices, n_vols), dtype=np.float64)
+
+    # Case 1 & 2: Single-sample approach uses just the outer coords
+    if method.startswith("single_"):
+        # Convert outer_coords to voxel indices
+        voxel_coords = nib.affines.apply_affine(inv_affine, outer_coords)
+        # Sample the volume using the chosen interpolation order
+        sampled_values = map_coordinates(
+            vol_data,
+            voxel_coords.T,
+            order=order,
+            mode="nearest"
+        )
+        # shape => (n_vertices,) or (n_vertices, n_vols) if 4D
+        proj_data[:] = sampled_values
+
+    # Case 3 & 4: Multi-sample line approach with maximum-intensity
+    #             projection
+    else:
+        # We need to load the inner mesh
+        inner = load_surf_mesh(inner_mesh)
+        inner_coords = inner[0]
+
+        # Fractions from 0..extrapolation_factor
+        fractions = np.linspace(0, extrapolation_factor, n_samples)
+
+        for v in range(n_vertices):
+            pial_pt = outer_coords[v]
+            inner_pt = inner_coords[v]
+
+            # line_coords: shape (n_samples, 3)
+            line_coords = (
+                np.outer(1 - fractions, pial_pt) +
+                np.outer(fractions, inner_pt)
+            )
+
+            # Convert to voxel indices
+            voxel_coords = nib.affines.apply_affine(inv_affine, line_coords)
+
+            # Sample
+            sampled_values = map_coordinates(
+                vol_data,
+                voxel_coords.T,
+                order=order,
+                mode="nearest"
+            )
+            # shape => (n_samples,) or (n_samples, n_vols) if 4D
+
+            # Maximum-intensity projection along this line
+            if vol_data.ndim == 3:
+                proj_data[v] = sampled_values.max()
+            else:
+                proj_data[v] = sampled_values.max(axis=0)
+
     return proj_data
 
 
@@ -515,8 +624,8 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 
 # ###############################################
 
-# # Note: These inputs are specific to the projection of the individual
-# #       ROIs overlay
+# Note: These inputs are specific to the projection of the individual
+#       ROIs overlay
 
 # # Overlay image (NIfTI)
 # activation_map = os.path.join(
@@ -526,7 +635,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 #     'dorsal_striatum',
 #     'hos',
 #     'overlaid_masks',
-#     'i8a_dstr_bh_mask_gmmasked.nii.gz'
+#     'i8a_dstr_bh_mask.nii.gz'
 # )
 
 # # Output folder for HTML
@@ -596,13 +705,22 @@ if __name__ == "__main__":
         # Compute sulcal depth from the refined and smoothed surface
         compute_sulc_gii(rs_surf, sulc)
         # Create an inner mesh from the refined and smoothed surface
-        _ = create_inner_mesh(rs_surf, scale=0.95, output_path=inner_surf)
+        _ = create_inner_mesh(rs_surf, scale=.95, output_path=inner_surf)
 
         # Load the activation map
         dstr_activation_img = load_img(activation_map)
         # Project the overlay volume onto the refined surface.
-        surf_data = vol_to_surf_max(dstr_activation_img, rs_surf, inner_surf,
-                                    n_samples=10, extrapolation_factor=5.0)
+        # surf_data = vol_to_surf_max(dstr_activation_img, rs_surf, inner_surf,
+        #                             n_samples=1000, extrapolation_factor=0.)
+
+        surf_data = vol_to_surf(
+            dstr_activation_img,
+            rs_surf,
+            inner_surf, # ignored for single-sampled methods
+            method='multisample_max_linear',
+            n_samples=20,
+            extrapolation_factor=1.
+        )
 
         # Load sulcal data from the refined sulc file.
         sulc_img = nib.load(sulc)
