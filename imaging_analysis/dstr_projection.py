@@ -705,7 +705,7 @@ if __name__ == "__main__":
         # Compute sulcal depth from the refined and smoothed surface
         compute_sulc_gii(rs_surf, sulc)
         # Create an inner mesh from the refined and smoothed surface
-        _ = create_inner_mesh(rs_surf, scale=.95, output_path=inner_surf)
+        _ = create_inner_mesh(rs_surf, scale=.82, output_path=inner_surf)
 
         # Load the activation map
         dstr_activation_img = load_img(activation_map)
