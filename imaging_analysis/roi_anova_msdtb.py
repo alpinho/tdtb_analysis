@@ -823,31 +823,39 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
 
         ax.text(.4, .33, '95% CI for the Mean of PSC', size=7)
 
-        if hem == 'bh':
+        if hem == 'bh' and prefix == 'i8a':
+            # Define the annotation pairs.
+            # The x-axis shows the ROI names and...
+            # ... the hue splits the tasks.
+            # Here we assume that after replacing strings,...
+            # ... the two ROIs are: 'Dorsal Striatum' and 'Cerebellum'
+            pairs = [
+                (('Dorsal Striatum', 'Production'),
+                 ('Dorsal Striatum', 'Perception')),
+                (('Dorsal Striatum', 'Production'),
+                 ('Dorsal Striatum', 'NTFD')),
+                (('Cerebellum', 'Production'),
+                 ('Cerebellum', 'NTFD'))
+            ]
 
-            # Annotate
-            # rois = np.flip(np.unique(df.ROI.values))
-            # pairs = [[[(str(roi), 'Production'), (str(roi), 'Perception')],
-            #           [(str(roi), 'Production'), (str(roi), 'NTFD')],
-            #           [(str(roi), 'Perception'), (str(roi), 'NTFD')]]
-            #          for roi in rois]
+            # Set p-values to trigger the desired star labels.
+            # pval_label_converter (in this script) assigns:
+            #   p <= 0.0001  -> "****"
+            #   0.001 < p <= 0.01 -> "***"
+            # Here we use very small numbers to force the desired labels.
+            p_values = [0.00005, 0.00005, 0.00262111649852554]
 
-            # pairs = list(chain.from_iterable(pairs))
-
-            # annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
-            #                       hue='Task')
-
-            # annotator.configure(
-            #     test=None,
-            #     text_format="star", # text_format="simple"
-            #     # test_short_name="pttest", # if former is "simple"
-            #     fontsize=10., hide_non_significant=True)
-
-            # annotator.set_pvalues([0.207254325877246, 0.00751591163809919,
-            #                        0.0939423736958822, 0.0306539507348838,
-            #                        0.00000001279586027571, 0.00000000050751689771])
-
-            # annotator.annotate()
+            # Create the Annotator object from statannotations.
+            annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
+                                  order=['Dorsal Striatum', 'Cerebellum'],
+                                  hue='Task',
+                                  hue_order=['Production', 'Perception', 'NTFD'])
+            annotator.configure(test=None,
+                                text_format="star",  # show stars instead of p-value numbers
+                                fontsize=10,
+                                hide_non_significant=True)
+            annotator.set_pvalues(p_values)
+            annotator.annotate()
 
             # Remove frame of legend
             ax.legend(frameon=False, loc=(.5, .8))
@@ -896,7 +904,9 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
     if modality:
         fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc_' + modality
     else:
-        fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc_both-modalitites'
+        fname = prefix + '_' + str(n_rois) + \
+            '-rois_2w_posthoc_both-modalitites'
+
     plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
 
@@ -934,7 +944,9 @@ hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
 # hrf_cutoff = 'hrf128_timederiv'
 # hrf_cutoff = 'hrf128_timedispderiv'
 
-roi_dir = os.path.join(working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff + '_' + masking)
+roi_dir = os.path.join(
+    working_dir,
+    'roi_analyses_' + model + '_' + hrf_cutoff + '_' + masking + '_puncorr')
 
 # ### Define number of ROIs of the analysis ###
 # All ROIs: 7 ROIs
