@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 5, 2024
-Last update: February, 2025
+Last update: April, 2025
 
 Compatibility: Python 3.10.14
 """
@@ -121,13 +121,15 @@ def plot_pttest(data_audio, data_visual,
                             text_format="star",
                             # test_short_name="pttest",
                             fontsize=10.,
-                            hide_non_significant=False,
-                            loc=loc)
+                            hide_non_significant=True,
+                            loc=loc,
+                            line_offset_to_group=1.,  # try values like 0.1, 0.15, 0.2
+                            line_height=0.05) # vertical space between stacked annotations
         annotator.set_pvalues(pvalue)
         annotator.annotate()
 
         # Set limits of y-axis
-        ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
+        ax[m].set_ylim(bottom=ylim_b, top=750)
 
         if m ==1:
             # Remove labels and ticks
