@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 26th of March 2025
-Last Update: March 2025
+Last Update: May 2025
 
 Compatibility: Python 3.10.16
 """
@@ -22,13 +22,13 @@ import matplotlib.pyplot as plt
 
 from nitools import spm
 from nilearn import image
-from nilearn.input_data import NiftiMasker
+from nilearn.maskers import NiftiMasker
 
 
 # =========================== FUNCTIONS ================================
 
 def rsa_dataframe(subjects, task_models, base_dir, cond_mapping, output_path,
-                  glm_type='task_glm'):
+                  glm_type='grand_glm'):
     """Builds the inputs DataFrame, saves it, and returns it."""
 
     derivatives_dir = os.path.join(
@@ -243,8 +243,15 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
     return df
 
 
-def extract_roi_signals_from_dataframe(df_input, subjects, rois, tags):
-    # Load DataFrame if needed
+def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions, 
+                            atlases, rois, hems):
+    """
+    Extracts ROI signals and saves a 5D array per tag:
+    Shape = (hemispheres, subjects, conditions, runs, signals)
+    """
+
+    task_models = [t for t in task_models if t != 'allmain_tasks']
+
     if isinstance(df_input, str):
         df_unfiltered = pd.read_csv(df_input, sep='\t')
     elif isinstance(df_input, pd.DataFrame):
@@ -252,17 +259,85 @@ def extract_roi_signals_from_dataframe(df_input, subjects, rois, tags):
     else:
         raise ValueError("df_input must be a path or a pandas DataFrame.")
 
-    # Filter the DataFrame according to subjects list
-    df = df_unfiltered[df_unfiltered['subject'].isin(subjects)]
+    for region, atlas, roi in zip(regions, atlases, rois):
+        for tag in tags:
+            print(f"Processing tag: {tag}")
+           
+            # Get all unique condition names and run numbers
+            condition_names = sorted(df_unfiltered['condition_name'].unique())
+            run_numbers = sorted(df_unfiltered['run_number'].unique())
 
-    # Filter tasks
-    tasks = [t for t in tasks if t != 'allmain_tasks']
-    
-    # Loop over each tag and each ROI.
-    # for tag, wpair in zip(tags, weights_list):
-    #     for atlas_dirname, atlas_name, region_name, roi_name in zip(
-    #             atlas_dirnames, atlas_names, region_names, roi_names):
-        
+            C = len(condition_names)
+            R = len(run_numbers)
+            S = len(subjects)
+            H = len(hems)
+
+            # Placeholder to get signal dimensionality
+            first_mask_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                'roi_analyses_rwls_hrf128_wb_puncorr', 'all',
+                region, atlas, 'individual_roi_masks',
+                f'{tag}_sub-{subjects[0]:02d}_{roi}_{hems[0]}_mask.nii.gz'
+            )
+            first_masker = NiftiMasker(mask_img=first_mask_path, standardize=False)
+            first_df = df_unfiltered[df_unfiltered['subject'] == subjects[0]]
+            first_img = image.load_img(
+                first_df.iloc[0]['swmasked_betamap_prewhitened_path'])
+            example_signal = first_masker.fit_transform(first_img)
+            signal_dim = example_signal.shape[1]
+
+            # Initialize the 5D array
+            data_array = np.full((H, S, C, R, signal_dim), np.nan)
+
+            # Create lookup dictionaries
+            cond_idx = {cond: i for i, cond in enumerate(condition_names)}
+            run_idx = {run: i for i, run in enumerate(run_numbers)}
+            subj_idx = {subj: i for i, subj in enumerate(subjects)}
+            hem_idx = {hem: i for i, hem in enumerate(hems)}
+
+            # Loop over all combinations
+            for subject in subjects:
+                for hem in hems:
+                    iroi_mask_path = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        'roi_analyses_rwls_hrf128_wb_puncorr',
+                        'all', region, atlas,
+                        'individual_roi_masks',
+                        f'{tag}_sub-{subject:02d}_{roi}_{hem}_mask.nii.gz'
+                    )
+
+                    masker = NiftiMasker(mask_img=iroi_mask_path, standardize=False)
+
+                    df_subj = df_unfiltered[df_unfiltered['subject'] == subject]
+
+                    for _, row in df_subj.iterrows():
+                        condition = row['condition_name']
+                        run = row['run_number']
+                        betamap = image.load_img(
+                            row['swmasked_betamap_prewhitened_path'])
+                        signals = masker.fit_transform(betamap)
+
+                        # Insert into the array
+                        h = hem_idx[hem]
+                        s = subj_idx[subject]
+                        c = cond_idx[condition]
+                        r = run_idx[run]
+                        data_array[h, s, c, r, :] = signals
+
+            # Save array to disk
+            output_folder = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                'results', 'rsa', 'grandglm_roi_signals', region
+            )
+            os.makedirs(output_folder, exist_ok=True)
+
+            output_path = os.path.join(
+                output_folder,
+                f'grandglm_roi_signals_{roi}_{tag}.npy'
+            )
+            np.save(output_path, data_array)
+            print(f"Saved 5D signal array for tag '{tag}' to {output_path}")
+     
 
 # =========================== INPUTS ===================================
 
@@ -277,24 +352,21 @@ rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 # ########################### ROIs ######################################
 # All ROIs: 7 ROIs
-region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
-                'motor_area', 'motor_area', 'motor_area']
-atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-               'hmat', 'hmat', 'hmat']
-roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
-             'pmd', 'sma', 'presma']
+# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area']
+# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat']
+# roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
+#              'pmd', 'sma', 'presma']
 
-# Paths of ROIs
-# irois_paths = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-#                            'roi_analyses_rwls_hrf128_wb_puncorr',
-#                            'all',
-#                            region_name,
-#                            atlas_name)
+region_names = ['dorsal_striatum']
+atlas_names = ['hos']
+roi_names = ['dstr']
 
-# irois_masks_paths = os.path.join(irois_paths, 'individual_roi_masks')
-# irois_signals_paths = os.path.join(irois_paths, 'rois_extraction')
+# itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+itags = ['i8a']
 
-itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+hemispheres = ['bh']  # Both hemispheres
 
 # #######################################################################
 
@@ -304,11 +376,11 @@ home = os.path.expanduser('~')
 if home == '/home/analu':
     data_storage = os.path.join(home, 'diedrichsen_data')
 else:
-    assert home == '/home/ROBARTS/agrilopi'
-    data_storage = '/srv/diedrichsen'
+    assert home == '/home/UWO/agrilopi'
+    data_storage = '/cifs/diedrichsen'
 
-# Define tasks
-tasks = ['prod', 'percep', 'ntfd', 'allmain_tasks']
+# Define tasks in the glm
+glm_tasks = ['prod', 'percep', 'ntfd', 'allmain_tasks']
 
 # Define mapping for condition type abbreviations
 conditions_mapping = {
@@ -326,28 +398,32 @@ if __name__ == '__main__':
     os.makedirs(rsa_folder, exist_ok=True)
 
     # Paths of dataframes
-    db_taskglm_path = os.path.join(rsa_folder, 'rsa_taskglm.tsv')
+    # db_taskglm_path = os.path.join(rsa_folder, 'rsa_taskglm.tsv')
     db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm.tsv')
    
-    # Create dataframes
+    # # Create dataframes
     # db_taskglm = rsa_dataframe(
-    #     SUBJECTS, tasks, data_storage, conditions_mapping, db_taskglm_path,
-    #     glm_type='task_glm')
+    #     SUBJECTS, glm_tasks, data_storage, conditions_mapping,
+    #     db_taskglm_path, glm_type='task_glm')
     # db_grandglm = rsa_dataframe(
-    #     SUBJECTS, tasks, data_storage, conditions_mapping, db_grandglm_path,
-    #     glm_type='grand_glm')
+    #     SUBJECTS, glm_tasks, data_storage, conditions_mapping,
+    #     db_grandglm_path, glm_type='grand_glm')
 
-    # Prewhiten task glm beta maps and save them
+    # # Prewhiten task glm beta maps and save them
     # db_taskglm = prewhiten_betas(
     #     db_taskglm_path, SUBJECTS, data_storage, db_taskglm_path)
-    db_grandglm = prewhiten_betas(
-        db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path)
 
-    # Prewhiten grand glm beta maps and save them
+    # # Prewhiten grand glm beta maps and save them
+    # db_grandglm = prewhiten_betas(
+    #     db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path)
 
     # Note: The next steps rely on prewhiten_beta_maps that were normalized,
     #       smoothed and masked. These steps were done in MATLAB.
 
+    # Open dataframes
+    # db_taskglm = pd.read_csv(db_taskglm_path)
+    db_grandglm = pd.read_csv(db_grandglm_path)
+
     # Extract signals from prewhitened data using the individualized ROIs
-    # extract_roi_signals_from_dataframe(db_taskglm_path, SUBJECTS, roi_names,
-    #                                    itags)
+    grandglm_roi_extraction(db_grandglm_path, glm_tasks, SUBJECTS, itags, 
+                            region_names, atlas_names, roi_names, hemispheres)
