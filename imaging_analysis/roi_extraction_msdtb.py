@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: March 2025
+Last update: May 2025
 
 Compatibility: Python 3.10.14
 
@@ -53,7 +53,10 @@ def threshold_map(con_val, thresh_min, thresh_max=None):
     return thresholded_con_val
 
 
-def binary_dilation_with_limit(image, target_count, gmask):
+def binary_dilation_with_limit(image, target_count, gmask, atlas_con):
+ 
+    target_count_0 = target_count
+
     s1, s2, s3 = np.random.choice(
         np.random.permutation(np.random.permutation(np.arange(1, 30))), 3)
     dilated_image = binary_dilation(image, mask=gmask,
@@ -73,9 +76,6 @@ def binary_dilation_with_limit(image, target_count, gmask):
         elif current_count > target_count:
             dilated_image = binary_erosion(dilated_image, mask=gmask,
                                            structure=np.ones((s1, s2, s3)))
-        else:
-            pass
-        print(current_count)
         current_count = np.count_nonzero(dilated_image)
 
         if n_iter == 100:
@@ -83,7 +83,21 @@ def binary_dilation_with_limit(image, target_count, gmask):
             target_count += 1
             n_iter = 0
 
-        print('Number of iterations: ', flag*100 + n_iter)
+        print('Number of iterations:', flag * 100 + n_iter)
+
+    # Post-process: reduce size if overgrown
+    if current_count > target_count_0:
+        # Get indices of all non-zero voxels in dilated image
+        voxel_indices = np.argwhere(dilated_image)
+        # Extract corresponding bin_msdtb_val values
+        voxel_values = atlas_con[tuple(voxel_indices.T)]
+        # Sort voxel indices by corresponding bin_msdtb_val values (ascending)
+        sorted_indices = voxel_indices[np.argsort(voxel_values)]
+        # Set lowest values to 0
+        excess = current_count - target_count_0
+        for i in range(excess):
+            x, y, z = sorted_indices[i]
+            dilated_image[x, y, z] = 0
 
     return dilated_image
 
@@ -171,8 +185,6 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
     dilation towards the group mask is performed.
     """
 
-    print(icon_path)
-
     # Load and remove NaNs from contrast map
     icon_val, _ = nonan_map(icon_path)
     gcon_val, gcon_map = nonan_map(gcon_path)
@@ -215,7 +227,7 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
             # Do dilation restricted to n_voxels
             gmask_val = gmask.get_fdata()
             dilated_mask_val = binary_dilation_with_limit(
-                bin_iroi_val, n_voxels, gmask_val)
+                bin_iroi_val, n_voxels, gmask_val, bin_msdtb_val)
             print('Dilation performed! ', np.count_nonzero(dilated_mask_val))
             iroi_mask = new_img_like(atlas_rmask, dilated_mask_val)
         # Do intersection
@@ -263,7 +275,6 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir,
 
         masked_con = os.path.join(subject_estimates_dir, task,
                                   derivatives_folder, contrast_fname)
-        # print(np.array(masked_con))
 
         # Extract mean average of contrasts effect-size in ROI...
         # ... for a certain participant
@@ -310,28 +321,23 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
             groi_dir,
             'g_msdtb_' + atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
 
-        if os.path.isfile(gencoding_atlasreg_maskpath):
-            gmask = load_img(gencoding_atlasreg_maskpath)
-            if hem in ['lh', 'rh']:
-                cluster_size = np.count_nonzero(gmask.get_fdata())
+        if hem in ['lh', 'rh']:
+            gmask, cluster_size = create_group_roimask(
+                group_tmap_path,
+                atlasreg_maskpath,
+                gencoding_atlasreg_maskpath, 
+                con_thresh_min=con_thresh_min)
         else:
-            if hem in ['lh', 'rh']:
-                gmask, cluster_size = create_group_roimask(
-                    group_tmap_path,
-                    atlasreg_maskpath,
-                    gencoding_atlasreg_maskpath, 
-                    con_thresh_min=con_thresh_min)
-            else:
-                assert hem == 'bh'
-                gmask_lh = os.path.join(
-                    groi_dir,
-                    'g_msdtb_' + atlas + '_' + roi + '_lh_mask.nii.gz')
-                gmask_rh = os.path.join(
-                    groi_dir,
-                    'g_msdtb_' + atlas + '_' + roi + '_rh_mask.nii.gz')
-                combine_masks(gmask_lh, gmask_rh, gencoding_atlasreg_maskpath)
-                gmask = load_img(gencoding_atlasreg_maskpath)
-
+            assert hem == 'bh'
+            gmask_lh = os.path.join(
+                groi_dir,
+                'g_msdtb_' + atlas + '_' + roi + '_lh_mask.nii.gz')
+            gmask_rh = os.path.join(
+                groi_dir,
+                'g_msdtb_' + atlas + '_' + roi + '_rh_mask.nii.gz')
+            combine_masks(gmask_lh, gmask_rh, gencoding_atlasreg_maskpath)
+            gmask = load_img(gencoding_atlasreg_maskpath)
+        
         # ### For each subject ###
         subjects_alltaskcon = []
         for subject in SUBJECTS:
@@ -343,7 +349,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                 '_mask.nii.gz') % subject
 
             # Create individual ROI masks
-            if weights == (0.,1.):
+            if weights == (0., 1.):
                 irmask = gmask
             else:
                 idx = [match.end()
@@ -399,11 +405,9 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
 if os.path.isdir('/home/analu/diedrichsen_data/data'):
     base_dir = '/home/analu/diedrichsen_data/data'
 else:
-    base_dir = '/srv/diedrichsen/data'
+    base_dir = '/cifs/diedrichsen/data'
 
 data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
-mask_wb = os.path.join(data_dir, 'group/anat/group_mask_noskull.nii')
-mask_gm = os.path.join(data_dir, 'group/anat/group_mask_gray.nii')
 
 # Subjects w/ pilot
 # SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21,
@@ -495,6 +499,11 @@ roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
 # atlas_names = ['hos', 'ntk_symmni128']
 # region_names = ['dorsal_striatum', 'cerebellum']
 # roi_names = ['dstr', 'cereb']
+
+# atlas_dirnames = [fsl_dir]
+# atlas_names = ['hos']
+# region_names = ['dorsal_striatum']
+# roi_names = ['dstr']
 
 # tags = ['i', 'a', 'g']
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
