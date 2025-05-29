@@ -215,14 +215,14 @@ sessions_dic = {'allses': 'All Sessions',
                 'behavses': 'Behavioral Sessions',
                 'imgses': 'Imaging Sessions'}
 
-subjects_dic = {'allses': BEHAVIMG_RAND_SUBJECTS,
+subjects_dic = {'allses': GOOD_SUBJECTS,
                 'ses-01': GOOD_SUBJECTS,
                 'ses-02': GOOD_SUBJECTS,
                 'ses-03': GOOD_SUBJECTS,
                 'ses-04': IMG_SUBJECTS,
                 'ses-05': IMG_SUBJECTS,
-                'behavses': BEHAVIMG_RAND_SUBJECTS,
-                'imgses': BEHAVIMG_RAND_SUBJECTS}
+                'behavses': GOOD_SUBJECTS,
+                'imgses': IMG_SUBJECTS}
 
 # %%
 # ============================ RUN =====================================

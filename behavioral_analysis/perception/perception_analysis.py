@@ -980,14 +980,14 @@ N_TRIALS = 30
 # tag = 'allses'
 
 # # ### For 'All Behavioral Sessionss' ###
-# SUBJECTS = BEHAVIMG_RAND_SUBJECTS
-# SESSIONS = [1, 2, 3]
-# tag = 'behavses'
+SUBJECTS = GOOD_SUBJECTS
+SESSIONS = [1, 2, 3]
+tag = 'behavses'
 
 # # ### For 'All Imaging Sessionss' ###
-SUBJECTS = BEHAVIMG_RAND_SUBJECTS
-SESSIONS = [4, 5]
-tag = 'imgses'
+# SUBJECTS = BEHAVIMG_RAND_SUBJECTS
+# SESSIONS = [4, 5]
+# tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
 # SUBJECTS = GOOD_SUBJECTS
