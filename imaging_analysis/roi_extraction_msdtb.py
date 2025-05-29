@@ -208,33 +208,46 @@ def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
 
     # Retain an ROI with the same size as the one found at the group level
     iroi_val = np.where(bin_msdtb_val, con_val, 0)
-    ithresh = np.sort(np.ravel(iroi_val))[::-1][n_voxels - 1]
-    iroi_val[iroi_val < ithresh] = 0
+    flat = iroi_val.ravel()
 
-    # Binarize individual ROI
-    bin_iroi_val = (iroi_val != 0)
+    # Get indices of the top n_voxels (largest values)
+    if np.count_nonzero(flat) >= n_voxels:
+        # Only consider non-zero values for the selection
+        nonzero_indices = np.flatnonzero(flat)
+        nonzero_values = flat[nonzero_indices]
+        # Get the indices of the top n_voxels among nonzero values
+        order = np.argpartition(nonzero_values, -n_voxels)[-n_voxels:]
+        selected_indices = nonzero_indices[order]
+        # Create a boolean mask with exactly n_voxels set to True
+        mask = np.zeros_like(flat, dtype=bool)
+        mask[selected_indices] = True
+        bin_iroi_val = mask.reshape(iroi_val.shape)
+    else:
+        # If not enough nonzero voxels, keep all nonzeros
+        bin_iroi_val = (iroi_val != 0)
 
-    # Test whether binarized roi is empty
+    # Test whether binarized individual roi is empty
+    n_selected = np.count_nonzero(bin_iroi_val)
     # If it is empty, take group mask
-    if not np.count_nonzero(bin_iroi_val):
+    if n_selected == 0:
         print('Binarized ROI is empty. Taking the group mask.')
         iroi_mask = gmask
-    # If it is not empty
+    # If smaller than the group mask, ...
+    elif n_selected < n_voxels:
+        # Do dilation restricted to n_voxels if you have that function, 
+        # or fallback
+        gmask_val = gmask.get_fdata()
+        dilated_mask_val = binary_dilation_with_limit(
+            bin_iroi_val, n_voxels, gmask_val, bin_msdtb_val)
+        print('Dilation performed! ', np.count_nonzero(dilated_mask_val))
+        iroi_mask = new_img_like(atlas_rmask, dilated_mask_val)
+    # If equal or bigger, ...
     else:
-        # Test whether individual has equal or bigger size than group mask
-        # If not, do dilation
-        if not ithresh:
-            # Do dilation restricted to n_voxels
-            gmask_val = gmask.get_fdata()
-            dilated_mask_val = binary_dilation_with_limit(
-                bin_iroi_val, n_voxels, gmask_val, bin_msdtb_val)
-            print('Dilation performed! ', np.count_nonzero(dilated_mask_val))
-            iroi_mask = new_img_like(atlas_rmask, dilated_mask_val)
-        # Do intersection
-        else:
-            print(np.count_nonzero(bin_iroi_val))
-            iroi_mask = new_img_like(atlas_rmask, bin_iroi_val)
+        # Do the intersection
+        print(np.count_nonzero(bin_iroi_val))
+        iroi_mask = new_img_like(atlas_rmask, bin_iroi_val)
 
+    # Store file
     iroi_mask.to_filename(iroi_maskpath)
 
     return iroi_mask
@@ -417,6 +430,8 @@ data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
 # Subjects without pilot
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+
+# SUBJECTS = [13]
 
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
