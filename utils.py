@@ -308,3 +308,22 @@ def mask_map(map_path, mask_path, masked_map_path):
 
     # Save the masked image
     masked_map_img.to_filename(masked_map_path + '.nii.gz')
+
+
+def combine_masks(maskpath1, maskpath2, combined_maskpath):
+
+    # Load
+    mask1 = load_img(maskpath1)
+    mask2 = load_img(maskpath2)
+
+    # Get data
+    mask1_val = mask1.get_fdata().astype(np.uint8)
+    mask2_val = mask2.get_fdata().astype(np.uint8)
+
+    # Merge masks in one single file
+    combined_mask_val = mask1_val + mask2_val
+    combined_mask_val[combined_mask_val == 2] = 1
+    combined_mask = new_img_like(mask1, combined_mask_val)
+
+    # Save file
+    combined_mask.to_filename(combined_maskpath)

@@ -9,7 +9,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 10th of March 2025
-Last Update: March 2025
+Last Update: June 2025
 
 Compatibility: Python 3.10.14
 """
@@ -380,8 +380,8 @@ dstr_folder = os.path.join(contrast_mask_folder, 'dorsal_striatum', 'hos',
 cerebellum_folder = os.path.join(contrast_mask_folder, 'cerebellum',
                                  'ntk_symmni128', 'cereb', 'rois_extraction')
 
-dstr_file = os.path.join(dstr_folder, 'i8a_dstr_psc.npy')
-cerebellum_file = os.path.join(cerebellum_folder, 'i8a_cereb_psc.npy')
+dstr_file = os.path.join(dstr_folder, 'i_dstr_psc.npy')
+cerebellum_file = os.path.join(cerebellum_folder, 'i_cereb_psc.npy')
 
 # ######################################################################
 

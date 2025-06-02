@@ -5,7 +5,7 @@ P-values profile of results obtained across different
 Author: Ana Luisa Pinho
 
 Created: 14th of March, 2025
-Last update: March 2025
+Last update: June 2025
 
 Compatibility: Python 3.10.14
 """
@@ -114,7 +114,7 @@ step = .005
 # ########################### PARAMETERS ################################
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
-anovas_dir = os.path.join(working_dir , 'roi_analyses_rwls_hrf128_wb',
+anovas_dir = os.path.join(working_dir, 'roi_analyses_rwls_hrf128_wb_puncorr',
                           encoding_mask_type, anova_type)
 output_dir = os.path.join(working_dir, 'results/pvalues_stability_plots')
 
@@ -198,6 +198,6 @@ if __name__ == '__main__':
     plot_pvalues(ws, p_corr_vals, pcorr_label, ycorr_min, ycorr_max,
                  6, output_path=pcorr_path)
 
-    # puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
-    # plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
-    #              4, output_path=puncorr_path)
+    puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
+    plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
+                 4, output_path=puncorr_path)

@@ -24,7 +24,7 @@ import plotly.io as pio
 import trimesh
 
 from scipy.ndimage import map_coordinates
-from nilearn.image import load_img
+from nilearn.image import load_img, smooth_img
 from nilearn.surface import load_surf_mesh
 from nilearn.maskers import NiftiMasker
 from nilearn.glm.second_level import SecondLevelModel
@@ -625,62 +625,65 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 # ###############################################
 
 # Note: These inputs are specific to the projection of the individual
-#       ROIs overlay
+#       ROIs overlay (i8a)
+#       For pure i__rois, manipulate scale of inner mesh, uncomment
+#       smoothing function and manipulate fwhm and change 
+#       extrapolation_factor from vol_to_surf function
 
-# # Overlay image (NIfTI)
-# activation_map = os.path.join(
-#     os.path.dirname(os.path.abspath(__file__)),
-#     'roi_analyses_rwls_hrf128_wb_puncorr',
-#     'all',
-#     'dorsal_striatum',
-#     'hos',
-#     'overlaid_masks',
-#     'i8a_dstr_bh_mask.nii.gz'
-# )
+# Overlay image (NIfTI)
+activation_map = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'roi_analyses_rwls_hrf128_wb_puncorr',
+    'all',
+    'dorsal_striatum',
+    'hos',
+    'overlaid_masks',
+    'i_dstr_bh_mask.nii.gz'
+)
 
-# # Output folder for HTML
-# outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-#                               'results', 'irois')
-# outfile_prefix = 'iroi_dstr_surf'
+# Output folder for HTML
+outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'results', 'irois')
+outfile_prefix = 'iroi_dstr_surf'
 
-# # Define threshold and intensity range.
-# THRESHOLD = 1 / len(SUBJECTS)  # vmin
-# VMAX = 1
+# Define threshold and intensity range.
+THRESHOLD = 1 / len(SUBJECTS)  # vmin
+VMAX = 1
 
-# OVERLAY_CMAP = 'cividis'
+OVERLAY_CMAP = 'cividis'
 
 # ###############################################
 
 # Note: These inputs are specific to the projection of the contrast
 #       "Encoding vs. Rest"
 
-home = os.path.expanduser('~')
-derivatives_folder = os.path.join(
-    home,
-    'diedrichsen_data',
-    'data',
-    'Cerebellum',
-    'music-sdtb',
-    'derivatives'
-)
-group_folder = os.path.join(derivatives_folder, 'group')
-wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
+# home = os.path.expanduser('~')
+# derivatives_folder = os.path.join(
+#     home,
+#     'diedrichsen_data',
+#     'data',
+#     'Cerebellum',
+#     'music-sdtb',
+#     'derivatives'
+# )
+# group_folder = os.path.join(derivatives_folder, 'group')
+# wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
 
-volfile_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'results', 'volume_files')
-activation_map = os.path.join(volfile_folder,
-                              'group_allmain-tasks_encoding_wb_zmap.nii')
+# volfile_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                               'results', 'volume_files')
+# activation_map = os.path.join(volfile_folder,
+#                               'group_allmain-tasks_encoding_wb_zmap.nii')
 
-THRESHOLD, VMAX = compute_zmap(derivatives_folder, SUBJECTS, 'allmain_tasks',
-                               1, wb_gmask_path, activation_map,
-                               threshold=.05)
+# THRESHOLD, VMAX = compute_zmap(derivatives_folder, SUBJECTS, 'allmain_tasks',
+#                                1, wb_gmask_path, activation_map,
+#                                threshold=.05)
 
-# Output folder for HTML
-outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'results', 'control_contrasts')
-outfile_prefix = 'group_allmain-tasks_encoding_dstr'
+# # Output folder for HTML
+# outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                               'results', 'control_contrasts')
+# outfile_prefix = 'group_allmain-tasks_encoding_dstr'
 
-OVERLAY_CMAP = 'viridis'
+# OVERLAY_CMAP = 'viridis'
 
 
 # ============================ RUN =====================================
@@ -709,10 +712,19 @@ if __name__ == "__main__":
 
         # Load the activation map
         dstr_activation_img = load_img(activation_map)
-        # Project the overlay volume onto the refined surface.
-        # surf_data = vol_to_surf_max(dstr_activation_img, rs_surf, inner_surf,
-        #                             n_samples=1000, extrapolation_factor=0.)
+        print(
+            f"Max value of smoothed volume data: "
+            + f"{np.amax(dstr_activation_img.get_fdata())}"
+        )   
 
+        # Smooth ROI data
+        # dstr_activation_img = smooth_img(dstr_activation_img, fwhm=3.6)
+        # print(
+        #     f"Max value of smoothed volume data: "
+        #     + f"{np.amax(dstr_activation_img.get_fdata())}"
+        # )   
+
+        # Project the activation map onto the refined surface mesh
         surf_data = vol_to_surf(
             dstr_activation_img,
             rs_surf,
@@ -720,6 +732,10 @@ if __name__ == "__main__":
             method='multisample_max_linear',
             n_samples=20,
             extrapolation_factor=1.
+        )
+        print(
+            f"Max value of surface data: "
+            + f"{np.amax(surf_data)}"
         )
 
         # Load sulcal data from the refined sulc file.
