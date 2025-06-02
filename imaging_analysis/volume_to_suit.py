@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of February 2025
-Last Update: March 2025
+Last Update: June 2025
 
 Compatibility: Python 3.10.14, SUITPy 1.3.2
 """
@@ -146,7 +146,7 @@ group_folder = os.path.join(derivatives_folder, 'group')
 wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
 
 iroi_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         'roi_analyses_rwls_hrf128_wb', 'all',
+                         'roi_analyses_rwls_hrf128_wb_puncorr', 'all',
                          'cerebellum', 'ntk_symmni128', 'cereb',
                          'overlaid_masks', 'i8a_cereb_bh_mask.nii.gz')
 
@@ -195,24 +195,24 @@ if __name__ == '__main__':
     os.makedirs(contrasts_folder, exist_ok=True)
     os.makedirs(irois_folder, exist_ok=True)
 
-    # Get z-values of group contrast in SUIT space
-    z_values = group_suit(group_folder, task_id, contrast_id, SUBJECTS,
-                          suit_folder)
+    # # Get z-values of group contrast in SUIT space
+    # z_values = group_suit(group_folder, task_id, contrast_id, SUBJECTS,
+    #                       suit_folder)
 
-    # Compute whole-brain fdr threshold of volumetric data
-    fdr_thresh, zmax = whole_brain_thresholds(
-        derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask_path)
+    # # Compute whole-brain fdr threshold of volumetric data
+    # fdr_thresh, zmax = whole_brain_thresholds(
+    #     derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask_path)
 
-    # Plot cerebellum encoding vs. rest stat flatmap
-    v_max = np.amax(z_values[~np.isnan(z_values)])
-    print(f'Maximum Z value is: {v_max}')
-    contrast_fname = (
-        f"group_{task_id.replace('_', '-')}_"
-        f"{contrast_name.lower().replace(' ', '-')}_suit.png"
-    )
-    contrast_fpath = os.path.join(contrasts_folder, contrast_fname)
-    plot_suitflat(z_values, fdr_thresh_encoding, contrast_fpath,
-                  vmax=zmax_encoding)
+    # # Plot cerebellum encoding vs. rest stat flatmap
+    # v_max = np.amax(z_values[~np.isnan(z_values)])
+    # print(f'Maximum Z value is: {v_max}')
+    # contrast_fname = (
+    #     f"group_{task_id.replace('_', '-')}_"
+    #     f"{contrast_name.lower().replace(' ', '-')}_suit.png"
+    # )
+    # contrast_fpath = os.path.join(contrasts_folder, contrast_fname)
+    # plot_suitflat(z_values, fdr_thresh_encoding, contrast_fpath,
+    #               vmax=zmax_encoding)
 
     # Plot cerebellum overlaid iroi
     iroi = nib.load(iroi_path)
