@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: May 2025
+Last update: June 2025
 
 Compatibility: Python 3.10.14
 
@@ -486,8 +486,8 @@ gtmap_visualencoding = os.path.join(data_dir, group_relative_path,
 
 #### Group-level cluster size
 
-# t_threshold = 3.385 ## for a Z value = 3.1 (p < 0.001 - one tail) and dof = 30 -1 (for one sample t-test)
-t_threshold = 2.91931699 ## for a Z value = 2.7166013496886174 (p < 0.05 FDR-corrected) and dof = 30 -1 (for one sample t-test)
+t_threshold = 3.385 ## for a Z value = 3.1 (p < 0.001 - one tail) and dof = 30 -1 (for one sample t-test)
+# t_threshold = 2.91931699 ## for a Z value = 2.7166013496886174 (p < 0.05 FDR-corrected) and dof = 30 -1 (for one sample t-test)
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 
