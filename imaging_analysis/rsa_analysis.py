@@ -243,13 +243,66 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
     return df
 
 
-def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions, 
-                            atlases, rois, hems):
+def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
+                            atlases, rois, hems, iroi_mask_dir):
     """
-    Extracts ROI signals and saves a 5D array per tag:
-    Shape = (hemispheres, subjects, conditions, runs, signals)
-    """
+    Extracts ROI signals for given subjects, tags, regions, and
+    hemispheres, saving a 5D array per tag.
 
+    The output array has shape:
+        (hemispheres, conditions, runs, subjects, voxels)
+
+    Parameters
+    ----------
+    df_input : str or pandas.DataFrame
+        Path to a tab-separated input file or a DataFrame containing
+        experimental data. Must include columns:
+        ['subject', 'condition_name', 'run_number',
+         'swmasked_betamap_prewhitened_path'].
+    task_models : list of str
+        List of task model names. 'allmain_tasks' will be excluded if
+        present.
+    subjects : list of int
+        List of subject identifiers.
+    tags : list of str
+        List of tags for which separate output arrays will be saved.
+    regions : list of str
+        List of region names to process
+        (matched with `atlases` and `rois`).
+    atlases : list of str
+        List of atlas names (matched with `regions` and `rois`).
+    rois : list of str
+        List of ROI names (matched with `regions` and `atlases`).
+    hems : list of str
+        List of hemisphere identifiers (e.g., ['lh', 'rh']).
+
+    Notes
+    -----
+    For each combination of region, atlas, roi, and tag, the function:
+        - Loads the corresponding ROI mask for each subject and
+          hemisphere.
+        - Extracts voxel values from the provided beta maps for each
+          subject, condition, and run.
+        - Saves the resulting array to disk as a .npy file under
+          ./results/rsa/grandglm_roi_signals/<region>/
+          grandglm_roi_signals_<roi>_<tag>.npy
+
+    The axes of the output array are ordered as:
+        (hemisphere, condition, run, subject, voxel)
+    where 'voxel' is the number of voxels in the ROI mask.
+
+    The extraction is performed in the order of `condition_names`,
+    `run_numbers`, `subjects`, then `hems` as they first appear
+    in the input data.
+
+    Missing data (e.g., missing beta map or mask) results in NaNs in
+    the output array.
+
+    Raises
+    ------
+    ValueError
+        If `df_input` is not a string or pandas DataFrame.
+    """
     task_models = [t for t in task_models if t != 'allmain_tasks']
 
     if isinstance(df_input, str):
@@ -262,67 +315,74 @@ def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
     for region, atlas, roi in zip(regions, atlases, rois):
         for tag in tags:
             print(f"Processing tag: {tag}")
-           
-            # Get all unique condition names and run numbers
-            condition_names = sorted(df_unfiltered['condition_name'].unique())
-            run_numbers = sorted(df_unfiltered['run_number'].unique())
 
-            C = len(condition_names)
-            R = len(run_numbers)
-            S = len(subjects)
-            H = len(hems)
+            # Preserve user-specified order
+            condition_names = [c for c in df_unfiltered['condition_name'].unique()]
+            run_numbers = [r for r in df_unfiltered['run_number'].unique()]
+            # subjects and hems are already user-specified sequences
 
-            # Placeholder to get signal dimensionality
+            n_hems = len(hems)
+            n_conditions = len(condition_names)
+            n_runs = len(run_numbers)
+            n_subjects = len(subjects)
+
+            # Placeholder to get voxel dimensionality
             first_mask_path = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                'roi_analyses_rwls_hrf128_wb_puncorr', 'all',
+                iroi_mask_dir, 'all',
                 region, atlas, 'individual_roi_masks',
-                f'{tag}_sub-{subjects[0]:02d}_{roi}_{hems[0]}_mask.nii.gz'
+                (f'{tag}_sub-{subjects[0]:02d}_'
+                 f'{roi}_{hems[0]}_mask.nii.gz')
             )
-            first_masker = NiftiMasker(mask_img=first_mask_path, standardize=False)
+            first_masker = NiftiMasker(
+                mask_img=first_mask_path, standardize=False
+            )
             first_df = df_unfiltered[df_unfiltered['subject'] == subjects[0]]
             first_img = image.load_img(
-                first_df.iloc[0]['swmasked_betamap_prewhitened_path'])
-            example_signal = first_masker.fit_transform(first_img)
-            signal_dim = example_signal.shape[1]
+                first_df.iloc[0]['swmasked_betamap_prewhitened_path']
+            )
+            example_voxels = first_masker.fit_transform(first_img)
+            voxel_dim = example_voxels.shape[1]
 
             # Initialize the 5D array
-            data_array = np.full((H, S, C, R, signal_dim), np.nan)
+            # Shape = (hemispheres, conditions, runs, subjects, voxels)
+            data_array = np.full(
+                (n_hems, n_conditions, n_runs, n_subjects, voxel_dim),
+                np.nan
+            )
 
-            # Create lookup dictionaries
-            cond_idx = {cond: i for i, cond in enumerate(condition_names)}
-            run_idx = {run: i for i, run in enumerate(run_numbers)}
-            subj_idx = {subj: i for i, subj in enumerate(subjects)}
-            hem_idx = {hem: i for i, hem in enumerate(hems)}
+            # Loop over all combinations according to the user-specified order
+            for h, hem in enumerate(hems):
+                for c, condition in enumerate(condition_names):
+                    for r, run in enumerate(run_numbers):
+                        for s, subject in enumerate(subjects):
+                            iroi_mask_path = os.path.join(
+                                os.path.dirname(os.path.abspath(__file__)),
+                                'roi_analyses_rwls_hrf128_wb_puncorr',
+                                'all', region, atlas,
+                                'individual_roi_masks',
+                                (f'{tag}_sub-{subject:02d}_'
+                                 f'{roi}_{hem}_mask.nii.gz')
+                            )
+                            masker = NiftiMasker(
+                                mask_img=iroi_mask_path, standardize=False
+                            )
 
-            # Loop over all combinations
-            for subject in subjects:
-                for hem in hems:
-                    iroi_mask_path = os.path.join(
-                        os.path.dirname(os.path.abspath(__file__)),
-                        'roi_analyses_rwls_hrf128_wb_puncorr',
-                        'all', region, atlas,
-                        'individual_roi_masks',
-                        f'{tag}_sub-{subject:02d}_{roi}_{hem}_mask.nii.gz'
-                    )
-
-                    masker = NiftiMasker(mask_img=iroi_mask_path, standardize=False)
-
-                    df_subj = df_unfiltered[df_unfiltered['subject'] == subject]
-
-                    for _, row in df_subj.iterrows():
-                        condition = row['condition_name']
-                        run = row['run_number']
-                        betamap = image.load_img(
-                            row['swmasked_betamap_prewhitened_path'])
-                        signals = masker.fit_transform(betamap)
-
-                        # Insert into the array
-                        h = hem_idx[hem]
-                        s = subj_idx[subject]
-                        c = cond_idx[condition]
-                        r = run_idx[run]
-                        data_array[h, s, c, r, :] = signals
+                            # Find the beta map row matching subject,
+                            # condition, run
+                            row_match = df_unfiltered[
+                                (df_unfiltered['subject'] == subject) &
+                                (df_unfiltered['condition_name'] == condition) &
+                                (df_unfiltered['run_number'] == run)
+                            ]
+                            if row_match.empty:
+                                continue
+                            betamap_path = row_match.iloc[0][
+                                'swmasked_betamap_prewhitened_path'
+                            ]
+                            betamap = image.load_img(betamap_path)
+                            voxels = masker.fit_transform(betamap)
+                            data_array[h, c, r, s, :] = voxels
 
             # Save array to disk
             output_folder = os.path.join(
@@ -336,8 +396,10 @@ def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
                 f'grandglm_roi_signals_{roi}_{tag}.npy'
             )
             np.save(output_path, data_array)
-            print(f"Saved 5D signal array for tag '{tag}' to {output_path}")
-     
+            print(
+                f"Saved 5D voxel array for tag '{tag}' to {output_path}"
+            )
+
 
 # =========================== INPUTS ===================================
 
@@ -351,6 +413,10 @@ rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           'results', 'rsa')
 
 # ########################### ROIs ######################################
+
+iroi_main_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'roi_analyses_rwls_hrf128_wb_puncorr')
+
 # All ROIs: 7 ROIs
 # region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
 #                 'motor_area', 'motor_area', 'motor_area']
@@ -364,7 +430,7 @@ atlas_names = ['hos']
 roi_names = ['dstr']
 
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
-itags = ['i8a']
+itags = ['i', 'i8a']
 
 hemispheres = ['bh']  # Both hemispheres
 
@@ -425,5 +491,12 @@ if __name__ == '__main__':
     db_grandglm = pd.read_csv(db_grandglm_path)
 
     # Extract signals from prewhitened data using the individualized ROIs
+    # Order of conditions: abeat_prod, ainterval_prod,
+    #                      vbeat_prod, vinterval_prod, 
+    #                      abeat_percep, ainterval_percep,
+    #                      vbeat_percep, vinterval_percep, 
+    #                      abeat_ntfd, ainterval_ntfd,
+    #                      vbeat_ntfd, vinterval_ntfd
     grandglm_roi_extraction(db_grandglm_path, glm_tasks, SUBJECTS, itags, 
-                            region_names, atlas_names, roi_names, hemispheres)
+                            region_names, atlas_names, roi_names, hemispheres,
+                            iroi_main_dir)
