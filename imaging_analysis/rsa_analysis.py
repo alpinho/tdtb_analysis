@@ -223,7 +223,8 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
         # Create the relative path for the normalized, smoothed...
         # ... and masked pre-whiten beta maps
         swmasked_path = os.path.join(
-            os.path.dirname(os.path.dirname(new_full_fname)),
+            os.path.relpath(
+                os.path.dirname(os.path.dirname(new_full_fname)), base_dir),
             'masked_derivatives_rwls_dbb_hrf128',
             'w'
             + os.path.basename(new_full_fname)[:-4]
@@ -464,10 +465,10 @@ hemispheres = ['bh']  # Both hemispheres
 # Parent directories
 home = os.path.expanduser('~')
 
-if home == '/home/analu':
-    data_storage = os.path.join(home, 'diedrichsen_data')
+if os.path.isdir('/home/analu/diedrichsen_data'):
+    data_storage = '/home/analu/diedrichsen_data'
 else:
-    assert home == '/home/UWO/agrilopi'
+    assert os.path.isdir('/home/UWO/agrilopi')
     data_storage = '/cifs/diedrichsen'
 
 # Define tasks in the glm
@@ -508,8 +509,10 @@ if __name__ == '__main__':
     # db_grandglm = prewhiten_betas(
     #     db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path)
 
+    # ##################################################################
     # Note: The next steps rely on prewhiten_beta_maps that were normalized,
     #       smoothed and masked. These steps were done in MATLAB.
+    # ##################################################################
 
     # Open dataframes
     # db_taskglm = pd.read_csv(db_taskglm_path)
