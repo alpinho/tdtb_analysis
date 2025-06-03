@@ -327,13 +327,23 @@ def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
             n_subjects = len(subjects)
 
             # Placeholder to get voxel dimensionality
-            first_mask_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                iroi_mask_dir, 'all',
-                region, atlas, 'individual_roi_masks',
-                (f'{tag}_sub-{subjects[0]:02d}_'
-                 f'{roi}_{hems[0]}_mask.nii.gz')
-            )
+            if region == 'dorsal_striatum':
+                first_mask_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    iroi_mask_dir, 'all', region, atlas, 
+                    'individual_roi_masks',
+                    (f'{tag}_sub-{subjects[0]:02d}_'
+                    f'{roi}_{hems[0]}_mask.nii.gz')
+                )
+            else:
+                first_mask_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    iroi_mask_dir, 'all', region, atlas, roi,
+                    'individual_roi_masks',
+                    (f'{tag}_sub-{subjects[0]:02d}_'
+                     f'{roi}_{hems[0]}_mask.nii.gz')
+                )
+
             first_masker = NiftiMasker(
                 mask_img=first_mask_path, standardize=False
             )
@@ -356,14 +366,25 @@ def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
                 for c, condition in enumerate(condition_names):
                     for r, run in enumerate(run_numbers):
                         for s, subject in enumerate(subjects):
-                            iroi_mask_path = os.path.join(
-                                os.path.dirname(os.path.abspath(__file__)),
-                                iroi_mask_dir,
-                                'all', region, atlas,
-                                'individual_roi_masks',
-                                (f'{tag}_sub-{subject:02d}_'
-                                 f'{roi}_{hem}_mask.nii.gz')
-                            )
+                            if region == 'dorsal_striatum':
+                                iroi_mask_path = os.path.join(
+                                    os.path.dirname(
+                                        os.path.abspath(__file__)),
+                                    iroi_mask_dir, 'all', region, atlas,
+                                    'individual_roi_masks',
+                                    (f'{tag}_sub-{subject:02d}_'
+                                    f'{roi}_{hem}_mask.nii.gz')
+                                )
+                            else:
+                                iroi_mask_path = os.path.join(
+                                    os.path.dirname(
+                                        os.path.abspath(__file__)),
+                                    iroi_mask_dir, 'all', region, atlas, roi,
+                                    'individual_roi_masks',
+                                    (f'{tag}_sub-{subject:02d}_'
+                                     f'{roi}_{hem}_mask.nii.gz')
+                                )
+
                             masker = NiftiMasker(
                                 mask_img=iroi_mask_path, standardize=False
                             )
@@ -415,7 +436,7 @@ rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # ########################### ROIs ######################################
 
 iroi_main_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             'roi_analyses_rwls_hrf128_wb_pcorr')
+                             'roi_analyses_rwls_hrf128_wb_puncorr')
 
 # All ROIs: 7 ROIs
 # region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
@@ -425,9 +446,13 @@ iroi_main_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
 #              'pmd', 'sma', 'presma']
 
-region_names = ['dorsal_striatum']
-atlas_names = ['hos']
-roi_names = ['dstr']
+# region_names = ['dorsal_striatum']
+# atlas_names = ['hos']
+# roi_names = ['dstr']
+
+region_names = ['cerebellum', 'motor_area', 'motor_area', 'motor_area']
+atlas_names = ['ntk_symmni128', 'hmat', 'hmat', 'hmat']
+roi_names = ['cereb', 'pmd', 'sma', 'presma']
 
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 itags = ['i', 'i8a']
