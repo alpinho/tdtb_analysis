@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 26th of March 2025
-Last Update: May 2025
+Last Update: June 2025
 
 Compatibility: Python 3.10.16
 """
@@ -358,7 +358,7 @@ def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
                         for s, subject in enumerate(subjects):
                             iroi_mask_path = os.path.join(
                                 os.path.dirname(os.path.abspath(__file__)),
-                                'roi_analyses_rwls_hrf128_wb_puncorr',
+                                iroi_mask_dir,
                                 'all', region, atlas,
                                 'individual_roi_masks',
                                 (f'{tag}_sub-{subject:02d}_'
@@ -415,7 +415,7 @@ rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # ########################### ROIs ######################################
 
 iroi_main_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            'roi_analyses_rwls_hrf128_wb_puncorr')
+                             'roi_analyses_rwls_hrf128_wb_pcorr')
 
 # All ROIs: 7 ROIs
 # region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
