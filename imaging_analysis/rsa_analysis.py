@@ -244,8 +244,8 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
     return df
 
 
-def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
-                            atlases, rois, hems, iroi_mask_dir):
+def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags, 
+                            regions, atlases, rois, hems, iroi_mask_dir):
     """
     Extracts ROI signals for given subjects, tags, regions, and
     hemispheres, saving a 5D array per tag.
@@ -260,6 +260,8 @@ def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
         experimental data. Must include columns:
         ['subject', 'condition_name', 'run_number',
          'swmasked_betamap_prewhitened_path'].
+    base_dir: str
+        Path of home dir
     task_models : list of str
         List of task model names. 'allmain_tasks' will be excluded if
         present.
@@ -350,7 +352,8 @@ def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
             )
             first_df = df_unfiltered[df_unfiltered['subject'] == subjects[0]]
             first_img = image.load_img(
-                first_df.iloc[0]['swmasked_betamap_prewhitened_path']
+                os.path.join(base_dir, first_df.iloc[0][
+                    'swmasked_betamap_prewhitened_path'])
             )
             example_voxels = first_masker.fit_transform(first_img)
             voxel_dim = example_voxels.shape[1]
@@ -399,9 +402,11 @@ def grandglm_roi_extraction(df_input, task_models, subjects, tags, regions,
                             ]
                             if row_match.empty:
                                 continue
-                            betamap_path = row_match.iloc[0][
-                                'swmasked_betamap_prewhitened_path'
-                            ]
+                            betamap_path = os.path.join(
+                                base_dir, 
+                                row_match.iloc[0][
+                                    'swmasked_betamap_prewhitened_path']
+                            )
                             betamap = image.load_img(betamap_path)
                             voxels = masker.fit_transform(betamap)
                             data_array[h, c, r, s, :] = voxels
@@ -525,6 +530,6 @@ if __name__ == '__main__':
     #                      vbeat_percep, vinterval_percep, 
     #                      abeat_ntfd, ainterval_ntfd,
     #                      vbeat_ntfd, vinterval_ntfd
-    grandglm_roi_extraction(db_grandglm_path, glm_tasks, SUBJECTS, itags, 
-                            region_names, atlas_names, roi_names, hemispheres,
-                            iroi_main_dir)
+    grandglm_roi_extraction(db_grandglm_path, data_storage, glm_tasks, 
+                            SUBJECTS, itags, region_names, atlas_names, 
+                            roi_names, hemispheres, iroi_main_dir)
