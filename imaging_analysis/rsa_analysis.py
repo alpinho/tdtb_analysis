@@ -612,19 +612,32 @@ if __name__ == '__main__':
             roi_signals = np.load(roi_signals_path)
 
             # Compute Euclidean distances for the current ROI
-            eucl_distances = compute_euclidean_distances(
+            individual_eucl_distances = compute_euclidean_distances(
                 roi_signals, glm_tasks[:3], conditions_mapping)
+            
+            # Compute the mean of the distances across subjects
+            group_eucl_distances = np.mean(individual_eucl_distances, axis=0)
 
             # Create output folder if it does not exist
             output_dir = os.path.join(rsa_folder, 'euclidean_distances')
             os.makedirs(output_dir, exist_ok=True)
 
             # Save the distances to a .npy file
-            output_path = os.path.join(
+            individual_output_path = os.path.join(
                 output_dir,
-                f'eucl_distances_{roi_name}_{itag}_{thresh_type}.npy'
+                f'individual_eucl_distances_{roi_name}_{itag}_{thresh_type}.npy'
             )
-            if os.path.exists(output_path):
-                os.remove(output_path)
-            np.save(output_path, eucl_distances)
-            print(f"Saved distances to {output_path}")
+            group_output_path = os.path.join(
+                output_dir,
+                f'group_eucl_distances_{roi_name}_{itag}_{thresh_type}.npy'
+            )
+            if os.path.exists(individual_output_path):
+                os.remove(individual_output_path)
+            if os.path.exists(group_output_path):
+                os.remove(group_output_path)
+            np.save(individual_output_path, individual_eucl_distances)
+            np.save(group_output_path, group_eucl_distances)
+            print(
+                f"Saved distances to {individual_output_path} "
+                f"and {group_output_path}"
+            )
