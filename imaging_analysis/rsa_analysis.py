@@ -1,6 +1,6 @@
 """
 Script to do the rsa analysis to calculate similarities of beat conditions
-as well as interval conditions across tasks
+and interval conditions across tasks
 
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
@@ -428,6 +428,49 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
             )
 
 
+def compute_euclidian_distances(Y, tasks_list, conditions_list,
+                                hem_index=None):  
+    # Load ROIs shape: (hemisphere, condition, run, subject, voxel)
+    # Only combine the first three tasks
+    
+    condition_labels = [
+        f"{abbr}_{task}"
+        for abbr in conditions_list.values()
+        for task in tasks_list
+    ]
+
+    n_subjects = Y.shape[3] # Number of subjects
+    n_conditions = len(condition_labels) # Number of conditions
+    n_runs = Y.shape[2]  # Number of runs per subject
+    n_voxels = Y.shape[-1]  # Number of voxels in the ROI
+
+    cond_vec = np.tile(condition_labels, n_runs)
+    part_vec = np.repeat(np.arange(1, n_runs+1), len(condition_labels))
+
+    # Select hemispheric data
+    # Y shape: (condition, run, subject, voxel)
+    if hem_index is not None:
+        Y_hem = Y[hem_index, :, :, :, :]  # Select specific hemisphere
+    else:
+        Y_hem = Y[0, :, :, :, :]  # Default to first hemisphere
+
+    # Swap axes subjects and conditions
+    # swapped_Y shape: (subject, run, condition, voxel)
+    swapped_Y = np.swapaxes(Y_hem, 0, 2)
+
+    # Reshape to (subject, run X condition, voxel)
+    reshaped_Y = swapped_Y.reshape(n_subjects, n_runs * n_conditions, 
+                                   n_voxels)
+
+    # Compute LOOCV G-matrix
+    G_cv, _ = pcm.est_G_crossval(reshaped_Y[0], cond_vec, part_vec)
+
+    # Compute cross-validated euclidean distances
+    D_eucl_cv = pcm.G_to_dist(G_cv)
+
+    return D_eucl_cv
+
+
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
@@ -496,7 +539,7 @@ if __name__ == '__main__':
 
     # Paths of dataframes
     # db_taskglm_path = os.path.join(rsa_folder, 'rsa_taskglm.tsv')
-    db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm.tsv')
+    # db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm.tsv')
    
     # # Create dataframes
     # db_taskglm = rsa_dataframe(
@@ -521,7 +564,7 @@ if __name__ == '__main__':
 
     # Open dataframes
     # db_taskglm = pd.read_csv(db_taskglm_path)
-    db_grandglm = pd.read_csv(db_grandglm_path)
+    # db_grandglm = pd.read_csv(db_grandglm_path)
 
     # Extract signals from prewhitened data using the individualized ROIs
     # Order of conditions: abeat_prod, ainterval_prod,
@@ -530,6 +573,47 @@ if __name__ == '__main__':
     #                      vbeat_percep, vinterval_percep, 
     #                      abeat_ntfd, ainterval_ntfd,
     #                      vbeat_ntfd, vinterval_ntfd
-    grandglm_roi_extraction(db_grandglm_path, data_storage, glm_tasks, 
-                            SUBJECTS, itags, region_names, atlas_names, 
-                            roi_names, hemispheres, iroi_main_dir)
+    # grandglm_roi_extraction(db_grandglm_path, data_storage, glm_tasks,
+    #                         SUBJECTS, itags, region_names, atlas_names,
+    #                         roi_names, hemispheres, iroi_main_dir)
+
+    # #### Compute RSA within a region ####
+    # Load ROIs shape: (hemisphere, condition, run, subject, voxel)
+    dstr = np.load(
+        os.path.join(
+            rsa_folder, 'grandglm_roi_signals', 'dorsal_striatum',
+            'grandglm_roi_signals_dstr_i_puncorr.npy'
+        )
+    )
+    cereb = np.load(
+        os.path.join(
+            rsa_folder, 'grandglm_roi_signals', 'cerebellum',
+            'grandglm_roi_signals_cereb_i_puncorr.npy'
+        )
+    )
+    pmd = np.load(
+        os.path.join(
+            rsa_folder, 'grandglm_roi_signals', 'motor_area',
+            'grandglm_roi_signals_pmd_i_puncorr.npy'
+        )
+    )
+    sma = np.load(
+        os.path.join(
+            rsa_folder, 'grandglm_roi_signals', 'motor_area',
+            'grandglm_roi_signals_sma_i_puncorr.npy'
+        )
+    )
+    presma = np.load(
+        os.path.join(
+            rsa_folder, 'grandglm_roi_signals', 'motor_area',
+            'grandglm_roi_signals_presma_i_puncorr.npy'
+        )
+    )
+
+    tasks_to_combine = glm_tasks[:3]  # ['prod', 'percep', 'ntfd']
+    
+    # Compute the Euclidean distances for the dorsal striatum
+    # Note: ROI array has shape (hemisphere, condition, run, subject, voxel), 
+    # but we assume that size of hemisphere is 1, which refers to bh
+    dstr_deucl = compute_euclidian_distances(dstr, tasks_to_combine, 
+                                             conditions_mapping)
