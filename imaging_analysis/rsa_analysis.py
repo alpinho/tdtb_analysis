@@ -488,8 +488,8 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     return distances
 
 
-def plot_rdms(i_dist, g_dist, tasks_list, conditions_list, output_folder,
-              roi_label, i_label):
+def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list, 
+              output_folder, roi_label, i_label, thresh_label):
     """
     Plot the individual and group Euclidean distance matrices.
 
@@ -505,6 +505,14 @@ def plot_rdms(i_dist, g_dist, tasks_list, conditions_list, output_folder,
     conditions_list : dict
         Dictionary mapping full condition names to abbreviations
         (e.g., {'auditory_beat': 'abeat'}).
+    output_folder : str
+        Folder to save the plot.
+    roi_label : str
+        ROI label for the filename.
+    i_label : str
+        Tag label for the filename.
+    thresh_type : str
+        Threshold type for the filename.
     """ 
 
     condition_labels = [
@@ -513,35 +521,49 @@ def plot_rdms(i_dist, g_dist, tasks_list, conditions_list, output_folder,
         for task in tasks_list
     ]
 
-    plt.figure(figsize=(10, 8))
-    n_subjects = i_dist.shape[0]
-    for i in range(n_subjects):
-        plt.subplot(n_subjects + 1, 1, i + 1)
-        plt.imshow(i_dist[i], cmap='viridis', aspect='auto')
-        plt.title(f'Subject {i + 1}')
-        plt.colorbar()
-        plt.xticks(
-            ticks=np.arange(len(condition_labels)),
-            labels=condition_labels, rotation=45)
-        plt.yticks(
-            ticks=np.arange(len(condition_labels)),
-            labels=condition_labels)
-    plt.subplot(n_subjects + 1, 1, n_subjects + 1)
-    plt.imshow(g_dist, cmap='viridis', aspect='auto')
-    plt.title('Group')
-    plt.colorbar()
-    plt.xticks(
-        ticks=np.arange(len(condition_labels)),
-        labels=condition_labels, rotation=45)
-    plt.yticks(
-        ticks=np.arange(len(condition_labels)),
-        labels=condition_labels)
+    # Compute global min/max across all individual and group distances
+    all_vals = np.concatenate([i_dist.flatten(), g_dist.flatten()])
+    abs_max = np.max(np.abs(all_vals))
+    vmin, vmax = -abs_max, abs_max
+
+    n_cols = 4
+    n_rows = int(np.ceil((len(subjects) + 1) / n_cols))
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
+    axes = axes.flatten()
+
+    for s, subject in enumerate(subjects):
+        ax = axes[s]
+        im = ax.imshow(i_dist[s], cmap='PiYG', aspect='equal', vmin=vmin,
+                       vmax=vmax)
+        ax.set_title(f'Subject {subject}')
+        ax.set_xticks(np.arange(len(condition_labels)))
+        ax.set_xticklabels(condition_labels, rotation=45, ha='right', fontsize=8)
+        ax.set_yticks(np.arange(len(condition_labels)))
+        ax.set_yticklabels(condition_labels, fontsize=8)
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+    # Group RDM in the last subplot
+    ax = axes[len(subjects)]
+    im = ax.imshow(g_dist, cmap='PiYG', aspect='equal', vmin=vmin,
+                   vmax=vmax)
+    ax.set_title('Group')
+    ax.set_xticks(np.arange(len(condition_labels)))
+    ax.set_xticklabels(condition_labels, rotation=45, ha='right', fontsize=8)
+    ax.set_yticks(np.arange(len(condition_labels)))
+    ax.set_yticklabels(condition_labels, fontsize=8)
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+    # Hide unused axes
+    for j in range(len(subjects) + 1, len(axes)):
+        axes[j].axis('off')
+
     plt.tight_layout()
     plt.savefig(
         os.path.join(
             output_folder,
-            f'eucl_distances_{roi_label}_{i_label}_{thresh_type}'
-            f'.png'),
+            f'eucl_distances_{roi_label}_{i_label}_{thresh_label}.png'
+        ),
         dpi=300
     )
     plt.close()
@@ -705,8 +727,9 @@ if __name__ == '__main__':
 
             # Plot the RDMs
             plot_rdms(
-                individual_eucl_distances, group_eucl_distances, 
-                glm_tasks[:3], conditions_mapping, output_dir, roi_name, itag)
+                individual_eucl_distances, group_eucl_distances, SUBJECTS,
+                glm_tasks[:3], conditions_mapping, output_dir, roi_name, itag, 
+                thresh_type)
             print(f"Save rdm plots for {roi_name} for tag {itag}.")
 
     # Print completion message
