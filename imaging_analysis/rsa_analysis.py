@@ -512,18 +512,17 @@ iroi_main_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
 #              'pmd', 'sma', 'presma']
 
-# region_names = ['dorsal_striatum']
-# atlas_names = ['hos']
-# roi_names = ['dstr']
-
-region_names = ['cerebellum', 'motor_area', 'motor_area', 'motor_area']
-atlas_names = ['ntk_symmni128', 'hmat', 'hmat', 'hmat']
-roi_names = ['cereb', 'pmd', 'sma', 'presma']
+region_names = ['dorsal_striatum', 'cerebellum', 'motor_area', 'motor_area',
+                'motor_area']
+atlas_names = ['hos', 'ntk_symmni128', 'hmat', 'hmat', 'hmat']
+roi_names = ['dstr', 'cereb', 'pmd', 'sma', 'presma']
 
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 itags = ['i', 'i8a']
 
 hemispheres = ['bh']  # Both hemispheres
+
+thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
 
 # #######################################################################
 
@@ -594,42 +593,38 @@ if __name__ == '__main__':
     #                         SUBJECTS, itags, region_names, atlas_names,
     #                         roi_names, hemispheres, iroi_main_dir)
 
-    # #### Compute RSA within a region ####
-    # Load ROIs shape: (hemisphere, condition, run, subject, voxel)
-    dstr = np.load(
-        os.path.join(
-            rsa_folder, 'grandglm_roi_signals', 'dorsal_striatum',
-            'grandglm_roi_signals_dstr_i_puncorr.npy'
-        )
-    )
-    cereb = np.load(
-        os.path.join(
-            rsa_folder, 'grandglm_roi_signals', 'cerebellum',
-            'grandglm_roi_signals_cereb_i_puncorr.npy'
-        )
-    )
-    pmd = np.load(
-        os.path.join(
-            rsa_folder, 'grandglm_roi_signals', 'motor_area',
-            'grandglm_roi_signals_pmd_i_puncorr.npy'
-        )
-    )
-    sma = np.load(
-        os.path.join(
-            rsa_folder, 'grandglm_roi_signals', 'motor_area',
-            'grandglm_roi_signals_sma_i_puncorr.npy'
-        )
-    )
-    presma = np.load(
-        os.path.join(
-            rsa_folder, 'grandglm_roi_signals', 'motor_area',
-            'grandglm_roi_signals_presma_i_puncorr.npy'
-        )
-    )
+    # Compute RSA within a region
+    for itag in itags:
+        print(f"Processing tag: {itag}")
 
-    tasks_to_combine = glm_tasks[:3]  # ['prod', 'percep', 'ntfd']
-    
-    # Compute the Euclidean distances for the dorsal striatum in both 
-    # hemispheres
-    dstr_eucl_dist = compute_euclidean_distances(
-        dstr, tasks_to_combine, conditions_mapping)
+        for region_name, roi_name in zip(region_names, roi_names):
+            print(f"Processing ROI: {roi_name}")
+
+            # Load the ROI signals for the current tag and ROI
+            roi_signals_path = os.path.join(
+                rsa_folder, 'grandglm_roi_signals', region_name,
+                f'grandglm_roi_signals_{roi_name}_{itag}_{thresh_type}.npy'
+            )
+            if not os.path.exists(roi_signals_path):
+                print(f"Skipping {roi_name} for tag {itag}: file not found.")
+                continue
+
+            roi_signals = np.load(roi_signals_path)
+
+            # Compute Euclidean distances for the current ROI
+            eucl_distances = compute_euclidean_distances(
+                roi_signals, glm_tasks[:3], conditions_mapping)
+
+            # Create output folder if it does not exist
+            output_dir = os.path.join(rsa_folder, 'euclidean_distances')
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Save the distances to a .npy file
+            output_path = os.path.join(
+                output_dir,
+                f'eucl_distances_{roi_name}_{itag}_{thresh_type}.npy'
+            )
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            np.save(output_path, eucl_distances)
+            print(f"Saved distances to {output_path}")
