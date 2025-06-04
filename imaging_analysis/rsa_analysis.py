@@ -488,6 +488,67 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     return distances
 
 
+def plot_rdms(i_dist, g_dist, tasks_list, conditions_list, output_folder,
+              roi_label, i_label):
+    """
+    Plot the individual and group Euclidean distance matrices.
+
+    Parameters
+    ----------
+    i_dist : np.ndarray
+        Individual distance matrices with shape 
+        (n_subjects, n_conditions, n_conditions).
+    g_dist : np.ndarray
+        Group distance matrix with shape (n_conditions, n_conditions).
+    tasks_list : list of str
+        List of task labels (e.g., ['prod', 'percep', 'ntfd']).
+    conditions_list : dict
+        Dictionary mapping full condition names to abbreviations
+        (e.g., {'auditory_beat': 'abeat'}).
+    """ 
+
+    condition_labels = [
+        f"{abbr}_{task}"
+        for abbr in conditions_list.values()
+        for task in tasks_list
+    ]
+
+    plt.figure(figsize=(10, 8))
+    n_subjects = i_dist.shape[0]
+    for i in range(n_subjects):
+        plt.subplot(n_subjects + 1, 1, i + 1)
+        plt.imshow(i_dist[i], cmap='viridis', aspect='auto')
+        plt.title(f'Subject {i + 1}')
+        plt.colorbar()
+        plt.xticks(
+            ticks=np.arange(len(condition_labels)),
+            labels=condition_labels, rotation=45)
+        plt.yticks(
+            ticks=np.arange(len(condition_labels)),
+            labels=condition_labels)
+    plt.subplot(n_subjects + 1, 1, n_subjects + 1)
+    plt.imshow(g_dist, cmap='viridis', aspect='auto')
+    plt.title('Group')
+    plt.colorbar()
+    plt.xticks(
+        ticks=np.arange(len(condition_labels)),
+        labels=condition_labels, rotation=45)
+    plt.yticks(
+        ticks=np.arange(len(condition_labels)),
+        labels=condition_labels)
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(
+            output_folder,
+            f'eucl_distances_{roi_label}_{i_label}_{thresh_type}'
+            f'.png'),
+        dpi=300
+    )
+    plt.close()
+    # To show the plot, uncomment the next line:
+    # plt.show()
+
+
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
@@ -641,3 +702,12 @@ if __name__ == '__main__':
                 f"Saved distances to {individual_output_path} "
                 f"and {group_output_path}"
             )
+
+            # Plot the RDMs
+            plot_rdms(
+                individual_eucl_distances, group_eucl_distances, 
+                glm_tasks[:3], conditions_mapping, output_dir, roi_name, itag)
+            print(f"Save rdm plots for {roi_name} for tag {itag}.")
+
+    # Print completion message
+    print("RSA analysis completed for all ROIs and tags.")
