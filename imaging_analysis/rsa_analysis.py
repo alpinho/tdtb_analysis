@@ -428,47 +428,64 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
             )
 
 
-def compute_euclidian_distances(Y, tasks_list, conditions_list,
-                                hem_index=None):  
-    # Load ROIs shape: (hemisphere, condition, run, subject, voxel)
-    # Only combine the first three tasks
-    
+def compute_euclidean_distances(Y, tasks_list, conditions_list,
+                                hem_index=None):
+    """
+    Compute cross-validated Euclidean distances between conditions
+    for all subjects in the dataset.
+
+    Parameters
+    ----------
+    Y : np.ndarray
+        5D array with shape 
+        (hemisphere, condition, run, subject, voxel).
+    tasks_list : list of str
+        List of task labels (e.g., ['prod', 'percep', 'ntfd']).
+    conditions_list : dict
+        Dictionary mapping full condition names to abbreviations
+        (e.g., {'auditory_beat': 'abeat'}).
+    hem_index : int or None, optional
+        If specified, selects the hemisphere index along the first axis.
+        If None, the first hemisphere (index 0) is used.
+
+    Returns
+    -------
+    distances : np.ndarray
+        Array of Euclidean distance matrices with shape
+        (n_subjects, n_conditions, n_conditions).
+    """
     condition_labels = [
         f"{abbr}_{task}"
         for abbr in conditions_list.values()
         for task in tasks_list
     ]
 
-    n_subjects = Y.shape[3] # Number of subjects
-    n_conditions = len(condition_labels) # Number of conditions
-    n_runs = Y.shape[2]  # Number of runs per subject
-    n_voxels = Y.shape[-1]  # Number of voxels in the ROI
+    n_subjects = Y.shape[3]
+    n_conditions = len(condition_labels)
+    n_runs = Y.shape[2]
+    n_voxels = Y.shape[-1]
 
     cond_vec = np.tile(condition_labels, n_runs)
-    part_vec = np.repeat(np.arange(1, n_runs+1), len(condition_labels))
+    part_vec = np.repeat(np.arange(1, n_runs + 1), n_conditions)
 
-    # Select hemispheric data
-    # Y shape: (condition, run, subject, voxel)
-    if hem_index is not None:
-        Y_hem = Y[hem_index, :, :, :, :]  # Select specific hemisphere
-    else:
-        Y_hem = Y[0, :, :, :, :]  # Default to first hemisphere
+    # Select hemisphere
+    Y_hem = Y[hem_index] if hem_index is not None else Y[0]
 
-    # Swap axes subjects and conditions
-    # swapped_Y shape: (subject, run, condition, voxel)
-    swapped_Y = np.swapaxes(Y_hem, 0, 2)
+    # Reorder axes to (subject, run, condition, voxel)
+    Y_reordered = np.swapaxes(Y_hem, 0, 2)
 
-    # Reshape to (subject, run X condition, voxel)
-    reshaped_Y = swapped_Y.reshape(n_subjects, n_runs * n_conditions, 
-                                   n_voxels)
+    # Reshape to (subject, run * condition, voxel)
+    Y_reshaped = Y_reordered.reshape(n_subjects,
+                                     n_runs * n_conditions,
+                                     n_voxels)
 
-    # Compute LOOCV G-matrix
-    G_cv, _ = pcm.est_G_crossval(reshaped_Y[0], cond_vec, part_vec)
+    # Compute distance matrix for each subject
+    distances = np.empty((n_subjects, n_conditions, n_conditions))
+    for i, subj_data in enumerate(Y_reshaped):
+        G_cv, _ = pcm.est_G_crossval(subj_data, cond_vec, part_vec)
+        distances[i] = pcm.G_to_dist(G_cv)
 
-    # Compute cross-validated euclidean distances
-    D_eucl_cv = pcm.G_to_dist(G_cv)
-
-    return D_eucl_cv
+    return distances
 
 
 # =========================== INPUTS ===================================
@@ -612,8 +629,7 @@ if __name__ == '__main__':
 
     tasks_to_combine = glm_tasks[:3]  # ['prod', 'percep', 'ntfd']
     
-    # Compute the Euclidean distances for the dorsal striatum
-    # Note: ROI array has shape (hemisphere, condition, run, subject, voxel), 
-    # but we assume that size of hemisphere is 1, which refers to bh
-    dstr_deucl = compute_euclidian_distances(dstr, tasks_to_combine, 
-                                             conditions_mapping)
+    # Compute the Euclidean distances for the dorsal striatum in both 
+    # hemispheres
+    dstr_eucl_dist = compute_euclidean_distances(
+        dstr, tasks_to_combine, conditions_mapping)
