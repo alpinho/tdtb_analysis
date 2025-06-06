@@ -29,7 +29,7 @@ from statannotations.Annotator import Annotator
 from statsmodels.stats.anova import AnovaRM
 from statsmodels.stats.multicomp import MultiComparison
 from matplotlib import pyplot as plt
-from itertools import chain
+
 
 # ############################ FUNCTIONS ################################
 
@@ -746,67 +746,63 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
     if modality:
         fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc_' + modality
     else:
-        fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc_both-modalitites'
+        fname = prefix + '_' + str(n_rois) + \
+            '-rois_2w_posthoc_both-modalitites'
     plt.savefig(os.path.join(output_folder, fname + '.pdf'))
 
 
 def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
                       modality=None, hems=['lh', 'rh', 'bh']):
     """
-    Plot posthoc 2w-ANOVA
+    Plot posthoc 2w-ANOVA with verified annotations for n_rois=2 and n_rois=5.
     """
-    # Open dataframe
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
-    # Remove Column of Contrasts
     df = df.drop(['Contrast'], axis=1)
-
-    # Convert PSC entries to numeric type
     df['PSC'] = df['PSC'].apply(pd.to_numeric)
 
     if modality is None:
         df = df.drop(['Modality'], axis=1)
-        # Averaged PSC across Modalities, i.e. grouped by Category and Task ...
-        # ... and averaged afterwards
-        df = df.groupby(['Category', 'Task', 'Subject', 'ROI',
-                         'Hemisphere']).mean().reset_index()
+        df = df.groupby([
+            'Category', 'Task', 'Subject', 'ROI', 
+            'Hemisphere']).mean().reset_index()
     elif modality == 'auditory':
-        df = df[df.Modality == 'Auditory']
-        df = df.drop(['Modality'], axis=1)
+        df = df[df.Modality == 'Auditory'].drop(['Modality'], axis=1)
     else:
         assert modality == 'visual'
-        df = df[df.Modality == 'Visual']
-        df = df.drop(['Modality'], axis=1)
+        df = df[df.Modality == 'Visual'].drop(['Modality'], axis=1)
 
-    # Add explicit/implicit timing column
-    # df['Timing'] = np.where(df['Task']== 'Production', 'Explicit', 'Implicit')
-
-    # Remove Column of Task
-    # df = df.drop(['Task'], axis=1)
-
-    # Remove 'All Tasks' rows from Dataframe
     df = df[df.Task != 'All Tasks']
-
-    # # Replace strings with names of ROIs
     df['ROI'] = df['ROI'].str.replace('dstr', 'Dorsal Striatum')
     df['ROI'] = df['ROI'].str.replace('cereb', 'Cerebellum')
     order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
     order_list = [s.replace('cereb', 'Cerebellum') for s in order_list]
+    if n_rois == 5:
+        df['ROI'] = df['ROI'].str.replace('pmd', 'PMD')
+        df['ROI'] = df['ROI'].str.replace('sma', 'SMA')
+        df['ROI'] = df['ROI'].str.replace('presma', 'PreSMA')
+        order_list = [s.replace('pmd', 'PMD') for s in order_list]
+        order_list = [s.replace('sma', 'SMA') for s in order_list]
+        order_list = [s.replace('presma', 'PreSMA') for s in order_list]
 
-    fig = plt.figure(figsize=(12, 4))
+    # Plot setup
+    n_hems = len(hems)
+    hue_order = ['Production', 'Perception', 'NTFD']
+    height_per_plot = 5.5
+    width_per_roi = 1.8
+    fig_height = height_per_plot * n_hems
+    fig_width = width_per_roi * n_rois + 1.5
 
-    # For each hemisphere:
-    for h, hem in enumerate(hems):
+    fig, axes = plt.subplots(n_hems, 1, figsize=(fig_width, fig_height), 
+                             sharey=True)
+    if n_hems == 1:
+        axes = [axes]
 
-        # Define subplot of bar charts and its position in the fig
-        # plt.axes([left, bottom, width, height])
-        ax = plt.axes([.07 + h*.3, .15, .23, .65])
-
-        db = pd.DataFrame()
+    for i, hem in enumerate(hems):
+        ax = axes[i]
         db = df[df.Hemisphere == hem]
 
-        # Create bar plot
         s = sns.barplot(
             ax=ax,
             x='ROI',
@@ -814,100 +810,95 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
             hue='Task',
             data=db,
             estimator=np.mean,
-            ci=95,  # 1.96 * standard error (95% confidence interval)
-            errcolor="darkgray", errwidth=1.5, capsize=0.2, alpha=0.5,
+            ci=95,
+            errcolor="darkgray", errwidth=1.5, capsize=0.2, alpha=0.6,
             order=order_list,
-            hue_order=['Production', 'Perception', 'NTFD'],
+            hue_order=hue_order,
             palette=['indigo', 'm', 'salmon']
         )
 
-        ax.text(.4, .33, '95% CI for the Mean of PSC', size=7)
+        for container in s.containers:
+            ax.bar_label(container, padding=2, fontsize=6, fmt='%.3f')
+
+        ax.set_ylim([0., .35])
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.set_ylabel('PSC (%)', fontsize=12, labelpad=10)
+        ax.set_xlabel('ROI', fontsize=12, labelpad=10)
+        ax.set_title(f"Hemisphere: {hem.upper()}", fontsize=13, 
+                     fontweight='bold', pad=16)
+
+        if n_rois > 3:
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=0., ha='center', 
+                               fontsize=9)
+        else:
+            ax.set_xticklabels(ax.get_xticklabels(), fontsize=10)
+
+        ax.legend([], [], frameon=False)
+
+        # Initialize annotations
+        pairs = []
+        p_values = []
 
         if hem == 'bh' and prefix == 'i8a':
-            # Define the annotation pairs.
-            # The x-axis shows the ROI names and...
-            # ... the hue splits the tasks.
-            # Here we assume that after replacing strings,...
-            # ... the two ROIs are: 'Dorsal Striatum' and 'Cerebellum'
-            pairs = [
-                (('Dorsal Striatum', 'Production'),
-                 ('Dorsal Striatum', 'Perception')),
-                (('Dorsal Striatum', 'Production'),
-                 ('Dorsal Striatum', 'NTFD')),
-                (('Cerebellum', 'Production'),
-                 ('Cerebellum', 'NTFD'))
-            ]
+            if n_rois == 2:
+                pairs = [
+                    (('Dorsal Striatum', 'Production'), 
+                     ('Dorsal Striatum', 'Perception')),
+                    (('Dorsal Striatum', 'Production'), 
+                     ('Dorsal Striatum', 'NTFD')),
+                    (('Cerebellum', 'Production'), 
+                     ('Cerebellum', 'NTFD'))
+                ]
+                p_values = [0.00005, 0.00005, 0.0026]
 
-            # Set p-values to trigger the desired star labels.
-            # pval_label_converter (in this script) assigns:
-            #   p <= 0.0001  -> "****"
-            #   0.001 < p <= 0.01 -> "***"
-            # Here we use very small numbers to force the desired labels.
-            p_values = [0.00005, 0.00005, 0.00262111649852554]
+            elif n_rois == 5:
+                if modality is None:
+                    # Extract pairs and p-values from the ANOVA posthoc 
+                    # results
+                    pairs = [
+                        (('Dorsal Striatum', 'Production'), 
+                         ('Dorsal Striatum', 'Perception')),
+                        (('Dorsal Striatum', 'Production'), 
+                         ('Dorsal Striatum', 'NTFD')),
+                        (('Cerebellum', 'Production'), 
+                         ('Cerebellum', 'NTFD')),
+                        (('SMA', 'Production'), 
+                         ('SMA', 'Perception')),
+                        (('SMA', 'Perception'), 
+                         ('SMA', 'NTFD'))
+                    ]
+                    p_values = [0.0000000212156069330325, 
+                                0.00000037230171390485, 
+                                0.00720807037094523, 
+                                0.000116815529650541, 
+                                0.00105700426359638]
+                else:
+                    pass
 
-            # Create the Annotator object from statannotations.
+        # Annotate if valid pairs exist
+        if pairs:
             annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
-                                  order=['Dorsal Striatum', 'Cerebellum'],
-                                  hue='Task',
-                                  hue_order=['Production', 'Perception', 'NTFD'])
-            annotator.configure(test=None,
-                                text_format="star",  # show stars instead of p-value numbers
-                                fontsize=10,
+                                  order=order_list,
+                                  hue='Task', hue_order=hue_order)
+            annotator.configure(test=None, text_format="star", fontsize=10,
                                 hide_non_significant=True)
             annotator.set_pvalues(p_values)
             annotator.annotate()
 
-            # Remove frame of legend
-            ax.legend(frameon=False, loc=(.5, .8))
+    # Global labels
+    top_label = modality.capitalize() if modality else "Both Mod."
+    fig.text(0.01, 0.98, top_label, ha='left', va='top', fontsize=12, 
+             fontweight='bold')
+    fig.text(0.01, 0.955, prefix, ha='left', va='top', fontsize=12, 
+             fontweight='bold')
 
-            # Task
-            # plt.title('Audio Tasks', size=12, x=.5, y=1.1,
-            #           fontweight='bold', color='mediumaquamarine')
-        else:
-            # ... remove legend
-            ax.legend([],[], frameon=False)
+    plt.subplots_adjust(hspace=0.8, bottom=0.12, top=0.92)
 
-        # Add values inside bars
-        for i in s.containers:
-            ax.bar_label(i, padding=-10, fontsize=6, fmt='%.3f')
-
-        # Hide the right and top spines
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-
-        # Set limits of ticks in y axis
-        plt.ylim([0., .3])
-
-        # Add units in ylabel
-        plt.ylabel('Percent Signal Change (%)', labelpad=7)
-
-        # Rotate x_labels
-        if n_rois == 6:
-            # Rotating X-axis labels
-            plt.xticks(rotation=30, fontsize=10)
-
-        # Hemisphere
-        # plt.text(.4, .35, hem.capitalize(), size=18,
-        #          linespacing=.75, fontweight='bold')
-
-        if hem == 'lh':
-            if modality:
-                plt.text(-1., .37, modality.capitalize(), size=12,
-                         linespacing=.75, fontweight='bold')
-            else:
-                plt.text(-1., .37, 'Both Mod.', size=12,
-                         linespacing=.75, fontweight='bold')
-            plt.text(-1., .35, prefix, size=12,
-                     linespacing=.75, fontweight='bold')
-
-    # Save figure
-    if modality:
-        fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc_' + modality
-    else:
-        fname = prefix + '_' + str(n_rois) + \
-            '-rois_2w_posthoc_both-modalitites'
-
+    modality_suffix = modality if modality else 'both-modalitites'
+    fname = f"{prefix}_{n_rois}-rois_2w_posthoc_{modality_suffix}"
     plt.savefig(os.path.join(output_folder, fname + '.pdf'))
+    plt.close(fig)
 
 
 # ############################# INPUTS ##################################
@@ -989,12 +980,14 @@ region_names2 = ['dorsal_striatum', 'cerebellum']
 roi_names2 = ['dstr', 'cereb']
 
 # tags = ['i', 'a', 'g']
-tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+# tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+tags = ['i8a']
 
 # Tuple: (individual_weight, average_weight, group_weight)
 # weights_list = [(1., 0.), (.5, .5), (0., 1.)]
-weights_list = [(1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
-                (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)]
+# weights_list = [(1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
+#                 (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)]
+weights_list = [(.8, .2)]
 
 
 # ############################## RUN ####################################
@@ -1339,4 +1332,3 @@ if __name__ == '__main__':
                 posthoc_timingroi(
                     dfrois, twoway_anova_timingroi_dir, tag, 2, roi_names, 
                     modality='visual')
-
