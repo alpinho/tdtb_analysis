@@ -275,13 +275,13 @@ def overlay_masks(pdir, mask_type, roi):
 
 
 def extract_roi(rmask, task, contrasts, subject_estimates_dir,
-                derivatives_folder, filetype):
+                derivatives_folder, filetype, derivative_type='sm8wbmasked'):
 
     # # For every contrast
     task_contrasts = []
     for key in list(contrasts.keys()):
 
-        contrast_fname = filetype + '_%04d_desc-sm8wbmasked.nii' % key
+        contrast_fname = f'{filetype}_{key:04d}_desc-{derivative_type}.nii'
 
         masker = NiftiLabelsMasker(labels_img=rmask)
         masker.fit()
@@ -302,7 +302,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                        group_tmap_path, contrasts_dic, contype, prefix,
                        derivatives_folder, mask, 
                        con_thresh_min=3.385, weights=None, 
-                       subregion=False, hems=['lh', 'rh', 'bh']):
+                       subregion=False, hems=['lh', 'rh', 'bh'], 
+                       derivative_type='sm8wbmasked'):
 
     if subregion:
         roi_dir = os.path.join(main_dir, region, atlas, roi)
@@ -393,7 +394,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                 # Extract individual ROIs
                 itask_contrasts = extract_roi(
                     irmask, task, contrasts_dic, estimates_dir,
-                    derivatives_folder, contype)
+                    derivatives_folder, contype, 
+                    derivative_type=derivative_type)
                 # ... and append: shape (tasks, contrasts)
                 itasks_contrasts.append(itask_contrasts)
 
@@ -500,6 +502,8 @@ hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 roi_dir = os.path.join(
     working_dir, 'roi_analyses_' + model + '_' + hrf_cutoff + '_' + masking)
 
+contrast_type = 'wbmasked' # 'sm8wbmasked'
+
 # All ROIs: 7 ROIs
 atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
                   hmat_dir, hmat_dir, hmat_dir]
@@ -571,14 +575,15 @@ if __name__ == '__main__':
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
                     roi_name, gtmap, filtered_contrasts, 'wpsc', tag,
                     individual_derivatives_folder, masking,
-                    con_thresh_min=t_threshold, weights=wpair)
+                    con_thresh_min=t_threshold, weights=wpair, 
+                    derivative_type=contrast_type)
             else:
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
                     roi_name, gtmap, filtered_contrasts, 'wpsc', tag,
                     individual_derivatives_folder, masking,
                     con_thresh_min=t_threshold, weights=wpair,
-                    subregion=True)
+                    subregion=True, derivative_type=contrast_type)
 
             # Define output-dir path
             if region_name == 'dorsal_striatum':
