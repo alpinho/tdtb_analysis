@@ -937,7 +937,11 @@ hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
 
 roi_dir = os.path.join(
     working_dir,
-    'roi_analyses_' + model + '_' + hrf_cutoff + '_' + masking + '_puncorr')
+    'roi_analyses_' 
+    + model + '_' 
+    + hrf_cutoff + '_' 
+    + masking + 
+    '_puncorr_unsmoothed')
 
 # ### Define number of ROIs of the analysis ###
 # All ROIs: 7 ROIs
@@ -980,14 +984,14 @@ region_names2 = ['dorsal_striatum', 'cerebellum']
 roi_names2 = ['dstr', 'cereb']
 
 # tags = ['i', 'a', 'g']
-# tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
-tags = ['i8a']
+tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+# tags = ['i8a']
 
 # Tuple: (individual_weight, average_weight, group_weight)
 # weights_list = [(1., 0.), (.5, .5), (0., 1.)]
-# weights_list = [(1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
-#                 (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)]
-weights_list = [(.8, .2)]
+weights_list = [(1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
+                (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)]
+# weights_list = [(.8, .2)]
 
 
 # ############################## RUN ####################################
