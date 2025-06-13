@@ -137,7 +137,8 @@ def rsa_dataframe(subjects, task_models, base_dir, cond_mapping, output_path,
     return df
 
 
-def prewhiten_betas(df_input, subjects, base_dir, output_path):
+def prewhiten_betas(df_input, subjects, base_dir, output_path, 
+                    prewhiten=True):
     """
     Loads the input DataFrame or uses the given DataFrame,
     processes each beta map by dividing it by the square root of the
@@ -171,6 +172,7 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
 
     # List to store new file paths
     beta_paths = []
+    wmasked_paths = []
     swmasked_paths = []
 
     # Process each row in the DataFrame
@@ -183,25 +185,26 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
         full_beta_map_path = os.path.join(base_dir, rel_beta_map_path)
         full_resms_path = os.path.join(base_dir, rel_resms_path)
 
-        # Load beta map using nilearn and get data as a numpy array
-        beta_img = image.load_img(full_beta_map_path)
-        beta_data = beta_img.get_fdata()
+        if prewhiten:
+            # Load beta map using nilearn and get data as a numpy array
+            beta_img = image.load_img(full_beta_map_path)
+            beta_data = beta_img.get_fdata()
 
-        # Load ResMS map using nilearn and get data as a numpy array
-        resms_img = image.load_img(full_resms_path)
-        resms_data = resms_img.get_fdata()
+            # Load ResMS map using nilearn and get data as a numpy array
+            resms_img = image.load_img(full_resms_path)
+            resms_data = resms_img.get_fdata()
 
-        # Compute square root of ResMS and avoid division by zero
-        sqrt_resms = np.sqrt(resms_data)
-        epsilon = 1e-6
-        sqrt_resms[sqrt_resms < epsilon] = epsilon
+            # Compute square root of ResMS and avoid division by zero
+            sqrt_resms = np.sqrt(resms_data)
+            epsilon = 1e-6
+            sqrt_resms[sqrt_resms < epsilon] = epsilon
 
-        # Compute the prewhitened beta map
-        beta_prewhitened = beta_data / sqrt_resms
+            # Compute the prewhitened beta map
+            beta_prewhitened = beta_data / sqrt_resms
 
-        # Create a new image with the prewhitened beta data,
-        # preserving the affine and header of the original beta map.
-        new_img = image.new_img_like(beta_img, beta_prewhitened)
+            # Create a new image with the prewhitened beta data,
+            # preserving the affine and header of the original beta map.
+            new_img = image.new_img_like(beta_img, beta_prewhitened)
 
         # Build new full filename with the suffix '_desc-prewhitened'
         full_base, ext = os.path.splitext(full_beta_map_path)
@@ -210,8 +213,9 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
             ext = ext2 + ext  # ext becomes '.nii.gz'
         new_full_fname = full_base + '_desc-prewhitened' + ext
 
-        # Save the new prewhitened beta map using nilearn
-        new_img.to_filename(new_full_fname)
+        if prewhiten:
+            # Save the new prewhitened beta map using nilearn
+            new_img.to_filename(new_full_fname)
 
         # Convert the new full filename back to a relative path...
         # ... (relative to base_dir)
@@ -220,8 +224,16 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
         # Append the relative path to the list
         beta_paths.append(new_rel_fname)
 
-        # Create the relative path for the normalized, smoothed...
+        # Create the relative path for the normalized, (smoothed)...
         # ... and masked pre-whiten beta maps
+        wmasked_path = os.path.join(
+            os.path.relpath(
+                os.path.dirname(os.path.dirname(new_full_fname)), base_dir),
+            'masked_derivatives_rwls_dbb_hrf128',
+            'w'
+            + os.path.basename(new_full_fname)[:-4]
+            + '_desc-wbmasked.nii',
+        )
         swmasked_path = os.path.join(
             os.path.relpath(
                 os.path.dirname(os.path.dirname(new_full_fname)), base_dir),
@@ -231,11 +243,13 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
             + '_desc-sm8wbmasked.nii',
         )
 
-        # Append the relative path of the swmasked files
+        # Append the relative path of the wmasked and swmasked files
+        wmasked_paths.append(wmasked_path)
         swmasked_paths.append(swmasked_path)
 
     # Register the new paths in a new column
     df['betamap_prewhitened_path'] = beta_paths
+    df['wmasked_betamap_prewhitened_path'] = wmasked_paths
     df['swmasked_betamap_prewhitened_path'] = swmasked_paths
 
     # Save the DataFrame in the rsa_folder
@@ -245,7 +259,8 @@ def prewhiten_betas(df_input, subjects, base_dir, output_path):
 
 
 def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags, 
-                            regions, atlases, rois, hems, iroi_mask_dir):
+                            regions, atlases, rois, hems, iroi_mask_dir, 
+                            thresh, smoothing):
     """
     Extracts ROI signals for given subjects, tags, regions, and
     hemispheres, saving a 5D array per tag.
@@ -320,7 +335,8 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
             print(f"Processing tag: {tag}")
 
             # Preserve user-specified order
-            condition_names = [c for c in df_unfiltered['condition_name'].unique()]
+            condition_names = [
+                c for c in df_unfiltered['condition_name'].unique()]
             run_numbers = [r for r in df_unfiltered['run_number'].unique()]
             # subjects and hems are already user-specified sequences
 
@@ -402,11 +418,19 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                             ]
                             if row_match.empty:
                                 continue
-                            betamap_path = os.path.join(
-                                base_dir, 
-                                row_match.iloc[0][
-                                    'swmasked_betamap_prewhitened_path']
-                            )
+                            if smoothing == 'unsmoothed':
+                                betamap_path = os.path.join(
+                                    base_dir, 
+                                    row_match.iloc[0][
+                                        'wmasked_betamap_prewhitened_path']
+                                )
+                            else:
+                                assert smoothing == 'smoothed'
+                                betamap_path = os.path.join(
+                                    base_dir, 
+                                    row_match.iloc[0][
+                                        'swmasked_betamap_prewhitened_path']
+                                )
                             betamap = image.load_img(betamap_path)
                             voxels = masker.fit_transform(betamap)
                             data_array[h, c, r, s, :] = voxels
@@ -420,7 +444,7 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
 
             output_path = os.path.join(
                 output_folder,
-                f'grandglm_roi_signals_{roi}_{tag}.npy'
+                f'grandglm_roi_signals_{roi}_{tag}_{thresh}_{smoothing}.npy'
             )
             np.save(output_path, data_array)
             print(
@@ -489,7 +513,7 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
 
 
 def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list, 
-              output_folder, roi_label, i_label, thresh_label):
+              output_folder, roi_label, i_label, thresh_label, smooth_label):
     """
     Plot the individual and group Euclidean distance matrices.
 
@@ -511,8 +535,10 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
         ROI label for the filename.
     i_label : str
         Tag label for the filename.
-    thresh_type : str
+    thresh_label : str
         Threshold type for the filename.
+    smooth_label : str
+        Smooth type for the filename.
     """ 
 
     condition_labels = [
@@ -538,7 +564,8 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
                        vmax=vmax)
         ax.set_title(f'Subject {subject}')
         ax.set_xticks(np.arange(len(condition_labels)))
-        ax.set_xticklabels(condition_labels, rotation=45, ha='right', fontsize=8)
+        ax.set_xticklabels(condition_labels, rotation=45, ha='right', 
+                           fontsize=8)
         ax.set_yticks(np.arange(len(condition_labels)))
         ax.set_yticklabels(condition_labels, fontsize=8)
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -562,7 +589,8 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
     plt.savefig(
         os.path.join(
             output_folder,
-            f'eucl_distances_{roi_label}_{i_label}_{thresh_label}.png'
+            f'eucl_distances_{roi_label}_{i_label}_{thresh_label}_'
+            f'{smooth_label}.png'
         ),
         dpi=300
     )
@@ -584,9 +612,6 @@ rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 # ########################### ROIs ######################################
 
-iroi_main_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             'roi_analyses_rwls_hrf128_wb_puncorr')
-
 # All ROIs: 7 ROIs
 # region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
 #                 'motor_area', 'motor_area', 'motor_area']
@@ -606,6 +631,11 @@ itags = ['i', 'i8a']
 hemispheres = ['bh']  # Both hemispheres
 
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
+smooth = 'unsmoothed' # 'smoothed'
+
+iroi_main_dir = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    f'roi_analyses_rwls_hrf128_wb_{thresh_type}_{smooth}')
 
 # #######################################################################
 
@@ -638,23 +668,27 @@ if __name__ == '__main__':
 
     # Paths of dataframes
     # db_taskglm_path = os.path.join(rsa_folder, 'rsa_taskglm.tsv')
-    # db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm.tsv')
+    db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm.tsv')
    
-    # # Create dataframes
+    # Create dataframes
     # db_taskglm = rsa_dataframe(
     #     SUBJECTS, glm_tasks, data_storage, conditions_mapping,
     #     db_taskglm_path, glm_type='task_glm')
-    # db_grandglm = rsa_dataframe(
-    #     SUBJECTS, glm_tasks, data_storage, conditions_mapping,
-    #     db_grandglm_path, glm_type='grand_glm')
+    db_grandglm = rsa_dataframe(
+        SUBJECTS, glm_tasks, data_storage, conditions_mapping,
+        db_grandglm_path, glm_type='grand_glm')
 
-    # # Prewhiten task glm beta maps and save them
+    # Prewhiten task glm beta maps and save them
     # db_taskglm = prewhiten_betas(
     #     db_taskglm_path, SUBJECTS, data_storage, db_taskglm_path)
 
-    # # Prewhiten grand glm beta maps and save them
+    # Prewhiten grand glm beta maps and save them, ...
     # db_grandglm = prewhiten_betas(
     #     db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path)
+    # ... or just add paths of derivatives to dataframe
+    db_grandglm = prewhiten_betas(
+        db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path,
+        prewhiten=False)
 
     # ##################################################################
     # Note: The next steps rely on prewhiten_beta_maps that were normalized,
@@ -663,7 +697,7 @@ if __name__ == '__main__':
 
     # Open dataframes
     # db_taskglm = pd.read_csv(db_taskglm_path)
-    # db_grandglm = pd.read_csv(db_grandglm_path)
+    db_grandglm = pd.read_csv(db_grandglm_path)
 
     # Extract signals from prewhitened data using the individualized ROIs
     # Order of conditions: abeat_prod, ainterval_prod,
@@ -672,9 +706,10 @@ if __name__ == '__main__':
     #                      vbeat_percep, vinterval_percep, 
     #                      abeat_ntfd, ainterval_ntfd,
     #                      vbeat_ntfd, vinterval_ntfd
-    # grandglm_roi_extraction(db_grandglm_path, data_storage, glm_tasks,
-    #                         SUBJECTS, itags, region_names, atlas_names,
-    #                         roi_names, hemispheres, iroi_main_dir)
+    grandglm_roi_extraction(db_grandglm_path, data_storage, glm_tasks,
+                            SUBJECTS, itags, region_names, atlas_names,
+                            roi_names, hemispheres, iroi_main_dir, 
+                            thresh_type, smooth)
 
     # Compute RSA within a region
     for itag in itags:
@@ -686,7 +721,8 @@ if __name__ == '__main__':
             # Load the ROI signals for the current tag and ROI
             roi_signals_path = os.path.join(
                 rsa_folder, 'grandglm_roi_signals', region_name,
-                f'grandglm_roi_signals_{roi_name}_{itag}_{thresh_type}.npy'
+                f'grandglm_roi_signals_{roi_name}_{itag}_{thresh_type}_'
+                f'{smooth}.npy'
             )
             if not os.path.exists(roi_signals_path):
                 print(f"Skipping {roi_name} for tag {itag}: file not found.")
@@ -708,11 +744,13 @@ if __name__ == '__main__':
             # Save the distances to a .npy file
             individual_output_path = os.path.join(
                 output_dir,
-                f'individual_eucl_distances_{roi_name}_{itag}_{thresh_type}.npy'
+                f'individual_eucl_distances_{roi_name}_{itag}_{thresh_type}_'
+                f'{smooth}.npy'
             )
             group_output_path = os.path.join(
                 output_dir,
-                f'group_eucl_distances_{roi_name}_{itag}_{thresh_type}.npy'
+                f'group_eucl_distances_{roi_name}_{itag}_{thresh_type}_'
+                f'{smooth}.npy'
             )
             if os.path.exists(individual_output_path):
                 os.remove(individual_output_path)
@@ -729,7 +767,7 @@ if __name__ == '__main__':
             plot_rdms(
                 individual_eucl_distances, group_eucl_distances, SUBJECTS,
                 glm_tasks[:3], conditions_mapping, output_dir, roi_name, itag, 
-                thresh_type)
+                thresh_type, smooth)
             print(f"Save rdm plots for {roi_name} for tag {itag}.")
 
     # Print completion message
