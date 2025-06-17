@@ -19,6 +19,8 @@ import pandas as pd
 import PcmPy as pcm
 
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.colors import ListedColormap
 
 from nitools import spm
 from nilearn import image
@@ -524,7 +526,11 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     n_runs = Y.shape[2]
     n_voxels = Y.shape[-1]
 
-    cond_vec = np.tile(condition_labels, n_runs)
+    cond_vec_alpha = np.tile(condition_labels, n_runs)
+    label_to_index = \
+        {label: idx + 1 for idx, label in enumerate(condition_labels)}
+    cond_vec = np.array([label_to_index[label] for label in cond_vec_alpha])
+
     part_vec = np.repeat(np.arange(1, n_runs + 1), n_conditions)
 
     # Select hemisphere
@@ -540,15 +546,16 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
 
     # Compute distance matrix for each subject
     distances = np.empty((n_subjects, n_conditions, n_conditions))
-    for i, subj_data in enumerate(Y_reshaped):
+    for s, subj_data in enumerate(Y_reshaped):
         G_cv, _ = pcm.est_G_crossval(subj_data, cond_vec, part_vec)
-        distances[i] = pcm.G_to_dist(G_cv)
+        distances[s] = pcm.G_to_dist(G_cv)
 
     return distances
 
 
 def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list, 
-              output_folder, roi_label, i_label, thresh_label, smooth_label):
+              output_folder, roi_label, i_label, thresh_label, smooth_label, 
+              color_scheme='PiYG', truncate_to_zero=True):
     """
     Plot the individual and group Euclidean distance matrices.
 
@@ -593,7 +600,17 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
     # Compute global min/max across all individual and group distances
     all_vals = np.concatenate([i_dist.flatten(), g_dist.flatten()])
     abs_max = np.max(np.abs(all_vals))
-    vmin, vmax = -abs_max, abs_max
+
+    # Define colormap
+    if truncate_to_zero:
+        vmin, vmax = 0, abs_max
+        # Use the top half of 'PiYG' (white to green)
+        orig_cmap = cm.get_cmap(color_scheme)
+        new_colors = orig_cmap(np.linspace(0.5, 1.0, 256))  # Top half
+        cmap = ListedColormap(new_colors)
+    else:
+        vmin, vmax = -abs_max, abs_max
+        cmap = color_scheme
 
     n_cols = 4
     n_rows = int(np.ceil((len(subjects) + 1) / n_cols))
@@ -603,7 +620,10 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
 
     for s, subject in enumerate(subjects):
         ax = axes[s]
-        im = ax.imshow(i_dist[s], cmap='PiYG', aspect='equal', vmin=vmin,
+        i_matrix = i_dist[s].copy()
+        if truncate_to_zero:
+            i_matrix[i_matrix < 0] = 0
+        im = ax.imshow(i_matrix, cmap=cmap, aspect='equal', vmin=vmin,
                        vmax=vmax)
         ax.set_title(f'Subject {subject}')
         ax.set_xticks(np.arange(len(condition_labels)))
@@ -615,7 +635,10 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
 
     # Group RDM in the last subplot
     ax = axes[len(subjects)]
-    im = ax.imshow(g_dist, cmap='PiYG', aspect='equal', vmin=vmin,
+    g_matrix = g_dist.copy()
+    if truncate_to_zero:
+        g_matrix[g_matrix < 0] = 0
+    im = ax.imshow(g_matrix, cmap=cmap, aspect='equal', vmin=vmin,
                    vmax=vmax)
     ax.set_title('Group')
     ax.set_xticks(np.arange(len(condition_labels)))
