@@ -529,7 +529,8 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     cond_vec_alpha = np.tile(condition_labels, n_runs)
     label_to_index = \
         {label: idx + 1 for idx, label in enumerate(condition_labels)}
-    cond_vec = np.array([label_to_index[label] for label in cond_vec_alpha])
+    cond_vec_numeric = np.array([
+        label_to_index[label] for label in cond_vec_alpha])
 
     part_vec = np.repeat(np.arange(1, n_runs + 1), n_conditions)
 
@@ -547,7 +548,7 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     # Compute distance matrix for each subject
     distances = np.empty((n_subjects, n_conditions, n_conditions))
     for s, subj_data in enumerate(Y_reshaped):
-        G_cv, _ = pcm.est_G_crossval(subj_data, cond_vec, part_vec)
+        G_cv, _ = pcm.est_G_crossval(subj_data, cond_vec_numeric, part_vec)
         distances[s] = pcm.G_to_dist(G_cv)
 
     return distances
