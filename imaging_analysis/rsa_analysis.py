@@ -555,7 +555,7 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
 
 def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list, 
               output_folder, roi_label, i_label, thresh_label, smooth_label, 
-              color_scheme='PiYG', truncate_to_zero=True):
+              color_scheme='PiYG', rescale=True, truncate_to_zero=True):
     """
     Plot the individual and group Euclidean distance matrices.
 
@@ -596,6 +596,11 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
         for task in tasks_list
         for abbr in conditions_list.values()
     ]
+    
+    # Rescale
+    if rescale:
+        i_dist = np.sign(i_dist) * np.sqrt(np.abs(i_dist))
+        g_dist = np.sign(g_dist) * np.sqrt(np.abs(g_dist))
 
     # Compute global min/max across all individual and group distances
     all_vals = np.concatenate([i_dist.flatten(), g_dist.flatten()])
