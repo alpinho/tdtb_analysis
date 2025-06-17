@@ -326,6 +326,14 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
     `run_numbers`, `subjects`, then `hems` as they first appear
     in the input data.
 
+    `condition_names` are ordered as it follows:
+    ['abeat_prod', 'ainterval_prod', 
+     'vbeat_prod', 'vinterval_prod', 
+     'abeat_percep', 'ainterval_percep', 
+     'vbeat_percep', 'vinterval_percep', 
+     'abeat_ntfd', 'ainterval_ntfd', 
+     'vbeat_ntfd', 'vinterval_ntfd']
+
     Missing data (e.g., missing beta map or mask) results in NaNs in
     the output array.
 
@@ -497,10 +505,18 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
         Array of Euclidean distance matrices with shape
         (n_subjects, n_conditions, n_conditions).
     """
+    # new (tasks X conds)
+    # Order of the condition_labels should be:
+    #  ['abeat_prod', 'ainterval_prod', 
+    #  'vbeat_prod', 'vinterval_prod', 
+    #  'abeat_percep', 'ainterval_percep', 
+    #  'vbeat_percep', 'vinterval_percep', 
+    #  'abeat_ntfd', 'ainterval_ntfd', 
+    #  'vbeat_ntfd', 'vinterval_ntfd']
     condition_labels = [
         f"{abbr}_{task}"
-        for abbr in conditions_list.values()
         for task in tasks_list
+        for abbr in conditions_list.values()
     ]
 
     n_subjects = Y.shape[3]
@@ -560,10 +576,18 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
         Smooth type for the filename.
     """ 
 
+    # new (tasks X conds)
+    # Order of the condition_labels should be:
+    #  ['abeat_prod', 'ainterval_prod', 
+    #  'vbeat_prod', 'vinterval_prod', 
+    #  'abeat_percep', 'ainterval_percep', 
+    #  'vbeat_percep', 'vinterval_percep', 
+    #  'abeat_ntfd', 'ainterval_ntfd', 
+    #  'vbeat_ntfd', 'vinterval_ntfd']
     condition_labels = [
         f"{abbr}_{task}"
-        for abbr in conditions_list.values()
         for task in tasks_list
+        for abbr in conditions_list.values()
     ]
 
     # Compute global min/max across all individual and group distances
@@ -719,10 +743,10 @@ if __name__ == '__main__':
     #                      vbeat_percep, vinterval_percep, 
     #                      abeat_ntfd, ainterval_ntfd,
     #                      vbeat_ntfd, vinterval_ntfd
-    grandglm_roi_extraction(db_grandglm_path, data_storage, glm_tasks,
-                            SUBJECTS, itags, region_names, atlas_names,
-                            roi_names, hemispheres, iroi_main_dir, 
-                            thresh_type, smooth)
+    # grandglm_roi_extraction(db_grandglm_path, data_storage, glm_tasks,
+    #                         SUBJECTS, itags, region_names, atlas_names,
+    #                         roi_names, hemispheres, iroi_main_dir, 
+    #                         thresh_type, smooth)
 
     # Compute RSA within a region
     for itag in itags:
