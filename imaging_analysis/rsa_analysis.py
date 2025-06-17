@@ -429,8 +429,13 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                                 (df_unfiltered['condition_name'] == condition) &
                                 (df_unfiltered['run_number'] == run)
                             ]
-                            if row_match.empty:
-                                continue
+                            if len(row_match) != 1:
+                                raise ValueError(
+                                    f"Expected 1 matching row, "
+                                    f"but found {len(row_match)} "
+                                    f"for subject={subject}, "
+                                    f"condition='{condition}', run={run}."
+                                )
                             if smoothing == 'unsmoothed':
                                 betamap_path = os.path.join(
                                     base_dir, 
@@ -618,7 +623,7 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
 # Subjects without pilot
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-# SUBJECTS = [46]
+# SUBJECTS = [42]
 
 # Path for output folders
 rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -686,17 +691,17 @@ if __name__ == '__main__':
         rsa_folder, f'rsa_grandglm_{thresh_type}_{smooth}.tsv')
    
     # Create dataframes
-    db_grandglm = rsa_dataframe(
-        SUBJECTS, glm_tasks, data_storage, conditions_mapping,
-        db_grandglm_path, glm_type='grand_glm')
+    # db_grandglm = rsa_dataframe(
+    #     SUBJECTS, glm_tasks, data_storage, conditions_mapping,
+    #     db_grandglm_path, glm_type='grand_glm')
 
     # Prewhiten grand glm beta maps and save them, ...
     # db_grandglm = prewhiten_betas(
     #     db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path)
     # ... or just add paths of derivatives to dataframe
-    db_grandglm = prewhiten_betas(
-        db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path,
-        prewhiten=False)
+    # db_grandglm = prewhiten_betas(
+    #     db_grandglm_path, SUBJECTS, data_storage, db_grandglm_path,
+    #     prewhiten=False)
 
     # ##################################################################
     # Note: The next steps rely on prewhiten_beta_maps that were normalized,
