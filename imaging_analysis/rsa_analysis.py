@@ -65,8 +65,21 @@ def rsa_dataframe(subjects, task_models, base_dir, cond_mapping, output_path,
                 run_numbers = np.array(SPM.run_number)
             else:
                 assert glm_type == 'grand_glm'
-                run_numbers = np.repeat(
-                    [1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4], 4)
+                if subj == 14:
+                    run_numbers = np.repeat(
+                        [1, 2, 1, 2, 1, 2, 3, 3, 4, 3, 4, 4], 4)
+                elif subj == 42:
+                    run_numbers = np.repeat(
+                        [1, 1, 2, 1, 2, 2, 3, 4, 3, 4, 3, 4], 4)
+                elif subj == 43:
+                    run_numbers = np.repeat(
+                        [1, 2, 1, 2, 1, 2, 3, 3, 4, 3, 4, 4], 4)
+                elif subj == 46:
+                    run_numbers = np.repeat(
+                        [1, 2, 1, 2, 1, 2, 3, 3, 3, 4, 4, 4], 4)
+                else:
+                    run_numbers = np.repeat(
+                        [1, 2, 1, 2, 1, 2, 3, 4, 3, 4, 3, 4], 4)
 
             # Remove volume numbers from rawdata_files
             rawdata_files_cleaned = np.array(
@@ -438,7 +451,8 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
             # Save array to disk
             output_folder = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                'results', 'rsa', 'grandglm_roi_signals', region
+                'results', 'rsa', 
+                f'grandglm_roi_signals_{thresh}_{smoothing}', region
             )
             os.makedirs(output_folder, exist_ok=True)
 
@@ -604,7 +618,7 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
 # Subjects without pilot
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-# SUBJECTS = [3]
+# SUBJECTS = [46]
 
 # Path for output folders
 rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -668,19 +682,13 @@ if __name__ == '__main__':
 
     # Paths of dataframes
     # db_taskglm_path = os.path.join(rsa_folder, 'rsa_taskglm.tsv')
-    db_grandglm_path = os.path.join(rsa_folder, 'rsa_grandglm.tsv')
+    db_grandglm_path = os.path.join(
+        rsa_folder, f'rsa_grandglm_{thresh_type}_{smooth}.tsv')
    
     # Create dataframes
-    # db_taskglm = rsa_dataframe(
-    #     SUBJECTS, glm_tasks, data_storage, conditions_mapping,
-    #     db_taskglm_path, glm_type='task_glm')
     db_grandglm = rsa_dataframe(
         SUBJECTS, glm_tasks, data_storage, conditions_mapping,
         db_grandglm_path, glm_type='grand_glm')
-
-    # Prewhiten task glm beta maps and save them
-    # db_taskglm = prewhiten_betas(
-    #     db_taskglm_path, SUBJECTS, data_storage, db_taskglm_path)
 
     # Prewhiten grand glm beta maps and save them, ...
     # db_grandglm = prewhiten_betas(
@@ -697,7 +705,7 @@ if __name__ == '__main__':
 
     # Open dataframes
     # db_taskglm = pd.read_csv(db_taskglm_path)
-    db_grandglm = pd.read_csv(db_grandglm_path)
+    db_grandglm = pd.read_csv(db_grandglm_path, sep='\t')
 
     # Extract signals from prewhitened data using the individualized ROIs
     # Order of conditions: abeat_prod, ainterval_prod,
@@ -720,7 +728,8 @@ if __name__ == '__main__':
 
             # Load the ROI signals for the current tag and ROI
             roi_signals_path = os.path.join(
-                rsa_folder, 'grandglm_roi_signals', region_name,
+                rsa_folder, f'grandglm_roi_signals_{thresh_type}_{smooth}',
+                region_name, 
                 f'grandglm_roi_signals_{roi_name}_{itag}_{thresh_type}_'
                 f'{smooth}.npy'
             )
@@ -733,12 +742,13 @@ if __name__ == '__main__':
             # Compute Euclidean distances for the current ROI
             individual_eucl_distances = compute_euclidean_distances(
                 roi_signals, glm_tasks[:3], conditions_mapping)
-            
+
             # Compute the mean of the distances across subjects
             group_eucl_distances = np.mean(individual_eucl_distances, axis=0)
 
             # Create output folder if it does not exist
-            output_dir = os.path.join(rsa_folder, 'euclidean_distances')
+            output_dir = os.path.join(
+                rsa_folder, f'euclidean_distances_{thresh_type}_{smooth}')
             os.makedirs(output_dir, exist_ok=True)
 
             # Save the distances to a .npy file
