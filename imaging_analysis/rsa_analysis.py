@@ -563,7 +563,6 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
                 end = (run + 1) * n_conditions
                 run_data = Y_reshaped[s, start:end, :]  # shape (12, n_voxels)
                 run_mean = np.mean(run_data, axis=0, keepdims=True)
-                print(run_mean)
                 Y_reshaped[s, start:end, :] -= run_mean
 
     # Compute distance matrix for each subject
@@ -692,6 +691,71 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
     # plt.show()
 
 
+def rsa(tags, regions, rois):
+    for tag in tags:
+        print(f"Processing tag: {tag}")
+
+        for region, roi in zip(regions, rois):
+            print(f"Processing ROI: {roi}")
+
+            # Load the ROI signals for the current tag and ROI
+            roi_signals_path = os.path.join(
+                rsa_folder, f'grandglm_roi_signals_{thresh_type}_{smooth}',
+                region, 
+                f'grandglm_roi_signals_{roi}_{tag}_{thresh_type}_'
+                f'{smooth}.npy'
+            )
+            if not os.path.exists(roi_signals_path):
+                print(f"Skipping {roi} for tag {tag}: file not found.")
+                continue
+
+            roi_signals = np.load(roi_signals_path)
+
+            # Compute Euclidean distances for the current ROI
+            individual_eucl_distances = compute_euclidean_distances(
+                roi_signals, glm_tasks[:3], conditions_mapping)
+
+            # Compute the mean of the distances across subjects
+            group_eucl_distances = np.mean(individual_eucl_distances, axis=0)
+
+            # Create output folder if it does not exist
+            output_dir = os.path.join(
+                rsa_folder, f'euclidean_distances_{thresh_type}_{smooth}')
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Save the distances to a .npy file
+            individual_output_path = os.path.join(
+                output_dir,
+                f'individual_eucl_distances_{roi}_{tag}_{thresh_type}_'
+                f'{smooth}.npy'
+            )
+            group_output_path = os.path.join(
+                output_dir,
+                f'group_eucl_distances_{roi}_{tag}_{thresh_type}_'
+                f'{smooth}.npy'
+            )
+            if os.path.exists(individual_output_path):
+                os.remove(individual_output_path)
+            if os.path.exists(group_output_path):
+                os.remove(group_output_path)
+            np.save(individual_output_path, individual_eucl_distances)
+            np.save(group_output_path, group_eucl_distances)
+            print(
+                f"Saved distances to {individual_output_path} "
+                f"and {group_output_path}"
+            )
+
+            # Plot the RDMs
+            plot_rdms(
+                individual_eucl_distances, group_eucl_distances, SUBJECTS,
+                glm_tasks[:3], conditions_mapping, output_dir, roi, tag, 
+                thresh_type, smooth)
+            print(f"Save rdm plots for {roi} for tag {tag}.")
+
+    # Print completion message
+    print("RSA analysis completed for all ROIs and tags.")
+
+
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
@@ -799,65 +863,4 @@ if __name__ == '__main__':
     #                         thresh_type, smooth)
 
     # Compute RSA within a region
-    for itag in itags:
-        print(f"Processing tag: {itag}")
-
-        for region_name, roi_name in zip(region_names, roi_names):
-            print(f"Processing ROI: {roi_name}")
-
-            # Load the ROI signals for the current tag and ROI
-            roi_signals_path = os.path.join(
-                rsa_folder, f'grandglm_roi_signals_{thresh_type}_{smooth}',
-                region_name, 
-                f'grandglm_roi_signals_{roi_name}_{itag}_{thresh_type}_'
-                f'{smooth}.npy'
-            )
-            if not os.path.exists(roi_signals_path):
-                print(f"Skipping {roi_name} for tag {itag}: file not found.")
-                continue
-
-            roi_signals = np.load(roi_signals_path)
-
-            # Compute Euclidean distances for the current ROI
-            individual_eucl_distances = compute_euclidean_distances(
-                roi_signals, glm_tasks[:3], conditions_mapping)
-
-            # Compute the mean of the distances across subjects
-            group_eucl_distances = np.mean(individual_eucl_distances, axis=0)
-
-            # Create output folder if it does not exist
-            output_dir = os.path.join(
-                rsa_folder, f'euclidean_distances_{thresh_type}_{smooth}')
-            os.makedirs(output_dir, exist_ok=True)
-
-            # Save the distances to a .npy file
-            individual_output_path = os.path.join(
-                output_dir,
-                f'individual_eucl_distances_{roi_name}_{itag}_{thresh_type}_'
-                f'{smooth}.npy'
-            )
-            group_output_path = os.path.join(
-                output_dir,
-                f'group_eucl_distances_{roi_name}_{itag}_{thresh_type}_'
-                f'{smooth}.npy'
-            )
-            if os.path.exists(individual_output_path):
-                os.remove(individual_output_path)
-            if os.path.exists(group_output_path):
-                os.remove(group_output_path)
-            np.save(individual_output_path, individual_eucl_distances)
-            np.save(group_output_path, group_eucl_distances)
-            print(
-                f"Saved distances to {individual_output_path} "
-                f"and {group_output_path}"
-            )
-
-            # Plot the RDMs
-            plot_rdms(
-                individual_eucl_distances, group_eucl_distances, SUBJECTS,
-                glm_tasks[:3], conditions_mapping, output_dir, roi_name, itag, 
-                thresh_type, smooth)
-            print(f"Save rdm plots for {roi_name} for tag {itag}.")
-
-    # Print completion message
-    print("RSA analysis completed for all ROIs and tags.")
+    rsa(itags, region_names, roi_names)
