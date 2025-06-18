@@ -481,8 +481,8 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
             )
 
 
-def compute_euclidean_distances(Y, tasks_list, conditions_list,
-                                hem_index=None):
+def compute_euclidean_distances(Y, tasks_list, conditions_list, 
+                                hem_index=None, mean_center=True):
     """
     Compute cross-validated Euclidean distances between conditions
     for all subjects in the dataset.
@@ -500,6 +500,8 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     hem_index : int or None, optional
         If specified, selects the hemisphere index along the first axis.
         If None, the first hemisphere (index 0) is used.
+    mean_center : bool, optional
+        Whether to mean-center each run (across conditions) per voxel.
 
     Returns
     -------
@@ -544,6 +546,25 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     Y_reshaped = Y_reordered.reshape(n_subjects,
                                      n_runs * n_conditions,
                                      n_voxels)
+
+    # Mean-center per run if specified
+    # Note: this might be redundant when computing after the 
+    #       crossvalidated second-moment estimation, because it removes
+    #       run-specific means via the crossvalidation scheme.
+    #       According to Diedrichsen & Kriegeskorte (2017):
+    #       "Crossvalidated estimates of the second-moment matrix are 
+    #        insensitive to additive run-specific components, as long 
+    #        as those components are consistent across conditions 
+    #        within a run."
+    if mean_center:
+        for s in range(n_subjects):
+            for run in range(n_runs):
+                start = run * n_conditions
+                end = (run + 1) * n_conditions
+                run_data = Y_reshaped[s, start:end, :]  # shape (12, n_voxels)
+                run_mean = np.mean(run_data, axis=0, keepdims=True)
+                print(run_mean)
+                Y_reshaped[s, start:end, :] -= run_mean
 
     # Compute distance matrix for each subject
     distances = np.empty((n_subjects, n_conditions, n_conditions))
