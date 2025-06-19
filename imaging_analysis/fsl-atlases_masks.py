@@ -133,42 +133,84 @@ mniflirt_cereb7b8a_lh_maskpath = os.path.join(
 mniflirt_cereb7b8a_rh_maskpath = os.path.join(
     cerebellum_dir, 'mniflirt_cereb7b8a_rh_mask.nii.gz')
 
-heschl_probmap = os.path.join(
-    auditory_cortex_dir, 'harvardoxford-cortical_prob_HeschlGyrus.nii.gz')
-heschl_maskpath = os.path.join(
-    auditory_cortex_dir, 'hos_heschl_mask.nii.gz')
+heschl_lh_probmap = os.path.join(
+    auditory_cortex_dir,
+    'harvardoxford-cortical-lateralized_prob_Left_Heschl_Gyrus.nii.gz')
+heschl_lh_maskpath = os.path.join(
+    auditory_cortex_dir, 'hos_heschl_lh_mask.nii.gz')
 
-occipital_pole_probmap = os.path.join(
-    visual_cortex_dir, 'harvardoxford-cortical_prob_Occipital_Pole.nii.gz')
-occipital_pole_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_occipital_pole_mask.nii.gz')
+heschl_rh_probmap = os.path.join(
+    auditory_cortex_dir,
+    'harvardoxford-cortical-lateralized_prob_Right_Heschl_Gyrus.nii.gz')
+heschl_rh_maskpath = os.path.join(
+    auditory_cortex_dir, 'hos_heschl_rh_mask.nii.gz')
 
-occipital_loc_sup_probmap = os.path.join(
+occipital_pole_lh_probmap = os.path.join(
     visual_cortex_dir,
-    'harvardoxford-cortical_prob_Lateral_Occipital_Cortex_' +
+    'harvardoxford-cortical-lateralized_prob_Left_Occipital_Pole.nii.gz')
+occipital_pole_lh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_occipital-pole_lh_mask.nii.gz')
+
+occipital_pole_rh_probmap = os.path.join(
+    visual_cortex_dir,
+    'harvardoxford-cortical-lateralized_prob_Right_Occipital_Pole.nii.gz')
+occipital_pole_rh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_occipital-pole_rh_mask.nii.gz')
+
+occipital_locsup_lh_probmap = os.path.join(
+    visual_cortex_dir,
+    'harvardoxford-cortical-lateralized_prob_Left_Lateral_Occipital_Cortex_' +
     'superior_division.nii.gz')
-occipital_loc_sup_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_loc_sup_mask.nii.gz')
+occipital_locsup_lh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_loc-sup_lh_mask.nii.gz')
 
-occipital_loc_inf_probmap = os.path.join(
+occipital_locsup_rh_probmap = os.path.join(
     visual_cortex_dir,
-    'harvardoxford-cortical_prob_Lateral_Occipital_Cortex_' +
+    'harvardoxford-cortical-lateralized_prob_Right_Lateral_Occipital_Cortex_' +
+    'superior_division.nii.gz')
+occipital_locsup_rh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_loc-sup_rh_mask.nii.gz')
+
+occipital_locinf_lh_probmap = os.path.join(
+    visual_cortex_dir,
+    'harvardoxford-cortical-lateralized_prob_Left_Lateral_Occipital_Cortex_' +
     'inferior_division.nii.gz')
-occipital_loc_inf_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_loc_inf_mask.nii.gz')
+occipital_locinf_lh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_loc-inf_lh_mask.nii.gz')
 
-occipital_fusiform_probmap = os.path.join(
+occipital_locinf_rh_probmap = os.path.join(
     visual_cortex_dir,
-    'harvardoxford-cortical_prob_Occipital_Fusiform_Gyrus.nii.gz')
-occipital_fusiform_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_fusiform_mask.nii.gz')
+    'harvardoxford-cortical-lateralized_prob_Right_Lateral_Occipital_Cortex_' +
+    'inferior_division.nii.gz')
+occipital_locinf_rh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_loc-inf_rh_mask.nii.gz')
 
-occipital_loc_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_loc_mask.nii.gz')
-occipital_locpole_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_locpole_mask.nii.gz')
-occipital_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_occipital_mask.nii.gz')
+occipital_fusiform_lh_probmap = os.path.join(
+    visual_cortex_dir,
+    'harvardoxford-cortical-lateralized_prob_Left_Occipital_' +
+    'Fusiform_Gyrus.nii.gz')
+occipital_fusiform_lh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_fusiform_lh_mask.nii.gz')
+
+occipital_fusiform_rh_probmap = os.path.join(
+    visual_cortex_dir,
+    'harvardoxford-cortical-lateralized_prob_Right_Occipital_' +
+    'Fusiform_Gyrus.nii.gz')
+occipital_fusiform_rh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_fusiform_rh_mask.nii.gz')
+
+occipital_loc_lh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_loc_lh_mask.nii.gz')
+occipital_loc_rh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_loc_rh_mask.nii.gz')
+occipital_locpole_lh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_locpole_lh_mask.nii.gz')
+occipital_locpole_rh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_locpole_rh_mask.nii.gz')
+occipital_lh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_occipital_lh_mask.nii.gz')
+occipital_rh_maskpath = os.path.join(
+    visual_cortex_dir, 'hos_occipital_rh_mask.nii.gz')
 
 # ############################## RUN ###################################
 
@@ -240,27 +282,43 @@ if __name__ == '__main__':
                   mniflirt_cereb7b8a_rh_maskpath)
 
     # ####################### HESCHL'S GYRUS ###########################
-    hos_heschl_bin = binarize(heschl_probmap, 30.)
+    hos_heschl_lh_bin = binarize(heschl_lh_probmap, 30.)
+    hos_heschl_rh_bin = binarize(heschl_rh_probmap, 30.)
 
     # Save mask
-    hos_heschl_bin.to_filename(heschl_maskpath)
+    hos_heschl_lh_bin.to_filename(heschl_lh_maskpath)
+    hos_heschl_rh_bin.to_filename(heschl_rh_maskpath)
 
     # ####################### OCCIPITAL LOBE ###########################
-    hos_occpole_bin = binarize(occipital_pole_probmap, 30.)
-    hos_locsup_bin = binarize(occipital_loc_sup_probmap, 30.)
-    hos_locinf_bin = binarize(occipital_loc_inf_probmap, 30.)
-    hos_fusiform_bin = binarize(occipital_fusiform_probmap, 30.)
+    hos_occpole_lh_bin = binarize(occipital_pole_lh_probmap, 30.)
+    hos_occpole_rh_bin = binarize(occipital_pole_rh_probmap, 30.)
+    hos_locsup_lh_bin = binarize(occipital_locsup_lh_probmap, 30.)
+    hos_locsup_rh_bin = binarize(occipital_locsup_rh_probmap, 30.)
+    hos_locinf_lh_bin = binarize(occipital_locinf_lh_probmap, 30.)
+    hos_locinf_rh_bin = binarize(occipital_locinf_rh_probmap, 30.)
+    hos_fusiform_lh_bin = binarize(occipital_fusiform_lh_probmap, 30.)
+    hos_fusiform_rh_bin = binarize(occipital_fusiform_rh_probmap, 30.)
 
     # Save mask
-    hos_occpole_bin.to_filename(occipital_pole_maskpath)
-    hos_locsup_bin.to_filename(occipital_loc_sup_maskpath)
-    hos_locinf_bin.to_filename(occipital_loc_inf_maskpath)
-    hos_fusiform_bin.to_filename(occipital_fusiform_maskpath)
+    hos_occpole_lh_bin.to_filename(occipital_pole_lh_maskpath)
+    hos_occpole_rh_bin.to_filename(occipital_pole_rh_maskpath)
+    hos_locsup_lh_bin.to_filename(occipital_locsup_lh_maskpath)
+    hos_locsup_rh_bin.to_filename(occipital_locsup_rh_maskpath)
+    hos_locinf_lh_bin.to_filename(occipital_locinf_lh_maskpath)
+    hos_locinf_rh_bin.to_filename(occipital_locinf_rh_maskpath)
+    hos_fusiform_lh_bin.to_filename(occipital_fusiform_lh_maskpath)
+    hos_fusiform_rh_bin.to_filename(occipital_fusiform_rh_maskpath)
 
     # ******************** COMBINE OCCIPITAL MASKS **********************
-    combine_masks(occipital_loc_sup_maskpath, occipital_loc_inf_maskpath,
-                  occipital_loc_maskpath)
-    combine_masks(occipital_loc_maskpath, occipital_pole_maskpath,
-                  occipital_locpole_maskpath)
-    combine_masks(occipital_locpole_maskpath, occipital_fusiform_maskpath,
-                  occipital_maskpath)
+    combine_masks(occipital_locsup_lh_maskpath, occipital_locinf_lh_maskpath,
+                  occipital_loc_lh_maskpath)
+    combine_masks(occipital_locsup_rh_maskpath, occipital_locinf_rh_maskpath,
+                  occipital_loc_rh_maskpath)
+    combine_masks(occipital_loc_lh_maskpath, occipital_pole_lh_maskpath,
+                  occipital_locpole_lh_maskpath)
+    combine_masks(occipital_loc_rh_maskpath, occipital_pole_rh_maskpath,
+                  occipital_locpole_rh_maskpath)
+    combine_masks(occipital_locpole_lh_maskpath, occipital_fusiform_lh_maskpath,
+                  occipital_lh_maskpath)
+    combine_masks(occipital_locpole_rh_maskpath, occipital_fusiform_rh_maskpath,
+                  occipital_rh_maskpath)
