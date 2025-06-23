@@ -944,38 +944,49 @@ roi_dir = os.path.join(
     '_puncorr_unsmoothed')
 
 # ### Define number of ROIs of the analysis ###
-# All ROIs: 7 ROIs
-atlas_dirnames7 = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
-                   hmat_dir, hmat_dir, hmat_dir]
-atlas_names7 = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-                'hmat', 'hmat', 'hmat']
-region_names7 = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
-                 'motor_area', 'motor_area', 'motor_area']
-roi_names7 = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
-              'pmd', 'sma', 'presma']
+# All ROIs: 10 ROIs
+atlas_dirnames10 = [fsl_dir, 
+                    ntk_dir, ntk_dir, ntk_dir,
+                    hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+                    fsl_dir, 
+                    fsl_dir]
+atlas_names10 = ['hos', 
+                 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+                 'hmat', 'hmat', 'hmat', 'hmat',
+                 'hos', 
+                 'hos']
+region_names10 = ['dorsal_striatum', 
+                  'cerebellum', 'cerebellum', 'cerebellum',
+                  'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+                  'heschl_gyrus', 
+                  'occipital_lobe']
+roi_names10 = ['dstr', 
+               'cereb-s', 'cereb-i', 'cereb'
+               'pmd', 'pmv', 'sma', 'presma',
+               'heschl',
+               'occipital']
 
-# 6 ROIs
-atlas_dirnames6 = [fsl_dir, ntk_dir, ntk_dir,
-                   hmat_dir, hmat_dir, hmat_dir]
-atlas_names6 = ['hos', 'ntk_symmni128', 'ntk_symmni128',
-                'hmat', 'hmat', 'hmat']
-region_names6 = ['dorsal_striatum', 'cerebellum', 'cerebellum',
-                 'motor_area', 'motor_area', 'motor_area']
-roi_names6 = ['dstr', 'cereb-s', 'cereb-i',
-              'pmd', 'sma', 'presma']
-
-# 5 ROIs
-atlas_dirnames5 = [fsl_dir, ntk_dir, hmat_dir, hmat_dir, hmat_dir]
-atlas_names5 = ['hos', 'ntk_symmni128', 'hmat', 'hmat', 'hmat']
-region_names5 = ['dorsal_striatum', 'cerebellum', 'motor_area', 'motor_area',
-                 'motor_area']
-roi_names5 = ['dstr', 'cereb', 'pmd', 'sma', 'presma']
-
-# 3 ROIs
-atlas_dirnames3 = [fsl_dir, ntk_dir, ntk_dir]
-atlas_names3 = ['hos', 'ntk_symmni128', 'ntk_symmni128']
-region_names3 = ['dorsal_striatum', 'cerebellum', 'cerebellum']
-roi_names3 = ['dstr', 'cereb-s', 'cereb-i']
+# 8 ROIs
+atlas_dirnames8 = [fsl_dir, 
+                   ntk_dir,
+                   hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+                   fsl_dir,
+                   fsl_dir]
+atlas_names8 = ['hos', 
+                'ntk_symmni128', 
+                'hmat', 'hmat', 'hmat', 'hmat',
+                'hos',
+                'hos']
+region_names8 = ['dorsal_striatum', 
+                 'cerebellum', 
+                 'motor_area', 'motor_area', 'motor_area', 'motor_area',
+                 'heschl_gyrus',
+                 'occipital_lobe']
+roi_names8 = ['dstr', 
+              'cereb', 
+              'pmd', 'pmv', 'sma', 'presma'
+              'heschl',
+              'occipital']
 
 # 2 ROIs
 atlas_dirnames2 = [fsl_dir, ntk_dir]
@@ -1004,33 +1015,23 @@ if __name__ == '__main__':
 
     n_rois = int(sys.argv[1])
 
-    if n_rois == 7:
-        atlas_dirnames = atlas_dirnames7
-        atlas_names = atlas_names7
-        region_names = region_names7
-        roi_names = roi_names7
-    elif n_rois == 6:
-        atlas_dirnames = atlas_dirnames6
-        atlas_names = atlas_names6
-        region_names = region_names6
-        roi_names = roi_names6
-    elif n_rois == 5:
-        atlas_dirnames = atlas_dirnames5
-        atlas_names = atlas_names5
-        region_names = region_names5
-        roi_names = roi_names5
-    elif n_rois == 3:
-        atlas_dirnames = atlas_dirnames3
-        atlas_names = atlas_names3
-        region_names = region_names3
-        roi_names = roi_names3
+    if n_rois == 10:
+        atlas_dirnames = atlas_dirnames10
+        atlas_names = atlas_names10
+        region_names = region_names10
+        roi_names = roi_names10
+    elif n_rois == 8:
+        atlas_dirnames = atlas_dirnames8
+        atlas_names = atlas_names8
+        region_names = region_names8
+        roi_names = roi_names8
     elif n_rois == 2:
         atlas_dirnames = atlas_dirnames2
         atlas_names = atlas_names2
         region_names = region_names2
         roi_names = roi_names2
     else:
-        raise ValueError("The number of ROIs must be 7, 6, 5, 3 or 2.")
+        raise ValueError("The number of ROIs must be 10, 8 or 2.")
 
     encoding_type = sys.argv[2]
 
@@ -1083,7 +1084,7 @@ if __name__ == '__main__':
 
             # # ############## Run ANOVAs per ROI #########################
 
-            if n_rois == 7:
+            if n_rois == 10:
                 if encoding_type == 'all':
                     # 3-way RM-ANOVA
                     three_anova_dir = os.path.join(anovas_dir, '3way-anova')
@@ -1123,53 +1124,15 @@ if __name__ == '__main__':
                     oneway_rmanova(
                         df_path, tasks, oneway_anova_task_dir, tag, roi_name,
                         modalities=['Visual'])
-
-        # ##################### 6 ROIs ################################
-
-        if n_rois == 6:
-            if encoding_type == 'all':
-
-                # ################# CATROI ANALYSES ###################
-                # 2-way RM-ANOVA for roi and category for both 
-                # modalities
-                twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat6rois')
-                twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
-                                      tag)
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
-                               roi_names)
-
-            if encoding_type in ['all', 'auditory']:
-
-                # ################# CATROI ANALYSES ###################
-                # 2-way RM-ANOVA for roi and category for auditory 
-                # tasks
-                twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat6rois_auditory')
-                twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
-                                      tag, modality='auditory')
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
-                               roi_names, modality='auditory')
-
-            if encoding_type in ['all', 'visual']:
-
-                # ################# CATROI ANALYSES ###################
-                # 2-way RM-ANOVA for roi and category for vision tasks
-                twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat6rois_visual')
-                twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
-                                      tag, modality='visual')
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 6,
-                               roi_names, modality='visual')
                 
-        # ##################### 5 ROIs ################################
-        if n_rois == 5:
+        # ##################### 8 ROIs ################################
+        if n_rois == 8:
             if encoding_type == 'all':
 
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for both modalities
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat5rois')
+                    msdtb_dir, '2way-anova_cat8rois')
                 twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
                                       tag)
                 posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 5,
@@ -1179,7 +1142,7 @@ if __name__ == '__main__':
                 # 2-way RM-ANOVA for roi and timing type tasks for ...
                 # ...both modalities
                 twoway_anova_timingroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_timing5rois')
+                    msdtb_dir, '2way-anova_timing8rois')
                 twoway_rmanova_timingroi(
                     dfrois, twoway_anova_timingroi_dir, tag)
                 posthoc_timingroi(
@@ -1190,7 +1153,7 @@ if __name__ == '__main__':
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for auditory tasks
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat5rois_auditory')
+                    msdtb_dir, '2way-anova_cat8rois_auditory')
                 twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
                                       tag, modality='auditory')
                 posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 5,
@@ -1200,7 +1163,7 @@ if __name__ == '__main__':
                 # 2-way RM-ANOVA for roi and timing type tasks for...
                 # ... auditory tasks
                 twoway_anova_timingroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_timing5rois_auditory')
+                    msdtb_dir, '2way-anova_timing8rois_auditory')
                 twoway_rmanova_timingroi(
                     dfrois, twoway_anova_timingroi_dir, tag, 
                     modality='auditory')
@@ -1213,7 +1176,7 @@ if __name__ == '__main__':
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for vision tasks
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat5rois_visual')
+                    msdtb_dir, '2way-anova_cat8rois_visual')
                 twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
                                       tag, modality='visual')
                 posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 5,
@@ -1223,49 +1186,13 @@ if __name__ == '__main__':
                 # 2-way RM-ANOVA for roi and timing type tasks for 
                 # visual tasks
                 twoway_anova_timingroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_timing5rois_visual')
+                    msdtb_dir, '2way-anova_timing8rois_visual')
                 twoway_rmanova_timingroi(
                     dfrois, twoway_anova_timingroi_dir, tag, 
                     modality='visual')
                 posthoc_timingroi(
                     dfrois, twoway_anova_timingroi_dir, tag, 5, roi_names, 
                     modality='visual')
-
-        # ##################### 3 ROIs ##################################
-
-        if n_rois == 3:
-            if encoding_type == 'all':
-
-                # ################# CATROI ANALYSES ###################
-                # 2-way RM-ANOVA for roi and category for both modalities
-                twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat3rois')
-                twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
-                                      tag)
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 3,
-                               roi_names)
-
-            if encoding_type in ['all', 'auditory']:
-
-                # ################# CATROI ANALYSES ###################
-                # 2-way RM-ANOVA for roi and category for auditory tasks
-                twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat3rois_auditory')
-                twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
-                                      tag, modality='auditory')
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 3,
-                               roi_names, modality='auditory')
-
-            if encoding_type in ['all', 'visual']:
-
-                # ################# CATROI ANALYSES ###################
-                # 2-way RM-ANOVA for roi and category for vision tasks
-                twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat3rois_visual')
-                twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
-                                      tag, modality='visual')
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 3,
-                               roi_names, modality='visual')
 
         # ##################### 2 ROIs ##################################
 

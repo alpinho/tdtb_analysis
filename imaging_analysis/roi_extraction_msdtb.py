@@ -506,34 +506,27 @@ roi_dir = os.path.join(
 
 contrast_type = 'wbmasked' # 'sm8wbmasked'
 
-# All ROIs: 7 ROIs
-# atlas_dirnames = [fsl_dir, ntk_dir, ntk_dir, ntk_dir,
-#                   hmat_dir, hmat_dir, hmat_dir, hmat_dir,
-#                   fsl_dir, fsl_dir]
-# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area', 'motor_area',
-#                 'heschl_gyrus', 'occipital_lobe']
-# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat', 'hmat',
-#                'hos', 'hos']
-# roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
-#              'pmd', 'pmv', 'sma', 'presma',
-#              'heschl', 'occipital']
-
-# atlas_dirnames = [fsl_dir, ntk_dir]
-# region_names = ['dorsal_striatum', 'cerebellum']
-# atlas_names = ['hos', 'ntk_symmni128']
-# roi_names = ['dstr', 'cereb']
-
-# atlas_dirnames = [fsl_dir]
-# region_names = ['dorsal_striatum']
-# atlas_names = ['hos']
-# roi_names = ['dstr']
-
-atlas_dirnames = [hmat_dir, fsl_dir, fsl_dir]
-region_names = ['motor_area', 'heschl_gyrus', 'occipital_lobe']
-atlas_names = ['hmat', 'hos', 'hos']
-roi_names = ['pmv', 'heschl', 'occipital']
+# All ROIs: 10 ROIs
+atlas_dirnames10 = [fsl_dir, 
+                    ntk_dir, ntk_dir, ntk_dir,
+                    hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+                    fsl_dir, 
+                    fsl_dir]
+atlas_names10 = ['hos', 
+                 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+                 'hmat', 'hmat', 'hmat', 'hmat',
+                 'hos', 
+                 'hos']
+region_names10 = ['dorsal_striatum', 
+                  'cerebellum', 'cerebellum', 'cerebellum',
+                  'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+                  'heschl_gyrus', 
+                  'occipital_lobe']
+roi_names10 = ['dstr', 
+               'cereb-s', 'cereb-i', 'cereb'
+               'pmd', 'pmv', 'sma', 'presma',
+               'heschl',
+               'occipital']
 
 # tags = ['i', 'a', 'g']
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
