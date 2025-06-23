@@ -523,7 +523,7 @@ region_names10 = ['dorsal_striatum',
                   'heschl_gyrus', 
                   'occipital_lobe']
 roi_names10 = ['dstr', 
-               'cereb-s', 'cereb-i', 'cereb'
+               'cereb-s', 'cereb-i', 'cereb',
                'pmd', 'pmv', 'sma', 'presma',
                'heschl',
                'occipital']
