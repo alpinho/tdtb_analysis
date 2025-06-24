@@ -754,7 +754,7 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
 def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
                       modality=None, hems=['lh', 'rh', 'bh']):
     """
-    Plot posthoc 2w-ANOVA with verified annotations for n_rois=2 and n_rois=5.
+    Plot posthoc 2w-ANOVA with verified annotations for n_rois=2 and n_rois=8.
     """
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
@@ -778,13 +778,19 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
     df['ROI'] = df['ROI'].str.replace('cereb', 'Cerebellum')
     order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
     order_list = [s.replace('cereb', 'Cerebellum') for s in order_list]
-    if n_rois == 5:
+    if n_rois == 8:
         df['ROI'] = df['ROI'].str.replace('pmd', 'PMD')
-        df['ROI'] = df['ROI'].str.replace('sma', 'SMA')
+        df['ROI'] = df['ROI'].str.replace('pmv', 'PMV')
         df['ROI'] = df['ROI'].str.replace('presma', 'PreSMA')
+        df['ROI'] = df['ROI'].str.replace('sma', 'SMA')
+        df['ROI'] = df['ROI'].str.replace('heschl', 'Heschl')
+        df['ROI'] = df['ROI'].str.replace('occipital', 'Occipital')
         order_list = [s.replace('pmd', 'PMD') for s in order_list]
-        order_list = [s.replace('sma', 'SMA') for s in order_list]
+        order_list = [s.replace('pmv', 'PMV') for s in order_list]
         order_list = [s.replace('presma', 'PreSMA') for s in order_list]
+        order_list = [s.replace('sma', 'SMA') for s in order_list]
+        order_list = [s.replace('heschl', 'Heschl') for s in order_list]
+        order_list = [s.replace('occipital', 'Occipital') for s in order_list]
 
     # Plot setup
     n_hems = len(hems)
@@ -842,6 +848,7 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
 
         if hem == 'bh' and prefix == 'i8a':
             if n_rois == 2:
+                ax.set_ylim([0., .35])
                 pairs = [
                     (('Dorsal Striatum', 'Production'), 
                      ('Dorsal Striatum', 'Perception')),
@@ -852,7 +859,8 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
                 ]
                 p_values = [0.00005, 0.00005, 0.0026]
 
-            elif n_rois == 5:
+            elif n_rois == 8:
+                ax.set_ylim([0., .5])
                 if modality is None:
                     # Extract pairs and p-values from the ANOVA posthoc 
                     # results
@@ -862,17 +870,35 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
                         (('Dorsal Striatum', 'Production'), 
                          ('Dorsal Striatum', 'NTFD')),
                         (('Cerebellum', 'Production'), 
+                         ('Cerebellum', 'Perception')),
+                        (('Cerebellum', 'Production'), 
                          ('Cerebellum', 'NTFD')),
+                        (('Heschl', 'Production'), 
+                         ('Heschl', 'NTFD')),
+                        (('Heschl', 'Perception'), 
+                         ('Heschl', 'NTFD')),
+                        (('Occipital', 'Production'), 
+                         ('Occipital', 'Perception')),
+                        (('Occipital', 'Perception'), 
+                         ('Occipital', 'NTFD')),
+                        (('PreSMA', 'Perception'), 
+                         ('PreSMA', 'NTFD')),
                         (('SMA', 'Production'), 
                          ('SMA', 'Perception')),
                         (('SMA', 'Perception'), 
                          ('SMA', 'NTFD'))
                     ]
-                    p_values = [0.0000000212156069330325, 
-                                0.00000037230171390485, 
-                                0.00720807037094523, 
-                                0.000116815529650541, 
-                                0.00105700426359638]
+                    p_values = [0.000000020870269892345, 
+                                0.000000286798348731063,
+                                0.0466542725680629,
+                                0.00101877646137177,
+                                0.000000017376024238735,
+                                0.0000000344071912296442,
+                                0.000689850042379667,
+                                0.00147267034501284,
+                                0.0684646563314483,
+                                0.0000111572638294807,
+                                0.000328416361737655]
                 else:
                     pass
 
@@ -882,7 +908,7 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
                                   order=order_list,
                                   hue='Task', hue_order=hue_order)
             annotator.configure(test=None, text_format="star", fontsize=10,
-                                hide_non_significant=True)
+                                hide_non_significant=False)
             annotator.set_pvalues(p_values)
             annotator.annotate()
 
@@ -899,6 +925,88 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
     fname = f"{prefix}_{n_rois}-rois_2w_posthoc_{modality_suffix}"
     plt.savefig(os.path.join(output_folder, fname + '.pdf'))
     plt.close(fig)
+
+
+def threeway_rmanova_roi_task_modality(df, output_dir, prefix, 
+                                       hems=['lh', 'rh', 'bh']):
+    """
+    3-way RM-ANOVA (ROI X Task X Modality) via statsmodels.AnovaRM,
+    then Holm-corrected paired t-tests for mains & interactions in one 
+    file.
+    """
+    # 1) load if path
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    # 2) drop 'All Tasks' & ensure numeric PSC
+    df = df.loc[df.Task != 'All Tasks'].copy()
+    df['PSC'] = pd.to_numeric(df['PSC'])
+
+    # 3) define which “effects” to test
+    #    strings = main effects; tuples = (name, factors_to_combine)
+    effects = [
+        'ROI',
+        'Modality',
+        'Task',
+        ('ROI:Modality',  ['ROI','Modality']),
+        ('ROI:Task',      ['ROI','Task']),
+        ('Modality:Task', ['Modality','Task']),
+        ('ROI:Modality:Task', ['ROI','Modality','Task'])
+    ]
+
+    for hem in hems:
+        # 4) subset & aggregate so one PSC per cell
+        db = df.loc[df.Hemisphere == hem]
+        agg = (db
+               .groupby(['Subject', 'ROI', 'Modality','Task'], as_index=False)
+               ['PSC']
+               .mean())
+
+        # 5) omnibus 3-way ANOVA
+        model = AnovaRM(data=agg,
+                        depvar='PSC',
+                        subject='Subject',
+                        within=['ROI', 'Modality', 'Task'])
+        res3 = model.fit()
+
+        # ensure output dir
+        os.makedirs(output_dir, exist_ok=True)
+        base = f"{prefix}_{hem}_3way"
+
+        # 5a) save ANOVA table
+        res3.anova_table.to_csv(
+            os.path.join(output_dir, base + '_anova.tsv'),
+            sep='\t'
+        )
+
+        # 6) post-hoc tests
+        rows = []
+        for eff in effects:
+            if isinstance(eff, str):
+                name = eff
+                grouping = agg[eff]
+            else:
+                name, facs = eff
+                col = name.replace(':', '_')
+                # make composite factor
+                agg[col] = agg[facs].agg('_'.join, axis=1)
+                grouping = agg[col]
+
+            mc = MultiComparison(agg['PSC'], grouping)
+            phoc = mc.allpairtest(ttest_rel, method='Holm')[0]
+
+            df_ph = pd.DataFrame(phoc)
+            # insert effect name as first column
+            df_ph.insert(0, 'Contrast', name)
+            rows.append(df_ph)
+
+        # 7) concat & write all post-hocs
+        posthoc_all = pd.concat(rows, ignore_index=True, sort=False)
+        posthoc_all.to_csv(
+            os.path.join(output_dir, base + '_posthoc.tsv'),
+            sep='\t',
+            index=False
+        )
 
 
 # ############################# INPUTS ##################################
@@ -982,8 +1090,8 @@ region_names8 = ['dorsal_striatum',
                  'motor_area', 'motor_area', 'motor_area', 'motor_area',
                  'heschl_gyrus',
                  'occipital_lobe']
-roi_names8 = ['dstr', 
-              'cereb', 
+roi_names8 = ['dstr',
+              'cereb',
               'pmd', 'pmv', 'sma', 'presma',
               'heschl',
               'occipital']
@@ -1129,24 +1237,32 @@ if __name__ == '__main__':
         if n_rois == 8:
             if encoding_type == 'all':
 
-                # ################# CATROI ANALYSES ###################
-                # 2-way RM-ANOVA for roi and category for both modalities
-                twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat8rois')
-                twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
-                                      tag)
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 5,
-                               roi_names)
+                # # ################# CATROI ANALYSES ###################
+                # # 2-way RM-ANOVA for roi and category for both modalities
+                # twoway_anova_catroi_dir = os.path.join(
+                #     msdtb_dir, '2way-anova_cat8rois')
+                # twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
+                #                       tag)
+                # posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 8,
+                #                roi_names)
                 
-                # ###### EXPLICIT/IMPLICIT TIMING ROI ANALYSES ########
-                # 2-way RM-ANOVA for roi and timing type tasks for ...
-                # ...both modalities
-                twoway_anova_timingroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_timing8rois')
-                twoway_rmanova_timingroi(
-                    dfrois, twoway_anova_timingroi_dir, tag)
-                posthoc_timingroi(
-                    dfrois, twoway_anova_timingroi_dir, tag, 5, roi_names)
+                # # ###### EXPLICIT/IMPLICIT TIMING ROI ANALYSES ########
+                # # 2-way RM-ANOVA for roi and timing type tasks for ...
+                # # ...both modalities
+                # twoway_anova_timingroi_dir = os.path.join(
+                #     msdtb_dir, '2way-anova_timing8rois')
+                # twoway_rmanova_timingroi(
+                #     dfrois, twoway_anova_timingroi_dir, tag)
+                # posthoc_timingroi(
+                #     dfrois, twoway_anova_timingroi_dir, tag, 8, roi_names)
+
+                # ######## 3-WAY ROI × TASK × MODALITY ANOVA ########
+                threeway_anova_roi_task_modality_dir = os.path.join(
+                    msdtb_dir, '3way-anova_roi-task-modality')
+
+                threeway_rmanova_roi_task_modality(
+                    dfrois, threeway_anova_roi_task_modality_dir, tag)
+
 
             if encoding_type in ['all', 'auditory']:
 
@@ -1156,7 +1272,7 @@ if __name__ == '__main__':
                     msdtb_dir, '2way-anova_cat8rois_auditory')
                 twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
                                       tag, modality='auditory')
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 5,
+                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 8,
                                roi_names, modality='auditory')
                 
                 # ###### EXPLICIT/IMPLICIT TIMING ROI ANALYSES ########
@@ -1168,7 +1284,7 @@ if __name__ == '__main__':
                     dfrois, twoway_anova_timingroi_dir, tag, 
                     modality='auditory')
                 posthoc_timingroi(
-                    dfrois, twoway_anova_timingroi_dir, tag, 5, roi_names, 
+                    dfrois, twoway_anova_timingroi_dir, tag, 8, roi_names, 
                     modality='auditory')
 
             if encoding_type in ['all', 'visual']:
@@ -1179,7 +1295,7 @@ if __name__ == '__main__':
                     msdtb_dir, '2way-anova_cat8rois_visual')
                 twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir,
                                       tag, modality='visual')
-                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 5,
+                posthoc_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag, 8,
                                roi_names, modality='visual')
                 
                 # ###### EXPLICIT/IMPLICIT TIMING ROI ANALYSES ########
@@ -1191,7 +1307,7 @@ if __name__ == '__main__':
                     dfrois, twoway_anova_timingroi_dir, tag, 
                     modality='visual')
                 posthoc_timingroi(
-                    dfrois, twoway_anova_timingroi_dir, tag, 5, roi_names, 
+                    dfrois, twoway_anova_timingroi_dir, tag, 8, roi_names, 
                     modality='visual')
 
         # ##################### 2 ROIs ##################################
