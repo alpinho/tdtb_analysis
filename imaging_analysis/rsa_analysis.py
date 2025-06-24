@@ -769,18 +769,46 @@ rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 # ########################### ROIs ######################################
 
-# All ROIs: 7 ROIs
-# region_names = ['dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area']
-# atlas_names = ['hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat']
-# roi_names = ['dstr', 'cereb-s', 'cereb-i', 'cereb',
-#              'pmd', 'sma', 'presma']
+# # All ROIs: 10 ROIs
+# atlas_names = ['hos', 
+#                'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat', 'hmat',
+#                'hos', 
+#                'hos']
+# region_names = ['dorsal_striatum', 
+#                 'cerebellum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+#                 'heschl_gyrus', 
+#                 'occipital_lobe']
+# roi_names = ['dstr', 
+#              'cereb-s', 'cereb-i', 'cereb'
+#              'pmd', 'pmv', 'sma', 'presma',
+#              'heschl',
+#              'occipital']
 
-region_names = ['dorsal_striatum', 'cerebellum', 'motor_area', 'motor_area',
-                'motor_area']
-atlas_names = ['hos', 'ntk_symmni128', 'hmat', 'hmat', 'hmat']
-roi_names = ['dstr', 'cereb', 'pmd', 'sma', 'presma']
+# 8 ROIs
+atlas_names = ['hos', 
+               'ntk_symmni128', 
+               'hmat', 'hmat', 'hmat', 'hmat',
+               'hos',
+               'hos']
+region_names = ['dorsal_striatum', 
+                'cerebellum', 
+                'motor_area', 'motor_area', 'motor_area', 'motor_area',
+                'heschl_gyrus',
+                'occipital_lobe']
+roi_names = ['dstr', 
+             'cereb', 
+             'pmd', 'pmv', 'sma', 'presma',
+             'heschl',
+             'occipital']
+
+# atlas_names = ['hos',
+#                'hos']
+# region_names = ['heschl_gyrus',
+#                 'occipital_lobe']
+# roi_names = ['heschl',
+#              'occipital']
 
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 itags = ['i', 'i8a']
