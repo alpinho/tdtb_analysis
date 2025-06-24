@@ -481,7 +481,7 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
             )
 
 
-def compute_euclidean_distances(Y, tasks_list, conditions_list, 
+def compute_euclidean_distances(Y, tasks_list, conditions_list,
                                 hem_index=None, mean_center=True):
     """
     Compute cross-validated Euclidean distances between conditions
@@ -509,6 +509,21 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
         Array of Euclidean distance matrices with shape
         (n_subjects, n_conditions, n_conditions).
     """
+
+    # Select hemisphere
+    Y_hem = Y[hem_index] if hem_index is not None else Y[0]
+
+    # Filter conditions based on the specified task
+    if tasks_list == ['prod']:
+        Y_hem = Y_hem[:4] # First 4 conditions 
+    elif tasks_list == ['percep']:
+        Y_hem = Y_hem[4:8] # Next 4 conditions
+    elif tasks_list == ['ntfd']:
+        Y_hem = Y_hem[8:] # Last 4 conditions
+    else:
+        assert tasks_list == ['prod', 'percep', 'ntfd']
+        pass
+
     # new (tasks X conds)
     # Order of the condition_labels should be:
     #  ['abeat_prod', 'ainterval_prod', 
@@ -536,10 +551,8 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
 
     part_vec = np.repeat(np.arange(1, n_runs + 1), n_conditions)
 
-    # Select hemisphere
-    Y_hem = Y[hem_index] if hem_index is not None else Y[0]
-
-    # Reorder axes to (subject, run, condition, voxel)
+    # Reorder axes from (condition, run, subject, voxel) to ...
+    # # ... (subject, run, condition, voxel)
     Y_reordered = np.swapaxes(Y_hem, 0, 2)
 
     # Reshape to (subject, run * condition, voxel)
@@ -548,7 +561,7 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
                                      n_voxels)
 
     # Mean-center per run if specified
-    # Note: this might be redundant when computing after the 
+    # Note: this might be redundant when computing afterwards the 
     #       crossvalidated second-moment estimation, because it removes
     #       run-specific means via the crossvalidation scheme.
     #       According to Diedrichsen & Kriegeskorte (2017):
@@ -574,9 +587,10 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     return distances
 
 
-def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list, 
-              output_folder, roi_label, i_label, thresh_label, smooth_label, 
-              color_scheme='PiYG', rescale=True, truncate_to_zero=True):
+def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
+              output_folder, roi_label, i_label, thresh_label, smooth_label,
+              color_scheme='PiYG', rescale=True, 
+              truncate_to_zero=True):
     """
     Plot the individual and group Euclidean distance matrices.
 
@@ -677,23 +691,37 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
     for j in range(len(subjects) + 1, len(axes)):
         axes[j].axis('off')
 
+    # Adjust layout
     plt.tight_layout()
+
+    # Save the figure
+    if len(tasks_list) > 1:
+        task_tag = 'all'
+    else:
+        task_tag = tasks_list[0]
     plt.savefig(
         os.path.join(
             output_folder,
             f'eucl_distances_{roi_label}_{i_label}_{thresh_label}_'
-            f'{smooth_label}.png'
+            f'{smooth_label}_{task_tag}.png'
         ),
         dpi=300
     )
-    plt.close()
+
     # To show the plot, uncomment the next line:
     # plt.show()
 
+    plt.close()
 
-def rsa(tags, regions, rois):
+
+def rsa(tags, regions, rois, tasks):
     for tag in tags:
         print(f"Processing tag: {tag}")
+
+        if len(tasks) > 1:
+            task_tag = 'all'
+        else:
+            task_tag = tasks[0]
 
         for region, roi in zip(regions, rois):
             print(f"Processing ROI: {roi}")
@@ -713,7 +741,7 @@ def rsa(tags, regions, rois):
 
             # Compute Euclidean distances for the current ROI
             individual_eucl_distances = compute_euclidean_distances(
-                roi_signals, glm_tasks[:3], conditions_mapping)
+                roi_signals, tasks, conditions_mapping)
 
             # Compute the mean of the distances across subjects
             group_eucl_distances = np.mean(individual_eucl_distances, axis=0)
@@ -727,12 +755,12 @@ def rsa(tags, regions, rois):
             individual_output_path = os.path.join(
                 output_dir,
                 f'individual_eucl_distances_{roi}_{tag}_{thresh_type}_'
-                f'{smooth}.npy'
+                f'{smooth}_{task_tag}.npy'
             )
             group_output_path = os.path.join(
                 output_dir,
                 f'group_eucl_distances_{roi}_{tag}_{thresh_type}_'
-                f'{smooth}.npy'
+                f'{smooth}_{task_tag}.npy'
             )
             if os.path.exists(individual_output_path):
                 os.remove(individual_output_path)
@@ -748,7 +776,7 @@ def rsa(tags, regions, rois):
             # Plot the RDMs
             plot_rdms(
                 individual_eucl_distances, group_eucl_distances, SUBJECTS,
-                glm_tasks[:3], conditions_mapping, output_dir, roi, tag, 
+                tasks, conditions_mapping, output_dir, roi, tag, 
                 thresh_type, smooth)
             print(f"Save rdm plots for {roi} for tag {tag}.")
 
@@ -891,4 +919,11 @@ if __name__ == '__main__':
     #                         thresh_type, smooth)
 
     # Compute RSA within a region
-    rsa(itags, region_names, roi_names)
+    # For all tasks together
+    rsa(itags, region_names, roi_names, glm_tasks[:3])
+    # For production task only
+    rsa(itags, region_names, roi_names, [glm_tasks[0]])
+    # For perception task only
+    rsa(itags, region_names, roi_names, [glm_tasks[1]])
+    # For ntfd task only
+    rsa(itags, region_names, roi_names, [glm_tasks[2]])
