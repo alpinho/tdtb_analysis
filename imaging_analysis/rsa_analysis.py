@@ -23,6 +23,7 @@ from scipy.stats import ttest_1samp
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
+import seaborn as sns
 
 from nitools import spm
 from nilearn import image
@@ -851,17 +852,12 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
     os.makedirs(output_dir, exist_ok=True)
 
     for tag in tags:
+        all_results = []  # To accumulate results for all ROIs in this tag
+
         for region, roi in zip(regions, rois):
             tasks_results = []
-            for task in tasks:
 
-                # Order of the 12 condition_labels should be:
-                #  ['abeat_prod', 'ainterval_prod', 
-                #  'vbeat_prod', 'vinterval_prod', 
-                #  'abeat_percep', 'ainterval_percep', 
-                #  'vbeat_percep', 'vinterval_percep', 
-                #  'abeat_ntfd', 'ainterval_ntfd', 
-                #  'vbeat_ntfd', 'vinterval_ntfd']
+            for task in tasks:
                 if task == 'allmain_tasks':
                     task_list = ['prod', 'percep', 'ntfd']
                     task_tag = 'all'
@@ -876,24 +872,23 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                 ]
 
                 input_dir = os.path.join(
-                    rsa_dir, 
-                    f'euclidean_distances_{thresh_label}_{smooth_label}')
+                    rsa_dir, f'euclidean_distances_{thresh_label}_{smooth_label}')
                 idissim_path = os.path.join(
                     input_dir,
                     f'individual_eucl_distances_{roi}_{tag}_{thresh_label}_'
                     f'{smooth_label}_{task_tag}.npy'
                 )
 
-                # Individual RDM per ROI (31, 12, 12)
+                if not os.path.exists(idissim_path):
+                    print(f"File not found: {idissim_path}")
+                    continue
+
                 idissim = np.load(idissim_path)
 
-                # Create index pairs for inferior diagonal (i > j)
-                row_idx, col_idx = np.tril_indices(len(condition_labels),
-                                                   k=-1)
-                label_pairs = [(condition_labels[i], condition_labels[j]) 
+                row_idx, col_idx = np.tril_indices(len(condition_labels), k=-1)
+                label_pairs = [(condition_labels[i], condition_labels[j])
                                for i, j in zip(row_idx, col_idx)]
 
-                # For each participant, extract the inferior diagonal values
                 diagonal_vals = []
                 for subj_idx in range(idissim.shape[0]):
                     subj_data = idissim[subj_idx]
@@ -906,28 +901,23 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                             'value': val
                         })
 
-                # Convert to pandas dataframe for easy viewing
-                df = pd.DataFrame(diagonal_vals)               
+                df = pd.DataFrame(diagonal_vals)
 
                 for modality in modalities:
                     mod_tag = modality_dic[modality]
 
-                    # Filter
                     df_filtered = filter_beat_interval(
                         df, task=task_tag, modality=mod_tag)
 
-                    # Compute mean per subject
                     mean_per_subject = df_filtered.groupby(
                         'subject')['value'].mean().reset_index()
 
-                    # Perform t-test
                     if len(mean_per_subject) > 1:
                         t_stat, p_val = ttest_1samp(mean_per_subject['value'],
                                                     popmean=0)
                     else:
                         t_stat, p_val = np.nan, np.nan
 
-                    # Store all individual subject values with meta info
                     for _, row in mean_per_subject.iterrows():
                         tasks_results.append({
                             'task': task_tag,
@@ -938,16 +928,160 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                             'p_val': p_val
                         })
 
-            # Convert results to DataFrame
             df_results = pd.DataFrame(tasks_results)
 
             # Save the results to a TSV file
             output_file = os.path.join(
                 output_dir,
-                f'rdm_significance_{roi}_{tag}_{thresh_label}_'
-                f'{smooth_label}.tsv'
+                f'rdm_significance_{roi}_{tag}_{thresh_label}_{smooth_label}.tsv'
             )
             df_results.to_csv(output_file, sep='\t', index=False)
+
+            df_results['roi'] = roi
+            df_results['region'] = region
+            all_results.append(df_results)
+
+        # ======================= PLOTTING ===========================
+
+        df_all = pd.concat(all_results, ignore_index=True)
+
+        task_order = ['all', 'prod', 'percep', 'ntfd']
+        modality_order = ['both', 'audio', 'visual']
+
+        n_rows = len(rois)
+        fig, axes = plt.subplots(
+            n_rows, 1, figsize=(14, 4.5 * n_rows), sharex=True, sharey=False
+        )
+
+        if n_rows == 1:
+            axes = [axes]
+
+        box_width = 0.2  # Reduced width
+
+        for ax, roi in zip(axes, rois):
+            df_plot = df_all[df_all['roi'] == roi]
+
+            sns.boxplot(
+                data=df_plot,
+                x='task',
+                y='mean_value',
+                hue='modality',
+                order=task_order,
+                hue_order=modality_order,
+                notch=True,
+                linewidth=1,
+                width=box_width,
+                showfliers=False,
+                medianprops={'visible': False},
+                ax=ax
+            )
+
+            # Compute upper bound for each group (based on whisker position)
+            y_max_list = []
+
+            for i, task in enumerate(task_order):
+                for j, modality in enumerate(modality_order):
+                    subset = df_plot[
+                        (df_plot['task'] == task) &
+                        (df_plot['modality'] == modality)
+                    ]
+                    if len(subset) == 0:
+                        continue
+
+                    mean_val = subset['mean_value'].mean()
+                    x_loc = i + (j - 1) * box_width
+
+                    # Dashed line for mean
+                    ax.hlines(
+                        mean_val,
+                        x_loc - box_width/2, x_loc + box_width/2,
+                        color='black',
+                        linestyles='dashed',
+                        linewidth=1.5
+                    )
+
+                    # Compute upper whisker = Q3 + 1.5*IQR
+                    q1 = subset['mean_value'].quantile(0.25)
+                    q3 = subset['mean_value'].quantile(0.75)
+                    iqr = q3 - q1
+                    upper_whisker = q3 + 1.5 * iqr
+                    y_max_list.append(upper_whisker)
+
+            # Compute common y upper limit for this ROI
+            y_top = max(y_max_list) if len(y_max_list) > 0 else 0
+            y_bottom = min(df_plot['mean_value'].min(), 0)
+
+            y_margin = (y_top - y_bottom) * 0.2 if (y_top - y_bottom) != 0 else 0.05
+            y_upper = y_top + y_margin
+            y_lower = y_bottom - y_margin
+
+            ax.set_ylim(y_lower, y_upper)
+
+            # Now do the annotations
+            for i, task in enumerate(task_order):
+                for j, modality in enumerate(modality_order):
+                    subset = df_plot[
+                        (df_plot['task'] == task) &
+                        (df_plot['modality'] == modality)
+                    ]
+                    if len(subset) == 0:
+                        continue
+
+                    p_val = subset['p_val'].iloc[0]
+                    if np.isnan(p_val):
+                        sig = 'n.s.'
+                    elif p_val < 0.0001:
+                        sig = '****'
+                    elif p_val < 0.001:
+                        sig = '***'
+                    elif p_val < 0.01:
+                        sig = '**'
+                    elif p_val < 0.05:
+                        sig = '*'
+                    else:
+                        sig = 'n.s.'
+
+                    x_loc = i + (j - 1) * box_width
+
+                    # Annotation aligned horizontally
+                    ax.text(
+                        x_loc, y_upper - y_margin * 0.5, sig,
+                        ha='center', va='bottom', fontsize=10, weight='bold'
+                    )
+
+            region_label = df_plot['region'].iloc[0]
+            ax.set_title(f'{roi} ({region_label})', fontsize=12)
+            ax.set_xlabel('')
+            ax.set_ylabel('Mean Dissimilarity')
+
+            # Clean axes: remove top and right borders
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+
+            # No grid
+            ax.grid(False)
+
+            # Remove individual legends
+            ax.legend_.remove()
+
+        axes[-1].set_xlabel('Task')
+
+        handles, labels_ = ax.get_legend_handles_labels()
+        fig.legend(
+            handles, labels_, title='Modality',
+            loc='upper right', bbox_to_anchor=(0.93, 1)
+        )
+
+        plt.tight_layout(rect=[0, 0, 0.9, 1])
+
+        plot_path = os.path.join(
+            output_dir,
+            f'rdm_significance_allrois_{tag}_{thresh_label}_{smooth_label}.png'
+        )
+        plt.savefig(plot_path, dpi=300)
+        plt.close()
+
+        print(f"Saved plot: {plot_path}")
 
 
 # =========================== INPUTS ===================================
@@ -1102,6 +1236,16 @@ if __name__ == '__main__':
     #     thresh_type, smooth, conditions_mapping, truncate_to_zero=False)
 
     # Compute RDM significance
-    rdm_significance(rsa_folder, glm_tasks, conditions_mapping, itags, 
-                     region_names, roi_names, rsa_folder, thresh_type, smooth, 
-                     modality_list, modality_map)
+    rdm_significance(
+        output_dir=rsa_folder,
+        tasks=glm_tasks,
+        conditions=conditions_mapping,
+        tags=itags,
+        regions=region_names,
+        rois=roi_names,
+        rsa_dir=rsa_folder,
+        thresh_label=thresh_type,
+        smooth_label=smooth,
+        modalities=modality_list,
+        modality_dic=modality_map
+    )
