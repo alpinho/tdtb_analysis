@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import PcmPy as pcm
 
+from scipy.stats import ttest_1samp
+
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
@@ -481,7 +483,7 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
             )
 
 
-def compute_euclidean_distances(Y, tasks_list, conditions_list,
+def compute_euclidean_distances(Y, tasks, conditions,
                                 hem_index=None, mean_center=True):
     """
     Compute cross-validated Euclidean distances between conditions
@@ -492,9 +494,9 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     Y : np.ndarray
         5D array with shape 
         (hemisphere, condition, run, subject, voxel).
-    tasks_list : list of str
+    tasks : list of str
         List of task labels (e.g., ['prod', 'percep', 'ntfd']).
-    conditions_list : dict
+    conditions : dict
         Dictionary mapping full condition names to abbreviations
         (e.g., {'auditory_beat': 'abeat'}).
     hem_index : int or None, optional
@@ -514,14 +516,14 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     Y_hem = Y[hem_index] if hem_index is not None else Y[0]
 
     # Filter conditions based on the specified task
-    if tasks_list == ['prod']:
+    if tasks == ['prod']:
         Y_hem = Y_hem[:4] # First 4 conditions 
-    elif tasks_list == ['percep']:
+    elif tasks == ['percep']:
         Y_hem = Y_hem[4:8] # Next 4 conditions
-    elif tasks_list == ['ntfd']:
+    elif tasks == ['ntfd']:
         Y_hem = Y_hem[8:] # Last 4 conditions
     else:
-        assert tasks_list == ['prod', 'percep', 'ntfd']
+        assert tasks == ['prod', 'percep', 'ntfd']
         pass
 
     # new (tasks X conds)
@@ -534,8 +536,8 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     #  'vbeat_ntfd', 'vinterval_ntfd']
     condition_labels = [
         f"{abbr}_{task}"
-        for task in tasks_list
-        for abbr in conditions_list.values()
+        for task in tasks
+        for abbr in conditions.values()
     ]
 
     n_subjects = Y.shape[3]
@@ -587,7 +589,7 @@ def compute_euclidean_distances(Y, tasks_list, conditions_list,
     return distances
 
 
-def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
+def plot_rdms(i_dist, g_dist, subjects, tasks, conditions,
               output_folder, roi_label, i_label, thresh_label, smooth_label,
               color_scheme='PiYG', rescale=True, 
               truncate_to_zero=True):
@@ -601,9 +603,9 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
         (n_subjects, n_conditions, n_conditions).
     g_dist : np.ndarray
         Group distance matrix with shape (n_conditions, n_conditions).
-    tasks_list : list of str
+    tasks : list of str
         List of task labels (e.g., ['prod', 'percep', 'ntfd']).
-    conditions_list : dict
+    conditions : dict
         Dictionary mapping full condition names to abbreviations
         (e.g., {'auditory_beat': 'abeat'}).
     output_folder : str
@@ -628,8 +630,8 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
     #  'vbeat_ntfd', 'vinterval_ntfd']
     condition_labels = [
         f"{abbr}_{task}"
-        for task in tasks_list
-        for abbr in conditions_list.values()
+        for task in tasks
+        for abbr in conditions.values()
     ]
     
     # Rescale
@@ -695,10 +697,10 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
     plt.tight_layout()
 
     # Save the figure
-    if len(tasks_list) > 1:
+    if len(tasks) > 1:
         task_tag = 'all'
     else:
-        task_tag = tasks_list[0]
+        task_tag = tasks[0]
     plt.savefig(
         os.path.join(
             output_folder,
@@ -714,7 +716,8 @@ def plot_rdms(i_dist, g_dist, subjects, tasks_list, conditions_list,
     plt.close()
 
 
-def rsa(tags, regions, rois, tasks):
+def rsa(tags, tasks, regions, rois, rsa_dir, thresh_label, smooth_label, 
+        conditions, truncate_to_zero=True):
     for tag in tags:
         print(f"Processing tag: {tag}")
 
@@ -728,10 +731,10 @@ def rsa(tags, regions, rois, tasks):
 
             # Load the ROI signals for the current tag and ROI
             roi_signals_path = os.path.join(
-                rsa_folder, f'grandglm_roi_signals_{thresh_type}_{smooth}',
+                rsa_dir, f'grandglm_roi_signals_{thresh_label}_{smooth_label}',
                 region, 
-                f'grandglm_roi_signals_{roi}_{tag}_{thresh_type}_'
-                f'{smooth}.npy'
+                f'grandglm_roi_signals_{roi}_{tag}_{thresh_label}_'
+                f'{smooth_label}.npy'
             )
             if not os.path.exists(roi_signals_path):
                 print(f"Skipping {roi} for tag {tag}: file not found.")
@@ -741,26 +744,26 @@ def rsa(tags, regions, rois, tasks):
 
             # Compute Euclidean distances for the current ROI
             individual_eucl_distances = compute_euclidean_distances(
-                roi_signals, tasks, conditions_mapping)
+                roi_signals, tasks, conditions)
 
             # Compute the mean of the distances across subjects
             group_eucl_distances = np.mean(individual_eucl_distances, axis=0)
 
             # Create output folder if it does not exist
             output_dir = os.path.join(
-                rsa_folder, f'euclidean_distances_{thresh_type}_{smooth}')
+                rsa_folder, f'euclidean_distances_{thresh_label}_{smooth_label}')
             os.makedirs(output_dir, exist_ok=True)
 
             # Save the distances to a .npy file
             individual_output_path = os.path.join(
                 output_dir,
-                f'individual_eucl_distances_{roi}_{tag}_{thresh_type}_'
-                f'{smooth}_{task_tag}.npy'
+                f'individual_eucl_distances_{roi}_{tag}_{thresh_label}_'
+                f'{smooth_label}_{task_tag}.npy'
             )
             group_output_path = os.path.join(
                 output_dir,
-                f'group_eucl_distances_{roi}_{tag}_{thresh_type}_'
-                f'{smooth}_{task_tag}.npy'
+                f'group_eucl_distances_{roi}_{tag}_{thresh_label}_'
+                f'{smooth_label}_{task_tag}.npy'
             )
             if os.path.exists(individual_output_path):
                 os.remove(individual_output_path)
@@ -777,11 +780,174 @@ def rsa(tags, regions, rois, tasks):
             plot_rdms(
                 individual_eucl_distances, group_eucl_distances, SUBJECTS,
                 tasks, conditions_mapping, output_dir, roi, tag, 
-                thresh_type, smooth)
+                thresh_type, smooth, truncate_to_zero=truncate_to_zero)
             print(f"Save rdm plots for {roi} for tag {tag}.")
 
     # Print completion message
     print("RSA analysis completed for all ROIs and tags.")
+
+
+def filter_beat_interval(df, task='all', modality='both'):
+    """
+    Filter the dataframe for beat vs interval pairs,
+    optionally within a specific task and/or modality.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe with columns 
+        ['subject', 'label1', 'label2', 'value'].
+    task : str or None
+        Task name: 'prod', 'percep', 'ntfd', or 'all' for all three 
+        tasks.
+    modality : str
+        'a' for audio, 'v' for visual, or 'both' for the two 
+        modalities.
+
+    Returns
+    -------
+    filtered_df : pd.DataFrame
+        Filtered dataframe.
+    """
+    # Beat vs interval mask (regardless of order)
+    type_mask = (
+        (df['label1'].str.contains('beat') & 
+         df['label2'].str.contains('interval')) |
+        (df['label1'].str.contains('interval') & 
+         df['label2'].str.contains('beat'))
+    )
+
+    # Task mask
+    if task != 'all':
+        task_mask = (
+            df['label1'].str.endswith(f'_{task}') & 
+            df['label2'].str.endswith(f'_{task}')
+        )
+    else:
+        task_mask = True  # No restriction
+
+    # Modality mask
+    if modality != 'both':
+        modality_mask = (
+            df['label1'].str.startswith(modality) & 
+            df['label2'].str.startswith(modality)
+        )
+    else:
+        modality_mask = True  # No restriction
+
+    # Combine all masks
+    mask = type_mask & task_mask & modality_mask
+
+    return df[mask].reset_index(drop=True)
+
+
+def rdm_significance(output_dir, tasks, conditions, tags, regions, 
+                     rois, rsa_dir, thresh_label, smooth_label, modalities, 
+                     modality_dic):
+    
+    # Create output folder if it does not exist
+    output_dir = os.path.join(
+        rsa_folder, f'rdm_significance_{thresh_label}_{smooth_label}')
+    os.makedirs(output_dir, exist_ok=True)
+
+    for tag in tags:
+        for region, roi in zip(regions, rois):
+            tasks_results = []
+            for task in tasks:
+
+                # Order of the 12 condition_labels should be:
+                #  ['abeat_prod', 'ainterval_prod', 
+                #  'vbeat_prod', 'vinterval_prod', 
+                #  'abeat_percep', 'ainterval_percep', 
+                #  'vbeat_percep', 'vinterval_percep', 
+                #  'abeat_ntfd', 'ainterval_ntfd', 
+                #  'vbeat_ntfd', 'vinterval_ntfd']
+                if task == 'allmain_tasks':
+                    task_list = ['prod', 'percep', 'ntfd']
+                    task_tag = 'all'
+                else:
+                    task_list = [task]
+                    task_tag = task
+
+                condition_labels = [
+                    f"{abbr}_{task_item}"
+                    for task_item in task_list
+                    for abbr in conditions.values()
+                ]
+
+                input_dir = os.path.join(
+                    rsa_dir, 
+                    f'euclidean_distances_{thresh_label}_{smooth_label}')
+                idissim_path = os.path.join(
+                    input_dir,
+                    f'individual_eucl_distances_{roi}_{tag}_{thresh_label}_'
+                    f'{smooth_label}_{task_tag}.npy'
+                )
+
+                # Individual RDM per ROI (31, 12, 12)
+                idissim = np.load(idissim_path)
+
+                # Create index pairs for inferior diagonal (i > j)
+                row_idx, col_idx = np.tril_indices(len(condition_labels),
+                                                   k=-1)
+                label_pairs = [(condition_labels[i], condition_labels[j]) 
+                               for i, j in zip(row_idx, col_idx)]
+
+                # For each participant, extract the inferior diagonal values
+                diagonal_vals = []
+                for subj_idx in range(idissim.shape[0]):
+                    subj_data = idissim[subj_idx]
+                    values = subj_data[row_idx, col_idx]
+                    for (lab1, lab2), val in zip(label_pairs, values):
+                        diagonal_vals.append({
+                            'subject': subj_idx + 1,
+                            'label1': lab1,
+                            'label2': lab2,
+                            'value': val
+                        })
+
+                # Convert to pandas dataframe for easy viewing
+                df = pd.DataFrame(diagonal_vals)               
+
+                for modality in modalities:
+                    mod_tag = modality_dic[modality]
+
+                    # Filter
+                    df_filtered = filter_beat_interval(
+                        df, task=task_tag, modality=mod_tag)
+
+                    # Compute mean per subject
+                    mean_per_subject = df_filtered.groupby(
+                        'subject')['value'].mean().reset_index()
+
+                    # Perform t-test
+                    if len(mean_per_subject) > 1:
+                        t_stat, p_val = ttest_1samp(mean_per_subject['value'],
+                                                    popmean=0)
+                    else:
+                        t_stat, p_val = np.nan, np.nan
+
+                    # Store all individual subject values with meta info
+                    for _, row in mean_per_subject.iterrows():
+                        tasks_results.append({
+                            'task': task_tag,
+                            'modality': modality,
+                            'subject': row['subject'],
+                            'mean_value': row['value'],
+                            't_stat': t_stat,
+                            'p_val': p_val
+                        })
+
+            # Convert results to DataFrame
+            df_results = pd.DataFrame(tasks_results)
+
+            # Save the results to a TSV file
+            output_file = os.path.join(
+                output_dir,
+                f'rdm_significance_{roi}_{tag}_{thresh_label}_'
+                f'{smooth_label}.tsv'
+            )
+            df_results.to_csv(output_file, sep='\t', index=False)
 
 
 # =========================== INPUTS ===================================
@@ -872,6 +1038,9 @@ conditions_mapping = {
     'visual_interval': 'vinterval'
 }
 
+modality_list = ['both', 'audio', 'visual']
+modality_map = {'both': '', 'audio': 'a', 'visual': 'v'}
+
 # ============================ RUN =====================================
 
 if __name__ == '__main__':
@@ -918,12 +1087,21 @@ if __name__ == '__main__':
     #                         roi_names, hemispheres, iroi_main_dir, 
     #                         thresh_type, smooth)
 
-    # Compute RSA within a region
+    # Compute RSA within a region and plot RDMs
     # For all tasks together
-    rsa(itags, region_names, roi_names, glm_tasks[:3])
-    # For production task only
-    rsa(itags, region_names, roi_names, [glm_tasks[0]])
-    # For perception task only
-    rsa(itags, region_names, roi_names, [glm_tasks[1]])
-    # For ntfd task only
-    rsa(itags, region_names, roi_names, [glm_tasks[2]])
+    # rsa(itags, glm_tasks[:3], region_names, roi_names, rsa_folder, 
+    #     thresh_type, smooth, conditions_mapping, truncate_to_zero=False)
+    # # For production task only
+    # rsa(itags, [glm_tasks[0]], region_names, roi_names, rsa_folder,
+    #     thresh_type, smooth, conditions_mapping, truncate_to_zero=False)
+    # # For perception task only
+    # rsa(itags, [glm_tasks[1]], region_names, roi_names, rsa_folder,
+    #     thresh_type, smooth, conditions_mapping, truncate_to_zero=False)
+    # # For ntfd task only
+    # rsa(itags, [glm_tasks[2]], region_names, roi_names, rsa_folder,
+    #     thresh_type, smooth, conditions_mapping, truncate_to_zero=False)
+
+    # Compute RDM significance
+    rdm_significance(rsa_folder, glm_tasks, conditions_mapping, itags, 
+                     region_names, roi_names, rsa_folder, thresh_type, smooth, 
+                     modality_list, modality_map)
