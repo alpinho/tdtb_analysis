@@ -950,13 +950,13 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
 
         n_rows = len(rois)
         fig, axes = plt.subplots(
-            n_rows, 1, figsize=(14, 4.5 * n_rows), sharex=True, sharey=False
+            n_rows, 1, figsize=(24, 5 * n_rows), sharex=True, sharey=False
         )
 
         if n_rows == 1:
             axes = [axes]
 
-        box_width = 0.2  # Reduced width
+        box_width = 0.25  # Thinner boxes
 
         for ax, roi in zip(axes, rois):
             df_plot = df_all[df_all['roi'] == roi]
@@ -968,13 +968,19 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                 hue='modality',
                 order=task_order,
                 hue_order=modality_order,
-                notch=True,
-                linewidth=1,
                 width=box_width,
                 showfliers=False,
-                medianprops={'visible': False},
+                notch=True,
+                meanline=True,
+                showmeans=True,
+                medianprops={"color": "k", "linewidth": 0.},
+                meanprops = dict(color="tab:brown",linewidth=1.5),
+                **{'boxprops': {'alpha': 0.5, 'edgecolor': 'black'}},
                 ax=ax
             )
+
+            # Add horizontal margins to avoid cutting off the last group
+            ax.margins(x=0.15)
 
             # Compute upper bound for each group (based on whisker position)
             y_max_list = []
@@ -988,17 +994,7 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                     if len(subset) == 0:
                         continue
 
-                    mean_val = subset['mean_value'].mean()
-                    x_loc = i + (j - 1) * box_width
-
-                    # Dashed line for mean
-                    ax.hlines(
-                        mean_val,
-                        x_loc - box_width/2, x_loc + box_width/2,
-                        color='black',
-                        linestyles='dashed',
-                        linewidth=1.5
-                    )
+                    x_loc = i + (j - 1) * box_width * .25
 
                     # Compute upper whisker = Q3 + 1.5*IQR
                     q1 = subset['mean_value'].quantile(0.25)
@@ -1045,9 +1041,12 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
 
                     # Annotation aligned horizontally
                     ax.text(
-                        x_loc, y_upper - y_margin * 0.5, sig,
+                        x_loc, y_upper - y_margin, sig,
                         ha='center', va='bottom', fontsize=10, weight='bold'
                     )
+
+            # After plotting all boxes and annotations:
+            ax.set_xlim(-0.5, len(task_order) - 0.5)
 
             region_label = df_plot['region'].iloc[0]
             ax.set_title(f'{roi} ({region_label})', fontsize=12)
@@ -1064,15 +1063,27 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
             # Remove individual legends
             ax.legend_.remove()
 
-        axes[-1].set_xlabel('Task')
+            # Remove x-axis labels and ticks except for the bottom plot
+            if ax != axes[-1]:
+                ax.set_xlabel('')
+                ax.set_xticklabels([])
+                ax.set_xticks([])
+                # Remove x-axis
+                ax.spines['bottom'].set_visible(False)
+            else:
+                ax.set_xlabel('Task')
+                # Optionally, set the correct xtick labels for the bottom plot:
+                ax.set_xticks(range(len(task_order)))
+                ax.set_xticklabels(task_order)
 
         handles, labels_ = ax.get_legend_handles_labels()
         fig.legend(
             handles, labels_, title='Modality',
-            loc='upper right', bbox_to_anchor=(0.93, 1)
+            loc='upper right', bbox_to_anchor=(0.95, 1)
         )
 
-        plt.tight_layout(rect=[0, 0, 0.9, 1])
+        plt.tight_layout(rect=[0, 0.05, 0.9, 1])  # Increase bottom margin
+        plt.subplots_adjust(bottom=0.15)  # Ensure x-labels/groups are visible
 
         plot_path = os.path.join(
             output_dir,
