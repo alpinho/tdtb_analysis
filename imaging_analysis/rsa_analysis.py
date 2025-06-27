@@ -842,9 +842,45 @@ def filter_beat_interval(df, task='all', modality='both'):
     return df[mask].reset_index(drop=True)
 
 
-def rdm_significance(output_dir, tasks, conditions, tags, regions, 
-                     rois, rsa_dir, thresh_label, smooth_label, modalities, 
-                     modality_dic):
+def periodicity_significance(output_dir, tasks, conditions, tags, regions, 
+                             rois, rsa_dir, thresh_label, smooth_label, 
+                             modalities, modality_dic):
+    """    
+    Compute the significance of periodicity in RDMs for each ROI and 
+    tag. This function computes the significance of periodicity in RDMs
+    for each ROI and tag by performing a one-sample t-test across 
+    subjects. It filters the RDMs based on task and modality, computes 
+    the mean value for each subject, and saves the results in a TSV 
+    file.
+
+    Parameters
+    ----------
+    output_dir : str
+        Directory where the output files will be saved.
+    tasks : list of str
+        List of task names (e.g., ['prod', 'percep', 'ntfd']).
+    conditions : dict
+        Dictionary mapping full condition names to abbreviations
+        (e.g., {'auditory_beat': 'abeat'}).
+    tags : list of str
+        List of tags for which the significance will be computed.
+    regions : list of str
+        List of region names to process (matched with `rois`).
+    rois : list of str
+        List of ROI names to process (matched with `regions`).
+    rsa_dir : str
+        Directory containing the RSA results.
+    thresh_label : str
+        Threshold type for the filename (e.g., 'thresh05').
+    smooth_label : str
+        Smooth type for the filename (e.g., 'sm8').
+    modalities : list of str
+        List of modalities to consider 
+        (e.g., ['audio', 'visual', 'both']).
+    modality_dic : dict
+        Dictionary mapping modality names to their tags (e.g.,
+        {'audio': 'a', 'visual': 'v', 'both': 'both'}).
+    """
     
     # Create output folder if it does not exist
     output_dir = os.path.join(
@@ -872,7 +908,8 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                 ]
 
                 input_dir = os.path.join(
-                    rsa_dir, f'euclidean_distances_{thresh_label}_{smooth_label}')
+                    rsa_dir, 
+                    f'euclidean_distances_{thresh_label}_{smooth_label}')
                 idissim_path = os.path.join(
                     input_dir,
                     f'individual_eucl_distances_{roi}_{tag}_{thresh_label}_'
@@ -885,7 +922,8 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
 
                 idissim = np.load(idissim_path)
 
-                row_idx, col_idx = np.tril_indices(len(condition_labels), k=-1)
+                row_idx, col_idx = np.tril_indices(len(condition_labels),
+                                                   k=-1)
                 label_pairs = [(condition_labels[i], condition_labels[j])
                                for i, j in zip(row_idx, col_idx)]
 
@@ -933,7 +971,8 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
             # Save the results to a TSV file
             output_file = os.path.join(
                 output_dir,
-                f'rdm_significance_{roi}_{tag}_{thresh_label}_{smooth_label}.tsv'
+                f'rdm_significance_{roi}_{tag}_{thresh_label}_{smooth_label}'
+                f'.tsv'
             )
             df_results.to_csv(output_file, sep='\t', index=False)
 
@@ -974,7 +1013,7 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                 meanline=True,
                 showmeans=True,
                 medianprops={"color": "k", "linewidth": 0.},
-                meanprops = dict(color="tab:brown",linewidth=1.5),
+                meanprops = dict(color="tab:brown", linewidth=1.5),
                 **{'boxprops': {'alpha': 0.5, 'edgecolor': 'black'}},
                 ax=ax
             )
@@ -1007,7 +1046,8 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
             y_top = max(y_max_list) if len(y_max_list) > 0 else 0
             y_bottom = min(df_plot['mean_value'].min(), 0)
 
-            y_margin = (y_top - y_bottom) * 0.2 if (y_top - y_bottom) != 0 else 0.05
+            y_margin = (y_top - y_bottom) * 0.2 if (y_top - y_bottom) != 0 \
+                else 0.05
             y_upper = y_top + y_margin
             y_lower = y_bottom - y_margin
 
@@ -1072,7 +1112,8 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                 ax.spines['bottom'].set_visible(False)
             else:
                 ax.set_xlabel('Task')
-                # Optionally, set the correct xtick labels for the bottom plot:
+                # Optionally, set the correct xtick labels for the...
+                # ... bottom plot:
                 ax.set_xticks(range(len(task_order)))
                 ax.set_xticklabels(task_order)
 
@@ -1246,8 +1287,8 @@ if __name__ == '__main__':
     # rsa(itags, [glm_tasks[2]], region_names, roi_names, rsa_folder,
     #     thresh_type, smooth, conditions_mapping, truncate_to_zero=False)
 
-    # Compute RDM significance
-    rdm_significance(
+    # Compute RDM significance of beat vs interval pairs
+    periodicity_significance(
         output_dir=rsa_folder,
         tasks=glm_tasks,
         conditions=conditions_mapping,
