@@ -956,7 +956,7 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
         if n_rows == 1:
             axes = [axes]
 
-        box_width = 0.25  # Thinner boxes
+        box_width = .5  # Thinner boxes
 
         for ax, roi in zip(axes, rois):
             df_plot = df_all[df_all['roi'] == roi]
@@ -1035,9 +1035,9 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
                     elif p_val < 0.05:
                         sig = '*'
                     else:
-                        sig = 'n.s.'
+                        sig = ''
 
-                    x_loc = i + (j - 1) * box_width
+                    x_loc = i + (j - 1) * box_width * .35
 
                     # Annotation aligned horizontally
                     ax.text(
@@ -1082,8 +1082,8 @@ def rdm_significance(output_dir, tasks, conditions, tags, regions,
             loc='upper right', bbox_to_anchor=(0.95, 1)
         )
 
-        plt.tight_layout(rect=[0, 0.05, 0.9, 1])  # Increase bottom margin
-        plt.subplots_adjust(bottom=0.15)  # Ensure x-labels/groups are visible
+        plt.tight_layout(rect=[.05, 0.05, 0.9, .95])  # Increase bottom margin
+        plt.subplots_adjust(bottom=.15)  # Ensure x-labels/groups are visible
 
         plot_path = os.path.join(
             output_dir,
