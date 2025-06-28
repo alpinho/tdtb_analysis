@@ -29,6 +29,10 @@ from nitools import spm
 from nilearn import image
 from nilearn.maskers import NiftiMasker
 
+# Prevent DataFrame truncation when printing
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+
 
 # =========================== FUNCTIONS ================================
 
@@ -884,7 +888,7 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
     
     # Create output folder if it does not exist
     output_dir = os.path.join(
-        rsa_folder, f'rdm_significance_{thresh_label}_{smooth_label}')
+        rsa_folder, f'periodicity_significance_{thresh_label}_{smooth_label}')
     os.makedirs(output_dir, exist_ok=True)
 
     for tag in tags:
@@ -946,7 +950,6 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
 
                     df_filtered = filter_beat_interval(
                         df, task=task_tag, modality=mod_tag)
-
                     mean_per_subject = df_filtered.groupby(
                         'subject')['value'].mean().reset_index()
 
@@ -971,8 +974,8 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
             # Save the results to a TSV file
             output_file = os.path.join(
                 output_dir,
-                f'rdm_significance_{roi}_{tag}_{thresh_label}_{smooth_label}'
-                f'.tsv'
+                f'periodicity_significance_{roi}_{tag}_{thresh_label}_'
+                f'{smooth_label}.tsv'
             )
             df_results.to_csv(output_file, sep='\t', index=False)
 
@@ -1128,12 +1131,172 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
 
         plot_path = os.path.join(
             output_dir,
-            f'rdm_significance_allrois_{tag}_{thresh_label}_{smooth_label}.png'
+            f'periodicity_significance_allrois_{tag}_{thresh_label}_'
+            f'{smooth_label}.png'
         )
         plt.savefig(plot_path, dpi=300)
         plt.close()
 
         print(f"Saved plot: {plot_path}")
+
+
+def filter_task_pairs(df, task_pair, modality, modality_dic):
+    """
+    Keep only pairs that connect exactly the two tasks in task_pair,
+    including both beat and interval conditions, and match modality.
+
+    task_pair: tuple e.g. ('prod','percep')
+    modality: 'both','audio','visual'
+    modality_dic: mapping to tag prefix, e.g. {'audio':'a',...}
+    """
+    t1, t2 = task_pair
+
+    # Task-pair mask (order-agnostic)
+    task_mask = (
+        (df['label1'].str.endswith(f'_{t1}') & df['label2'].str.endswith(f'_{t2}'))
+        | (df['label1'].str.endswith(f'_{t2}') & df['label2'].str.endswith(f'_{t1}'))
+    )
+
+    # Modality mask
+    if modality == 'both':
+        modality_mask = True
+    else:
+        tag = modality_dic[modality]
+        modality_mask = (
+            df['label1'].str.startswith(tag) &
+            df['label2'].str.startswith(tag)
+        )
+
+    return df[task_mask & modality_mask].reset_index(drop=True)
+
+
+def encoding_significance(output_dir, tasks, conditions, tags,
+                          regions, rois, rsa_dir,
+                          thresh_label, smooth_label,
+                          modalities, modality_dic):
+    """
+    Compute significance for encoding: comparisons between task pairs
+    (prod vs percep, prod vs ntfd, percep vs ntfd), combining both
+    beat and interval (i.e., average their distances), stratified by modality.
+    Saves per-ROI TSVs and a combined PNG per tag.
+    """
+    out_folder = os.path.join(
+        output_dir,
+        f'encoding_significance_{thresh_label}_{smooth_label}'
+    )
+    os.makedirs(out_folder, exist_ok=True)
+
+    task_pairs = [('prod', 'percep'), ('prod', 'ntfd'), ('percep', 'ntfd')]
+
+    for tag in tags:
+        all_roi_dfs = []
+
+        for region, roi in zip(regions, rois):
+            records = []
+            # load the 'all' distances for this ROI×tag
+            dist_dir = os.path.join(
+                rsa_dir, f'euclidean_distances_{thresh_label}_{smooth_label}'
+            )
+            fn = f'individual_eucl_distances_{roi}_{tag}_{thresh_label}_' \
+                 f'{smooth_label}_all.npy'
+            dist_path = os.path.join(dist_dir, fn)
+            if not os.path.exists(dist_path):
+                print(f"Missing distances: {dist_path}")
+                continue
+            idist = np.load(dist_path)  # shape (n_subj, n_cond, n_cond)
+
+            # build long df of all off-diagonals
+            n_subj, n_cond, _ = idist.shape
+            idx = np.tril_indices(n_cond, k=-1)
+            # generate condition labels
+            conds = [f"{abbr}_{t}" for t in ['prod', 'percep', 'ntfd'] 
+                     for abbr in conditions.values()]
+            pairs = [(conds[i], conds[j]) for i, j in zip(*idx)]
+            data = []
+            for s in range(n_subj):
+                vals = idist[s][idx]
+                for (l1, l2), v in zip(pairs, vals):
+                    data.append({'subject': s+1, 
+                                 'label1': l1, 
+                                 'label2': l2, 
+                                 'value': v})
+            df_all = pd.DataFrame(data)
+
+            # test each task pair × modality
+            for t1, t2 in task_pairs:
+                for modality in modalities:
+                    sub_df = filter_task_pairs(
+                        df_all, (t1, t2), modality, modality_dic)
+                    # average over subjects per subject
+                    mps = sub_df.groupby(
+                        'subject')['value'].mean().reset_index()
+                    if len(mps) > 1:
+                        t_stat, p_val = ttest_1samp(mps['value'], popmean=0)
+                    else:
+                        t_stat, p_val = np.nan, np.nan
+                    for _, row in mps.iterrows():
+                        records.append({
+                            'region': region,
+                            'roi': roi,
+                            'tag': tag,
+                            'task1': t1,
+                            'task2': t2,
+                            'modality': modality,
+                            'subject': row['subject'],
+                            'mean_value': row['value'],
+                            't_stat': t_stat,
+                            'p_val': p_val
+                        })
+
+            df_roi = pd.DataFrame(records)
+            # save per-ROI TSV
+            tsv = os.path.join(
+                out_folder,
+                f'encoding_significance_{roi}_{tag}_{thresh_label}_'
+                f'{smooth_label}.tsv'
+            )
+            df_roi.to_csv(tsv, sep='\t', index=False)
+            all_roi_dfs.append(df_roi)
+
+        # concatenate and plot
+        concat_df = pd.concat(all_roi_dfs, ignore_index=True)
+        fig, axes = plt.subplots(
+            len(rois), 1, figsize=(24, 5 * len(rois)), sharex=True
+        )
+        if len(rois) == 1:
+            axes = [axes]
+
+        for ax, roi in zip(axes, rois):
+            dfp = concat_df[concat_df['roi'] == roi]
+            # create combined label
+            dfp['pair'] = dfp['task1'] + '_vs_' + dfp['task2']
+            order = [f"{a}_vs_{b}" for a,b in task_pairs]
+            sns.boxplot(
+                data=dfp,
+                x='pair', y='mean_value', hue='modality',
+                order=order, hue_order=modalities,
+                width=0.5, notch=True, showfliers=False,
+                meanline=True, showmeans=True, ax=ax
+            )
+            ax.set_title(roi)
+            if ax is not axes[-1]:
+                ax.set_xticks([])
+                ax.spines['bottom'].set_visible(False)
+            else:
+                ax.set_xlabel('Task Pair')
+            ax.set_ylabel('Mean Dissimilarity')
+            ax.legend_.remove()
+
+        handles, labels = axes[-1].get_legend_handles_labels()
+        fig.legend(handles, labels, title='Modality', loc='upper right')
+        plt.tight_layout(rect=[0.05, 0.05, 0.9, 0.95])
+        png = os.path.join(
+            out_folder,
+            f'encoding_significance_allrois_{tag}_{thresh_label}_{smooth_label}.png'
+        )
+        plt.savefig(png, dpi=300)
+        plt.close()
+        print(f"Saved plot: {png}")
 
 
 # =========================== INPUTS ===================================
@@ -1289,6 +1452,20 @@ if __name__ == '__main__':
 
     # Compute RDM significance of beat vs interval pairs
     periodicity_significance(
+        output_dir=rsa_folder,
+        tasks=glm_tasks,
+        conditions=conditions_mapping,
+        tags=itags,
+        regions=region_names,
+        rois=roi_names,
+        rsa_dir=rsa_folder,
+        thresh_label=thresh_type,
+        smooth_label=smooth,
+        modalities=modality_list,
+        modality_dic=modality_map
+    )
+
+    encoding_significance(
         output_dir=rsa_folder,
         tasks=glm_tasks,
         conditions=conditions_mapping,
