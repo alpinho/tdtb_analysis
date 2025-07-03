@@ -792,60 +792,6 @@ def rsa(tags, tasks, regions, rois, rsa_dir, thresh_label, smooth_label,
     print("RSA analysis completed for all ROIs and tags.")
 
 
-def filter_beat_interval(df, task='all', modality='both'):
-    """
-    Filter the dataframe for beat vs interval pairs,
-    optionally within a specific task and/or modality.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Dataframe with columns 
-        ['subject', 'label1', 'label2', 'value'].
-    task : str or None
-        Task name: 'prod', 'percep', 'ntfd', or 'all' for all three 
-        tasks.
-    modality : str
-        'a' for audio, 'v' for visual, or 'both' for the two 
-        modalities.
-
-    Returns
-    -------
-    filtered_df : pd.DataFrame
-        Filtered dataframe.
-    """
-    # Beat vs interval mask (regardless of order)
-    type_mask = (
-        (df['label1'].str.contains('beat') & 
-         df['label2'].str.contains('interval')) |
-        (df['label1'].str.contains('interval') & 
-         df['label2'].str.contains('beat'))
-    )
-
-    # Task mask
-    if task != 'all':
-        task_mask = (
-            df['label1'].str.endswith(f'_{task}') & 
-            df['label2'].str.endswith(f'_{task}')
-        )
-    else:
-        task_mask = True  # No restriction
-
-    # Modality mask
-    if modality != 'both':
-        modality_mask = (
-            df['label1'].str.startswith(modality) & 
-            df['label2'].str.startswith(modality)
-        )
-    else:
-        modality_mask = True  # No restriction
-
-    # Combine all masks
-    mask = type_mask & task_mask & modality_mask
-
-    return df[mask].reset_index(drop=True)
-
-
 def periodicity_significance(output_dir, tasks, conditions, tags, regions, 
                              rois, rsa_dir, thresh_label, smooth_label, 
                              modalities, modality_dic):
@@ -1022,6 +968,8 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
             ax.set_ylim(bot-margin, top+margin)
 
             # annotations
+            offsets = np.linspace(-box_width/4, box_width/4,
+                                  len(valid_modalities))
             for i, t in enumerate(task_order):
                 for j, m in enumerate(modality_order):
                     sub = d[(d['task']==t)&(d['modality']==m)]
@@ -1034,13 +982,16 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
                         '*'    if p<0.05  else
                         'n.s.'
                     )
-                    x = i + (j-1) * box_width * .35
+                    x = i + offsets[j]
                     ax.text(x, top, sig, ha='center', va='bottom',
                             fontsize=10, weight='bold')
 
             if ax is not axes[-1]:
                 ax.set_xticks([])
                 ax.spines['bottom'].set_visible(False)
+                # Remove the x-ticks
+                ax.tick_params(axis='x', which='both', bottom=False,
+                               top=False)
             else:
                 ax.set_xlabel('Task')
                 ax.set_xticks(range(len(task_order)))
@@ -1054,8 +1005,8 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
 
         handles, labels = axes[-1].get_legend_handles_labels()
         fig.legend(handles, labels, title='Modality',
-                   loc='upper right', bbox_to_anchor=(0.95,1))
-        plt.tight_layout(rect=[.05,.05,.9,.95])
+                   loc='upper right', bbox_to_anchor=(.95, 1))
+        plt.tight_layout(rect=[.05, .05, .9, .95])
 
         png = os.path.join(
             output_dir,
@@ -1067,117 +1018,121 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
         print(f"Saved plot: {png}")
 
 
-def filter_task_pairs(df, task_pair, modality, modality_dic):
-    """
-    Keep only pairs that connect exactly the two tasks in task_pair,
-    including both beat and interval conditions, and match modality.
 
-    task_pair: tuple e.g. ('prod','percep')
-    modality: 'both','audio','visual'
-    modality_dic: mapping to tag prefix, e.g. {'audio':'a',...}
-    """
-    t1, t2 = task_pair
-
-    # Task-pair mask (order-agnostic)
-    task_mask = (
-        (df['label1'].str.endswith(f'_{t1}') & df['label2'].str.endswith(f'_{t2}'))
-        | (df['label1'].str.endswith(f'_{t2}') & df['label2'].str.endswith(f'_{t1}'))
-    )
-
-    # Modality mask
-    if modality == 'both':
-        modality_mask = True
-    else:
-        tag = modality_dic[modality]
-        modality_mask = (
-            df['label1'].str.startswith(tag) &
-            df['label2'].str.startswith(tag)
-        )
-
-    return df[task_mask & modality_mask].reset_index(drop=True)
-
-
-def encoding_significance(output_dir, tasks, conditions, tags,
+def encoding_significance(output_dir, conditions, tags,
                           regions, rois, rsa_dir,
                           thresh_label, smooth_label,
-                          modalities, modality_dic):
+                          modalities):
     """
     Compute significance for encoding: comparisons between task pairs
     (prod vs percep, prod vs ntfd, percep vs ntfd), combining both
     beat and interval distances, stratified by modality.
     Saves per-ROI TSVs and a combined PNG per tag.
+
+    Parameters
+    ----------
+    output_dir : str
+        Directory where output TSVs and plots will be saved.
+    conditions : dict
+        Mapping of full condition names to abbreviations
+        (e.g., {'auditory_beat':'abeat'}).
+    tags : list of str
+        List of tags identifying different ROI extractions.
+    regions : list of str
+        Region names corresponding to each ROI.
+    rois : list of str
+        ROI identifiers matching `regions`.
+    rsa_dir : str
+        Directory containing the precomputed distance matrices.
+    thresh_label : str
+        Threshold label used in filenames (e.g., 'puncorr').
+    smooth_label : str
+        Smoothing label used in filenames (e.g., 'unsmoothed').
+    modalities : list of str
+        Modalities to include ('audio', 'visual').
     """
+    # Setup output folder
     out_folder = os.path.join(
         output_dir,
         f'encoding_significance_{thresh_label}_{smooth_label}'
     )
     os.makedirs(out_folder, exist_ok=True)
 
-    task_pairs = [('prod', 'percep'),
-                  ('prod', 'ntfd'),
-                  ('percep', 'ntfd')]
+    # Define the three task-pairs
+    task_pairs = [('prod', 'percep'), ('prod', 'ntfd'), ('percep', 'ntfd')]
     pair_labels = [f"{a}_vs_{b}" for a, b in task_pairs]
     box_width = 0.5
+
+    # Only audio & visual (drop 'both')
+    valid_modalities = [m for m in modalities if m != 'both']
 
     for tag in tags:
         all_roi_dfs = []
 
-        # --- collect per-ROI results ---
         for region, roi in zip(regions, rois):
             records = []
-
-            # load the 'all' tasks distance matrix
             dist_dir = os.path.join(
-                rsa_dir, f'euclidean_distances_{thresh_label}_{smooth_label}')
-            fn = (f'individual_eucl_distances_{roi}_{tag}_'
-                  f'{thresh_label}_{smooth_label}_all.npy')
-            dist_path = os.path.join(dist_dir, fn)
-            if not os.path.exists(dist_path):
-                print(f"Missing distances: {dist_path}")
+                rsa_dir,
+                f'euclidean_distances_{thresh_label}_{smooth_label}'
+            )
+            fname = (
+                f'individual_eucl_distances_{roi}_{tag}_'
+                f'{thresh_label}_{smooth_label}_all.npy'
+            )
+            path = os.path.join(dist_dir, fname)
+            if not os.path.exists(path):
+                print(f"Missing distances: {path}")
                 continue
-            idist = np.load(dist_path)  # (n_subj, n_cond, n_cond)
+            idist = np.load(path)
 
-            # make long DataFrame of all off-diagonals
+            # Build long DataFrame of off-diagonals
             n_subj, n_cond, _ = idist.shape
+            cond_labels = [
+                f"{abbr}_{t}"
+                for t in ['prod','percep','ntfd']
+                for abbr in conditions.values()
+            ]
             idx = np.tril_indices(n_cond, k=-1)
-            conds = [f"{abbr}_{t}"
-                     for t in ['prod','percep','ntfd']
-                     for abbr in conditions.values()]
-
-            long_rows = []
+            rows = []
             for s in range(n_subj):
                 vals = idist[s][idx]
-                for (i,j), v in zip(zip(*idx), vals):
-                    long_rows.append({
+                for (i, j), v in zip(zip(*idx), vals):
+                    rows.append({
                         'subject': s+1,
-                        'label1': conds[i],
-                        'label2': conds[j],
+                        'label1': cond_labels[i],
+                        'label2': cond_labels[j],
                         'value': v
                     })
-            df_all = pd.DataFrame(long_rows)
+            df_all = pd.DataFrame(rows)
 
-            # test each task-pair × modality
+            # derive task and modality
+            df_all['task1'] = df_all['label1'].str.split('_').str[-1]
+            df_all['task2'] = df_all['label2'].str.split('_').str[-1]
+            df_all['mod'] = df_all['label1'].str[0]
+            df_all = df_all[df_all['mod'] == df_all['label2'].str[0]]
+            df_all['modality'] = df_all['mod'].map({'a':'audio','v':'visual'})
+
+            # collect significance
             for t1, t2 in task_pairs:
-                for modality in modalities:
-                    df_sub = filter_task_pairs(
-                        df_all, (t1, t2), modality, modality_dic
-                    )
-                    if df_sub.empty:
+                for modality in valid_modalities:
+                    sub = df_all[
+                        ((df_all['task1']==t1)&(df_all['task2']==t2))|
+                        ((df_all['task1']==t2)&(df_all['task2']==t1))
+                    ]
+                    sub = sub[sub['modality']==modality]
+                    if sub.empty:
                         continue
-                    mps = df_sub.groupby('subject')['value']\
-                                .mean().reset_index()
-                    if len(mps) > 1:
+                    mps = sub.groupby('subject')['value'].mean().reset_index()
+                    if len(mps)>1:
                         t_stat, p_val = ttest_1samp(mps['value'], popmean=0)
                     else:
                         t_stat, p_val = np.nan, np.nan
-
                     for _, r in mps.iterrows():
                         records.append({
                             'region': region,
                             'roi': roi,
                             'tag': tag,
-                            'task1': t1,
-                            'task2': t2,
+                            'pair': f"{t1}_vs_{t2}",
                             'modality': modality,
                             'subject': r['subject'],
                             'mean_value': r['value'],
@@ -1186,126 +1141,94 @@ def encoding_significance(output_dir, tasks, conditions, tags,
                         })
 
             df_roi = pd.DataFrame(records)
-            # save per-ROI TSV
             tsv = os.path.join(
                 out_folder,
                 f'encoding_significance_{roi}_{tag}_'
                 f'{thresh_label}_{smooth_label}.tsv'
             )
-            df_roi.to_csv(tsv, sep='\t', index=False)
+            df_roi.to_csv(tsv, sep='	', index=False)
             all_roi_dfs.append(df_roi)
 
-        # --- concatenate & plot with periodicity aesthetics ---
-        concat_df = pd.concat(all_roi_dfs, ignore_index=True)
-        if concat_df.empty:
+        # plot all ROIs
+        concat = pd.concat(all_roi_dfs, ignore_index=True)
+        if concat.empty:
             print(f"No data to plot for tag {tag}")
             continue
-
-        valid_rois = concat_df['roi'].unique().tolist()
+        valid_rois = concat['roi'].unique()
         fig, axes = plt.subplots(
             len(valid_rois), 1,
-            figsize=(24, 5 * len(valid_rois)),
-            sharex=True
+            figsize=(24, 5*len(valid_rois)), sharex=True
         )
-        if len(valid_rois) == 1:
-            axes = [axes]
-
+        if len(valid_rois)==1:
+            axes=[axes]
         for ax, roi in zip(axes, valid_rois):
-            dfp = concat_df[concat_df['roi'] == roi].copy()
-            dfp['pair'] = dfp['task1'] + '_vs_' + dfp['task2']
-
+            # remove x-axis tick marks
+            ax.tick_params(axis='x', which='both', bottom=False, top=False)
+            dfp = concat[concat['roi']==roi]
             sns.boxplot(
                 data=dfp,
                 x='pair', y='mean_value', hue='modality',
-                order=pair_labels, hue_order=modalities,
-                width=box_width,
-                showfliers=False,
-                notch=True,
-                linewidth=1,
-                meanline=True,
-                showmeans=True,
-                medianprops={"color": "k", "linewidth": 0},
-                meanprops={"color": "tab:brown", "linewidth": 1.5},
-                boxprops={"alpha": 0.5, "edgecolor": "black"},
+                order=pair_labels, hue_order=valid_modalities,
+                width=box_width, notch=True,
+                showfliers=False, meanline=True, showmeans=True,
+                medianprops={'color':'k','linewidth':0},
+                meanprops={'color':'tab:brown','linewidth':1.5},
+                boxprops={'alpha':0.5,'edgecolor':'black'},
                 ax=ax
             )
-
-            # ensure the last group isn't cut off
             ax.margins(x=0.15)
 
-            # compute y-limits from whiskers
-            y_max_list = []
-            for i, pair in enumerate(pair_labels):
-                for j, modality in enumerate(modalities):
-                    subset = dfp[
-                        (dfp['pair'] == pair) &
-                        (dfp['modality'] == modality)
-                    ]
-                    if subset.empty:
-                        continue
-                    q1 = subset['mean_value'].quantile(0.25)
-                    q3 = subset['mean_value'].quantile(0.75)
-                    iqr = q3 - q1
-                    upper = q3 + 1.5 * iqr
-                    y_max_list.append(upper)
-            y_top = max(y_max_list) if y_max_list else 0
-            y_bottom = min(dfp['mean_value'].min(), 0)
-            y_margin = (y_top - y_bottom) * 0.2 if y_top != y_bottom else 0.05
-            y_upper = y_top + y_margin
-            y_lower = y_bottom - y_margin
-            ax.set_ylim(y_lower, y_upper)
+            # --- annotations ---
+            # compute whisker-based y-limit
+            y_vals = []
+            for pair in pair_labels:
+                for mod in valid_modalities:
+                    sub = dfp[(dfp['pair']==pair)&(dfp['modality']==mod)]
+                    if sub.empty: continue
+                    q1, q3 = sub['mean_value'].quantile([0.25,0.75])
+                    y_vals.append(q3 + 1.5*(q3-q1))
+            top = max(y_vals) if y_vals else dfp['mean_value'].max()
+            bottom = min(dfp['mean_value'].min(), 0)
+            margin = (top - bottom) * 0.1 if top!=bottom else 0.05
+            y_annot = top + margin
 
-            # annotations
+            # symmetric offsets for modalities
+            offsets = np.linspace(-box_width/4, box_width/4,
+                                  len(valid_modalities))
             for i, pair in enumerate(pair_labels):
-                for j, modality in enumerate(modalities):
-                    subset = dfp[
-                        (dfp['pair'] == pair) &
-                        (dfp['modality'] == modality)
-                    ]
-                    if subset.empty:
-                        continue
-                    p_val = subset['p_val'].iloc[0]
-                    if np.isnan(p_val):
-                        sig = 'n.s.'
-                    elif p_val < 1e-4:
-                        sig = '****'
-                    elif p_val < 1e-3:
-                        sig = '***'
-                    elif p_val < 1e-2:
-                        sig = '**'
-                    elif p_val < 0.05:
-                        sig = '*'
-                    else:
-                        sig = ''
-                    x_loc = i + (j - 1) * box_width * 0.35
-                    ax.text(
-                        x_loc, y_upper - y_margin, sig,
-                        ha='center', va='bottom',
-                        fontsize=10, weight='bold'
-                    )
-
-            # x-axis
+                for j, mod in enumerate(valid_modalities):
+                    sub = dfp[(dfp['pair']==pair)&(dfp['modality']==mod)]
+                    if sub.empty: continue
+                    p = sub['p_val'].iloc[0]
+                    if np.isnan(p): sig = 'n.s.'
+                    elif p<1e-4: sig='****'
+                    elif p<1e-3: sig='***'
+                    elif p<1e-2: sig='**'
+                    elif p<0.05: sig='*'
+                    else: sig=''
+                    x = i + offsets[j]
+                    ax.text(x, y_annot, sig,
+                            ha='center', va='bottom',
+                            fontsize=10, fontweight='bold')
+            # set x-label only on bottom
             if ax is not axes[-1]:
                 ax.set_xticks([])
-                ax.set_xlabel('')
-                # Remove x-axis
                 ax.spines['bottom'].set_visible(False)
+                # Remove the x-ticks
+                ax.tick_params(axis='x', which='both', bottom=False,
+                               top=False)
             else:
                 ax.set_xlabel('Task Pair')
                 ax.set_xticks(range(len(pair_labels)))
                 ax.set_xticklabels(pair_labels, rotation=45, ha='right')
-
-            ax.set_title(f"{roi} encoding significance")
+            ax.set_title(f"{roi}")
             ax.set_ylabel('Mean Dissimilarity')
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
             ax.legend_.remove()
-
-        # shared legend
         handles, labels = axes[-1].get_legend_handles_labels()
         fig.legend(handles, labels, title='Modality', loc='upper right')
-        plt.tight_layout(rect=[0.05, 0.05, 0.9, 0.95])
-
+        plt.tight_layout(rect=[0.05,0.05,0.9,0.95])
         png = os.path.join(
             out_folder,
             f'encoding_significance_allrois_{tag}_'
@@ -1314,7 +1237,6 @@ def encoding_significance(output_dir, tasks, conditions, tags,
         plt.savefig(png, dpi=300)
         plt.close()
         print(f"Saved plot: {png}")
-
 
 
 # =========================== INPUTS ===================================
@@ -1469,22 +1391,7 @@ if __name__ == '__main__':
     #     thresh_type, smooth, conditions_mapping, truncate_to_zero=False)
 
     # Compute RDM significance of beat vs interval pairs
-    periodicity_significance(
-        output_dir=rsa_folder,
-        tasks=glm_tasks,
-        conditions=conditions_mapping,
-        tags=itags,
-        regions=region_names,
-        rois=roi_names,
-        rsa_dir=rsa_folder,
-        thresh_label=thresh_type,
-        smooth_label=smooth,
-        modalities=modality_list,
-        modality_dic=modality_map
-    )
-
-    # Compute RDM significance of task pairs
-    # encoding_significance(
+    # periodicity_significance(
     #     output_dir=rsa_folder,
     #     tasks=glm_tasks,
     #     conditions=conditions_mapping,
@@ -1497,3 +1404,16 @@ if __name__ == '__main__':
     #     modalities=modality_list,
     #     modality_dic=modality_map
     # )
+
+    # Compute RDM significance of task pairs
+    encoding_significance(
+        output_dir=rsa_folder,
+        conditions=conditions_mapping,
+        tags=itags,
+        regions=region_names,
+        rois=roi_names,
+        rsa_dir=rsa_folder,
+        thresh_label=thresh_type,
+        smooth_label=smooth,
+        modalities=modality_list
+    )
