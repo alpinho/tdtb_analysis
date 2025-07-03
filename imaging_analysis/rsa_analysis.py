@@ -1018,7 +1018,6 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
         print(f"Saved plot: {png}")
 
 
-
 def encoding_significance(output_dir, conditions, tags,
                           regions, rois, rsa_dir,
                           thresh_label, smooth_label,
@@ -1189,7 +1188,7 @@ def encoding_significance(output_dir, conditions, tags,
                     y_vals.append(q3 + 1.5*(q3-q1))
             top = max(y_vals) if y_vals else dfp['mean_value'].max()
             bottom = min(dfp['mean_value'].min(), 0)
-            margin = (top - bottom) * 0.1 if top!=bottom else 0.05
+            margin = (top - bottom) * .05 if top!=bottom else 0.02
             y_annot = top + margin
 
             # symmetric offsets for modalities
@@ -1221,14 +1220,14 @@ def encoding_significance(output_dir, conditions, tags,
                 ax.set_xlabel('Task Pair')
                 ax.set_xticks(range(len(pair_labels)))
                 ax.set_xticklabels(pair_labels, rotation=45, ha='right')
-            ax.set_title(f"{roi}")
+            ax.set_title(f"{roi}", pad=30)
             ax.set_ylabel('Mean Dissimilarity')
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
             ax.legend_.remove()
         handles, labels = axes[-1].get_legend_handles_labels()
         fig.legend(handles, labels, title='Modality', loc='upper right')
-        plt.tight_layout(rect=[0.05,0.05,0.9,0.95])
+        plt.tight_layout(rect=[.05, .05, .9, .95])
         png = os.path.join(
             out_folder,
             f'encoding_significance_allrois_{tag}_'
