@@ -927,85 +927,114 @@ def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
     plt.close(fig)
 
 
-def threeway_rmanova_roi_task_modality(df, output_dir, prefix, 
-                                       hems=['lh', 'rh', 'bh']):
+def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh','rh','bh']):
     """
-    3-way RM-ANOVA (ROI X Task X Modality) via statsmodels.AnovaRM,
-    then Holm-corrected paired t-tests for mains & interactions in one 
-    file.
+    3-way RM-ANOVA (ROI × Task × Modality) via statsmodels.AnovaRM,
+    then Holm-corrected paired t-tests:
+     • mains: ROI, Task, Modality
+     • ROI×Modality: only Aud vs Vis within each ROI
+     • ROI×Task:     only each Task-pair within each ROI
+     • Modality×Task: only each Task-pair within each Modality
+     • 3-way:        only each Task-pair within each (ROI,Modality) cell
+    All posthocs in one TSV per hemisphere, with the same columns
+    as your 2-way posthoc files.
     """
-    # 1) load if path
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
-    # 2) drop 'All Tasks' & ensure numeric PSC
-    df = df.loc[df.Task != 'All Tasks'].copy()
+    # drop “All Tasks” and coerce
+    df = df.loc[df.Task!='All Tasks'].copy()
     df['PSC'] = pd.to_numeric(df['PSC'])
 
-    # 3) define which “effects” to test
-    #    strings = main effects; tuples = (name, factors_to_combine)
-    effects = [
-        'ROI',
-        'Modality',
-        'Task',
-        ('ROI:Modality',  ['ROI','Modality']),
-        ('ROI:Task',      ['ROI','Task']),
-        ('Modality:Task', ['Modality','Task']),
-        ('ROI:Modality:Task', ['ROI','Modality','Task'])
-    ]
-
     for hem in hems:
-        # 4) subset & aggregate so one PSC per cell
-        db = df.loc[df.Hemisphere == hem]
-        agg = (db
-               .groupby(['Subject', 'ROI', 'Modality','Task'], as_index=False)
-               ['PSC']
-               .mean())
+        sub = df.loc[df.Hemisphere==hem]
+        agg = (
+            sub
+            .groupby(['Subject','ROI','Modality','Task'], as_index=False)
+            ['PSC']
+            .mean()
+        )
 
-        # 5) omnibus 3-way ANOVA
-        model = AnovaRM(data=agg,
-                        depvar='PSC',
-                        subject='Subject',
-                        within=['ROI', 'Modality', 'Task'])
-        res3 = model.fit()
+        # 1) omnibus 3-way ANOVA
+        model = AnovaRM(agg, depvar='PSC', subject='Subject',
+                        within=['ROI','Modality','Task'])
+        res3  = model.fit()
 
-        # ensure output dir
         os.makedirs(output_dir, exist_ok=True)
         base = f"{prefix}_{hem}_3way"
 
-        # 5a) save ANOVA table
+        # save ANOVA
         res3.anova_table.to_csv(
             os.path.join(output_dir, base + '_anova.tsv'),
             sep='\t'
         )
 
-        # 6) post-hoc tests
+        # 2) post-hocs
         rows = []
-        for eff in effects:
-            if isinstance(eff, str):
-                name = eff
-                grouping = agg[eff]
-            else:
-                name, facs = eff
-                col = name.replace(':', '_')
-                # make composite factor
-                agg[col] = agg[facs].agg('_'.join, axis=1)
-                grouping = agg[col]
 
-            mc = MultiComparison(agg['PSC'], grouping)
-            phoc = mc.allpairtest(ttest_rel, method='Holm')[0]
-
-            df_ph = pd.DataFrame(phoc)
-            # insert effect name as first column
-            df_ph.insert(0, 'Contrast', name)
+        # — mains —
+        for factor in ['ROI','Modality','Task']:
+            mc = MultiComparison(agg['PSC'], agg[factor])
+            ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+            df_ph = pd.DataFrame(ph)
+            df_ph.insert(0, 'Contrast', factor)
             rows.append(df_ph)
 
-        # 7) concat & write all post-hocs
+        # — ROI × Modality (Aud vs Vis within each ROI) —
+        for roi in agg['ROI'].unique():
+            sub_roi = agg.loc[agg.ROI==roi]
+            mc = MultiComparison(sub_roi['PSC'], sub_roi['Modality'])
+            ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+            df_ph = pd.DataFrame(ph)
+            df_ph.insert(0, 'Contrast', 'ROI:Modality')
+            df_ph.insert(1, 'ROI', roi)
+            rows.append(df_ph)
+
+        # — ROI × Task (all 3 Task pairs within each ROI) —
+        for roi in agg['ROI'].unique():
+            sub_roi = agg.loc[agg.ROI==roi]
+            mc = MultiComparison(sub_roi['PSC'], sub_roi['Task'])
+            ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+            df_ph = pd.DataFrame(ph)
+            df_ph.insert(0, 'Contrast', 'ROI:Task')
+            df_ph.insert(1, 'ROI', roi)
+            rows.append(df_ph)
+
+        # — Modality × Task (all 3 Task pairs within each Modality) —
+        for mod in agg['Modality'].unique():
+            sub_mod = agg.loc[agg.Modality==mod]
+            mc = MultiComparison(sub_mod['PSC'], sub_mod['Task'])
+            ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+            df_ph = pd.DataFrame(ph)
+            df_ph.insert(0, 'Contrast', 'Modality:Task')
+            df_ph.insert(1, 'Modality', mod)
+            rows.append(df_ph)
+
+        # — 3-way ROI × Modality × Task —
+        #    (only Task-pairs within each (ROI,Modality) cell)
+        for roi in agg['ROI'].unique():
+            for mod in agg['Modality'].unique():
+                sub_cell = agg[(agg.ROI==roi)&(agg.Modality==mod)]
+                mc = MultiComparison(sub_cell['PSC'], sub_cell['Task'])
+                ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+                df_ph = pd.DataFrame(ph)
+                df_ph.insert(0, 'Contrast', 'ROI:Modality:Task')
+                df_ph.insert(1, 'ROI', roi)
+                df_ph.insert(2, 'Modality', mod)
+                rows.append(df_ph)
+
+        # concat & save
         posthoc_all = pd.concat(rows, ignore_index=True, sort=False)
+
+        # **Reorder columns:** Contrast, ROI, Modality, then the rest
+        cols = list(posthoc_all.columns)
+        front = ['Contrast', 'ROI', 'Modality']
+        rest  = [c for c in cols if c not in front]
+        posthoc_all = posthoc_all[ front + rest ]
+
         posthoc_all.to_csv(
             os.path.join(output_dir, base + '_posthoc.tsv'),
-            sep='\t',
-            index=False
+            sep='\t', index=False
         )
 
 
@@ -1264,9 +1293,9 @@ if __name__ == '__main__':
 
                 # ######## 3-WAY ROI × TASK × MODALITY ANOVA ########
                 threeway_anova_roi_task_modality_dir = os.path.join(
-                    msdtb_dir, '3way-anova_roi-task-modality')
+                    msdtb_dir, '3way-anova_timing8rois')
 
-                threeway_rmanova_roi_task_modality(
+                threeway_rmanova_timing(
                     dfrois, threeway_anova_roi_task_modality_dir, tag)
 
 
