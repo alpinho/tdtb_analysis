@@ -12,16 +12,16 @@ addpath(script_dirpath);
 % PATH DEFINITIONS
 
 % Add dependencies to path
-if isdir('/srv/diedrichsen/data')
-    homedir = '/home/ROBARTS/agrilopi';
-    workdir='/srv/diedrichsen/data';   
+if isfolder('/cifs/diedrichsen/data')
+    homedir = '/home/UWO/agrilopi';
+    workdir='/cifs/diedrichsen/data';   
     localscratch = '/localscratch';
     addpath(sprintf('%s/../matlab/dataframe', workdir));
     addpath(sprintf('%s/../matlab/imaging/tools', workdir));
     addpath(sprintf('%s/../matlab/imaging/rwls', workdir));
     addpath(sprintf('%s/spm12', homedir));
     addpath(sprintf('%s/freesurfer', homedir));
-elseif isdir('/home/analu/diedrichsen_data/data')
+elseif isfolder('/home/analu/diedrichsen_data/data')
     homedir = '/home/analu';
     workdir='/home/analu/diedrichsen_data/data';
     localscratch = '/home/analu/localscratch';
@@ -58,13 +58,13 @@ base_dir = sprintf('%s/Cerebellum/music-sdtb', workdir);
 
 %%% Freesurfer stuff
 path1 = getenv('PATH');
-path1 = [path1, ':/srv/software/freesurfer/6.0.0/bin'];
+path1 = [path1, ':/cifs/software/freesurfer/6.0.0/bin'];
 setenv('PATH', path1);
-path1 = [path1, ':/srv/software/freesurfer/6.0.0/fsfast/bin'];
+path1 = [path1, ':/cifs/software/freesurfer/6.0.0/fsfast/bin'];
 setenv('PATH', path1);
-path1 = [path1, ':/srv/software/freesurfer/6.0.0/mni/bin'];
+path1 = [path1, ':/cifs/software/freesurfer/6.0.0/mni/bin'];
 setenv('PATH', path1);
-setenv('FREESURFER_HOME','/srv/software/freesurfer/6.0.0');
+setenv('FREESURFER_HOME','/cifs/software/freesurfer/6.0.0');
 setenv(fullfile(base_dir, 'surfaceFreesurfer'));
 setenv('SUBJECTS_DIR',fullfile(base_dir, 'surfaceFreesurfer'));
 setenv('PATH', path1);
@@ -1416,7 +1416,7 @@ switch what
         
         vararginoptions(varargin, {'sn', 'paradigm_type'});
         
-        if isdir('/srv/diedrichsen/data')
+        if isfolder('/cifs/diedrichsen/data')
             source = fullfile(homedir, ...
                 'tsclient/analu/mygit/music_sdtb/music-sdtb_analysis/imaging_analysis/events');
         else
