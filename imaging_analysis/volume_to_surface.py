@@ -127,7 +127,8 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
                                           column_names=[contrast])
 
         # Create directory to save outputs if does not exist
-        contrast_dir = os.path.join(surf_dir, contrast.lower())
+        contrast_dir = os.path.join(
+            surf_dir, str(contrast_key) + '_' + contrast.lower())
         if not os.path.exists(contrast_dir):
             os.makedirs(contrast_dir)
 
@@ -203,13 +204,13 @@ def get_isurf_gifti(surf_dir, subjects, task_key, contrast,
     return gifti_left, gifti_right
 
 
-def get_isurf_cifti(surf_dir, subjects, task_key, contrast,
+def get_isurf_cifti(surf_dir, subjects, task_key, contrast_key, contrast,
                     surfspace='fslr32k'):
 
     # Paths of individual files
     cifti_file = [
         os.path.join(
-            surf_dir, contrast,
+            surf_dir, str(contrast_key) + '_' + contrast,
             f"sub-{sub:02d}_"
             f"{task_key.replace('_', '-')}_"
             f"{contrast}_{surfspace}.dscalar.nii",
@@ -220,14 +221,15 @@ def get_isurf_cifti(surf_dir, subjects, task_key, contrast,
     return cifti_file
 
 
-def group_surf(surf_dir, subjects, task_key, contrast_tag, surfspace='fslr32k'):
+def group_surf(surf_dir, subjects, task_key, contrast_key, contrast_tag,
+               surfspace='fslr32k'):
 
-    contrast = contrast_tag.lower().replace(' vs ', '_vs_').replace(' ', '-')
+    contrast = contrast_tag.lower()
 
     # Get paths of files with individual functional data projected on...
     # ... the surface
-    cifti_paths = get_isurf_cifti(surf_dir, subjects, task_key, contrast,
-                                  surfspace=surfspace)
+    cifti_paths = get_isurf_cifti(surf_dir, subjects, task_key, contrast_key,
+                                  contrast, surfspace=surfspace)
 
     # Substitute nan's by zeros and smooth the data
     smoothed_data = np.array([smooth_fs32k_data(cifti_path, smooth=8,
@@ -334,7 +336,7 @@ def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
 def plot_flatmap(stats, threshold, task_key, contrast_tag, output_dir,
                  hemi=['L', 'R'], colormap='viridis', vmax=10):
 
-    contrast = contrast_tag.lower().replace(' ', '-')
+    contrast = contrast_tag.lower().replace(' vs ', '_vs_').replace(' ', '-')
     task_name = task_key.replace('_', '-')
 
     # Set paths
@@ -732,7 +734,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 
 # Relative path for output folders
 surf_folder = 'results/surface_files'
-contrasts_folder = 'results/control_contrasts'
+contrasts_folder = 'results/surface_images'
 
 task_tag = 'All Tasks'
 contrast_name = 'Encoding'
@@ -799,6 +801,7 @@ all_contrasts = {1: 'Encoding',
 
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
+cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
 
 # ============================ RUN =====================================
 
@@ -812,7 +815,7 @@ if __name__ == '__main__':
     #                 surf_folder, surfspace='fslr32k', save='cifti')
 
     # Compute group func cifti
-    z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_name,
+    z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, cname,
                           surfspace='fslr32k')
 
     # Split results into the two hemispheres
@@ -827,7 +830,6 @@ if __name__ == '__main__':
         zvals_rh, rh_medial_wall_mask_path)
 
     # Create and save z-maps gifti files
-    cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
     for zm, structure, hemi in zip([zvals_lh_masked, zvals_rh_masked],
                                    ['CortexLeft', 'CortexRight'],
                                    ['lh', 'rh']):
@@ -837,18 +839,18 @@ if __name__ == '__main__':
         nib.save(
             gifti_img,
             os.path.join(
-                surf_folder, cname.lower(),
+                surf_folder, str(contrast_id) + '_' + cname.lower(),
                 'group_'
                 + task_id.replace('_', '-')
                 + '_'
-                + cname.lower().replace(' ', '-')
+                + cname.lower()
                 + '_'
                 + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
             ),
         )
 
-    # # ################## Plot ##################
-    # Note: This plotting only works for surfspace='fslr32k'
+    # # # ################## Plot ##################
+    # # Note: This plotting only works for surfspace='fslr32k'
 
     # # Create contrasts folder if it does not exist
     # os.makedirs(contrasts_folder, exist_ok=True)
@@ -857,10 +859,11 @@ if __name__ == '__main__':
     # zmap_lh = nib.load(
     #     os.path.join(
     #         surf_folder,
+    #         contrast_id + '_' cname.lower(),
     #         'group_'
     #         + task_id.replace('_', '-')
     #         + '_'
-    #         + contrast_name.lower().replace(' ', '-')
+    #         + cname
     #         + '_'
     #         + 'fslr32k.L.func.gii',
     #     )
@@ -869,10 +872,11 @@ if __name__ == '__main__':
     # zmap_rh = nib.load(
     #     os.path.join(
     #         surf_folder,
+    #         contrast_id + '_' cname.lower(),
     #         'group_'
     #         + task_id.replace('_', '-')
     #         + '_'
-    #         + contrast_name.lower().replace(' ', '-')
+    #         + cname
     #         + '_'
     #         + 'fslr32k.R.func.gii',
     #     )
@@ -883,21 +887,21 @@ if __name__ == '__main__':
     # thresh, v_max = whole_brain_thresholds(derivatives_folder, SUBJECTS,
     #                                        task_id, contrast_id, wb_gmask)
 
-    # # # ################ Plot static flatmap #############################
+    # # # # ################ Plot static flatmap #############################
 
     # split_maps = [zvals_lh_masked, zvals_rh_masked]
     # plot_flatmap(split_maps, thresh, task_id, contrast_name,
     #              contrasts_folder, hemi=['L', 'R'], colormap='viridis',
     #              vmax=v_max)
 
-    # # # ################## Plot dynamic map ##############################
+    # # # # ################## Plot dynamic map ##############################
 
     # # Create Left and Right sulc gifti files
     # # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
     
     # # Left Hemisphere
     # lh_output_path = os.path.join(
-    #     contrasts_folder,
+    #     contrasts_folder, contrast_id + '_' cname,
     #     (
     #         'group_'
     #         + task_id.replace('_', '-')
