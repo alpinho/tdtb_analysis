@@ -333,83 +333,155 @@ def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
     return fdr_thresh, z_max
 
 
-def plot_flatmap(stats, threshold, task_key, contrast_tag, output_dir, 
-                 hemi=['L', 'R'], colormap='viridis', vmax=10):
+def plot_flatmap(stats,
+                 threshold,
+                 task_key,
+                 contrast_tag,
+                 output_dir,
+                 hemi=['L', 'R'],
+                 colormap='viridis',
+                 colormaps=None,
+                 alphas=None,
+                 vmax=10):
+    """
+    Plot one or multiple contrasts on flat cortical maps.
 
+    In single-contrast mode (default), behaves like the original: it plots
+    one activation map using `colormap` and a scalar `threshold`. If
+    `colormaps` is provided (and/or `threshold` is a sequence), it switches
+    into multi-contrast mode and overlays each [lh, rh] stat array with its
+    own colormap, threshold, and alpha.
+
+    Parameters
+    ----------
+    stats : array-like or list of array-like
+        Single mode: a two-element list [lh, rh] of 1D activation arrays.
+        Multi mode: list of such [lh, rh] pairs, one per contrast.
+    threshold : float or list of float
+        Single mode: lower bound for display. Multi mode: list of thresholds
+        for each contrast.
+    task_key : str
+        Identifier of the task (e.g. 'allmain_tasks'), used in output name.
+    contrast_tag : str
+        Human-readable contrast label (e.g. 'Encoding'), used in filename.
+    output_dir : str
+        Directory where the resulting PNG is saved.
+    hemi : list of {'L','R'}, optional
+        Hemispheres to plot. Default is ['L', 'R'].
+    colormap : str, optional
+        Colormap for single-contrast mode. Default is 'viridis'.
+        Ignored when `colormaps` is provided.
+    colormaps : list of str, optional
+        Colormap names for multi-contrast overlay. Length must match
+        `len(stats)`.
+    alphas : list of float, optional
+        Transparency values (0.0–1.0) for each contrast in multi-mode.
+        Defaults to 0.5 for each.
+    vmax : float, optional
+        Upper bound for the shared colorbar. Default is 10.
+
+    Returns
+    -------
+    None
+    """
+    # Determine whether to run in multi-contrast mode
+    multi = colormaps is not None or isinstance(threshold, (list, tuple))
+
+    if multi:
+        # Expect stats as list of [lh, rh] pairs
+        N = len(stats)
+        # Thresholds
+        if not isinstance(threshold, (list, tuple)):
+            thresholds = [threshold] * N
+        else:
+            thresholds = list(threshold)
+        # Colormaps
+        if not isinstance(colormaps, (list, tuple)):
+            raise ValueError(
+                "For multiple contrasts, `colormaps` must be a list."
+            )
+        cmaps = list(colormaps)
+        # Alphas
+        if alphas is None:
+            alphas = [0.5] * N
+        elif not isinstance(alphas, (list, tuple)):
+            alphas = [alphas] * N
+        else:
+            alphas = list(alphas)
+    else:
+        # Single-contrast fallback
+        thresholds = [threshold]
+        stats = [stats]
+        cmaps = [colormap]
+        alphas = [1.0]
+
+    # Prepare paths
     contrast = contrast_tag.lower()
     task_name = task_key.replace('_', '-')
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    surf_dir = os.path.join(base_dir, 'fslr32k_meshes')
+    borders = {
+        h: os.path.join(surf_dir, 'borders',
+                        f'fs_LR.32k.{h}.border')
+        for h in hemi
+    }
+    underlays = {
+        h: os.path.join(surf_dir, 'flat',
+                        f'fs_LR.32k.{h}.shape.gii')
+        for h in hemi
+    }
+    surfaces = {
+        h: os.path.join(surf_dir, 'flat',
+                        f'fs_LR.32k.{h}.flat.surf.gii')
+        for h in hemi
+    }
 
-    # Set paths
-    _base_dir = os.path.dirname(os.path.abspath(__file__))
-    _surf_dir = os.path.join(_base_dir, 'fslr32k_meshes')
-
-    borders = {'L': os.path.join(_surf_dir, 'borders', 'fs_LR.32k.L.border'),
-               'R': os.path.join(_surf_dir, 'borders', 'fs_LR.32k.R.border')
-               }
-    underlays = {'L': os.path.join(_surf_dir, 'flat',
-                                   'fs_LR.32k.L.shape.gii'),
-                 'R': os.path.join(_surf_dir, 'flat',
-                                   'fs_LR.32k.R.shape.gii')
-                 }
-    surfaces = {'L': os.path.join(_surf_dir, 'flat',
-                                  'fs_LR.32k.L.flat.surf.gii'),
-                'R': os.path.join(_surf_dir, 'flat',
-                                  'fs_LR.32k.R.flat.surf.gii')
-                }
-
-    # Define figure with two subplots
+    # Create figure
     fig, axs = plt.subplots(1, len(hemi), figsize=(8, 4),
-                            gridspec_kw={'wspace': 0.05})
-    for ax, stat, h in zip(axs, stats, hemi):
-        plt.sca(ax)
-        ax = flatmap.plot(stat,
-                          surf=surfaces[h],
-                          underlay=underlays[h],
-                          undermap='gray',
-                          underscale=[-1.5, 1],
-                          threshold=threshold,
-                          cmap=colormap,
-                          borders=borders[h],
-                          new_figure=False,
-                          frame=None
-                          )
+                            gridspec_kw={'wspace': .05})
 
-    # Define lower bound of color limits
-    vmin = threshold
+    # Overlay each contrast
+    for idx, (stat_pair, thr, cmap, alpha) in enumerate(
+            zip(stats, thresholds, cmaps, alphas)):
 
-    # ###################### COLORBAR ###################################
+        for ax, stat, h in zip(axs, stat_pair, hemi):
+            plt.sca(ax)
+            flatmap.plot(
+                stat,
+                surf=surfaces[h],
+                underlay=underlays[h],
+                undermap='gray',
+                underscale=[-1.5, 1],
+                threshold=thr,
+                cmap=cmap,
+                borders=borders[h],
+                new_figure=(idx == 0),
+                frame=None,
+                alpha=alpha
+            )
 
-    # Make colorbar
+    # Add a shared colorbar (using the last colormap)
+    vmin = min(thresholds)
     norm = plt.Normalize(vmin=vmin, vmax=vmax)
-    sm = ScalarMappable(norm=norm, cmap=colormap)
-    cbar = fig.colorbar(sm, ax=[axs[0], axs[1]], orientation='horizontal',
+    sm = ScalarMappable(norm=norm, cmap=cmaps[-1])
+    cbar = fig.colorbar(sm, ax=axs.tolist(), orientation='horizontal',
                         fraction=0.05, pad=0.02)
-
-    # Add label below colorbar
     cbar.set_label('Z-values', fontsize=12, labelpad=8)
+    ticks = np.linspace(vmin, vmax, 4)
+    cbar.set_ticks(ticks)
+    cbar.ax.set_xticklabels([f'{t:.1f}' for t in ticks],
+                             fontsize=12)
 
-    # Set 4 evenly spaced tick positions
-    tick_positions = np.linspace(vmin, vmax, 4)
-    cbar.set_ticks(tick_positions)
-
-    # Format tick labels to 1 decimal place
-    cbar.ax.set_xticklabels([f'{tick:.1f}' for tick in tick_positions],
-                            fontsize=12)
-
-    # ###################################################################
-
-    # Reduce extra whitespace
-    plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05, wspace=0.02)
-
-    # Force a small, tight figure
+    # Tidy layout and save
+    plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05,
+                        wspace=0.02)
     fig.set_size_inches(6, 2.5)
-    
-    # Save figure with tight cropping
-    output_name = \
-        f'group_{task_name}_{contrast}_flat_fslr32k.png' if len(hemi) == 2 \
-        else f'group_{task_name}_{contrast}_flat_fslr32k_{hemi[0]}.png'
-    output_path = os.path.join(output_dir, output_name)
-    fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0)
+    fname = (f'group_{task_name}_{contrast}_flat_fslr32k.png'
+             if len(hemi) == 2
+             else f'group_{task_name}_{contrast}_'
+                  f'flat_fslr32k_{hemi[0]}.png')
+    fig.savefig(os.path.join(output_dir, fname),
+                dpi=300, bbox_inches='tight', pad_inches=0)
 
 
 def split_and_save_sulc_cifti(cifti_path, output_dir):
@@ -739,7 +811,8 @@ contrasts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'results', 'surface_images')
 
 task_tag = 'All Tasks'
-contrast_name = 'Encoding'
+contrast_name = 'Beat'
+contrast_name2 = 'Interval'
 
 # ========================= PARAMETERS =================================
 
@@ -802,8 +875,15 @@ all_contrasts = {1: 'Encoding',
                  18: 'Decision'}
 
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
+
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
+
+# Check if a second contrast is provided
+if contrast_name2:
+    contrast_id2 = \
+        {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
+    cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
 
 # ============================ RUN =====================================
 
@@ -887,16 +967,55 @@ if __name__ == '__main__':
     )
     zvals_rh_masked = zmap_rh.darrays[0].data
 
+    if contrast_name2:
+        # If a second contrast is provided, load it
+        zmap_lh2 = nib.load(
+            os.path.join(
+                surf_folder, 
+                str(contrast_id) + '_' + cname.lower(),
+                'group_'
+                + task_id.replace('_', '-')
+                + '_'
+                + contrast_name2.lower()
+                + '_'
+                + 'fslr32k.L.func.gii',
+            )
+        )
+        zvals_lh_masked2 = zmap_lh2.darrays[0].data
+        zmap_rh2 = nib.load(
+            os.path.join(
+                surf_folder,
+                str(contrast_id) + '_' + cname.lower(),
+                'group_'
+                + task_id.replace('_', '-')
+                + '_'
+                + contrast_name2.lower()
+                + '_'
+                + 'fslr32k.R.func.gii',
+            )
+        )
+        zvals_rh_masked2 = zmap_rh2.darrays[0].data
+
     # Compute whole-brain fdr threshold of volumetric data
     thresh, v_max = whole_brain_thresholds(derivatives_folder, SUBJECTS,
                                            task_id, contrast_id, wb_gmask)
 
     # # # ################ Plot static flatmap #############################
 
+    # One contrast
     split_maps = [zvals_lh_masked, zvals_rh_masked]
     plot_flatmap(split_maps, thresh, task_id, cname,
                  surfplots_folder, hemi=['L', 'R'], colormap='viridis',
                  vmax=v_max)
+   
+    # Two contrasts
+    if contrast_name2:
+        split_maps2 = [zvals_lh_masked2, zvals_rh_masked2]
+        split_maps_pairs = [split_maps, split_maps2]
+        plot_flatmap(split_maps_pairs, thresh, task_id, cname2,
+                     surfplots_folder, hemi=['L', 'R'], colormaps=['plasma'],
+                     vmax=v_max)
+
 
     # # # ################## Plot dynamic map ##############################
 
@@ -904,57 +1023,57 @@ if __name__ == '__main__':
     # split_and_save_sulc_cifti(lr_sulc_path, sulc_folder)
     
     # Left Hemisphere
-    lh_output_path = os.path.join(
-        contrasts_folder, str(contrast_id) + '_' + cname.lower(),
-        (
-            'group_'
-            + task_id.replace('_', '-')
-            + '_'
-            + cname.lower()
-            + '_lh_veryinflated_fslr32k.html'
-        ),
-    )
-    plotly_surfmap(
-        sulc_path=lh_sulc_path,
-        borders_path=lh_borders_path,
-        surf_path=lh_veryinflated,
-        data=zvals_lh_masked,
-        threshold=thresh,
-        outfname=lh_output_path,
-        resolution=5,
-        radius=.65,
-        plot_title=contrast_name + '- Left Hemisphere',
-        cmap='viridis',
-        cbar_title='Z-values',
-        cell_size=3.5,         # adjust this for the desired dot sparsity
-        marker_size=3,         # adjust for the size of the dots
-        borders=False
-        )
+    # lh_output_path = os.path.join(
+    #     contrasts_folder, str(contrast_id) + '_' + cname.lower(),
+    #     (
+    #         'group_'
+    #         + task_id.replace('_', '-')
+    #         + '_'
+    #         + cname.lower()
+    #         + '_lh_veryinflated_fslr32k.html'
+    #     ),
+    # )
+    # plotly_surfmap(
+    #     sulc_path=lh_sulc_path,
+    #     borders_path=lh_borders_path,
+    #     surf_path=lh_veryinflated,
+    #     data=zvals_lh_masked,
+    #     threshold=thresh,
+    #     outfname=lh_output_path,
+    #     resolution=5,
+    #     radius=.65,
+    #     plot_title=contrast_name + '- Left Hemisphere',
+    #     cmap='viridis',
+    #     cbar_title='Z-values',
+    #     cell_size=3.5,         # adjust this for the desired dot sparsity
+    #     marker_size=3,         # adjust for the size of the dots
+    #     borders=False
+    #     )
 
-    # Right Hemisphere
-    rh_output_path = os.path.join(
-        contrasts_folder, str(contrast_id) + '_' + cname.lower(),
-        (
-            'group_'
-            + task_id.replace('_', '-')
-            + '_'
-            + cname.lower()
-            + '_rh_veryinflated_fslr32k.html'
-        ),
-    )
-    plotly_surfmap(
-        sulc_path=rh_sulc_path,
-        borders_path=rh_borders_path,
-        surf_path=rh_veryinflated,
-        data=zvals_rh_masked,
-        threshold=thresh,
-        outfname=rh_output_path,
-        resolution=5,
-        radius=.65,
-        plot_title=contrast_name + '- Right Hemisphere',
-        cmap='viridis',
-        cbar_title='Z-values',
-        cell_size=3.5,         # adjust this for the desired dot sparsity
-        marker_size=3,         # adjust for the size of the dots
-        borders=False
-        )
+    # # Right Hemisphere
+    # rh_output_path = os.path.join(
+    #     contrasts_folder, str(contrast_id) + '_' + cname.lower(),
+    #     (
+    #         'group_'
+    #         + task_id.replace('_', '-')
+    #         + '_'
+    #         + cname.lower()
+    #         + '_rh_veryinflated_fslr32k.html'
+    #     ),
+    # )
+    # plotly_surfmap(
+    #     sulc_path=rh_sulc_path,
+    #     borders_path=rh_borders_path,
+    #     surf_path=rh_veryinflated,
+    #     data=zvals_rh_masked,
+    #     threshold=thresh,
+    #     outfname=rh_output_path,
+    #     resolution=5,
+    #     radius=.65,
+    #     plot_title=contrast_name + '- Right Hemisphere',
+    #     cmap='viridis',
+    #     cbar_title='Z-values',
+    #     cell_size=3.5,         # adjust this for the desired dot sparsity
+    #     marker_size=3,         # adjust for the size of the dots
+    #     borders=False
+    #     )
