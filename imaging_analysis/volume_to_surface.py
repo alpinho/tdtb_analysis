@@ -341,7 +341,7 @@ def plot_flatmap(stats,
                  output_dir,
                  hemi=['L', 'R'],
                  colormap='viridis',
-                 colormaps=None,
+                 colormaps=['Reds','Blues'],
                  vmax=10):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -355,7 +355,7 @@ def plot_flatmap(stats,
     Two-contrast RGB overlay:
       stats: [[lh1, rh1], [lh2, rh2]]
       threshold: [thr1, thr2]
-      colormaps: ['Reds','Blues']
+      colormaps: [color1, color2]  # any matplotlib color
       vmax: [v1, v2]
     """
 
@@ -366,20 +366,17 @@ def plot_flatmap(stats,
 
     borders = {
         h: os.path.join(
-            surf_dir, 'borders',
-            f'fs_LR.32k.{h}.border')
+            surf_dir, 'borders', f'fs_LR.32k.{h}.border')
         for h in hemi
     }
     underlays = {
         h: os.path.join(
-            surf_dir, 'flat',
-            f'fs_LR.32k.{h}.shape.gii')
+            surf_dir, 'flat', f'fs_LR.32k.{h}.shape.gii')
         for h in hemi
     }
     surfaces = {
         h: os.path.join(
-            surf_dir, 'flat',
-            f'fs_LR.32k.{h}.flat.surf.gii')
+            surf_dir, 'flat', f'fs_LR.32k.{h}.flat.surf.gii')
         for h in hemi
     }
 
@@ -416,11 +413,8 @@ def plot_flatmap(stats,
         norm = plt.Normalize(vmin=threshold, vmax=vmax)
         sm = ScalarMappable(norm=norm, cmap=colormap)
         cbar = fig.colorbar(
-            sm,
-            ax=list(axs),
-            orientation='horizontal',
-            fraction=0.05,
-            pad=0.02
+            sm, ax=list(axs), orientation='horizontal',
+            fraction=0.05, pad=0.02
         )
         cbar.set_label('Z-values', fontsize=12, labelpad=8)
         ticks = np.linspace(threshold, vmax, 4)
@@ -435,30 +429,40 @@ def plot_flatmap(stats,
         thr1, thr2 = threshold
         v1, v2 = vmax
 
+        # parse colors
+        color1 = colormaps[0]
+        color2 = colormaps[1]
+        rgb1 = np.array(mcolors.to_rgb(color1))
+        rgb2 = np.array(mcolors.to_rgb(color2))
+
         for ax, h in zip(axs, hemi):
             plt.sca(ax)
             arr1 = lh1 if h == 'L' else rh1
             arr2 = lh2 if h == 'L' else rh2
             nvert = arr1.shape[0]
 
-            # normalize and clip
+            # normalize each map to [0,1]
             norm1 = np.clip(arr1 / v1, 0, 1)
             norm2 = np.clip(arr2 / v2, 0, 1)
 
-            # zero out sub-threshold
+            # zero out below threshold
             thr_frac1 = thr1 / v1
             thr_frac2 = thr2 / v2
             norm1[norm1 < thr_frac1] = 0
             norm2[norm2 < thr_frac2] = 0
 
-            # build RGBA
-            data = np.zeros((nvert, 4), float)
-            data[:, 0] = norm1
-            data[:, 2] = norm2
-            data[:, 3] = ((norm1 > 0) | (norm2 > 0)).astype(float)
+            # build RGB by weighted sum of color vectors
+            rgb_data = np.outer(norm1, rgb1) + np.outer(norm2, rgb2)
+            rgb_data = np.clip(rgb_data, 0, 1)
 
-            # transparent where no color
-            zero_mask = (data[:, :3].sum(axis=1) == 0)
+            # assemble RGBA
+            data = np.zeros((nvert, 4), float)
+            data[:, :3] = rgb_data
+            alpha = ((norm1 > 0) | (norm2 > 0)).astype(float)
+            data[:, 3] = alpha
+
+            # transparent where no activity
+            zero_mask = (alpha == 0)
             data[zero_mask, :] = np.nan
 
             flatmap.plot(
@@ -475,14 +479,12 @@ def plot_flatmap(stats,
                 frame=None
             )
 
-        # add legend
+        # legend showing chosen colors
         c1_label, c2_label = contrast_tag.split('_and_')
-        red_patch = mpatches.Patch(
-            color='red', label=c1_label.replace('-', ' ')
-        )
-        blue_patch = mpatches.Patch(
-            color='blue', label=c2_label.replace('-', ' ')
-        )
+        red_patch = mpatches.Patch(color=color1,
+                                   label=c1_label.replace('-', ' '))
+        blue_patch = mpatches.Patch(color=color2,
+                                    label=c2_label.replace('-', ' '))
         fig.legend(
             handles=[red_patch, blue_patch],
             loc='lower center',
@@ -497,7 +499,8 @@ def plot_flatmap(stats,
     suffix = 'flat' if not two_rgb else 'flat_overlay'
     fname = (
         f'group_{task_name}_{contrast}_{suffix}_'
-        'fslr32k.png' if len(hemi) == 2 else
+        f'fslr32k.png'
+        if len(hemi) == 2 else
         f'group_{task_name}_{contrast}_{suffix}_'
         f'fslr32k_{hemi[0]}.png'
     )
@@ -1054,7 +1057,7 @@ if __name__ == '__main__':
             contrast_tag=cname + '_and_' + cname2,
             output_dir=rgbaplots_folder,
             hemi      = ['L','R'],
-            colormaps = ['Reds','Blues'],
+            colormaps = ['#009E73','#F0E442'],
             vmax      = [v_max, v_max2]
         )
 
