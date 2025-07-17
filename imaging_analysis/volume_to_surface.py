@@ -450,8 +450,8 @@ def plot_flatmap(stats,
 
             nvert = c1.shape[0]
             rgba = np.zeros((nvert, 4), float)
-            rgba[:, 0] = c1 * a1
-            rgba[:, 1] = c2 * a2
+            rgba[:, 0] = c1 * a1      # red channel
+            rgba[:, 2] = c2 * a2      # blue channel
 
             # mask zeros so underlay shows
             zero_mask = (rgba[:, 0] + rgba[:, 1]) == 0
@@ -852,8 +852,8 @@ contrasts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'results', 'surface_images')
 
 task_tag = 'All Tasks'
-contrast_name = 'Beat'
-contrast_name2 = 'Interval'
+contrast_name = 'Visual Encoding'
+contrast_name2 = 'Auditory Encoding' # Set to None if not used
 
 # ========================= PARAMETERS =================================
 
@@ -1017,7 +1017,7 @@ if __name__ == '__main__':
                 'group_'
                 + task_id.replace('_', '-')
                 + '_'
-                + contrast_name2.lower()
+                + cname2.lower()
                 + '_'
                 + 'fslr32k.L.func.gii',
             )
@@ -1030,7 +1030,7 @@ if __name__ == '__main__':
                 'group_'
                 + task_id.replace('_', '-')
                 + '_'
-                + contrast_name2.lower()
+                + cname2.lower()
                 + '_'
                 + 'fslr32k.R.func.gii',
             )
@@ -1067,7 +1067,7 @@ if __name__ == '__main__':
             stats     = [split_maps, split_maps2],
             threshold = [thresh, thresh2],
             task_key  = task_id,
-            contrast_tag='Beat_and_Interval',
+            contrast_tag=cname + '_and_' + cname2,
             output_dir=rgbaplots_folder,
             hemi      = ['L','R'],
             colormaps = ['Reds','Blues'],
