@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 24th of February 2025
-Last Update: Julho 2025
+Last Update: July 2025
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
@@ -344,82 +344,28 @@ def plot_flatmap(stats,
                  alphas=None,
                  vmax=10):
     """
-    Plot one or multiple contrasts on flat cortical maps.
+    Plot one or two contrasts on a flat cortical map.
 
-    In single-contrast mode (default), behaves like the original: it plots
-    one activation map using `colormap` and a scalar `threshold`. If
-    `colormaps` is provided (and/or `threshold` is a sequence), it switches
-    into multi-contrast mode and overlays each [lh, rh] stat array with its
-    own colormap, threshold, and alpha.
+    Single contrast (original behavior):
+      stats     : [lh_array, rh_array]
+      threshold : float
+      colormap  : str
+      vmax      : float
 
-    Parameters
-    ----------
-    stats : array-like or list of array-like
-        Single mode: a two-element list [lh, rh] of 1D activation arrays.
-        Multi mode: list of such [lh, rh] pairs, one per contrast.
-    threshold : float or list of float
-        Single mode: lower bound for display. Multi mode: list of thresholds
-        for each contrast.
-    task_key : str
-        Identifier of the task (e.g. 'allmain_tasks'), used in output name.
-    contrast_tag : str
-        Human-readable contrast label (e.g. 'Encoding'), used in filename.
-    output_dir : str
-        Directory where the resulting PNG is saved.
-    hemi : list of {'L','R'}, optional
-        Hemispheres to plot. Default is ['L', 'R'].
-    colormap : str, optional
-        Colormap for single-contrast mode. Default is 'viridis'.
-        Ignored when `colormaps` is provided.
-    colormaps : list of str, optional
-        Colormap names for multi-contrast overlay. Length must match
-        `len(stats)`.
-    alphas : list of float, optional
-        Transparency values (0.0–1.0) for each contrast in multi-mode.
-        Defaults to 0.5 for each.
-    vmax : float, optional
-        Upper bound for the shared colorbar. Default is 10.
+    Two contrasts (RGB overlay):
+      stats     : [[lh1, rh1], [lh2, rh2]]
+      threshold : [thr1, thr2]
+      colormaps : ['Reds','Blues']
+      alphas    : [a1, a2]     (defaults to [1.0, 1.0])
+      vmax      : [v1, v2]
 
-    Returns
-    -------
-    None
+    Other parameters mirror the one‑contrast version.
     """
-    # Determine whether to run in multi-contrast mode
-    multi = colormaps is not None or isinstance(threshold, (list, tuple))
-
-    if multi:
-        # Expect stats as list of [lh, rh] pairs
-        N = len(stats)
-        # Thresholds
-        if not isinstance(threshold, (list, tuple)):
-            thresholds = [threshold] * N
-        else:
-            thresholds = list(threshold)
-        # Colormaps
-        if not isinstance(colormaps, (list, tuple)):
-            raise ValueError(
-                "For multiple contrasts, `colormaps` must be a list."
-            )
-        cmaps = list(colormaps)
-        # Alphas
-        if alphas is None:
-            alphas = [0.5] * N
-        elif not isinstance(alphas, (list, tuple)):
-            alphas = [alphas] * N
-        else:
-            alphas = list(alphas)
-    else:
-        # Single-contrast fallback
-        thresholds = [threshold]
-        stats = [stats]
-        cmaps = [colormap]
-        alphas = [1.0]
-
-    # Prepare paths
     contrast = contrast_tag.lower()
     task_name = task_key.replace('_', '-')
     base_dir = os.path.dirname(os.path.abspath(__file__))
     surf_dir = os.path.join(base_dir, 'fslr32k_meshes')
+
     borders = {
         h: os.path.join(surf_dir, 'borders',
                         f'fs_LR.32k.{h}.border')
@@ -436,15 +382,22 @@ def plot_flatmap(stats,
         for h in hemi
     }
 
-    # Create figure
+    # detect two‑contrast RGB mode
+    two_rgb = (
+        isinstance(stats, (list, tuple))
+        and len(stats) == 2
+        and isinstance(stats[0], (list, tuple))
+        and colormaps is not None
+        and isinstance(vmax, (list, tuple))
+    )
+
     fig, axs = plt.subplots(1, len(hemi), figsize=(8, 4),
-                            gridspec_kw={'wspace': .05})
+                            gridspec_kw={'wspace': 0.05})
 
-    # Overlay each contrast
-    for idx, (stat_pair, thr, cmap, alpha) in enumerate(
-            zip(stats, thresholds, cmaps, alphas)):
-
-        for ax, stat, h in zip(axs, stat_pair, hemi):
+    # — single‑contrast —
+    if not two_rgb:
+        lh, rh = stats
+        for ax, stat, h in zip(axs, (lh, rh), hemi):
             plt.sca(ax)
             flatmap.plot(
                 stat,
@@ -452,36 +405,124 @@ def plot_flatmap(stats,
                 underlay=underlays[h],
                 undermap='gray',
                 underscale=[-1.5, 1],
-                threshold=thr,
-                cmap=cmap,
+                threshold=threshold,
+                cmap=colormap,
                 borders=borders[h],
-                new_figure=(idx == 0),
-                frame=None,
-                alpha=alpha
+                new_figure=False,
+                frame=None
             )
 
-    # Add a shared colorbar (using the last colormap)
-    vmin = min(thresholds)
-    norm = plt.Normalize(vmin=vmin, vmax=vmax)
-    sm = ScalarMappable(norm=norm, cmap=cmaps[-1])
-    cbar = fig.colorbar(sm, ax=axs.tolist(), orientation='horizontal',
-                        fraction=0.05, pad=0.02)
-    cbar.set_label('Z-values', fontsize=12, labelpad=8)
-    ticks = np.linspace(vmin, vmax, 4)
-    cbar.set_ticks(ticks)
-    cbar.ax.set_xticklabels([f'{t:.1f}' for t in ticks],
-                             fontsize=12)
+        # original small shared colorbar
+        norm = plt.Normalize(vmin=threshold, vmax=vmax)
+        sm = ScalarMappable(norm=norm, cmap=colormap)
+        cbar = fig.colorbar(
+            sm,
+            ax=[axs[0], axs[1]],
+            orientation='horizontal',
+            fraction=0.05,
+            pad=0.02
+        )
+        cbar.set_label('Z-values', fontsize=12, labelpad=8)
+        ticks = np.linspace(threshold, vmax, 4)
+        cbar.set_ticks(ticks)
+        cbar.ax.set_xticklabels([f'{t:.1f}' for t in ticks],
+                                 fontsize=12)
 
-    # Tidy layout and save
-    plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05,
-                        wspace=0.02)
+    # — two‑contrast RGB overlay —
+    else:
+        (lh1, rh1), (lh2, rh2) = stats
+        thr1, thr2 = threshold
+        v1, v2 = vmax
+        cmap1, cmap2 = colormaps
+        a1, a2 = (alphas if alphas is not None else [1.0, 1.0])
+        name1, name2 = contrast_tag.split('_and_')
+
+        for ax, h in zip(axs, hemi):
+            plt.sca(ax)
+            arr1 = lh1 if h == 'L' else rh1
+            arr2 = lh2 if h == 'L' else rh2
+
+            # threshold & normalize
+            r1 = np.clip(arr1 - thr1, 0, None)
+            r2 = np.clip(arr2 - thr2, 0, None)
+            c1 = (r1 / r1.max()) if r1.max() > 0 else r1
+            c2 = (r2 / r2.max()) if r2.max() > 0 else r2
+
+            nvert = c1.shape[0]
+            rgba = np.zeros((nvert, 4), float)
+            rgba[:, 0] = c1 * a1
+            rgba[:, 1] = c2 * a2
+
+            # mask zeros so underlay shows
+            zero_mask = (rgba[:, 0] + rgba[:, 1]) == 0
+            rgba[zero_mask, :] = np.nan
+            rgba[~zero_mask, 3] = 1.0  # opaque where active
+
+            flatmap.plot(
+                rgba,
+                overlay_type='rgb',
+                surf=surfaces[h],
+                underlay=underlays[h],
+                undermap='gray',
+                underscale=[-1.5, 1],
+                borders=borders[h],
+                bordersize=1.5,
+                bordercolor='k',
+                backgroundcolor='w',
+                new_figure=False,
+                frame=None
+            )
+
+        # compute shared limits
+        shared_vmin = min(thr1, thr2)
+        shared_vmax = max(v1, v2)
+        ticks = np.linspace(shared_vmin, shared_vmax, 4)
+
+        # left colorbar
+        norm1 = plt.Normalize(vmin=shared_vmin, vmax=shared_vmax)
+        sm1 = ScalarMappable(norm=norm1, cmap=cmap1)
+        cbar1 = fig.colorbar(
+            sm1,
+            ax=axs[0],
+            orientation='horizontal',
+            fraction=0.125,
+            shrink=0.7,
+            pad=0.01
+        )
+        cbar1.set_ticks(ticks)
+        cbar1.set_ticklabels([f'{t:.1f}' for t in ticks])
+        cbar1.set_label(f'Z-values ({name1})', fontsize=10, labelpad=4)
+
+        # right colorbar
+        norm2 = plt.Normalize(vmin=shared_vmin, vmax=shared_vmax)
+        sm2 = ScalarMappable(norm=norm2, cmap=cmap2)
+        cbar2 = fig.colorbar(
+            sm2,
+            ax=axs[1],
+            orientation='horizontal',
+            fraction=0.125,
+            shrink=0.7,
+            pad=0.01
+        )
+        cbar2.set_ticks(ticks)
+        cbar2.set_ticklabels([f'{t:.1f}' for t in ticks])
+        cbar2.set_label(f'Z-values ({name2})', fontsize=10, labelpad=4)
+
+    plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
     fig.set_size_inches(6, 2.5)
-    fname = (f'group_{task_name}_{contrast}_flat_fslr32k.png'
-             if len(hemi) == 2
-             else f'group_{task_name}_{contrast}_'
-                  f'flat_fslr32k_{hemi[0]}.png')
-    fig.savefig(os.path.join(output_dir, fname),
-                dpi=300, bbox_inches='tight', pad_inches=0)
+    suffix = 'flat' if not two_rgb else 'flat_overlay'
+    fname = (
+        f'group_{task_name}_{contrast}_{suffix}_fslr32k.png'
+        if len(hemi) == 2 else
+        f'group_{task_name}_{contrast}_{suffix}_'
+        f'fslr32k_{hemi[0]}.png'
+    )
+    fig.savefig(
+        os.path.join(output_dir, fname),
+        dpi=300,
+        bbox_inches='tight',
+        pad_inches=0
+    )
 
 
 def split_and_save_sulc_cifti(cifti_path, output_dir):
@@ -972,7 +1013,7 @@ if __name__ == '__main__':
         zmap_lh2 = nib.load(
             os.path.join(
                 surf_folder, 
-                str(contrast_id) + '_' + cname.lower(),
+                str(contrast_id2) + '_' + cname2.lower(),
                 'group_'
                 + task_id.replace('_', '-')
                 + '_'
@@ -985,7 +1026,7 @@ if __name__ == '__main__':
         zmap_rh2 = nib.load(
             os.path.join(
                 surf_folder,
-                str(contrast_id) + '_' + cname.lower(),
+                str(contrast_id2) + '_' + cname2.lower(),
                 'group_'
                 + task_id.replace('_', '-')
                 + '_'
@@ -999,22 +1040,40 @@ if __name__ == '__main__':
     # Compute whole-brain fdr threshold of volumetric data
     thresh, v_max = whole_brain_thresholds(derivatives_folder, SUBJECTS,
                                            task_id, contrast_id, wb_gmask)
+    
+    if contrast_name2:
+        thresh2, v_max2 = whole_brain_thresholds(
+            derivatives_folder, SUBJECTS, task_id, contrast_id2, wb_gmask)
+        # Use the maximum of both thresholds
+        thresh = max(thresh, thresh2)
+        v_max = max(v_max, v_max2)
 
     # # # ################ Plot static flatmap #############################
 
     # One contrast
     split_maps = [zvals_lh_masked, zvals_rh_masked]
-    plot_flatmap(split_maps, thresh, task_id, cname,
-                 surfplots_folder, hemi=['L', 'R'], colormap='viridis',
-                 vmax=v_max)
+    # plot_flatmap(split_maps, thresh, task_id, cname,
+    #              surfplots_folder, hemi=['L', 'R'], colormap='viridis',
+    #              vmax=v_max)
    
     # Two contrasts
     if contrast_name2:
         split_maps2 = [zvals_lh_masked2, zvals_rh_masked2]
-        split_maps_pairs = [split_maps, split_maps2]
-        plot_flatmap(split_maps_pairs, thresh, task_id, cname2,
-                     surfplots_folder, hemi=['L', 'R'], colormaps=['plasma'],
-                     vmax=v_max)
+        rgbaplots_folder = os.path.join(
+            contrasts_folder, 'rgba', 
+            cname.lower() + '_and_' + cname2.lower())
+        os.makedirs(rgbaplots_folder, exist_ok=True)
+        plot_flatmap(
+            stats     = [split_maps, split_maps2],
+            threshold = [thresh, thresh2],
+            task_key  = task_id,
+            contrast_tag='Beat_and_Interval',
+            output_dir=rgbaplots_folder,
+            hemi      = ['L','R'],
+            colormaps = ['Reds','Blues'],
+            alphas    = [0.6, 0.6],
+            vmax      = [v_max, v_max2]
+        )
 
 
     # # # ################## Plot dynamic map ##############################
