@@ -447,16 +447,18 @@ def plot_flatmap(stats,
             r2 = np.clip(arr2 - thr2, 0, None)
             c1 = (r1 / r1.max()) if r1.max() > 0 else r1
             c2 = (r2 / r2.max()) if r2.max() > 0 else r2
+            # continuous, thresholded & normalized values
+            c1 = np.clip((arr1 - thr1) / (v1 - thr1), 0, 1)
+            c2 = np.clip((arr2 - thr2) / (v2 - thr2), 0, 1)
 
             nvert = c1.shape[0]
             rgba = np.zeros((nvert, 4), float)
-            rgba[:, 0] = c1 * a1      # red channel
-            rgba[:, 2] = c2 * a2      # blue channel
-
-            # mask zeros so underlay shows
-            zero_mask = (rgba[:, 0] + rgba[:, 1]) == 0
-            rgba[zero_mask, :] = np.nan
-            rgba[~zero_mask, 3] = 1.0  # opaque where active
+            rgba[:, 0] = c1           # red channel intensity
+            rgba[:, 2] = c2           # blue channel intensity
+            # alpha blends proportional to the stronger activation
+            # rgba[:, 3] = np.maximum(c1, c2)
+            # always fully opaque where there is any activation
+            rgba[:, 3] = ( (c1 + c2) > 0 ).astype(float)
 
             flatmap.plot(
                 rgba,
@@ -470,7 +472,7 @@ def plot_flatmap(stats,
                 bordercolor='k',
                 backgroundcolor='w',
                 new_figure=False,
-                frame=None
+                frame=None,
             )
 
         # compute shared limits
@@ -491,7 +493,9 @@ def plot_flatmap(stats,
         )
         cbar1.set_ticks(ticks)
         cbar1.set_ticklabels([f'{t:.1f}' for t in ticks])
-        cbar1.set_label(f'Z-values ({name1})', fontsize=10, labelpad=4)
+        cbar1_name1 = name1.replace('-', ' ')
+        cbar1.set_label(f'Z-values ({cbar1_name1})', fontsize=10, 
+                        labelpad=4)
 
         # right colorbar
         norm2 = plt.Normalize(vmin=shared_vmin, vmax=shared_vmax)
@@ -506,7 +510,9 @@ def plot_flatmap(stats,
         )
         cbar2.set_ticks(ticks)
         cbar2.set_ticklabels([f'{t:.1f}' for t in ticks])
-        cbar2.set_label(f'Z-values ({name2})', fontsize=10, labelpad=4)
+        cbar2_name2 = name2.replace('-', ' ')
+        cbar2.set_label(f'Z-values ({cbar2_name2})', fontsize=10, 
+                        labelpad=4)
 
     plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
     fig.set_size_inches(6, 2.5)
