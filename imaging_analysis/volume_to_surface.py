@@ -26,6 +26,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from matplotlib.cm import ScalarMappable
 
 from scipy import stats
@@ -341,7 +342,6 @@ def plot_flatmap(stats,
                  hemi=['L', 'R'],
                  colormap='viridis',
                  colormaps=None,
-                 alphas=None,
                  vmax=10):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -356,7 +356,6 @@ def plot_flatmap(stats,
       stats     : [[lh1, rh1], [lh2, rh2]]
       threshold : [thr1, thr2]
       colormaps : ['Reds','Blues']
-      alphas    : [a1, a2]     (defaults to [1.0, 1.0])
       vmax      : [v1, v2]
 
     Other parameters mirror the one‑contrast version.
@@ -433,9 +432,6 @@ def plot_flatmap(stats,
         (lh1, rh1), (lh2, rh2) = stats
         thr1, thr2 = threshold
         v1, v2 = vmax
-        cmap1, cmap2 = colormaps
-        a1, a2 = (alphas if alphas is not None else [1.0, 1.0])
-        name1, name2 = contrast_tag.split('_and_')
 
         for ax, h in zip(axs, hemi):
             plt.sca(ax)
@@ -475,44 +471,23 @@ def plot_flatmap(stats,
                 frame=None,
             )
 
-        # compute shared limits
-        shared_vmin = min(thr1, thr2)
-        shared_vmax = max(v1, v2)
-        ticks = np.linspace(shared_vmin, shared_vmax, 4)
-
-        # left colorbar
-        norm1 = plt.Normalize(vmin=shared_vmin, vmax=shared_vmax)
-        sm1 = ScalarMappable(norm=norm1, cmap=cmap1)
-        cbar1 = fig.colorbar(
-            sm1,
-            ax=axs[0],
-            orientation='horizontal',
-            fraction=0.125,
-            shrink=0.7,
-            pad=0.01
-        )
-        cbar1.set_ticks(ticks)
-        cbar1.set_ticklabels([f'{t:.1f}' for t in ticks])
-        cbar1_name1 = name1.replace('-', ' ')
-        cbar1.set_label(f'Z-values ({cbar1_name1})', fontsize=10, 
-                        labelpad=4)
-
-        # right colorbar
-        norm2 = plt.Normalize(vmin=shared_vmin, vmax=shared_vmax)
-        sm2 = ScalarMappable(norm=norm2, cmap=cmap2)
-        cbar2 = fig.colorbar(
-            sm2,
-            ax=axs[1],
-            orientation='horizontal',
-            fraction=0.125,
-            shrink=0.7,
-            pad=0.01
-        )
-        cbar2.set_ticks(ticks)
-        cbar2.set_ticklabels([f'{t:.1f}' for t in ticks])
-        cbar2_name2 = name2.replace('-', ' ')
-        cbar2.set_label(f'Z-values ({cbar2_name2})', fontsize=10, 
-                        labelpad=4)
+            # assume contrast_tag is of the form... 
+            # ... 'contrast1_and_contrast2'
+            contrast1, contrast2 = contrast_tag.split('_and_')
+            contrast1 = contrast1.replace('-', ' ')
+            contrast2 = contrast2.replace('-', ' ')
+            # create colored boxes
+            red_patch = mpatches.Patch(color='red', label=contrast1)
+            blue_patch = mpatches.Patch(color='blue', label=contrast2)
+            # place a single legend below the plots
+            fig.legend(
+                handles=[red_patch, blue_patch],
+                loc='lower center',
+                ncol=2,
+                frameon=False,
+                bbox_to_anchor=(0.5, -0.05),
+                fontsize=10
+            )
 
     plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
     fig.set_size_inches(6, 2.5)
@@ -858,8 +833,8 @@ contrasts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'results', 'surface_images')
 
 task_tag = 'All Tasks'
-contrast_name = 'Visual Encoding'
-contrast_name2 = 'Auditory Encoding' # Set to None if not used
+contrast_name = 'Auditory Encoding'
+contrast_name2 = 'Visual Encoding' # Set to None if not used
 
 # ========================= PARAMETERS =================================
 
@@ -1077,7 +1052,6 @@ if __name__ == '__main__':
             output_dir=rgbaplots_folder,
             hemi      = ['L','R'],
             colormaps = ['Reds','Blues'],
-            alphas    = [0.6, 0.6],
             vmax      = [v_max, v_max2]
         )
 
