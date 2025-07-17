@@ -438,35 +438,36 @@ def plot_flatmap(stats,
             arr1 = lh1 if h == 'L' else rh1
             arr2 = lh2 if h == 'L' else rh2
 
-            # threshold & normalize
-            r1 = np.clip(arr1 - thr1, 0, None)
-            r2 = np.clip(arr2 - thr2, 0, None)
-            c1 = (r1 / r1.max()) if r1.max() > 0 else r1
-            c2 = (r2 / r2.max()) if r2.max() > 0 else r2
-            # continuous, thresholded & normalized values
-            c1 = np.clip((arr1 - thr1) / (v1 - thr1), 0, 1)
-            c2 = np.clip((arr2 - thr2) / (v2 - thr2), 0, 1)
+            # 1) normalized strengths in [0,1]
+            raw1 = np.clip((arr1 - thr1) / (v1 - thr1), 0, 1)
+            raw2 = np.clip((arr2 - thr2) / (v2 - thr2), 0, 1)
 
+            # boolean masks
+            mask1 = raw1 > 0
+            mask2 = raw2 > 0
+
+            # 2) floor intensity *only* where active
+            min_intensity = 0.3
+            c1 = np.where(mask1, min_intensity + (1 - min_intensity) * raw1, 0.0)
+            c2 = np.where(mask2, min_intensity + (1 - min_intensity) * raw2, 0.0)
+
+            # 3) build RGBA: hard alpha mask so underlay never peeks through
             nvert = c1.shape[0]
             rgba = np.zeros((nvert, 4), float)
-            rgba[:, 0] = c1           # red channel intensity
-            rgba[:, 2] = c2           # blue channel intensity
-            # alpha blends proportional to the stronger activation
-            # rgba[:, 3] = np.maximum(c1, c2)
-            # always fully opaque where there is any activation
-            rgba[:, 3] = ( (c1 + c2) > 0 ).astype(float)
+            rgba[:, 0] = c1              # red channel only if mask1
+            rgba[:, 2] = c2              # blue channel only if mask2
+            rgba[:, 3] = (mask1 | mask2).astype(float)
 
             flatmap.plot(
                 rgba,
                 overlay_type='rgb',
                 surf=surfaces[h],
-                underlay=underlays[h],
+                underlay=underlays[h],   # you can keep the gray sulcal map
                 undermap='gray',
                 underscale=[-1.5, 1],
                 borders=borders[h],
                 bordersize=1.5,
                 bordercolor='k',
-                backgroundcolor='w',
                 new_figure=False,
                 frame=None,
             )
