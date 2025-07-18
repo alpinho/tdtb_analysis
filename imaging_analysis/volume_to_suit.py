@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of February 2025
-Last Update: June 2025
+Last Update: July 2025
 
 Compatibility: Python 3.10.14, SUITPy 1.3.2
 """
@@ -128,12 +128,15 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Relative path for output folder
-suit_folder = 'results/suit_files'
-contrasts_folder = 'results/control_contrasts'
-irois_folder = 'results/irois'
+suit_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'results', 'suit_files')
+contrasts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                'results', 'suit_images')
+irois_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'results', 'irois')
 
 task_tag = 'All Tasks'
-contrast_name = 'Encoding'
+contrast_name = 'Beat vs Interval'
 
 # %%
 # ========================= PARAMETERS =================================
@@ -174,6 +177,7 @@ all_contrasts = {1: 'Encoding',
 
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
+cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
 
 # Already pre-computed thresholds for the three first contrasts...
 # ... considering all tasks together (allmain_tasks)
@@ -192,36 +196,42 @@ zmax_visual_encoding = 6.896651056145507
 if __name__ == '__main__':
 
     # Create output folders if they do not exist
-    os.makedirs(contrasts_folder, exist_ok=True)
+    suitplots_folder = os.path.join(
+        contrasts_folder, str(contrast_id) + '_' + cname.lower())
+    os.makedirs(suitplots_folder, exist_ok=True)
     os.makedirs(irois_folder, exist_ok=True)
 
-    # # Get z-values of group contrast in SUIT space
-    # z_values = group_suit(group_folder, task_id, contrast_id, SUBJECTS,
-    #                       suit_folder)
+    # #################################################################
 
-    # # Compute whole-brain fdr threshold of volumetric data
-    # fdr_thresh, zmax = whole_brain_thresholds(
-    #     derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask_path)
+    # Compute z-values of group contrast in SUIT space, save and return
+    z_values = group_suit(group_folder, task_id, contrast_id, SUBJECTS,
+                          suit_folder)
 
-    # # Plot cerebellum encoding vs. rest stat flatmap
-    # v_max = np.amax(z_values[~np.isnan(z_values)])
-    # print(f'Maximum Z value is: {v_max}')
-    # contrast_fname = (
-    #     f"group_{task_id.replace('_', '-')}_"
-    #     f"{contrast_name.lower().replace(' ', '-')}_suit.png"
-    # )
-    # contrast_fpath = os.path.join(contrasts_folder, contrast_fname)
-    # plot_suitflat(z_values, fdr_thresh_encoding, contrast_fpath,
-    #               vmax=zmax_encoding)
+    # Compute whole-brain fdr threshold of volumetric data
+    fdr_thresh, zmax = whole_brain_thresholds(
+        derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask_path)
 
-    # Plot cerebellum overlaid iroi
-    iroi = nib.load(iroi_path)
-    iroi_suitdata = flatmap.vol_to_surf(iroi, space='SUIT')
-    thresh = np.unique(iroi_suitdata)[1]
-    # iroi_suitdata[iroi_suitdata == 0.] = np.nan
-    iroi_fname = 'iroi_cerebellum_suit.png'
-    iroi_fpath = os.path.join(irois_folder, iroi_fname)
-    plot_suitflat(iroi_suitdata, 1/len(SUBJECTS), iroi_fpath,
-                  colormap='cividis', vmax=1, sci_notation=True,
-                  cmap_title_loc=(.7, .69),
-                  cmap_title='Fraction of \n Participants')
+    # Plot cerebellum encoding vs. rest stat flatmap
+    v_max = np.amax(z_values[~np.isnan(z_values)])
+    print(f'Maximum Z value is: {v_max}')
+    contrast_fname = (
+        f"group_{task_id.replace('_', '-')}_"
+        f"{contrast_name.lower().replace(' ', '-')}_suit.png"
+    )
+    contrast_fpath = os.path.join(suitplots_folder, contrast_fname)
+    plot_suitflat(z_values, fdr_thresh_encoding, contrast_fpath,
+                  vmax=zmax_encoding)
+
+    # #################################################################
+
+    # # Plot cerebellum overlaid iroi
+    # iroi = nib.load(iroi_path)
+    # iroi_suitdata = flatmap.vol_to_surf(iroi, space='SUIT')
+    # thresh = np.unique(iroi_suitdata)[1]
+    # # iroi_suitdata[iroi_suitdata == 0.] = np.nan
+    # iroi_fname = 'iroi_cerebellum_suit.png'
+    # iroi_fpath = os.path.join(irois_folder, iroi_fname)
+    # plot_suitflat(iroi_suitdata, 1/len(SUBJECTS), iroi_fpath,
+    #               colormap='cividis', vmax=1, sci_notation=True,
+    #               cmap_title_loc=(.7, .69),
+    #               cmap_title='Fraction of \n Participants')
