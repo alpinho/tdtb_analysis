@@ -136,14 +136,18 @@ irois_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'results', 'irois')
 
 task_tag = 'All Tasks'
-contrast_name = 'Beat vs Interval'
+contrast_name = 'Decision'
 
 # %%
 # ========================= PARAMETERS =================================
 
 # Parent directories
-home = os.path.expanduser('~')
-music = os.path.join(home, 'diedrichsen_data/data/Cerebellum/music-sdtb')
+if os.path.isdir('/home/analu/diedrichsen_data/data'):
+    base_dir = '/home/analu/diedrichsen_data/data'
+else:
+    base_dir = '/cifs/diedrichsen/data'
+
+music = os.path.join(base_dir, 'Cerebellum/music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
 group_folder = os.path.join(derivatives_folder, 'group')
 wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
