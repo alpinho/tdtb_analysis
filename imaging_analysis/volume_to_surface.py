@@ -362,8 +362,8 @@ def plot_flatmap(stats,
 
     contrast = contrast_tag.lower()
     task_name = task_key.replace('_', '-')
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    surf_dir = os.path.join(base_dir, 'fslr32k_meshes')
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    surf_dir = os.path.join(script_dir, 'fslr32k_meshes')
 
     borders = {
         h: os.path.join(
@@ -482,14 +482,22 @@ def plot_flatmap(stats,
 
         # legend showing chosen colors
         c1_label, c2_label = contrast_tag.split('_and_')
-        red_patch = mpatches.Patch(color=color1,
-                                   label=c1_label.replace('-', ' '))
-        blue_patch = mpatches.Patch(color=color2,
-                                    label=c2_label.replace('-', ' '))
+        p1 = mpatches.Patch(color=color1,
+                            label=c1_label.replace('-', ' '))
+        p2 = mpatches.Patch(color=color2,
+                            label=c2_label.replace('-', ' '))
+
+        # MIXED COLOR for overlap: you can either average...
+        overlap_rgb = (rgb1 + rgb2) / 2.0
+        # …or sum and clip to 1.0 if you want full‐bright mix:
+        # overlap_rgb = np.clip(rgb1 + rgb2, 0, 1)
+        
+        p3 = mpatches.Patch(color=overlap_rgb, label='Overlap')
+
         fig.legend(
-            handles=[red_patch, blue_patch],
+            handles=[p1, p2, p3],
             loc='lower center',
-            ncol=2,
+            ncol=3,
             frameon=False,
             bbox_to_anchor=(0.5, -0.05),
             fontsize=10
@@ -1036,9 +1044,6 @@ if __name__ == '__main__':
     if contrast_name2:
         thresh2, v_max2 = whole_brain_thresholds(
             derivatives_folder, SUBJECTS, task_id, contrast_id2, wb_gmask)
-        # Use the maximum of both thresholds
-        thresh = max(thresh, thresh2)
-        v_max = max(v_max, v_max2)
 
     # # # ################ Plot static flatmap #############################
 
@@ -1056,16 +1061,15 @@ if __name__ == '__main__':
             cname.lower() + '_and_' + cname2.lower())
         os.makedirs(rgbaplots_folder, exist_ok=True)
         plot_flatmap(
-            stats     = [split_maps, split_maps2],
-            threshold = [thresh, thresh2],
-            task_key  = task_id,
+            stats=[split_maps, split_maps2],
+            threshold=[thresh, thresh2],
+            task_key=task_id,
             contrast_tag=cname + '_and_' + cname2,
             output_dir=rgbaplots_folder,
-            hemi      = ['L','R'],
-            colors = ['#009E73','#F0E442'],
-            vmax      = [v_max, v_max2]
+            hemi=['L', 'R'],
+            colors=['#009E73','#F0E442'],
+            vmax=[v_max, v_max2]
         )
-
 
     # # # ################## Plot dynamic map ##############################
 
