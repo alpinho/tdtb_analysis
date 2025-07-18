@@ -846,8 +846,12 @@ contrast_name2 = 'Interval' # Set to None if not used
 # ========================= PARAMETERS =================================
 
 # Parent directories
-home = os.path.expanduser('~')
-music = os.path.join(home, 'diedrichsen_data/data/Cerebellum/music-sdtb')
+if os.path.isdir('/home/analu/diedrichsen_data/data'):
+    base_dir = '/home/analu/diedrichsen_data/data'
+else:
+    base_dir = '/cifs/diedrichsen/data'
+
+music = os.path.join(base_dir, 'Cerebellum/music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
 wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
                         'group_mask_noskull.nii')
