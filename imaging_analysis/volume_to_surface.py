@@ -28,6 +28,7 @@ import plotly.io as pio
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.cm import ScalarMappable
+from matplotlib import colors as mcolors
 
 from scipy import stats
 from nilearn.image import load_img
@@ -341,7 +342,7 @@ def plot_flatmap(stats,
                  output_dir,
                  hemi=['L', 'R'],
                  colormap='viridis',
-                 colormaps=['Reds','Blues'],
+                 colors=['Reds','Blues'],
                  vmax=10):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -355,7 +356,7 @@ def plot_flatmap(stats,
     Two-contrast RGB overlay:
       stats: [[lh1, rh1], [lh2, rh2]]
       threshold: [thr1, thr2]
-      colormaps: [color1, color2]  # any matplotlib color
+      colors: [color1, color2]  # any matplotlib color
       vmax: [v1, v2]
     """
 
@@ -384,7 +385,7 @@ def plot_flatmap(stats,
         isinstance(stats, (list, tuple))
         and len(stats) == 2
         and isinstance(stats[0], (list, tuple))
-        and colormaps is not None
+        and colors is not None
         and isinstance(vmax, (list, tuple))
     )
 
@@ -430,8 +431,8 @@ def plot_flatmap(stats,
         v1, v2 = vmax
 
         # parse colors
-        color1 = colormaps[0]
-        color2 = colormaps[1]
+        color1 = colors[0]
+        color2 = colors[1]
         rgb1 = np.array(mcolors.to_rgb(color1))
         rgb2 = np.array(mcolors.to_rgb(color2))
 
@@ -839,8 +840,8 @@ contrasts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'results', 'surface_images')
 
 task_tag = 'All Tasks'
-contrast_name = 'Auditory Encoding'
-contrast_name2 = 'Visual Encoding' # Set to None if not used
+contrast_name = 'Beat'
+contrast_name2 = 'Interval' # Set to None if not used
 
 # ========================= PARAMETERS =================================
 
@@ -1057,7 +1058,7 @@ if __name__ == '__main__':
             contrast_tag=cname + '_and_' + cname2,
             output_dir=rgbaplots_folder,
             hemi      = ['L','R'],
-            colormaps = ['#009E73','#F0E442'],
+            colors = ['#009E73','#F0E442'],
             vmax      = [v_max, v_max2]
         )
 
