@@ -53,9 +53,8 @@ import nibabel as nib
 import nitools as nt
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-from matplotlib.colors import Normalize, LinearSegmentedColormap
+from matplotlib.colors import to_rgb, Normalize, LinearSegmentedColormap
 from matplotlib.cm import ScalarMappable
-from matplotlib.colors import to_rgb
 
 from SUITPy import flatmap
 from volume_to_surface import whole_brain_thresholds
