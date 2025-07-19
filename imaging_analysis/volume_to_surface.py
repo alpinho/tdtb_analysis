@@ -26,7 +26,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+from matplotlib.colors import to_rgb, Normalize, LinearSegmentedColormap
 from matplotlib.cm import ScalarMappable
 from matplotlib import colors as mcolors
 
@@ -480,31 +480,94 @@ def plot_flatmap(stats,
                 frame=None
             )
 
-        # legend showing chosen colors
-        c1_label, c2_label = contrast_tag.split('_and_')
-        p1 = mpatches.Patch(color=color1,
-                            label=c1_label.replace('-', ' '))
-        p2 = mpatches.Patch(color=color2,
-                            label=c2_label.replace('-', ' '))
+        # ##################### LEGEND LABELS #############################
 
-        # MIXED COLOR for overlap: you can either average...
-        overlap_rgb = (rgb1 + rgb2) / 2.0
-        # …or sum and clip to 1.0 if you want full‐bright mix:
-        # overlap_rgb = np.clip(rgb1 + rgb2, 0, 1)
-        
-        p3 = mpatches.Patch(color=overlap_rgb, label='Overlap')
+        # Split off the two contrast parts at the last '_vs_' or '_and_'
+        if '_vs_' in contrast_tag:
+            left, right = contrast_tag.rsplit('_vs_', 1)
+        elif '_and_' in contrast_tag:
+            left, right = contrast_tag.rsplit('_and_', 1)
+        else:
+            raise ValueError(f"Can't find '_vs_' or '_and_' separator in "
+                             f"'{fname}'")
 
-        fig.legend(
-            handles=[p1, p2, p3],
-            loc='lower center',
-            ncol=3,
-            frameon=False,
-            bbox_to_anchor=(0.5, -0.05),
-            fontsize=10
-        )
+        # Pull only the contrast key from the left side 
+        # (drop any 'group_…_' prefix)
+        c1_key = left.split('_')[-1]
+        c2_key = right  # this is already just the second contrast
+
+        # Format into nice labels
+        label1 = c1_key.replace('-', ' ').replace('_', ' ')
+        label2 = c2_key.replace('-', ' ').replace('_', ' ')
+
+        # ###################### COLORBARS ################################
+
+        # Compute fractions & RGB vectors
+        thr_frac1 = thr1 / v1
+        thr_frac2 = thr2 / v2
+        rgb1 = np.array(to_rgb(colors[0]))
+        rgb2 = np.array(to_rgb(colors[1]))
+
+        # Define start/end colors for each bar
+        # contrast1: from thr_color1 -> rgb1
+        thr_color1 = tuple(rgb1 * thr_frac1)
+        # contrast2: from thr_color2 -> rgb2
+        thr_color2 = tuple(rgb2 * thr_frac2)
+        # overlap: from thr_color1 + thr_color2 -> overlap_max
+        thr_overlap = np.clip(rgb1 * thr_frac1 + rgb2 * thr_frac2, 0, 1)
+        max_overlap = np.clip(rgb1 + rgb2, 0, 1)
+
+        # Build colormaps & mappables
+        cmap1 = LinearSegmentedColormap.from_list("c1", [thr_color1, rgb1])
+        sm1 = ScalarMappable(norm=Normalize(vmin=thr1, vmax=v1), cmap=cmap1)
+        sm1.set_array([])
+
+        cmap2 = LinearSegmentedColormap.from_list("c2", [thr_color2, rgb2])
+        sm2 = ScalarMappable(norm=Normalize(vmin=thr2, vmax=v2), cmap=cmap2)
+        sm2.set_array([])
+
+        cmap3 = LinearSegmentedColormap.from_list(
+            "c3", [thr_overlap, max_overlap])
+        # We normalize overlap on a 0–1 scale of (norm1+norm2)... 
+        # ... clipped -> [thr_frac1 + thr_frac2, 1]
+        min_ol = thr_frac1 + thr_frac2
+        sm3 = ScalarMappable(norm=Normalize(vmin=min_ol, vmax=1.0), cmap=cmap3)
+        sm3.set_array([])
+
+        # Compute mid‑ticks
+        m1_1 = thr1 + (v1 - thr1) / 3
+        m1_2 = thr1 + 2*(v1 - thr1) / 3
+        m2_1 = thr2 + (v2 - thr2) / 3
+        m2_2 = thr2 + 2*(v2 - thr2) / 3
+        m3_1 = min_ol + (1.0 - min_ol) / 3
+        m3_2 = min_ol + 2*(1.0 - min_ol) / 3
+
+        # Place three horizontal bars
+        bars = [
+            # colorbar positions: [left, bottom, width, height]
+            (sm1, [.04, .08, .25, .04], thr1, m1_1, m1_2, v1,
+            f"Z-Values ({label1})"),
+            (sm2, [.3825, .08, .25, .04], thr2, m2_1, m2_2, v2,
+            f"Z-Values ({label2})"),
+            (sm3, [.715, .08, .25, .04], min_ol, m3_1, m3_2, 1.0, 
+            "Co-activation")
+        ]
+
+        # Do colorbars
+        fig = plt.gcf()
+        for sm, rect, lo, m1, m2, hi, lbl in bars:
+            cax = fig.add_axes(rect)
+            cb = fig.colorbar(
+                sm, cax=cax, orientation='horizontal',
+                ticks=[lo, m1, m2, hi]
+            )
+            cb.set_label(lbl, fontsize=12, labelpad=6)
+            cb.ax.set_xticklabels([f"{lo:.2f}", f"{m1:.2f}", f"{m2:.2f}", 
+                                   f"{hi:.2f}"])
+            cb.ax.tick_params(labelsize=10)
 
     plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
-    fig.set_size_inches(6, 2.5)
+    fig.set_size_inches(6, 2.75)
     suffix = 'flat' if not two_rgb else 'flat_overlay'
     fname = (
         f'group_{task_name}_{contrast}_{suffix}_'
