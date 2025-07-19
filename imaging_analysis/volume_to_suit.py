@@ -347,8 +347,8 @@ irois_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'results', 'irois')
 
 task_tag = 'All Tasks'
-contrast_name = 'Decision'
-contrast_name2 = None # Set to None if not used
+contrast_name = 'Beat'
+contrast_name2 = 'Interval' # Set to None if not used
 
 # %%
 # ========================= PARAMETERS =================================
