@@ -411,18 +411,25 @@ def plot_flatmap(stats,
                 new_figure=False,
                 frame=None
             )
-        norm = plt.Normalize(vmin=threshold, vmax=vmax)
-        sm = ScalarMappable(norm=norm, cmap=colormap)
-        cbar = fig.colorbar(
-            sm, ax=list(axs), orientation='horizontal',
-            fraction=0.05, pad=0.02
-        )
-        cbar.set_label('Z-values', fontsize=12, labelpad=8)
-        ticks = np.linspace(threshold, vmax, 4)
-        cbar.set_ticks(ticks)
-        cbar.ax.set_xticklabels(
-            [f'{t:.1f}' for t in ticks], fontsize=12
-        )
+
+        # only show colorbar if threshold is finite and...
+        # ... at least one value ≥ thr
+        show_cbar1 = bool(np.isfinite(threshold) 
+                          and np.nanmax(stats) >= threshold)
+
+        if show_cbar1:
+            norm = plt.Normalize(vmin=threshold, vmax=vmax)
+            sm = ScalarMappable(norm=norm, cmap=colormap)
+            cbar = fig.colorbar(
+                sm, ax=list(axs), orientation='horizontal',
+                fraction=0.05, pad=0.02
+            )
+            cbar.set_label('Z-values', fontsize=12, labelpad=8)
+            ticks = np.linspace(threshold, vmax, 4)
+            cbar.set_ticks(ticks)
+            cbar.ax.set_xticklabels(
+                [f'{t:.1f}' for t in ticks], fontsize=12
+            )
 
     # two-contrast RGB overlay
     else:
@@ -911,8 +918,8 @@ contrasts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'results', 'surface_images')
 
 task_tag = 'All Tasks'
-contrast_name = 'Beat'
-contrast_name2 = 'Interval' # Set to None if not used
+contrast_name = 'Visual Interval vs Visual Beat'
+contrast_name2 = None # Set to None if not used
 
 # ========================= PARAMETERS =================================
 
@@ -1112,9 +1119,9 @@ if __name__ == '__main__':
 
     # One contrast
     split_maps = [zvals_lh_masked, zvals_rh_masked]
-    # plot_flatmap(split_maps, thresh, task_id, cname,
-    #              surfplots_folder, hemi=['L', 'R'], colormap='viridis',
-    #              vmax=v_max)
+    plot_flatmap(split_maps, thresh, task_id, cname,
+                 surfplots_folder, hemi=['L', 'R'], colormap='viridis',
+                 vmax=v_max)
    
     # Two contrasts
     if contrast_name2:
