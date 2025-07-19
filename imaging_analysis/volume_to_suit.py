@@ -129,20 +129,20 @@ def plot_suitflat(stats,
     """
     Plot one or two contrasts on a SUIT flatmap.
 
-    Single‐contrast:
+    Single-contrast:
       stats : 1D array (n_verts,)
       threshold : float
       vmax : float
       colormap : str
 
-    Two‐contrast RGB overlay:
+    Two-contrast RGB overlay:
       stats : [stats1, stats2]  # each a 1D array
       threshold : [thr1, thr2]
       vmax : [vmax1, vmax2]
       colors : (c1, c2)  # valid matplotlib colors
 
     In the overlay case we compute normalized fractions,
-    zero‐out below threshold, build RGB channels, set alpha=1
+    zero-out below threshold, build RGB channels, set alpha=1
     wherever either map survives, and plot with overlay_type='rgb'.
     """
 
@@ -152,23 +152,27 @@ def plot_suitflat(stats,
     if not is_overlay:
         # ——— single contrast ———
         vmin = threshold
+        # only show colorbar if threshold is finite and...
+        # ... at least one value ≥ thr
+        show_cbar1 = np.isfinite(vmin) and np.nanmax(stats) >= vmin
         flatmap.plot(
             stats,
             cmap=colormap,
             cscale=[vmin, vmax],
             underscale=[-5., 5.],
             threshold=vmin,
-            colorbar=True,
+            colorbar=show_cbar1,
             render='matplotlib'
         )
         fig = plt.gcf()
-        cbar = fig.axes[-1]
-        cbar.tick_params(labelsize=14)
-        cbar.set_position([.825, .2, .03, .6])
-        if sci_notation:
-            formatter = ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
-            cbar.yaxis.set_major_formatter(formatter)
-        fig.text(*cmap_title_loc, cmap_title, fontsize=15, color='black')
+        if show_cbar1:
+            cbar = fig.axes[-1]
+            cbar.tick_params(labelsize=14)
+            cbar.set_position([.825, .2, .03, .6])
+            if sci_notation:
+                formatter = ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
+                cbar.yaxis.set_major_formatter(formatter)
+            fig.text(*cmap_title_loc, cmap_title, fontsize=15, color='black')
         fig.savefig(outpath, dpi=300)
         return
 
@@ -184,6 +188,13 @@ def plot_suitflat(stats,
         v1, v2 = vmax
     except Exception:
         v1 = v2 = vmax
+
+    # only show bars if at least one of the maps has something...
+    # ... above its thr
+    show_cbar2 = (
+        np.isfinite(thr1) and np.isfinite(thr2)
+        and (np.nanmax(stat1) >= thr1 or np.nanmax(stat2) >= thr2)
+    )
 
     # normalize and threshold
     norm1 = np.clip(stat1 / v1, 0, 1)
@@ -212,104 +223,108 @@ def plot_suitflat(stats,
         data,
         overlay_type='rgb',
         new_figure=True,
-        colorbar=False,
+        colorbar=show_cbar2,
         render='matplotlib',
         underscale=[-5., 5.]
     )
 
-    # ##################### LEGEND LABELS #############################
+    if show_cbar2:
+        # ##################### LEGEND LABELS #########################
 
-    # Get base filename (no path, no extension)
-    fname = os.path.splitext(os.path.basename(outpath))[0]
+        # Get base filename (no path, no extension)
+        fname = os.path.splitext(os.path.basename(outpath))[0]
 
-    # Strip trailing '_suit' if present
-    base = fname[:-5] if fname.endswith('_suit') else fname
+        # Strip trailing '_suit' if present
+        base = fname[:-5] if fname.endswith('_suit') else fname
 
-    # Split off the two contrast parts at the last '_vs_' or '_and_'
-    if '_vs_' in base:
-        left, right = base.rsplit('_vs_', 1)
-    elif '_and_' in base:
-        left, right = base.rsplit('_and_', 1)
-    else:
-        raise ValueError(f"Can't find '_vs_' or '_and_' separator in "
-                         f"'{fname}'")
+        # Split off the two contrast parts...
+        # ... at the last '_vs_' or '_and_'
+        if '_vs_' in base:
+            left, right = base.rsplit('_vs_', 1)
+        elif '_and_' in base:
+            left, right = base.rsplit('_and_', 1)
+        else:
+            raise ValueError(f"Can't find '_vs_' or '_and_' separator in "
+                             f"'{fname}'")
 
-    # Pull only the contrast key from the left side 
-    # (drop any 'group_…_' prefix)
-    c1_key = left.split('_')[-1]
-    c2_key = right  # this is already just the second contrast
+        # Pull only the contrast key from the left side 
+        # (drop any 'group_…_' prefix)
+        c1_key = left.split('_')[-1]
+        c2_key = right  # this is already just the second contrast
 
-    # Format into nice labels
-    s1 = c1_key.replace('-', ' ').replace('_', ' ')
-    label1 = ' '.join(word.capitalize() for word in s1.split())
+        # Format into nice labels
+        s1 = c1_key.replace('-', ' ').replace('_', ' ')
+        label1 = ' '.join(word.capitalize() for word in s1.split())
 
-    s2 = c2_key.replace('-', ' ').replace('_', ' ')
-    label2 = ' '.join(word.capitalize() for word in s2.split())
+        s2 = c2_key.replace('-', ' ').replace('_', ' ')
+        label2 = ' '.join(word.capitalize() for word in s2.split())
 
-    # ###################### COLORBARS ################################
+        # ###################### COLORBARS ############################
 
-    # Compute fractions & RGB vectors
-    thr_frac1 = thr1 / v1
-    thr_frac2 = thr2 / v2
-    rgb1 = np.array(to_rgb(colors[0]))
-    rgb2 = np.array(to_rgb(colors[1]))
+        # Compute fractions & RGB vectors
+        thr_frac1 = thr1 / v1
+        thr_frac2 = thr2 / v2
+        rgb1 = np.array(to_rgb(colors[0]))
+        rgb2 = np.array(to_rgb(colors[1]))
 
-    # Define start/end colors for each bar
-    # contrast1: from thr_color1 -> rgb1
-    thr_color1 = tuple(rgb1 * thr_frac1)
-    # contrast2: from thr_color2 -> rgb2
-    thr_color2 = tuple(rgb2 * thr_frac2)
-    # overlap: from thr_color1 + thr_color2 -> overlap_max
-    thr_overlap = np.clip(rgb1 * thr_frac1 + rgb2 * thr_frac2, 0, 1)
-    max_overlap = np.clip(rgb1 + rgb2, 0, 1)
+        # Define start/end colors for each bar
+        # contrast1: from thr_color1 -> rgb1
+        thr_color1 = tuple(rgb1 * thr_frac1)
+        # contrast2: from thr_color2 -> rgb2
+        thr_color2 = tuple(rgb2 * thr_frac2)
+        # overlap: from thr_color1 + thr_color2 -> overlap_max
+        thr_overlap = np.clip(rgb1 * thr_frac1 + rgb2 * thr_frac2, 0, 1)
+        max_overlap = np.clip(rgb1 + rgb2, 0, 1)
 
-    # Build colormaps & mappables
-    cmap1 = LinearSegmentedColormap.from_list("c1", [thr_color1, rgb1])
-    sm1 = ScalarMappable(norm=Normalize(vmin=thr1, vmax=v1), cmap=cmap1)
-    sm1.set_array([])
+        # Build colormaps & mappables
+        cmap1 = LinearSegmentedColormap.from_list("c1", [thr_color1, rgb1])
+        sm1 = ScalarMappable(norm=Normalize(vmin=thr1, vmax=v1), cmap=cmap1)
+        sm1.set_array([])
 
-    cmap2 = LinearSegmentedColormap.from_list("c2", [thr_color2, rgb2])
-    sm2 = ScalarMappable(norm=Normalize(vmin=thr2, vmax=v2), cmap=cmap2)
-    sm2.set_array([])
+        cmap2 = LinearSegmentedColormap.from_list("c2", [thr_color2, rgb2])
+        sm2 = ScalarMappable(norm=Normalize(vmin=thr2, vmax=v2), cmap=cmap2)
+        sm2.set_array([])
 
-    cmap3 = LinearSegmentedColormap.from_list("c3", [thr_overlap, max_overlap])
-    # We normalize overlap on a 0–1 scale of (norm1+norm2)... 
-    # ... clipped -> [thr_frac1 + thr_frac2, 1]
-    min_ol = thr_frac1 + thr_frac2
-    sm3 = ScalarMappable(norm=Normalize(vmin=min_ol, vmax=1.0), cmap=cmap3)
-    sm3.set_array([])
+        cmap3 = LinearSegmentedColormap.from_list(
+            "c3", [thr_overlap, max_overlap])
+        # We normalize overlap on a 0–1 scale of (norm1+norm2)... 
+        # ... clipped -> [thr_frac1 + thr_frac2, 1]
+        min_ol = thr_frac1 + thr_frac2
+        sm3 = ScalarMappable(norm=Normalize(vmin=min_ol, vmax=1.0), 
+                             cmap=cmap3)
+        sm3.set_array([])
 
-    # Compute mid‑ticks
-    m1_1 = thr1 + (v1 - thr1) / 3
-    m1_2 = thr1 + 2*(v1 - thr1) / 3
-    m2_1 = thr2 + (v2 - thr2) / 3
-    m2_2 = thr2 + 2*(v2 - thr2) / 3
-    m3_1 = min_ol + (1.0 - min_ol) / 3
-    m3_2 = min_ol + 2*(1.0 - min_ol) / 3
+        # Compute mid‑ticks
+        m1_1 = thr1 + (v1 - thr1) / 3
+        m1_2 = thr1 + 2*(v1 - thr1) / 3
+        m2_1 = thr2 + (v2 - thr2) / 3
+        m2_2 = thr2 + 2*(v2 - thr2) / 3
+        m3_1 = min_ol + (1.0 - min_ol) / 3
+        m3_2 = min_ol + 2*(1.0 - min_ol) / 3
 
-    # Place three horizontal bars
-    bars = [
-        # colorbar positions: [left, bottom, width, height]
-        (sm1, [.04, .125, .25, .03], thr1, m1_1, m1_2, v1,
-         f"Z-Values ({label1})"),
-        (sm2, [.3825, .125, .25, .03], thr2, m2_1, m2_2, v2,
-         f"Z-Values ({label2})"),
-        (sm3, [.715, .125, .25, .03], min_ol, m3_1, m3_2, 1.0, 
-         "Co-activation")
-    ]
+        # Place three horizontal bars
+        bars = [
+            # colorbar positions: [left, bottom, width, height]
+            (sm1, [.04, .125, .25, .03], thr1, m1_1, m1_2, v1,
+            f"Z-Values ({label1})"),
+            (sm2, [.3825, .125, .25, .03], thr2, m2_1, m2_2, v2,
+            f"Z-Values ({label2})"),
+            (sm3, [.715, .125, .25, .03], min_ol, m3_1, m3_2, 1.0, 
+            "Co-activation")
+        ]
 
-    # Do colorbars
-    fig = plt.gcf()
-    for sm, rect, lo, m1, m2, hi, lbl in bars:
-        cax = fig.add_axes(rect)
-        cb = fig.colorbar(
-            sm, cax=cax, orientation='horizontal',
-            ticks=[lo, m1, m2, hi]
-        )
-        cb.set_label(lbl, fontsize=11, labelpad=10)
-        cb.ax.set_xticklabels([f"{lo:.2f}", f"{m1:.2f}", f"{m2:.2f}", 
-                               f"{hi:.2f}"])
-        cb.ax.tick_params(labelsize=10)
+        # Do colorbars
+        fig = plt.gcf()
+        for sm, rect, lo, m1, m2, hi, lbl in bars:
+            cax = fig.add_axes(rect)
+            cb = fig.colorbar(
+                sm, cax=cax, orientation='horizontal',
+                ticks=[lo, m1, m2, hi]
+            )
+            cb.set_label(lbl, fontsize=11, labelpad=10)
+            cb.ax.set_xticklabels([f"{lo:.2f}", f"{m1:.2f}", f"{m2:.2f}", 
+                                f"{hi:.2f}"])
+            cb.ax.tick_params(labelsize=10)
 
     # ########################### SAVE ################################
     fig = plt.gcf()
@@ -332,8 +347,8 @@ irois_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'results', 'irois')
 
 task_tag = 'All Tasks'
-contrast_name = 'Auditory Encoding'
-contrast_name2 = 'Visual Encoding' # Set to None if not used
+contrast_name = 'Decision'
+contrast_name2 = None # Set to None if not used
 
 # %%
 # ========================= PARAMETERS =================================
@@ -424,7 +439,7 @@ if __name__ == '__main__':
         f"group_{task_id.replace('_', '-')}_{cname.lower()}_suit.png"
     )
     contrast_fpath = os.path.join(suitplots_folder, contrast_fname)
-    # plot_suitflat(z_values, fdr_thresh, contrast_fpath, vmax=zmax)
+    plot_suitflat(z_values, fdr_thresh, contrast_fpath, vmax=zmax)
     
     # Two contrasts
     if contrast_name2:

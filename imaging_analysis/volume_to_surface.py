@@ -330,7 +330,7 @@ def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
     z_max = np.amax(z_values[~np.isnan(z_values)])
 
     # Print z_max
-    print(f'Maximum Z value is: {z_max}')
+    print(f'Maximum Z-value is: {z_max}')
 
     return fdr_thresh, z_max
 
