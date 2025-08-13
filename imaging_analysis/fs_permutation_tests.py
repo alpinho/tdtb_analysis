@@ -172,8 +172,8 @@ permut_folder = os.path.join(
 contrasts_folder = os.path.join(
     permut_folder,
     (
-        f'{main_cname.lower().replace(' ', '-')}_vs_'
-        f'{control_cname.lower().replace(' ', '-')}'
+        f"{main_cname.lower().replace(' ', '-')}_vs_"
+        f"{control_cname.lower().replace(' ', '-')}"
     )
 )
 
@@ -212,7 +212,8 @@ if __name__ == '__main__':
 
     # Get paths of volume maps
     main_conpaths, control_conpaths = get_volume_data(
-        derivatives_folder, SUBJECTS, task_id, main_contrast_id, control_contrast_id)
+        derivatives_folder, SUBJECTS, task_id, main_contrast_id,
+        control_contrast_id)
     
     # Compute affine transformation matrix
     affine_mtx = compute_affine(main_conpaths)
@@ -227,8 +228,7 @@ if __name__ == '__main__':
 
     # Permutation Procedure (Sign-Flipping)
     # For each subject, randomly decide whether to swap their main and 
-    # control maps (i.e., apply a random sign flip to the difference)
-    
+    # control maps (i.e., apply a random sign flip to the difference)    
     perm_maps = np.zeros((n_permutations,) + observed_map.shape)
 
     # Create a new generator object
@@ -236,7 +236,8 @@ if __name__ == '__main__':
 
     for k in range(n_permutations):
         signs = rng.choice([1, -1], size=len(SUBJECTS))
-        signed_maps = signs[:, None, None, None] * individual_diff_squared_maps
+        signed_maps = \
+            signs[:, None, None, None] * individual_diff_squared_maps
         perm_maps[k] = np.mean(signed_maps, axis=0)
 
     # Compute voxel-wise p-values (one-sided test: observed > permuted)
@@ -250,11 +251,9 @@ if __name__ == '__main__':
     zmap_path = os.path.join(
         contrasts_folder,
         (
-            f'{main_cname.lower().replace(' ', '-')}_vs_'
-            f'{control_cname.lower().replace(' ', '-')}'
-            f'_eudist_zmap.nii.gz'
+            f"{main_cname.lower().replace(' ', '-')}_vs_"
+            f"{control_cname.lower().replace(' ', '-')}"
+            f"_eudist_zmap.nii.gz"
         )
     )
-    # nib.save(nib.Nifti1Image(observed_map, affine_mtx), "euclidean_distance_observed.nii.gz")
-    # nib.save(nib.Nifti1Image(p_map, affine_mtx), "euclidean_distance_pmap.nii.gz")
     nib.save(nib.Nifti1Image(z_map, affine_mtx), zmap_path)
