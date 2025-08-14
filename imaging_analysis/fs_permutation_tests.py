@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 6th of August 2025
-Last Update: Augusst 2025
+Last Update: August 2025
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
@@ -142,6 +142,38 @@ def squared_difference(active_conpaths, passive_conpaths):
     return diff_squared_maps
 
 
+def permutation_test(data, n_permutations=5000):
+    """
+    Perform a permutation test on the data.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data to perform the permutation test on.
+        Shape: (n_subjects, x, y, z)
+    n_permutations : int, optional
+        Number of permutations to perform (default is 5000).
+
+    Returns
+    -------
+    p_values : np.ndarray
+        P-values from the permutation test.
+        Shape: (x, y, z)
+    """
+
+    n_subjects = data.shape[0]
+    permuted_data = np.zeros((n_permutations,) + data.shape[1:])
+
+    rng = np.random.default_rng(seed=42)
+
+    for i in range(n_permutations):
+        signs = rng.choice([1, -1], size=n_subjects)
+        signed_data = signs[:, None, None, None] * data
+        permuted_data[i] = np.mean(signed_data, axis=0)
+
+    return permuted_data
+
+
 # ============================ INPUTS ===================================
 
 # Subjects without pilot
@@ -153,6 +185,7 @@ main_cname = 'Beat'
 control_cname = 'Interval' # Set to None if not used
 
 n_permutations = 5000
+# n_permutations = 10
 
 # ========================= PARAMETERS =================================
 
@@ -210,6 +243,9 @@ control_contrast_id = {v: k for k, v in all_contrasts.items()}.get(control_cname
 
 if __name__ == '__main__':
 
+    # Create output folder if it does not exist
+    os.makedirs(contrasts_folder, exist_ok=True)
+
     # Get paths of volume maps
     main_conpaths, control_conpaths = get_volume_data(
         derivatives_folder, SUBJECTS, task_id, main_contrast_id,
@@ -224,22 +260,36 @@ if __name__ == '__main__':
 
     # Compute observed mean Euclidean distance map across subjects
     # shape: (x, y, z)
-    observed_map = np.mean(individual_diff_squared_maps, axis=0)  
+    observed_map = np.mean(individual_diff_squared_maps, axis=0)
 
-    # Permutation Procedure (Sign-Flipping)
-    # For each subject, randomly decide whether to swap their main and 
-    # control maps (i.e., apply a random sign flip to the difference)    
-    perm_maps = np.zeros((n_permutations,) + observed_map.shape)
+    # Path of the permutation maps
+    perm_maps_path = os.path.join(
+        contrasts_folder,
+        (
+            f"{main_cname.lower().replace(' ', '-')}_vs_"
+            f"{control_cname.lower().replace(' ', '-')}"
+            f"_eudist_perm_maps.npz"
+        )
+    )
 
-    # Create a new generator object
-    rng = np.random.default_rng(seed=42)
-
-    for k in range(n_permutations):
-        signs = rng.choice([1, -1], size=len(SUBJECTS))
-        signed_maps = \
-            signs[:, None, None, None] * individual_diff_squared_maps
-        perm_maps[k] = np.mean(signed_maps, axis=0)
-
+    # Check if permutation maps already exist
+    if os.path.exists(perm_maps_path):
+        print(f"Permutation maps already exist at {perm_maps_path}. "
+              "Loading existing maps.")
+        perm_maps = np.load(perm_maps_path)['permuted_maps']
+    else:
+        print("Computing permutation maps...")
+        # Permutation Procedure (Sign-Flipping)
+        # For each subject, randomly decide whether to swap their 
+        # main and control maps (i.e., apply a random sign flip to the 
+        # difference) perm_maps shape: (n_permutations, x, y, z)  
+        perm_maps = permutation_test(
+            individual_diff_squared_maps, n_permutations=n_permutations)
+        
+        # Save permutation maps
+        print("... and saving them.")
+        np.savez(perm_maps_path, permuted_maps=perm_maps)
+    
     # Compute voxel-wise p-values (one-sided test: observed > permuted)
     p_map = np.mean(perm_maps >= observed_map[None, ...], axis=0)
 
@@ -247,7 +297,6 @@ if __name__ == '__main__':
     z_map = norm.isf(p_map)
 
     # Save results
-    os.makedirs(contrasts_folder, exist_ok=True)
     zmap_path = os.path.join(
         contrasts_folder,
         (
