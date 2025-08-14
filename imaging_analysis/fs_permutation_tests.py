@@ -14,8 +14,11 @@ Compatibility: Python 3.10.14, nilearn 0.11.1
 import os
 import numpy as np
 import nibabel as nib
-from scipy.stats import norm
 import matplotlib.pyplot as plt
+
+from scipy.stats import norm
+from nilearn.glm.thresholding import fdr_threshold
+from nilearn import plotting
 
 
 # ========================== FUNCTIONS ==================================
@@ -187,6 +190,8 @@ control_cname = 'Interval' # Set to None if not used
 n_permutations = 5000
 # n_permutations = 10
 
+alpha = .05
+
 # ========================= PARAMETERS =================================
 
 # Path to volume data
@@ -200,7 +205,8 @@ derivatives_folder = os.path.join(music, 'derivatives')
 
 # Path to output folders
 permut_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'permutation_tests')
+    os.path.dirname(os.path.abspath(__file__)), 'results', 
+    'permutation_tests')
 
 contrasts_folder = os.path.join(
     permut_folder,
@@ -305,4 +311,51 @@ if __name__ == '__main__':
             f"_eudist_zmap.nii.gz"
         )
     )
-    nib.save(nib.Nifti1Image(z_map, affine_mtx), zmap_path)
+    zimg = nib.Nifti1Image(z_map, affine_mtx)
+    nib.save(zimg, zmap_path)
+
+    # ################# PLOT ######################
+    # keep only positive Zs for thresholding (right tail only)
+    mask_pos = np.isfinite(z_map) & (z_map > 0)
+    z_pos = z_map[mask_pos]
+
+    if z_pos.size == 0:
+        raise RuntimeError("No positive Z voxels for one-sided FDR.")
+
+    # FDR threshold on the positive tail only
+    z_thr = fdr_threshold(z_pos, alpha=alpha)
+    print(f"One-sided FDR threshold (alpha={alpha}): Z >= {z_thr:.4f}")
+
+    # zero out negatives so they never display
+    zplot = np.zeros_like(z_map)
+    zplot[mask_pos] = z_map[mask_pos]
+    imgplot = nib.Nifti1Image(zplot, zimg.affine, zimg.header)
+
+    # plot
+    disp = plotting.plot_glass_brain(
+        imgplot,
+        threshold=z_thr,
+        colorbar=True,
+        display_mode='lyrz',
+        cmap='copper',
+        plot_abs=False,
+        vmin=z_thr,          # <-- start colorbar here
+        vmax=np.nanmax(zplot) 
+    )
+
+    disp.title(
+        f"{main_cname} > {control_cname} — Euclidean distance Z "
+        f"(one-sided FDR {alpha})",
+        size=10
+    )
+
+    png_path = os.path.join(
+        contrasts_folder,
+        (
+            f"{main_cname.lower().replace(' ', '-')}_vs_"
+            f"{control_cname.lower().replace(' ', '-')}"
+            f"_eudist_zmap_glassbrain_FDR{int(alpha*100)}_onesided.png"
+        )
+    )
+    disp.savefig(png_path, dpi=300)
+    print(f"Saved glass brain figure to: {png_path}")
