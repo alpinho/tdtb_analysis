@@ -177,6 +177,70 @@ def permutation_test(data, n_permutations=5000):
     return permuted_data
 
 
+def plot_zmap(zmap, zimg, cname1, cname2, alpha=0.05):
+    """
+    Plot the Z-map on a glass brain view with FDR thresholding.
+
+    Parameters
+    ----------
+    zmap : np.ndarray
+        Z-map to plot.
+    zimg : nib.Nifti1Image
+        NIfTI image containing the Z-map data.
+    cname1 : str
+        Name of the first condition (e.g., 'Beat').
+    cname2 : str
+        Name of the second condition (e.g., 'Interval').
+    alpha : float, optional
+        Significance level for FDR thresholding (default is 0.05).
+    """
+    
+    # keep only positive Zs for thresholding (right tail only)
+    mask_pos = np.isfinite(zmap) & (zmap > 0)
+    z_pos = zmap[mask_pos]
+
+    if z_pos.size == 0:
+        raise RuntimeError("No positive Z voxels for one-sided FDR.")
+
+    # FDR threshold on the positive tail only
+    z_thr = fdr_threshold(z_pos, alpha=alpha)
+    print(f"One-sided FDR threshold (alpha={alpha}): Z >= {z_thr:.4f}")
+
+    # zero out negatives so they never display
+    zplot = np.zeros_like(zmap)
+    zplot[mask_pos] = zmap[mask_pos]
+    imgplot = nib.Nifti1Image(zplot, zimg.affine, zimg.header)
+
+    # plot
+    disp = plotting.plot_glass_brain(
+        imgplot,
+        threshold=z_thr,
+        colorbar=True,
+        display_mode='lyrz',
+        cmap='copper',
+        plot_abs=False,
+        vmin=z_thr,          # <-- start colorbar here
+        vmax=np.nanmax(zplot) 
+    )
+
+    disp.title(
+        f"{cname1} > {cname2} — Euclidean distance Z "
+        f"(one-sided FDR {alpha})",
+        size=10
+    )
+
+    png_path = os.path.join(
+        contrasts_folder,
+        (
+            f"{cname1.lower().replace(' ', '-')}_vs_"
+            f"{cname2.lower().replace(' ', '-')}"
+            f"_eudist_zmap_glassbrain_FDR{int(alpha*100)}_onesided.png"
+        )
+    )
+    disp.savefig(png_path, dpi=300)
+    print(f"Saved glass brain figure to: {png_path}")
+
+
 # ============================ INPUTS ===================================
 
 # Subjects without pilot
@@ -184,13 +248,13 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 task_tag = 'All Tasks'
-main_cname = 'Beat'
-control_cname = 'Interval' # Set to None if not used
+main_cname = 'Interval'
+control_cname = 'Beat' # Set to None if not used
 
 n_permutations = 5000
 # n_permutations = 10
 
-alpha = .05
+fdr_alpha = .05
 
 # ========================= PARAMETERS =================================
 
@@ -311,51 +375,8 @@ if __name__ == '__main__':
             f"_eudist_zmap.nii.gz"
         )
     )
-    zimg = nib.Nifti1Image(z_map, affine_mtx)
-    nib.save(zimg, zmap_path)
+    z_img = nib.Nifti1Image(z_map, affine_mtx)
+    nib.save(z_img, zmap_path)
 
     # ################# PLOT ######################
-    # keep only positive Zs for thresholding (right tail only)
-    mask_pos = np.isfinite(z_map) & (z_map > 0)
-    z_pos = z_map[mask_pos]
-
-    if z_pos.size == 0:
-        raise RuntimeError("No positive Z voxels for one-sided FDR.")
-
-    # FDR threshold on the positive tail only
-    z_thr = fdr_threshold(z_pos, alpha=alpha)
-    print(f"One-sided FDR threshold (alpha={alpha}): Z >= {z_thr:.4f}")
-
-    # zero out negatives so they never display
-    zplot = np.zeros_like(z_map)
-    zplot[mask_pos] = z_map[mask_pos]
-    imgplot = nib.Nifti1Image(zplot, zimg.affine, zimg.header)
-
-    # plot
-    disp = plotting.plot_glass_brain(
-        imgplot,
-        threshold=z_thr,
-        colorbar=True,
-        display_mode='lyrz',
-        cmap='copper',
-        plot_abs=False,
-        vmin=z_thr,          # <-- start colorbar here
-        vmax=np.nanmax(zplot) 
-    )
-
-    disp.title(
-        f"{main_cname} > {control_cname} — Euclidean distance Z "
-        f"(one-sided FDR {alpha})",
-        size=10
-    )
-
-    png_path = os.path.join(
-        contrasts_folder,
-        (
-            f"{main_cname.lower().replace(' ', '-')}_vs_"
-            f"{control_cname.lower().replace(' ', '-')}"
-            f"_eudist_zmap_glassbrain_FDR{int(alpha*100)}_onesided.png"
-        )
-    )
-    disp.savefig(png_path, dpi=300)
-    print(f"Saved glass brain figure to: {png_path}")
+    plot_zmap(z_map, z_img, main_cname, control_cname, alpha=fdr_alpha)
