@@ -249,7 +249,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 
 task_tag = 'All Tasks'
 main_cname = 'Beat'
-control_cname = 'Interval' # Set to None if not used
+control_cname = 'Interval'
 
 n_permutations = 10000
 
