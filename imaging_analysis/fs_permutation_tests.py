@@ -269,7 +269,7 @@ derivatives_folder = os.path.join(music, 'derivatives')
 # Path to output folders
 permut_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 
-    'permutation_tests')
+    'fs_permutation_tests')
 
 contrasts_folder = os.path.join(
     permut_folder,
