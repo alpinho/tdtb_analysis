@@ -194,7 +194,7 @@ def plot_zmap(zmap, zimg, cname1, cname2, alpha=0.05):
     alpha : float, optional
         Significance level for FDR thresholding (default is 0.05).
     """
-    
+
     # keep only positive Zs for thresholding (right tail only)
     mask_pos = np.isfinite(zmap) & (zmap > 0)
     z_pos = zmap[mask_pos]
@@ -248,11 +248,10 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 task_tag = 'All Tasks'
-main_cname = 'Interval'
-control_cname = 'Beat' # Set to None if not used
+main_cname = 'Beat'
+control_cname = 'Interval' # Set to None if not used
 
-n_permutations = 5000
-# n_permutations = 10
+n_permutations = 10000
 
 fdr_alpha = .05
 
@@ -306,7 +305,8 @@ all_contrasts = {1: 'Encoding',
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
 main_contrast_id = {v: k for k, v in all_contrasts.items()}.get(main_cname)
-control_contrast_id = {v: k for k, v in all_contrasts.items()}.get(control_cname)
+control_contrast_id = \
+    {v: k for k, v in all_contrasts.items()}.get(control_cname)
 
 
 # ============================ RUN =====================================
