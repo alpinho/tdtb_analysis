@@ -11,7 +11,7 @@ Script: One-sample permuted OLS on volume, surface & SUIT contrast maps
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
-Creation: 15 August 2025
+Creation: 15th of August 2025
 Last Update: August 2025
 
 Compatibility: Python 3.10.14, nilearn 0.11.1, SUITPy 1.x
@@ -71,7 +71,7 @@ SUBJECTS = [
 
 task_tag = 'All Tasks'
 contrast_name = 'Visual Beat'       # first contrast (required)
-contrast_name2 = 'Visual Interval'            # e.g., 'Interval' for overlay
+contrast_name2 = 'Visual Interval'  # optional second contrast
 
 n_permutations = 10000
 two_sided_test = False
@@ -193,24 +193,28 @@ def cap_label(label: str) -> str:
 
 
 def id_label_folder(cid: int, cname: str) -> str:
-    """Return folder name like '1_encoding' (id + '_' + snake_case label)."""
+    """Return '1_encoding' (id + '_' + snake_case label)."""
     return f"{cid}_{sanitize_label_snake(cname)}"
 
 
 def overlay_folder_kebab(c1: str, c2: str) -> str:
-    """Return 'auditory-beat_and_auditory-interval' (kebab + _and_ + kebab)."""
+    """Return 'auditory-beat_and_auditory-interval' folder name."""
     return f"{sanitize_label_kebab(c1)}_and_{sanitize_label_kebab(c2)}"
 
 
 label1_kebab = sanitize_label_kebab(contrast_name)
 label1_snake = sanitize_label_snake(contrast_name)
-label2_kebab = sanitize_label_kebab(contrast_name2) if contrast_name2 else None
-label2_snake = sanitize_label_snake(contrast_name2) if contrast_name2 else None
+label2_kebab = (
+    sanitize_label_kebab(contrast_name2) if contrast_name2 else None
+)
+label2_snake = (
+    sanitize_label_snake(contrast_name2) if contrast_name2 else None
+)
 
 cap1 = cap_label(contrast_name)
 cap2 = cap_label(contrast_name2) if contrast_name2 else None
 
-# New canonical single-contrast folder names
+# Canonical single-contrast folder names
 idlabel1 = id_label_folder(contrast_id, contrast_name)
 idlabel2 = (
     id_label_folder(contrast_id2, contrast_name2) if contrast_name2 else None
@@ -242,9 +246,10 @@ def load_lr_from_cifti(cifti_path: str):
     return lh, rh
 
 
-def run_permuted_ols_one_sample(Y, n_perm=10000, two_sided=False, n_jobs=1,
-                                random_state=42):
-    """One-sample test across subjects: is mean effect > 0 or != 0."""
+def run_permuted_ols_one_sample(
+    Y, n_perm=10000, two_sided=False, n_jobs=1, random_state=42
+):
+    """One-sample test across subjects: mean effect > 0 or != 0."""
     n_subj = Y.shape[0]
     tested = np.ones((n_subj, 1))
     outputs = permuted_ols(
@@ -262,8 +267,9 @@ def run_permuted_ols_one_sample(Y, n_perm=10000, two_sided=False, n_jobs=1,
     return outputs
 
 
-def save_stat_maps_zfdr(masker, t_vec, df, out_dir, prefix,
-                        alpha_fdr=0.05, two_sided=False):
+def save_stat_maps_zfdr(
+    masker, t_vec, df, out_dir, prefix, alpha_fdr=0.05, two_sided=False
+):
     """
     Save t-map and z-map. Compute FDR(z) threshold for plotting.
 
@@ -317,8 +323,10 @@ def fdr_z_threshold_from_arrays(arrays, alpha=0.05, two_sided=False):
     return float(fdr_threshold(zuse[valid], alpha=alpha))
 
 
-def plot_glass_brain_z(z_map_path, z_threshold, two_sided, title, out_png,
-                       cbar_contrast_label=None):
+def plot_glass_brain_z(
+    z_map_path, z_threshold, two_sided, title, out_png,
+    cbar_contrast_label=None
+):
     """
     Plot z-map with viridis. Colorbar starts at z-threshold.
     """
@@ -366,8 +374,10 @@ def plot_glass_brain_z(z_map_path, z_threshold, two_sided, title, out_png,
 
 # ============================ VOLUME ===================================
 
-def get_single_contrast_paths(derivatives_dir, subjects, task_key,
-                              contrast_key, derivative_type='sm8wbmasked'):
+def get_single_contrast_paths(
+    derivatives_dir, subjects, task_key, contrast_key,
+    derivative_type='sm8wbmasked'
+):
     """Build paths to a single individual contrast map per subject."""
     fname = f"wcon_{contrast_key:04d}_desc-{derivative_type}.nii"
     conpaths = [
@@ -481,7 +491,7 @@ def run_volume_pipeline_one(contrast_nm, contrast_k, label_out, cap_out):
 
 def build_surface_matrices(contrast_k, contrast_lbl_kebab):
     """
-    Ensure subject CIFTIs exist; return LH/RH matrices shape
+    Ensure subject CIFTIs exist; return LH/RH matrices of shape
     (subjects, vertices) in fs_LR 32k space.
 
     Note: CIFTI folder uses '{id}_{kebab-label}' for compatibility
@@ -561,7 +571,7 @@ def surface_z_for_one_contrast(contrast_k, contrast_nm, contrast_lbl_kebab):
 
 
 def run_surface_plot_single(thr_mode='volume', zthr_from_volume=None):
-    """Single-contrast surface flatmap with volume or surface FDR(z)."""
+    """Single-contrast surface flatmap with volume/surface FDR(z)."""
     z_lh1, z_rh1 = surface_z_for_one_contrast(
         contrast_id, contrast_name, label1_kebab
     )
@@ -596,10 +606,15 @@ def run_surface_plot_single(thr_mode='volume', zthr_from_volume=None):
     print("[surface] Flatmap (single) saved to:", outdir)
 
 
-def run_surface_plot_two(thr_mode="volume", zthr1_vol=None, zthr2_vol=None, 
-                         colors=TWO_COLORS):
+def run_surface_plot_two(
+    thr_mode="volume", zthr1_vol=None, zthr2_vol=None, colors=TWO_COLORS
+):
     """
     Two-contrast surface overlay (fs_LR 32k), with BH-FDR on z.
+
+    Colorbar labels must be capitalized (only labels). We pass a
+    capitalized-kebab tag with `_vs_` to plot_flatmap so it derives
+    capitalized labels, but we still save the final file using `_and_`.
     """
     if contrast_name2 is None or contrast_id2 is None:
         raise ValueError("contrast_name2/contrast_id2 must be set.")
@@ -647,16 +662,16 @@ def run_surface_plot_two(thr_mode="volume", zthr1_vol=None, zthr2_vol=None,
         stats=[[z_lh1, z_rh1], [z_lh2, z_rh2]],
         threshold=[zthr1, zthr2],
         task_key=task_id,
-        contrast_tag=contrast_tag_cap,   # drives *capitalized* cbar labels
+        contrast_tag=contrast_tag_cap,
         output_dir=outdir,
         hemi=["L", "R"],
-        colors=list(colors),             # ('#009E73', '#F0E442') by default
+        colors=list(colors),
         vmax=[v1, v2],
     )
 
     # Ensure final filename uses "_and_" instead of "_vs_"
     task_dash = task_id.replace("_", "-")
-    produced_tag = contrast_tag_cap.lower()  # plot_flatmap may lowercase tag
+    produced_tag = contrast_tag_cap.lower()
     src_png = os.path.join(
         outdir,
         f"group_{task_dash}_{produced_tag}_flat_overlay_{SURFSPACE}.png",
@@ -685,7 +700,6 @@ def run_surface_plot_two(thr_mode="volume", zthr1_vol=None, zthr2_vol=None,
     except Exception as e:
         print("[surface] Rename skipped due to error:", e)
         print("[surface] Check outputs in:", outdir)
-
 
 # ============================== SUIT ===================================
 
@@ -728,10 +742,11 @@ def project_volume_t_to_suit_z(label_out: str, contrast_nm: str) -> tuple:
 
     zmax = float(np.nanmax(np.abs(z_vec)))
 
-    # Save SUIT z as GIFTI under single-contrast folder name '<id>_<snake>'
+    # Save SUIT z as GIFTI under single-contrast folder '<id>_<snake>'
     os.makedirs(os.path.join(suit_files_root, label_out), exist_ok=True)
     z_gii = nt.gifti.make_func_gifti(
-        z_vec, anatomical_struct='Cerebellum',
+        z_vec,
+        anatomical_struct='Cerebellum',
         column_names=[contrast_nm.replace(' ', '_')],
     )
     gii_path = os.path.join(
@@ -746,7 +761,7 @@ def project_volume_t_to_suit_z(label_out: str, contrast_nm: str) -> tuple:
 def run_suit_plot_single(thr_mode='suit', zthr_from_volume=None):
     """
     Single-contrast SUIT flatmap from volume t-map. If thr_mode='suit',
-    compute BH-FDR on SUIT z; otherwise use provided volume z-threshold.
+    compute BH-FDR on SUIT z; else use provided volume z-threshold.
     """
     out_label = idlabel1
     z_vec, zmax, _ = project_volume_t_to_suit_z(out_label, contrast_name)
@@ -778,11 +793,12 @@ def run_suit_plot_single(thr_mode='suit', zthr_from_volume=None):
     print("[SUIT] Flatmap (single) saved to:", out_png)
 
 
-def run_suit_plot_two(thr_mode='suit', zthr1_vol=None, zthr2_vol=None,
-                      colors=TWO_COLORS):
+def run_suit_plot_two(
+    thr_mode='suit', zthr1_vol=None, zthr2_vol=None, colors=TWO_COLORS
+):
     """
     Two-contrast SUIT overlay from volume t-maps. If thr_mode='suit',
-    compute BH-FDR on each SUIT z independently; else use volume z*.
+    compute BH-FDR on each SUIT z; else use volume z-thresholds.
     """
     if contrast_name2 is None or contrast_id2 is None:
         raise ValueError("contrast_name2/contrast_id2 must be set.")
@@ -804,7 +820,8 @@ def run_suit_plot_two(thr_mode='suit', zthr1_vol=None, zthr2_vol=None,
     v1 = max(z1max, float(zthr1) + 1e-6 if np.isfinite(zthr1) else z1max)
     v2 = max(z2max, float(zthr2) + 1e-6 if np.isfinite(zthr2) else z2max)
 
-    # Two-contrast SUIT plots under: '<suit_plots_root>/rgba/<kebab1>_and_<kebab2>'
+    # Two-contrast SUIT plots under:
+    #   '<suit_plots_root>/rgba/<kebab1>_and_<kebab2>'
     two_folder = overlay_folder_kebab(contrast_name, contrast_name2)
     out_dir = os.path.join(suit_plots_root, 'rgba', two_folder)
     os.makedirs(out_dir, exist_ok=True)
@@ -841,7 +858,7 @@ if __name__ == '__main__':
             zthr2_vol, _, _ = run_volume_pipeline_one(
                 contrast_nm=contrast_name2,
                 contrast_k=contrast_id2,
-                label_out=idlabel2, # '<id>_<snake>'
+                label_out=idlabel2,  # '<id>_<snake>'
                 cap_out=cap2,
             )
 
