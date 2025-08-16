@@ -58,6 +58,9 @@ SUIT_THR_SOURCE = 'suit'   # 'volume' or 'suit'
 SURFSPACE = 'fslr32k'
 make_cifti_if_missing = True
 
+# Two-contrast default colors (requested)
+TWO_COLORS = ('#009E73', '#F0E442')
+
 # ============================ INPUTS ===================================
 
 SUBJECTS = [
@@ -66,7 +69,7 @@ SUBJECTS = [
 ]
 
 task_tag = 'All Tasks'
-contrast_name = 'Beat vs Interval'   # first contrast (required)
+contrast_name = 'Auditory vs Visual Encoding'   # first contrast (required)
 contrast_name2 = None    # e.g., 'Interval' for overlay
 
 n_permutations = 10000
@@ -547,11 +550,12 @@ def run_surface_plot_single(thr_mode='volume', zthr_from_volume=None):
     outdir = os.path.join(surf_plots_root, label1)
     os.makedirs(outdir, exist_ok=True)
 
+    # FIX: use kebab-case tag to avoid spaces in filenames
     plot_flatmap(
         stats=[z_lh1, z_rh1],
         threshold=zthr1,
         task_key=task_id,
-        contrast_tag=cap1,
+        contrast_tag=label1,   # was cap1 -> caused spaces in filenames
         output_dir=outdir,
         hemi=['L', 'R'],
         colormap='viridis',
@@ -561,7 +565,7 @@ def run_surface_plot_single(thr_mode='volume', zthr_from_volume=None):
 
 
 def run_surface_plot_two(thr_mode='volume', zthr1_vol=None, zthr2_vol=None,
-                         colors=('red', 'blue')):
+                         colors=TWO_COLORS):
     """Two-contrast surface overlay, using volume or surface FDR(z)."""
     if contrast_name2 is None or contrast_id2 is None:
         raise ValueError("contrast_name2/contrast_id2 must be set.")
@@ -589,15 +593,16 @@ def run_surface_plot_two(thr_mode='volume', zthr1_vol=None, zthr2_vol=None,
     v1 = max(v1, float(zthr1) + 1e-6)
     v2 = max(v2, float(zthr2) + 1e-6)
 
-    out_label = f"{cap1}_vs_{cap2}"
-    outdir = os.path.join(surf_plots_root, sanitize_label(out_label))
+    # FIX: use kebab-case tag (no spaces) for both folder and file tag
+    file_tag = f"{label1}_vs_{label2}"
+    outdir = os.path.join(surf_plots_root, file_tag)
     os.makedirs(outdir, exist_ok=True)
 
     plot_flatmap(
         stats=[[z_lh1, z_rh1], [z_lh2, z_rh2]],
         threshold=[zthr1, zthr2],
         task_key=task_id,
-        contrast_tag=out_label,
+        contrast_tag=file_tag,   # was f"{cap1}_vs_{cap2}" (had spaces)
         output_dir=outdir,
         hemi=['L', 'R'],
         colors=list(colors),
@@ -701,7 +706,7 @@ def run_suit_plot_single(thr_mode='suit', zthr_from_volume=None):
 
 
 def run_suit_plot_two(thr_mode='suit', zthr1_vol=None, zthr2_vol=None,
-                      colors=('red', 'blue')):
+                      colors=TWO_COLORS):
     """
     Two-contrast SUIT overlay from **volume t-maps**. If thr_mode='suit',
     compute BH-FDR on each SUIT z independently; else use volume z*.
@@ -780,7 +785,7 @@ if __name__ == '__main__':
                 thr_mode=thr_mode,
                 zthr1_vol=zthr1_vol,
                 zthr2_vol=zthr2_vol,
-                colors=('#009E73','#F0E442'),
+                colors=TWO_COLORS,
             )
         else:
             thr_mode = (
@@ -815,7 +820,7 @@ if __name__ == '__main__':
                 thr_mode=thr_mode,
                 zthr1_vol=zthr1_vol,
                 zthr2_vol=zthr2_vol,
-                colors=('#009E73','#F0E442'),
+                colors=TWO_COLORS,
             )
         else:
             thr_mode = (
