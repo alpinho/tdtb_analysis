@@ -1,10 +1,11 @@
 """
-Script: One-sample permuted OLS on volume & surface contrast maps with
-        BH-FDR on z. Plots:
+Script: One-sample permuted OLS on volume, surface & SUIT contrast maps
+        with BH-FDR on z. Plots:
           - Volume: glass-brain (viridis, colorbar at z*).
-          - Surface: static flatmap (fs_LR 32k), one or two contrasts.
-          - Surface can run without running volume; thresholds can be
-            computed from surface z directly.
+          - Surface (fs_LR 32k): flatmap (one or two contrasts).
+          - SUIT (cerebellum): flatmap (one or two contrasts).
+        Surface & SUIT can run without volume; their thresholds can be
+        computed from their own z.
 
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
@@ -12,7 +13,7 @@ Email: agrilopi@uwo.ca
 Creation: 15 Aug 2025
 Last Update: Aug 2025
 
-Compatibility: Python 3.10.14, nilearn 0.11.1
+Compatibility: Python 3.10.14, nilearn 0.11.1, SUITPy 1.x
 
 Notes
 -----
@@ -21,15 +22,16 @@ Notes
 - Save unthresholded t/z NIfTI and a glass-brain PNG.
 - Surface: ensure fs_LR 32k CIFTI, per-vertex permuted OLS, z, medial
   wall mask, flatmap(s).
-- Two-contrast flatmap uses named colors (e.g., 'red', 'blue').
-- Colorbar labels include the contrast name in parentheses (capitalized)
-  for the volume glass-brain; surface labels/titles follow
-  volume_to_surface.py behavior but receive capitalized contrast tags.
+- SUIT: per-vertex flatmap per subject, permuted OLS across subjects,
+  z, BH-FDR on z, flatmap PNGs (single or two-contrast overlay).
+- Two-contrast surface/SUIT overlays use named colors (e.g., 'red',
+  'blue'). Glass-brain colorbar labels include contrast in parentheses.
 """
 
 import os
 import numpy as np
 import nibabel as nib
+import matplotlib as mpl
 
 from scipy import stats
 from nilearn import plotting
@@ -45,35 +47,152 @@ from volume_to_surface import (
     plot_flatmap,
 )
 
+# SUIT helpers/libs
+from SUITPy import flatmap as suit_flatmap
+import nitools as nt  # for writing .gii with nitools.gifti
+
 # ============================ TOGGLES ==================================
 
 RUN_VOLUME = False
-RUN_SURFACE = True
+RUN_SURFACE = False
+RUN_SUIT = True
 
-# Surface threshold source:
-#   - 'volume'  : use volume FDR z-threshold(s) for surface plotting
-#   - 'surface' : compute FDR z-threshold(s) from surface z directly
-SURFACE_THR_SOURCE = 'volume'    # change to 'surface' if RUN_VOLUME = False
+# Threshold sources for plotting:
+#   - 'volume'  : use volume FDR z-threshold(s)
+#   - 'surface' : compute from surface z directly
+#   - 'suit'    : compute from SUIT z directly
+SURFACE_THR_SOURCE = 'volume'
+SUIT_THR_SOURCE = 'suit'   # 'volume' or 'suit'
+
+# ============================ SETTINGS =================================
+
+# Surface settings (use one constant everywhere)
+SURFSPACE = 'fslr32k'
+make_cifti_if_missing = True
+
+# ============================ INPUTS ===================================
+
+SUBJECTS = [
+    3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+]
+
+task_tag = 'All Tasks'
+contrast_name = 'Beat'         # first contrast (required)
+contrast_name2 = 'Interval'    # e.g., 'Interval' for overlay
+
+n_permutations = 10000
+two_sided_test = False
+fdr_alpha = 0.05
+
+# ========================= PATHS / LABELS ==============================
+
+if os.path.isdir('/home/analu/diedrichsen_data/data'):
+    base_dir = '/home/analu/diedrichsen_data/data'
+else:
+    base_dir = '/cifs/diedrichsen/data'
+
+music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
+derivatives_folder = os.path.join(music, 'derivatives')
+
+# Volume outputs
+out_root_vol = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'ols_permutation_tests', 'volume',
+)
+
+# Surface files (CIFTI) and plots
+surf_files_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'surface_files',
+)
+surf_plots_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'ols_permutation_tests', 'surface',
+)
+
+# SUIT outputs (permutation-based)
+suit_files_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'ols_permutation_tests', 'suit', 'files',
+)
+suit_plots_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'ols_permutation_tests', 'suit', 'plots',
+)
+
+# Medial wall masks (fs_LR 32k)
+fslr32k_folder = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'fslr32k_meshes'
+)
+mask_suffix = '1'
+lh_medial_wall_mask_path = os.path.join(
+    fslr32k_folder, 'medialwall_masks',
+    f'fs_LR.32k.L.medialwall.mask{mask_suffix}.gii'
+)
+rh_medial_wall_mask_path = os.path.join(
+    fslr32k_folder, 'medialwall_masks',
+    f'fs_LR.32k.R.medialwall.mask{mask_suffix}.gii'
+)
+
+tasks = {
+    'prod': 'Production',
+    'percep': 'Perception',
+    'ntfd': 'NTFD',
+    'allmain_tasks': 'All Tasks',
+}
+all_contrasts = {
+    1: 'Encoding',
+    2: 'Auditory Encoding',
+    3: 'Visual Encoding',
+    4: 'Auditory vs Visual Encoding',
+    5: 'Visual vs Auditory Encoding',
+    6: 'Beat',
+    7: 'Interval',
+    8: 'Beat vs Interval',
+    9: 'Interval vs Beat',
+    10: 'Auditory Beat',
+    11: 'Auditory Interval',
+    12: 'Auditory Beat vs Auditory Interval',
+    13: 'Auditory Interval vs Auditory Beat',
+    14: 'Visual Beat',
+    15: 'Visual Interval',
+    16: 'Visual Beat vs Visual Interval',
+    17: 'Visual Interval vs Visual Beat',
+    18: 'Decision',
+}
+
+task_id = {v: k for k, v in tasks.items()}.get(task_tag)
+contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
+contrast_id2 = (
+    {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
+    if contrast_name2 else None
+)
 
 # ========================== HELPERS ====================================
 
 def sanitize_label(label: str) -> str:
     """Lowercase, spaces → '-', and '-vs-' → '_vs_' for file names."""
+    if label is None:
+        return None
     s = label.lower().strip().replace(' ', '-')
     s = s.replace('-vs-', '_vs_')
     return s
 
 
 def cap_label(label: str) -> str:
-    """
-    Capitalize a contrast label for titles/labels without mangling
-    acronyms that are already uppercase.
-    """
+    """Capitalize label for titles (keep full-uppercase acronyms)."""
     if label is None:
         return None
     if label.isupper():
         return label
     return " ".join(w.capitalize() for w in label.split())
+
+
+label1 = sanitize_label(contrast_name)
+label2 = sanitize_label(contrast_name2) if contrast_name2 else None
+cap1 = cap_label(contrast_name)
+cap2 = cap_label(contrast_name2) if contrast_name2 else None
 
 
 def load_lr_from_cifti(cifti_path: str):
@@ -130,6 +249,7 @@ def save_stat_maps_zfdr(masker, t_vec, df, out_dir, prefix,
 
     if two_sided:
         p_unc = 2.0 * stats.t.sf(np.abs(t_vec), df)
+        p_unc = np.clip(p_unc, 1e-300, 1.0)
         z_abs = stats.norm.isf(p_unc / 2.0)
         z_vec = np.sign(t_vec) * z_abs
         valid = np.isfinite(z_abs) & (z_abs > 0)
@@ -138,11 +258,15 @@ def save_stat_maps_zfdr(masker, t_vec, df, out_dir, prefix,
         z_thr = fdr_threshold(z_abs[valid], alpha=alpha_fdr)
     else:
         p_unc = stats.t.sf(t_vec, df)
+        p_unc = np.clip(p_unc, 1e-300, 1.0)
         z_vec = stats.norm.isf(p_unc)
         valid = np.isfinite(z_vec) & (z_vec > 0)
         if not np.any(valid):
             raise RuntimeError("No positive z for one-sided FDR.")
         z_thr = fdr_threshold(z_vec[valid], alpha=alpha_fdr)
+
+    z_vec = np.asarray(z_vec, dtype=float)
+    z_vec[~np.isfinite(z_vec)] = 0.0
 
     t_img = masker.inverse_transform(t_vec)
     z_img = masker.inverse_transform(z_vec)
@@ -156,27 +280,15 @@ def save_stat_maps_zfdr(masker, t_vec, df, out_dir, prefix,
     return t_path, z_path, float(z_thr)
 
 
-def fdr_z_threshold_from_surface(z_lh, z_rh, alpha=0.05, two_sided=False):
-    """
-    Compute BH-FDR threshold on surface z.
-
-    One-sided: FDR on positive z only. Two-sided: FDR on |z|.
-    Returns np.inf if no valid positive values are present.
-    """
-    if two_sided:
-        z_abs = np.concatenate([np.abs(z_lh), np.abs(z_rh)])
-        valid = np.isfinite(z_abs) & (z_abs > 0)
-        if not np.any(valid):
-            print("[surface] No valid |z| for FDR; using z_thr = inf.")
-            return float('inf')
-        return float(fdr_threshold(z_abs[valid], alpha=alpha))
-    else:
-        z_pos = np.concatenate([z_lh, z_rh])
-        valid = np.isfinite(z_pos) & (z_pos > 0)
-        if not np.any(valid):
-            print("[surface] No positive z for FDR; using z_thr = inf.")
-            return float('inf')
-        return float(fdr_threshold(z_pos[valid], alpha=alpha))
+def fdr_z_threshold_from_arrays(arrays, alpha=0.05, two_sided=False):
+    """Compute BH-FDR z-threshold from one or more arrays."""
+    zcat = np.concatenate([np.ravel(a) for a in arrays])
+    zuse = np.abs(zcat) if two_sided else zcat
+    valid = np.isfinite(zuse) & (zuse > 0)
+    if not np.any(valid):
+        print("[FDR] No valid z > 0; using z_thr = inf.")
+        return float('inf')
+    return float(fdr_threshold(zuse[valid], alpha=alpha))
 
 
 def plot_glass_brain_z(z_map_path, z_threshold, two_sided, title, out_png,
@@ -217,120 +329,18 @@ def plot_glass_brain_z(z_map_path, z_threshold, two_sided, title, out_png,
     disp.title(title, size=10)
 
     if colorbar_flag and cbar_contrast_label:
-        try:
-            cbar = getattr(disp, '_colorbar', None) or getattr(disp, 'cbar',
-                                                               None)
-            if cbar is not None:
-                cbar.set_label(
-                    f"Z-values ({cbar_contrast_label})",
-                    fontsize=9,
-                    labelpad=6,
-                )
-        except Exception as e:
-            print(f"[plot] Could not set colorbar label: {e}")
+        cbar_obj = getattr(disp, "_colorbar", None) or getattr(
+            disp, "cbar", None
+        )
+        if isinstance(cbar_obj, mpl.colorbar.Colorbar):
+            cbar_obj.set_label(
+                f"Z-values ({cbar_contrast_label})",
+                fontsize=9,
+                labelpad=6,
+            )
 
     disp.savefig(out_png, dpi=300)
     disp.close()
-
-
-# ============================ INPUTS ===================================
-
-SUBJECTS = [
-    3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-]
-
-task_tag = 'All Tasks'
-contrast_name = 'Beat'        # first contrast (required)
-contrast_name2 = 'Interval'             # e.g., 'Interval' for overlay
-
-n_permutations = 10000
-two_sided_test = False
-fdr_alpha = 0.05
-
-# Surface settings
-surfspace = 'fslr32k'            # fs_LR 32k
-make_cifti_if_missing = True     # create per-subject CIFTI if absent
-
-# ========================= PATHS / LABELS ==============================
-
-if os.path.isdir('/home/analu/diedrichsen_data/data'):
-    base_dir = '/home/analu/diedrichsen_data/data'
-else:
-    base_dir = '/cifs/diedrichsen/data'
-
-music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
-derivatives_folder = os.path.join(music, 'derivatives')
-
-# Volume outputs
-out_root_vol = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'volume',
-)
-
-# Surface files (CIFTI) and plots
-surf_files_root = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'surface_files',
-)
-surf_plots_root = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'surface',
-)
-
-# Medial wall masks (fs_LR 32k)
-fslr32k_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'fslr32k_meshes'
-)
-mask_suffix = '1'
-lh_medial_wall_mask_path = os.path.join(
-    fslr32k_folder, 'medialwall_masks',
-    f'fs_LR.32k.L.medialwall.mask{mask_suffix}.gii'
-)
-rh_medial_wall_mask_path = os.path.join(
-    fslr32k_folder, 'medialwall_masks',
-    f'fs_LR.32k.R.medialwall.mask{mask_suffix}.gii'
-)
-
-tasks = {
-    'prod': 'Production',
-    'percep': 'Perception',
-    'ntfd': 'NTFD',
-    'allmain_tasks': 'All Tasks',
-}
-all_contrasts = {
-    1: 'Encoding',
-    2: 'Auditory Encoding',
-    3: 'Visual Encoding',
-    4: 'Auditory vs Visual Encoding',
-    5: 'Visual vs Auditory Encoding',
-    6: 'Beat',
-    7: 'Interval',
-    8: 'Beat vs Interval',
-    9: 'Interval vs Beat',
-    10: 'Auditory Beat',
-    11: 'Auditory Interval',
-    12: 'Auditory Beat vs Auditory Interval',
-    13: 'Auditory Interval vs Auditory Beat',
-    14: 'Visual Beat',
-    15: 'Visual Interval',
-    16: 'Visual Beat vs Visual Interval',
-    17: 'Visual Interval vs Visual Beat',
-    18: 'Decision',
-}
-
-task_id = {v: k for k, v in tasks.items()}.get(task_tag)
-contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
-contrast_id2 = (
-    {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
-    if contrast_name2 else None
-)
-
-label1 = sanitize_label(contrast_name)
-label2 = sanitize_label(contrast_name2) if contrast_name2 else None
-
-cap1 = cap_label(contrast_name)
-cap2 = cap_label(contrast_name2) if contrast_name2 else None
 
 # ============================ VOLUME ===================================
 
@@ -445,7 +455,6 @@ def run_volume_pipeline_one(contrast_nm, contrast_k, label_out, cap_out):
 
     return z_thr, zmax, z_path
 
-
 # ============================ SURFACE ==================================
 
 def build_surface_matrices(contrast_k, contrast_lbl):
@@ -453,17 +462,13 @@ def build_surface_matrices(contrast_k, contrast_lbl):
     Ensure subject CIFTIs exist; return LH/RH matrices shape
     (subjects, vertices) in fs_LR 32k space.
     """
-    need_cifti = False
-    if make_cifti_if_missing:
-        cifti_dir = os.path.join(surf_files_root, f"{contrast_k}_{contrast_lbl}")
-        cifti0 = os.path.join(
-            cifti_dir,
-            f"sub-{SUBJECTS[0]:02d}_{task_id.replace('_','-')}_"
-            f"{contrast_lbl}_{surfspace}.dscalar.nii",
-        )
-        need_cifti = not os.path.exists(cifti0)
-
-    if need_cifti:
+    cifti_dir = os.path.join(surf_files_root, f"{contrast_k}_{contrast_lbl}")
+    cifti0 = os.path.join(
+        cifti_dir,
+        f"sub-{SUBJECTS[0]:02d}_{task_id.replace('_','-')}_"
+        f"{contrast_lbl}_{SURFSPACE}.dscalar.nii",
+    )
+    if make_cifti_if_missing and not os.path.exists(cifti0):
         print("[surface] Creating subject CIFTI (vol->surf)...")
         individual_surf(
             derivatives_dir=derivatives_folder,
@@ -471,13 +476,13 @@ def build_surface_matrices(contrast_k, contrast_lbl):
             task_key=task_id,
             contrast_key=contrast_k,
             surf_dir=surf_files_root,
-            surfspace=surfspace,
+            surfspace=SURFSPACE,
             save='cifti',
         )
 
     cifti_files = get_isurf_cifti(
         surf_files_root, SUBJECTS, task_id, contrast_k, contrast_lbl,
-        surfspace=surfspace,
+        surfspace=SURFSPACE,
     )
 
     lh_list, rh_list = [], []
@@ -494,9 +499,7 @@ def build_surface_matrices(contrast_k, contrast_lbl):
 
 
 def surface_z_for_one_contrast(contrast_k, contrast_nm, contrast_lbl):
-    """
-    Run per-vertex permuted OLS for one contrast; return masked LH/RH z.
-    """
+    """Per-vertex permuted OLS on fs_LR 32k surface; return masked LH/RH z."""
     Y_lh, Y_rh = build_surface_matrices(contrast_k, contrast_lbl)
     n_subj = Y_lh.shape[0]
     df = n_subj - 1
@@ -531,22 +534,21 @@ def surface_z_for_one_contrast(contrast_k, contrast_nm, contrast_lbl):
 
 
 def run_surface_plot_single(thr_mode='volume', zthr_from_volume=None):
-    """
-    Single-contrast flatmap. If thr_mode='surface', compute BH-FDR on
-    surface z; otherwise use zthr_from_volume.
-    """
+    """Single-contrast surface flatmap with volume or surface FDR(z)."""
     z_lh1, z_rh1 = surface_z_for_one_contrast(
         contrast_id, contrast_name, label1
     )
 
     if thr_mode == 'surface' or not np.isfinite(zthr_from_volume or np.nan):
-        zthr1 = fdr_z_threshold_from_surface(
-            z_lh1, z_rh1, alpha=fdr_alpha, two_sided=two_sided_test
+        zthr1 = fdr_z_threshold_from_arrays(
+            [z_lh1, z_rh1], alpha=fdr_alpha, two_sided=two_sided_test
         )
     else:
         zthr1 = float(zthr_from_volume)
 
-    vmax1 = float(max(np.nanmax(np.abs(z_lh1)), np.nanmax(np.abs(z_rh1))))
+    vmax1 = float(
+        max(np.nanmax(np.abs(z_lh1)), np.nanmax(np.abs(z_rh1)))
+    )
     vmax1 = max(vmax1, float(zthr1) + 1e-6)
 
     outdir = os.path.join(surf_plots_root, label1)
@@ -567,10 +569,7 @@ def run_surface_plot_single(thr_mode='volume', zthr_from_volume=None):
 
 def run_surface_plot_two(thr_mode='volume', zthr1_vol=None, zthr2_vol=None,
                          colors=('red', 'blue')):
-    """
-    Two-contrast flatmap. If thr_mode='surface', compute BH-FDR on each
-    contrast's surface z independently; else use volume thresholds.
-    """
+    """Two-contrast surface overlay, using volume or surface FDR(z)."""
     if contrast_name2 is None or contrast_id2 is None:
         raise ValueError("contrast_name2/contrast_id2 must be set.")
 
@@ -582,11 +581,11 @@ def run_surface_plot_two(thr_mode='volume', zthr1_vol=None, zthr2_vol=None,
     )
 
     if thr_mode == 'surface':
-        zthr1 = fdr_z_threshold_from_surface(
-            z_lh1, z_rh1, alpha=fdr_alpha, two_sided=two_sided_test
+        zthr1 = fdr_z_threshold_from_arrays(
+            [z_lh1, z_rh1], alpha=fdr_alpha, two_sided=two_sided_test
         )
-        zthr2 = fdr_z_threshold_from_surface(
-            z_lh2, z_rh2, alpha=fdr_alpha, two_sided=two_sided_test
+        zthr2 = fdr_z_threshold_from_arrays(
+            [z_lh2, z_rh2], alpha=fdr_alpha, two_sided=two_sided_test
         )
     else:
         zthr1 = float(zthr1_vol)
@@ -597,15 +596,15 @@ def run_surface_plot_two(thr_mode='volume', zthr1_vol=None, zthr2_vol=None,
     v1 = max(v1, float(zthr1) + 1e-6)
     v2 = max(v2, float(zthr2) + 1e-6)
 
-    out_label_cap = f"{cap1}_vs_{cap2}"
-    outdir = os.path.join(surf_plots_root, sanitize_label(out_label_cap))
+    out_label = f"{cap1}_vs_{cap2}"
+    outdir = os.path.join(surf_plots_root, sanitize_label(out_label))
     os.makedirs(outdir, exist_ok=True)
 
     plot_flatmap(
         stats=[[z_lh1, z_rh1], [z_lh2, z_rh2]],
         threshold=[zthr1, zthr2],
         task_key=task_id,
-        contrast_tag=out_label_cap,
+        contrast_tag=out_label,
         output_dir=outdir,
         hemi=['L', 'R'],
         colors=list(colors),
@@ -613,6 +612,170 @@ def run_surface_plot_two(thr_mode='volume', zthr1_vol=None, zthr2_vol=None,
     )
     print("[surface] Flatmap (two-contrast) saved to:", outdir)
 
+# ============================== SUIT ===================================
+
+def build_suit_matrix(contrast_k, derivative_type='sm8wbmasked'):
+    """
+    For each subject, project the individual volume contrast to SUIT
+    flatmap and stack into (subjects, n_vertices).
+    """
+    conpaths = get_single_contrast_paths(
+        derivatives_folder, SUBJECTS, task_id, contrast_k,
+        derivative_type=derivative_type,
+    )
+    z0 = suit_flatmap.vol_to_surf(conpaths[0], space='SUIT')
+    z0 = np.squeeze(np.asarray(z0), axis=1)  # (n_vertices,)
+    n_vertices = z0.shape[0]
+
+    rows = []
+    for p in conpaths:
+        arr = suit_flatmap.vol_to_surf(p, space='SUIT')
+        arr = np.squeeze(np.asarray(arr), axis=1)
+        if arr.shape[0] != n_vertices:
+            raise ValueError("SUIT vertex size mismatch across subjects.")
+        rows.append(arr.astype(float))
+
+    Y = np.vstack(rows)
+    Y[~np.isfinite(Y)] = 0.0
+    return Y  # (n_subjects, n_vertices)
+
+
+def suit_z_permuted_one_contrast(contrast_k, contrast_nm, out_label):
+    """
+    Run per-vertex permuted OLS on SUIT flatmap; save optional z .gii.
+    Returns z (n_vertices,), zmax, z_gii_path.
+    """
+    Y = build_suit_matrix(contrast_k)
+    n_subj = Y.shape[0]
+    df = n_subj - 1
+
+    print(f"[SUIT] permuted_ols: {contrast_nm}")
+    outs = run_permuted_ols_one_sample(
+        Y, n_perm=n_permutations, two_sided=two_sided_test,
+        n_jobs=-1, random_state=42,
+    )
+    t_vec = outs['t'][0]
+
+    if two_sided_test:
+        p_unc = 2.0 * stats.t.sf(np.abs(t_vec), df)
+        p_unc = np.clip(p_unc, 1e-300, 1.0)
+        z_abs = stats.norm.isf(p_unc / 2.0)
+        z_vec = np.sign(t_vec) * z_abs
+    else:
+        p_unc = stats.t.sf(t_vec, df)
+        p_unc = np.clip(p_unc, 1e-300, 1.0)
+        z_vec = stats.norm.isf(p_unc)
+
+    zmax = float(np.nanmax(np.abs(z_vec)))
+
+    # Save SUIT z as .gii (optional but useful)
+    os.makedirs(os.path.join(suit_files_root, out_label), exist_ok=True)
+    z_gii = nt.gifti.make_func_gifti(
+        z_vec, anatomical_struct='Cerebellum',
+        column_names=[contrast_nm.replace(' ', '_')],
+    )
+    z_gii_path = os.path.join(
+        suit_files_root, out_label, f"{out_label}_suit_z.func.gii"
+    )
+    nib.save(z_gii, z_gii_path)
+    print(f"[SUIT] Saved z GIFTI: {z_gii_path}")
+
+    return z_vec, zmax, z_gii_path
+
+
+def run_suit_plot_single(thr_mode='suit', zthr_from_volume=None):
+    """
+    Single-contrast SUIT flatmap. If thr_mode='suit', compute BH-FDR on
+    SUIT z; otherwise use provided volume z-threshold.
+    """
+    out_label = label1
+    z_vec, zmax, _ = suit_z_permuted_one_contrast(
+        contrast_id, contrast_name, out_label
+    )
+
+    if thr_mode == 'suit' or not np.isfinite(zthr_from_volume or np.nan):
+        zthr = fdr_z_threshold_from_arrays(
+            [z_vec], alpha=fdr_alpha, two_sided=two_sided_test
+        )
+    else:
+        zthr = float(zthr_from_volume)
+
+    vmax = max(zmax, float(zthr) + 1e-6 if np.isfinite(zthr) else zmax)
+
+    os.makedirs(os.path.join(suit_plots_root, out_label), exist_ok=True)
+    out_png = os.path.join(
+        suit_plots_root, out_label,
+        f"group_{task_id.replace('_', '-')}_{out_label}_suit.png",
+    )
+
+    # Reuse your SUIT plotting helper (single-contrast case)
+    from volume_to_suit import plot_suitflat
+    plot_suitflat(
+        stats=z_vec,
+        threshold=zthr,
+        outpath=out_png,
+        colormap='viridis',
+        vmax=vmax,
+    )
+    print("[SUIT] Flatmap (single) saved to:", out_png)
+
+
+def run_suit_plot_two(thr_mode='suit', zthr1_vol=None, zthr2_vol=None,
+                      colors=('red', 'blue')):
+    """
+    Two-contrast SUIT flatmap overlay. If thr_mode='suit', compute BH-FDR
+    on each contrast's SUIT z independently; else use volume thresholds.
+
+    Saves a single PNG with both overlays, using named colors and per-
+    contrast thresholds and vmax values.
+    """
+    if contrast_name2 is None or contrast_id2 is None:
+        raise ValueError("contrast_name2/contrast_id2 must be set.")
+
+    # Compute SUIT z for both contrasts
+    z1, z1max, _ = suit_z_permuted_one_contrast(
+        contrast_id, contrast_name, label1
+    )
+    z2, z2max, _ = suit_z_permuted_one_contrast(
+        contrast_id2, contrast_name2, label2
+    )
+
+    # Thresholds
+    if thr_mode == 'suit':
+        zthr1 = fdr_z_threshold_from_arrays(
+            [z1], alpha=fdr_alpha, two_sided=two_sided_test
+        )
+        zthr2 = fdr_z_threshold_from_arrays(
+            [z2], alpha=fdr_alpha, two_sided=two_sided_test
+        )
+    else:
+        zthr1 = float(zthr1_vol)
+        zthr2 = float(zthr2_vol)
+
+    # vmax per contrast
+    v1 = max(z1max, float(zthr1) + 1e-6 if np.isfinite(zthr1) else z1max)
+    v2 = max(z2max, float(zthr2) + 1e-6 if np.isfinite(zthr2) else z2max)
+
+    # Output path
+    out_label_cap = f"{cap1}_vs_{cap2}"
+    out_dir = os.path.join(suit_plots_root, sanitize_label(out_label_cap))
+    os.makedirs(out_dir, exist_ok=True)
+    out_png = os.path.join(
+        out_dir,
+        f"group_{task_id.replace('_', '-')}_"
+        f"{sanitize_label(out_label_cap)}_suit.png",
+    )
+
+    # Reuse your SUIT plotting helper (supports two-contrast overlay)
+    from volume_to_suit import plot_suitflat
+    plot_suitflat(
+        stats=[z1, z2],
+        threshold=[zthr1, zthr2],
+        colors=list(colors),
+        vmax=[v1, v2],
+        outpath=out_png,
+    )
+    print("[SUIT] Flatmap (two-contrast) saved to:", out_png)
 
 # ============================ MAIN =====================================
 
@@ -620,15 +783,14 @@ if __name__ == '__main__':
     zthr1_vol = None
     zthr2_vol = None
 
+    # ---------- VOLUME ----------
     if RUN_VOLUME:
-        # Volume (contrast 1)
         zthr1_vol, _, _ = run_volume_pipeline_one(
             contrast_nm=contrast_name,
             contrast_k=contrast_id,
             label_out=label1,
             cap_out=cap1,
         )
-        # Volume (contrast 2) if set
         if RUN_SURFACE and contrast_name2 and contrast_id2:
             zthr2_vol, _, _ = run_volume_pipeline_one(
                 contrast_nm=contrast_name2,
@@ -637,12 +799,14 @@ if __name__ == '__main__':
                 cap_out=cap2,
             )
 
+    # ---------- SURFACE ----------
     if RUN_SURFACE:
         if contrast_name2 and contrast_id2:
-            # Two-contrast surface
-            thr_mode = ('volume' if (RUN_VOLUME and
-                                     SURFACE_THR_SOURCE == 'volume')
-                        else 'surface')
+            thr_mode = (
+                'volume'
+                if (RUN_VOLUME and SURFACE_THR_SOURCE == 'volume')
+                else 'surface'
+            )
             run_surface_plot_two(
                 thr_mode=thr_mode,
                 zthr1_vol=zthr1_vol,
@@ -650,10 +814,37 @@ if __name__ == '__main__':
                 colors=('#009E73','#F0E442'),
             )
         else:
-            # Single-contrast surface
-            thr_mode = ('volume' if (RUN_VOLUME and
-                                     SURFACE_THR_SOURCE == 'volume')
-                        else 'surface')
+            thr_mode = (
+                'volume'
+                if (RUN_VOLUME and SURFACE_THR_SOURCE == 'volume')
+                else 'surface'
+            )
             run_surface_plot_single(
-                thr_mode=thr_mode, zthr_from_volume=zthr1_vol
+                thr_mode=thr_mode,
+                zthr_from_volume=zthr1_vol,
+            )
+
+    # ---------- SUIT ----------
+    if RUN_SUIT:
+        if contrast_name2 and contrast_id2:
+            thr_mode = (
+                'volume'
+                if (RUN_VOLUME and SUIT_THR_SOURCE == 'volume')
+                else 'suit'
+            )
+            run_suit_plot_two(
+                thr_mode=thr_mode,
+                zthr1_vol=zthr1_vol,
+                zthr2_vol=zthr2_vol,
+                colors=('#009E73','#F0E442'),
+            )
+        else:
+            thr_mode = (
+                'volume'
+                if (RUN_VOLUME and SUIT_THR_SOURCE == 'volume')
+                else 'suit'
+            )
+            run_suit_plot_single(
+                thr_mode=thr_mode,
+                zthr_from_volume=zthr1_vol,
             )
