@@ -4,8 +4,8 @@ Script: One-sample permuted OLS on volume, surface & SUIT contrast maps
           - Volume: glass-brain (viridis, colorbar at z*).
           - Surface (fs_LR 32k): flatmap (one or two contrasts).
           - SUIT (cerebellum): flatmap (one or two contrasts).
-        Surface & SUIT can run without volume; their thresholds can be
-        computed from their own z.
+        SUIT projection uses the **group volume t-map** (not per-vertex
+        permutations): project volume t to SUIT, convert to z, FDR on z.
 
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
@@ -14,18 +14,6 @@ Creation: 15 Aug 2025
 Last Update: Aug 2025
 
 Compatibility: Python 3.10.14, nilearn 0.11.1, SUITPy 1.x
-
-Notes
------
-- Volume: nilearn.mass_univariate.permuted_ols → voxelwise t.
-- Convert t → p (parametric) → z; apply BH-FDR on z.
-- Save unthresholded t/z NIfTI and a glass-brain PNG.
-- Surface: ensure fs_LR 32k CIFTI, per-vertex permuted OLS, z, medial
-  wall mask, flatmap(s).
-- SUIT: per-vertex flatmap per subject, permuted OLS across subjects,
-  z, BH-FDR on z, flatmap PNGs (single or two-contrast overlay).
-- Two-contrast surface/SUIT overlays use named colors (e.g., 'red',
-  'blue'). Glass-brain colorbar labels include contrast in parentheses.
 """
 
 import os
@@ -49,12 +37,12 @@ from volume_to_surface import (
 
 # SUIT helpers/libs
 from SUITPy import flatmap as suit_flatmap
-import nitools as nt  # for writing .gii with nitools.gifti
+import nitools as nt  # optional: write GIFTI for SUIT vectors
 
 # ============================ TOGGLES ==================================
 
 RUN_VOLUME = False
-RUN_SURFACE = False
+RUN_SURFACE = True
 RUN_SUIT = True
 
 # Threshold sources for plotting:
@@ -78,8 +66,8 @@ SUBJECTS = [
 ]
 
 task_tag = 'All Tasks'
-contrast_name = 'Beat'         # first contrast (required)
-contrast_name2 = 'Interval'    # e.g., 'Interval' for overlay
+contrast_name = 'Beat vs Interval'   # first contrast (required)
+contrast_name2 = None    # e.g., 'Interval' for overlay
 
 n_permutations = 10000
 two_sided_test = False
@@ -111,7 +99,7 @@ surf_plots_root = os.path.join(
     'results', 'ols_permutation_tests', 'surface',
 )
 
-# SUIT outputs (permutation-based)
+# SUIT outputs (now driven by projected volume t-map)
 suit_files_root = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     'results', 'ols_permutation_tests', 'suit', 'files',
@@ -193,6 +181,11 @@ label1 = sanitize_label(contrast_name)
 label2 = sanitize_label(contrast_name2) if contrast_name2 else None
 cap1 = cap_label(contrast_name)
 cap2 = cap_label(contrast_name2) if contrast_name2 else None
+
+
+def group_df() -> int:
+    """Degrees of freedom for one-sample group t."""
+    return len(SUBJECTS) - 1
 
 
 def load_lr_from_cifti(cifti_path: str):
@@ -613,49 +606,38 @@ def run_surface_plot_two(thr_mode='volume', zthr1_vol=None, zthr2_vol=None,
     print("[surface] Flatmap (two-contrast) saved to:", outdir)
 
 # ============================== SUIT ===================================
+# NEW: SUIT uses the **group volume t-map** already computed.
+#      We project the t-map to SUIT, then convert to z and FDR on z.
 
-def build_suit_matrix(contrast_k, derivative_type='sm8wbmasked'):
+def volume_tmap_path(label_out: str) -> str:
+    """Path to saved group t-map in volume pipeline."""
+    return os.path.join(out_root_vol, label_out, f"{label_out}_tmap.nii.gz")
+
+
+def project_volume_t_to_suit_z(label_out: str, contrast_nm: str) -> tuple:
     """
-    For each subject, project the individual volume contrast to SUIT
-    flatmap and stack into (subjects, n_vertices).
+    Project the group volume t-map to SUIT and convert to z.
+
+    Returns
+    -------
+    z_vec : np.ndarray (n_vertices,)
+    zmax  : float
+    gii_path : str (optional saved GIFTI path)
     """
-    conpaths = get_single_contrast_paths(
-        derivatives_folder, SUBJECTS, task_id, contrast_k,
-        derivative_type=derivative_type,
-    )
-    z0 = suit_flatmap.vol_to_surf(conpaths[0], space='SUIT')
-    z0 = np.squeeze(np.asarray(z0), axis=1)  # (n_vertices,)
-    n_vertices = z0.shape[0]
+    tmap_path = volume_tmap_path(label_out)
+    if not os.path.exists(tmap_path):
+        raise FileNotFoundError(
+            f"Group t-map not found: {tmap_path}. "
+            "Run the volume pipeline first or provide the file."
+        )
 
-    rows = []
-    for p in conpaths:
-        arr = suit_flatmap.vol_to_surf(p, space='SUIT')
-        arr = np.squeeze(np.asarray(arr), axis=1)
-        if arr.shape[0] != n_vertices:
-            raise ValueError("SUIT vertex size mismatch across subjects.")
-        rows.append(arr.astype(float))
+    # Project volume t to SUIT flatmap (1D array of SUIT vertices)
+    arr = suit_flatmap.vol_to_surf(tmap_path, space='SUIT')
+    t_vec = np.squeeze(np.asarray(arr), axis=1).astype(float)
+    t_vec[~np.isfinite(t_vec)] = 0.0
 
-    Y = np.vstack(rows)
-    Y[~np.isfinite(Y)] = 0.0
-    return Y  # (n_subjects, n_vertices)
-
-
-def suit_z_permuted_one_contrast(contrast_k, contrast_nm, out_label):
-    """
-    Run per-vertex permuted OLS on SUIT flatmap; save optional z .gii.
-    Returns z (n_vertices,), zmax, z_gii_path.
-    """
-    Y = build_suit_matrix(contrast_k)
-    n_subj = Y.shape[0]
-    df = n_subj - 1
-
-    print(f"[SUIT] permuted_ols: {contrast_nm}")
-    outs = run_permuted_ols_one_sample(
-        Y, n_perm=n_permutations, two_sided=two_sided_test,
-        n_jobs=-1, random_state=42,
-    )
-    t_vec = outs['t'][0]
-
+    # Convert t → z using group df
+    df = group_df()
     if two_sided_test:
         p_unc = 2.0 * stats.t.sf(np.abs(t_vec), df)
         p_unc = np.clip(p_unc, 1e-300, 1.0)
@@ -668,30 +650,28 @@ def suit_z_permuted_one_contrast(contrast_k, contrast_nm, out_label):
 
     zmax = float(np.nanmax(np.abs(z_vec)))
 
-    # Save SUIT z as .gii (optional but useful)
-    os.makedirs(os.path.join(suit_files_root, out_label), exist_ok=True)
+    # (Optional) save SUIT z as GIFTI
+    os.makedirs(os.path.join(suit_files_root, label_out), exist_ok=True)
     z_gii = nt.gifti.make_func_gifti(
         z_vec, anatomical_struct='Cerebellum',
         column_names=[contrast_nm.replace(' ', '_')],
     )
-    z_gii_path = os.path.join(
-        suit_files_root, out_label, f"{out_label}_suit_z.func.gii"
+    gii_path = os.path.join(
+        suit_files_root, label_out, f"{label_out}_suit_z.func.gii"
     )
-    nib.save(z_gii, z_gii_path)
-    print(f"[SUIT] Saved z GIFTI: {z_gii_path}")
+    nib.save(z_gii, gii_path)
+    print(f"[SUIT] Saved z GIFTI from volume t-map: {gii_path}")
 
-    return z_vec, zmax, z_gii_path
+    return z_vec, zmax, gii_path
 
 
 def run_suit_plot_single(thr_mode='suit', zthr_from_volume=None):
     """
-    Single-contrast SUIT flatmap. If thr_mode='suit', compute BH-FDR on
-    SUIT z; otherwise use provided volume z-threshold.
+    Single-contrast SUIT flatmap from **volume t-map**. If thr_mode='suit',
+    compute BH-FDR on SUIT z; otherwise use provided volume z-threshold.
     """
     out_label = label1
-    z_vec, zmax, _ = suit_z_permuted_one_contrast(
-        contrast_id, contrast_name, out_label
-    )
+    z_vec, zmax, _ = project_volume_t_to_suit_z(out_label, contrast_name)
 
     if thr_mode == 'suit' or not np.isfinite(zthr_from_volume or np.nan):
         zthr = fdr_z_threshold_from_arrays(
@@ -723,24 +703,15 @@ def run_suit_plot_single(thr_mode='suit', zthr_from_volume=None):
 def run_suit_plot_two(thr_mode='suit', zthr1_vol=None, zthr2_vol=None,
                       colors=('red', 'blue')):
     """
-    Two-contrast SUIT flatmap overlay. If thr_mode='suit', compute BH-FDR
-    on each contrast's SUIT z independently; else use volume thresholds.
-
-    Saves a single PNG with both overlays, using named colors and per-
-    contrast thresholds and vmax values.
+    Two-contrast SUIT overlay from **volume t-maps**. If thr_mode='suit',
+    compute BH-FDR on each SUIT z independently; else use volume z*.
     """
     if contrast_name2 is None or contrast_id2 is None:
         raise ValueError("contrast_name2/contrast_id2 must be set.")
 
-    # Compute SUIT z for both contrasts
-    z1, z1max, _ = suit_z_permuted_one_contrast(
-        contrast_id, contrast_name, label1
-    )
-    z2, z2max, _ = suit_z_permuted_one_contrast(
-        contrast_id2, contrast_name2, label2
-    )
+    z1, z1max, _ = project_volume_t_to_suit_z(label1, contrast_name)
+    z2, z2max, _ = project_volume_t_to_suit_z(label2, contrast_name2)
 
-    # Thresholds
     if thr_mode == 'suit':
         zthr1 = fdr_z_threshold_from_arrays(
             [z1], alpha=fdr_alpha, two_sided=two_sided_test
@@ -752,11 +723,9 @@ def run_suit_plot_two(thr_mode='suit', zthr1_vol=None, zthr2_vol=None,
         zthr1 = float(zthr1_vol)
         zthr2 = float(zthr2_vol)
 
-    # vmax per contrast
     v1 = max(z1max, float(zthr1) + 1e-6 if np.isfinite(zthr1) else z1max)
     v2 = max(z2max, float(zthr2) + 1e-6 if np.isfinite(zthr2) else z2max)
 
-    # Output path
     out_label_cap = f"{cap1}_vs_{cap2}"
     out_dir = os.path.join(suit_plots_root, sanitize_label(out_label_cap))
     os.makedirs(out_dir, exist_ok=True)
@@ -766,7 +735,7 @@ def run_suit_plot_two(thr_mode='suit', zthr1_vol=None, zthr2_vol=None,
         f"{sanitize_label(out_label_cap)}_suit.png",
     )
 
-    # Reuse your SUIT plotting helper (supports two-contrast overlay)
+    # Two-contrast overlay helper
     from volume_to_suit import plot_suitflat
     plot_suitflat(
         stats=[z1, z2],
@@ -824,8 +793,18 @@ if __name__ == '__main__':
                 zthr_from_volume=zthr1_vol,
             )
 
-    # ---------- SUIT ----------
+    # ---------- SUIT (volume t-map → SUIT) ----------
     if RUN_SUIT:
+        # Ensure t-map(s) exist even if RUN_VOLUME is False
+        need1 = not os.path.exists(volume_tmap_path(label1))
+        need2 = contrast_name2 and contrast_id2 and \
+            (not os.path.exists(volume_tmap_path(label2)))
+        if need1 or need2:
+            raise FileNotFoundError(
+                "Required group t-map(s) not found. "
+                "Enable RUN_VOLUME or precompute the volume t-maps."
+            )
+
         if contrast_name2 and contrast_id2:
             thr_mode = (
                 'volume'
