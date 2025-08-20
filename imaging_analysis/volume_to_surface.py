@@ -360,37 +360,38 @@ def plot_flatmap(stats,
       vmax: [v1, v2]
 
     Note on magnitude of co-activation for the RGB overlay:
-    The “Overlap” colorbar is a third gradient that tells you how 
-    strongly both contrasts co‑activate at each vertex. Concretely:
+    -------------------------------------------------------
+    The “Overlap” colorbar is a third gradient that tells you how
+    strongly both contrasts co-activate at each vertex. Concretely:
 
-    Range
-
-    Minimum tick (vmin) = thr1/v1 + thr2/v2
+    1. Range
+    --------
+    Minimum tick (vmin) = thr1/v1 + thr2/v2
     (i.e. both maps just at their respective statistical thresholds)
 
-    Maximum tick (vmax) = 1.0
-    (i.e. at least one map at its peak, and the other possibly 
+    Maximum tick (vmax) = 1.0
+    (i.e. at least one map at its peak, and the other possibly
     contributing up to its peak)
 
-    Color gradient
-    --------------
-    The start color is the sum of the two threshold‑level colors
+    2. Color gradient
+    -----------------
+    The start color is the sum of the two threshold-level colors
 
-    The end color is the sum of the two full‑bright colors 
+    The end color is the sum of the two full-bright colors
     (clipped to [0,1])
 
-    Intermediate hues reflect intermediate sums of the two normalized 
+    Intermediate hues reflect intermediate sums of the two normalized
     intensities
 
-    Tick labels
-    -----------
+    3. Tick labels
+    --------------
     Show four values:
 
-    Min sum‑of‑fractions (thr1/v1 + thr2/v2)
+    Min sum-of-fractions (thr1/v1 + thr2/v2)
 
-    Two intermediate sums (one‑ and two‑thirds along the range)
+    Two intermediate sums (one- and two-thirds along the range)
 
-    Max = 1.0
+    Max = 1.0
     """
 
     contrast = contrast_tag.lower()
