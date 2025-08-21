@@ -613,7 +613,12 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
 def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                    modality=None, hems=['lh', 'rh', 'bh']):
     """
-    Plot posthoc 2w-ANOVA per task
+    Plot posthoc 2w-ANOVA per task.
+
+    Changes:
+      • Dynamic y-limits per subplot to include 95% CI + headroom.
+      • All titles/labels stay inside axes/figure (no cropping).
+      • Save with bbox_inches='tight' to avoid trimming bars/error bars.
     """
     # Open dataframe
     if isinstance(df, str):
@@ -625,21 +630,20 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
     # Convert PSC entries to numeric type
     df['PSC'] = df['PSC'].apply(pd.to_numeric)
 
+    # Collapse across modality if requested
     if modality is None:
         df = df.drop(['Modality'], axis=1)
-        # Averaged PSC across Modalities, i.e. grouped by Category and Task ...
-        # ... and averaged afterwards
-        df = df.groupby(['Category', 'Task', 'Subject', 'ROI',
-                         'Hemisphere']).mean().reset_index()
+        df = df.groupby(
+            ['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
+            as_index=False
+        ).mean()
     elif modality == 'auditory':
-        df = df[df.Modality == 'Auditory']
-        df = df.drop(['Modality'], axis=1)
+        df = df[df.Modality == 'Auditory'].drop(['Modality'], axis=1)
     else:
         assert modality == 'visual'
-        df = df[df.Modality == 'Visual']
-        df = df.drop(['Modality'], axis=1)
+        df = df[df.Modality == 'Visual'].drop(['Modality'], axis=1)
 
-    # # Replace strings with names of ROIs
+    # Replace ROI tags with names (and keep caller’s order_list in sync)
     df['ROI'] = df['ROI'].str.replace('dstr', 'Dorsal Striatum')
     df['ROI'] = df['ROI'].str.replace('cereb', 'Cerebellum')
     order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
@@ -651,104 +655,95 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
 
     fig = plt.figure(figsize=(12, 12))
 
-    # For each hemisphere:
-    for h, hem in enumerate(hems):
+    # Global labels (inside the figure, so they won't be cropped)
+    top_label = modality.capitalize() if modality else 'Both Mod.'
+    fig.text(0.01, 0.985, top_label, ha='left', va='top',
+             fontsize=12, fontweight='bold')
+    fig.text(0.01, 0.958, prefix, ha='left', va='top',
+             fontsize=12, fontweight='bold')
 
-        # For each task:
+    # For each hemisphere and task
+    for h, hem in enumerate(hems):
         for t, (ttag, task) in enumerate(zip(ttags, tasks_list)):
 
-            # Define subplot of bar charts and its position in the fig
-            # plt.axes([left, bottom, width, height])
+            # Subplot placement
             ax = plt.axes([.07 + h*.3, .7825 - t*.2425, .23, .15])
 
-            db = pd.DataFrame()
-            db = df[df.Task == task][df.Hemisphere == hem]
+            db = df[(df.Task == task) & (df.Hemisphere == hem)].copy()
 
-            # Create bar plot
+            # Bar plot with 95% CI
             s = sns.barplot(
                 ax=ax,
-                x='ROI',
-                y='PSC',
-                hue='Category',
-                data=db,
-                estimator=np.mean,
-                ci=95, # 1.96 * standard error (95% confidence interval)
-                errcolor="darkgray", errwidth=1.5, capsize = 0.2, alpha=0.5,
+                x='ROI', y='PSC', hue='Category', data=db,
+                estimator=np.mean, ci=95,
+                errcolor="darkgray", errwidth=1.5, capsize=0.2, alpha=0.5,
                 order=order_list
             )
 
+            # Put the “95% CI …” note inside the axes (safe from cropping)
             if hem == 'bh' and task == 'All Tasks':
-
-                # Annotate
-                # rois = np.flip(np.unique(df.ROI.values))
-                # pairs = tuple([[(str(roi), 'Beat'), (str(roi), 'Interval')]
-                #                for roi in rois])
-                # annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
-                #                       hue='Category')
-                # annotator.configure(test=None,
-                #                     text_format="star", # text_format="simple"
-                #                     # test_short_name="pttest", # if former is "simple"
-                #                     fontsize=10., hide_non_significant=True)
-
-                # annotator.set_pvalues([0.0471665164707565, 0.471495843530365])
-                # annotator.annotate()
-
-                ax.text(-.05, .3, '95% CI for the Mean of PSC', size=8)
-
-                # Remove frame of legend
-                ax.legend(frameon=False)
-
-                # Task
-                plt.title('Audio Tasks', size=12, x=.5, y=1.1,
-                          fontweight='bold', color='mediumaquamarine')
+                ax.text(0.01, 0.98, '95% CI for the Mean of PSC',
+                        transform=ax.transAxes, va='top', ha='left', fontsize=8)
+                ax.legend(loc='upper right', frameon=False)
+                ax.set_title('Audio Tasks', fontweight='bold', pad=12,
+                             color='mediumaquamarine')
             else:
-                # ... remove legend
-                ax.legend([],[], frameon=False)
+                ax.legend([], [], frameon=False)
+                ax.set_title(task, fontweight='bold', pad=12)
 
-                # Task
-                plt.title(task, size=12, x=.5, y=1.1, fontweight='bold')
+            # Bar labels
+            for container in s.containers:
+                ax.bar_label(container, padding=-10, fontsize=6, fmt='%.3f')
 
-            # Add values inside bars
-            for i in s.containers:
-                ax.bar_label(i, padding=-10, fontsize=6, fmt='%.3f')
-
-            # Hide the right and top spines
+            # Clean spines
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
 
-            # Set limits of ticks in y axis
-            plt.ylim([0., .3])
+            # --- Dynamic y-limit that includes error bars ---
+            if not db.empty:
+                g = (db.groupby(['ROI', 'Category'])['PSC']
+                       .agg(['mean', 'std', 'count'])
+                       .reset_index())
+                # Avoid div by zero; count>=1 always, but clip for safety
+                g['se'] = g['std'] / np.sqrt(g['count'].clip(lower=1))
+                upper = g['mean'] + 1.96 * g['se']
+                lower = g['mean'] - 1.96 * g['se']
+                ymin = float(np.nanmin(lower.values)) if len(lower) else 0.0
+                ymax = float(np.nanmax(upper.values)) if len(upper) else 0.0
+                # Add 8% headroom for caps/labels
+                rng = max(ymax - ymin, 1e-6)
+                ypad = 0.08 * rng
+                bottom = min(0.0, ymin - ypad)
+                top = ymax + ypad
+                ax.set_ylim(bottom, top)
+            else:
+                ax.set_ylim(0.0, 0.3)  # fallback
 
-            # Add units in ylabel
-            plt.ylabel('Percent Signal Change (%)', labelpad=7)
-
-            # Rotate x_labels
+            # Axis cosmetics
+            ax.set_ylabel('Percent Signal Change (%)', labelpad=7)
+            ax.margins(x=0.05)
             if n_rois == 6:
-                # Rotating X-axis labels
-                plt.xticks(rotation = 30, fontsize=10)
+                ax.set_xticklabels(ax.get_xticklabels(), rotation=30,
+                                   fontsize=10)
+            else:
+                # keep default rotation for other counts
+                pass
 
-            # Hemisphere
+            # Hemisphere label inside the axes to avoid cropping
             if t == 0:
-                plt.text(1.15, .39, hem.capitalize(), size=18,
-                         linespacing=.75, fontweight='bold')
+                ax.text(0.98, 0.92, hem.upper(), transform=ax.transAxes,
+                        ha='right', va='top', fontsize=14, fontweight='bold')
 
-            if hem == 'lh' and task == 'Production':
-                if modality:
-                    plt.text(-1., .39, modality.capitalize(), size=12,
-                             linespacing=.75, fontweight='bold')
-                else:
-                    plt.text(-1., .39, 'Both Mod.', size=12,
-                             linespacing=.75, fontweight='bold')
-                plt.text(-1., .36, prefix, size=12,
-                         linespacing=.75, fontweight='bold')
-
-    # Save figure
+    # Save figure with tight bounding box so nothing is cut
     if modality:
-        fname = prefix + '_' + str(n_rois) + '-rois_2w_posthoc_' + modality
+        fname = f"{prefix}_{n_rois}-rois_2w_posthoc_{modality}"
     else:
-        fname = prefix + '_' + str(n_rois) + \
-            '-rois_2w_posthoc_both-modalitites'
-    plt.savefig(os.path.join(output_folder, fname + '.pdf'))
+        fname = f"{prefix}_{n_rois}-rois_2w_posthoc_both-modalities"
+
+    plt.savefig(os.path.join(output_folder, fname + '.pdf'),
+                bbox_inches='tight', pad_inches=0.02)
+    
+    plt.close(fig)
 
 
 def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
