@@ -613,37 +613,74 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
 def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                    modality=None, hems=['lh', 'rh', 'bh']):
     """
-    Plot posthoc 2w-ANOVA per task.
+    Plot posthoc 2w-ANOVA per task with a single shared y-scale across all
+    output PDFs (auditory, visual, and both), computed from the full dataset.
 
-    Changes:
-      • Dynamic y-limits per subplot to include 95% CI + headroom.
-      • All titles/labels stay inside axes/figure (no cropping).
-      • Save with bbox_inches='tight' to avoid trimming bars/error bars.
+    Column headings 'LH', 'RH', 'BH' are centered above each column.
     """
-    # Open dataframe
+    # --- Load data (keep a copy BEFORE any modality filtering) ---
     if isinstance(df, str):
-        df = pd.read_csv(df, sep='\t')
+        df_full = pd.read_csv(df, sep='\t')
+    else:
+        df_full = df.copy()
 
-    # Remove Column of Contrasts
-    df = df.drop(['Contrast'], axis=1)
+    # Standardize + safety
+    if 'Contrast' in df_full.columns:
+        df_full = df_full.drop(['Contrast'], axis=1)
+    df_full['PSC'] = pd.to_numeric(df_full['PSC'], errors='coerce')
 
-    # Convert PSC entries to numeric type
-    df['PSC'] = df['PSC'].apply(pd.to_numeric)
+    # Helper: compute global CI-based y-limits on a given frame
+    def _ci_extents(frame, by_cols):
+        if frame.empty:
+            return np.nan, np.nan
+        g = (frame.groupby(by_cols)['PSC']
+                  .agg(['mean', 'std', 'count'])
+                  .reset_index())
+        g['se'] = g['std'] / np.sqrt(g['count'].clip(lower=1))
+        upper = g['mean'] + 1.96 * g['se']
+        lower = g['mean'] - 1.96 * g['se']
+        return np.nanmin(lower.values), np.nanmax(upper.values)
 
-    # Collapse across modality if requested
+    # Build CI extents for both per-modality and collapsed-modality cases
+    base_group = ['ROI', 'Category', 'Task', 'Hemisphere']
+    has_mod = 'Modality' in df_full.columns
+
+    ymin_list, ymax_list = [], []
+    if has_mod:
+        ylo1, yhi1 = _ci_extents(df_full, base_group + ['Modality'])
+        ymin_list.append(ylo1); ymax_list.append(yhi1)
+        df_collapsed = (df_full.drop(columns=['Modality'])
+                        .groupby(base_group + ['Subject'], as_index=False)
+                        .mean())
+        ylo2, yhi2 = _ci_extents(df_collapsed, base_group)
+        ymin_list.append(ylo2); ymax_list.append(yhi2)
+    else:
+        ylo, yhi = _ci_extents(df_full, base_group)
+        ymin_list.append(ylo); ymax_list.append(yhi)
+
+    # Global y-scale shared by ALL PDFs produced by this function
+    ymin = float(np.nanmin(ymin_list)) if len(ymin_list) else 0.0
+    ymax = float(np.nanmax(ymax_list)) if len(ymax_list) else 0.0
+    rng = max(ymax - ymin, 1e-6)
+    pad = 0.08 * rng
+    global_bottom = min(0.0, ymin - pad)
+    global_top = ymax + pad
+
+    # -------------- Now proceed with THIS figure's data ---------------
+    df = df_full.copy()
     if modality is None:
-        df = df.drop(['Modality'], axis=1)
-        df = df.groupby(
-            ['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
-            as_index=False
-        ).mean()
+        if 'Modality' in df.columns:
+            df = df.drop(['Modality'], axis=1)
+            df = (df.groupby(['Category', 'Task', 'Subject', 'ROI',
+                              'Hemisphere'], as_index=False)
+                    .mean())
     elif modality == 'auditory':
         df = df[df.Modality == 'Auditory'].drop(['Modality'], axis=1)
     else:
         assert modality == 'visual'
         df = df[df.Modality == 'Visual'].drop(['Modality'], axis=1)
 
-    # Replace ROI tags with names (and keep caller’s order_list in sync)
+    # Replace ROI tags with names (and sync the order list)
     df['ROI'] = df['ROI'].str.replace('dstr', 'Dorsal Striatum')
     df['ROI'] = df['ROI'].str.replace('cereb', 'Cerebellum')
     order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
@@ -655,23 +692,25 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
 
     fig = plt.figure(figsize=(12, 12))
 
-    # Global labels (inside the figure, so they won't be cropped)
+    # Global labels (kept inside the figure so they won't be cropped)
     top_label = modality.capitalize() if modality else 'Both Mod.'
     fig.text(0.01, 0.985, top_label, ha='left', va='top',
              fontsize=12, fontweight='bold')
     fig.text(0.01, 0.958, prefix, ha='left', va='top',
              fontsize=12, fontweight='bold')
 
+    # We’ll capture the top-row axes to place centered column headers later
+    top_row_axes = []
+
     # For each hemisphere and task
     for h, hem in enumerate(hems):
         for t, (ttag, task) in enumerate(zip(ttags, tasks_list)):
-
-            # Subplot placement
             ax = plt.axes([.07 + h*.3, .7825 - t*.2425, .23, .15])
+            if t == 0:
+                top_row_axes.append((hem, ax))
 
             db = df[(df.Task == task) & (df.Hemisphere == hem)].copy()
 
-            # Bar plot with 95% CI
             s = sns.barplot(
                 ax=ax,
                 x='ROI', y='PSC', hue='Category', data=db,
@@ -680,61 +719,42 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                 order=order_list
             )
 
-            # Put the “95% CI …” note inside the axes (safe from cropping)
+            # Keep note/legend inside axes
             if hem == 'bh' and task == 'All Tasks':
                 ax.text(0.01, 0.98, '95% CI for the Mean of PSC',
                         transform=ax.transAxes, va='top', ha='left', fontsize=8)
                 ax.legend(loc='upper right', frameon=False)
-                ax.set_title('Audio Tasks', fontweight='bold', pad=12,
-                             color='mediumaquamarine')
             else:
                 ax.legend([], [], frameon=False)
-                ax.set_title(task, fontweight='bold', pad=12)
 
             # Bar labels
             for container in s.containers:
                 ax.bar_label(container, padding=-10, fontsize=6, fmt='%.3f')
 
-            # Clean spines
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-
-            # --- Dynamic y-limit that includes error bars ---
-            if not db.empty:
-                g = (db.groupby(['ROI', 'Category'])['PSC']
-                       .agg(['mean', 'std', 'count'])
-                       .reset_index())
-                # Avoid div by zero; count>=1 always, but clip for safety
-                g['se'] = g['std'] / np.sqrt(g['count'].clip(lower=1))
-                upper = g['mean'] + 1.96 * g['se']
-                lower = g['mean'] - 1.96 * g['se']
-                ymin = float(np.nanmin(lower.values)) if len(lower) else 0.0
-                ymax = float(np.nanmax(upper.values)) if len(upper) else 0.0
-                # Add 8% headroom for caps/labels
-                rng = max(ymax - ymin, 1e-6)
-                ypad = 0.08 * rng
-                bottom = min(0.0, ymin - ypad)
-                top = ymax + ypad
-                ax.set_ylim(bottom, top)
-            else:
-                ax.set_ylim(0.0, 0.3)  # fallback
+            # Shared y-scale across ALL PDFs
+            ax.set_ylim(global_bottom, global_top)
 
             # Axis cosmetics
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
             ax.set_ylabel('Percent Signal Change (%)', labelpad=7)
             ax.margins(x=0.05)
             if n_rois == 6:
                 ax.set_xticklabels(ax.get_xticklabels(), rotation=30,
                                    fontsize=10)
-            else:
-                # keep default rotation for other counts
-                pass
 
-            # Hemisphere label inside the axes to avoid cropping
-            if t == 0:
-                ax.text(0.98, 0.92, hem.upper(), transform=ax.transAxes,
-                        ha='right', va='top', fontsize=14, fontweight='bold')
+            # (Removed old per-axes hemisphere label to avoid duplicates)
 
-    # Save figure with tight bounding box so nothing is cut
+    # --- COLUMN HEADERS FOR HEMISPHERES (centered over each column) ---
+    # Use actual axes positions to find each column's horizontal center:
+    # place the label slightly below the top margin so it won't be cropped.
+    for hem, ax0 in top_row_axes:
+        pos = ax0.get_position()
+        x_center = 0.5 * (pos.x0 + pos.x1)
+        fig.text(x_center, 0.97, hem.upper(), ha='center', va='top', fontsize=14, 
+                 fontweight='bold')
+
+    # Save with tight bbox so nothing is cut
     if modality:
         fname = f"{prefix}_{n_rois}-rois_2w_posthoc_{modality}"
     else:
