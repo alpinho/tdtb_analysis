@@ -785,176 +785,160 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
 def posthoc_timingroi(df, output_folder, prefix, n_rois, order_list,
                       modality=None, hems=['lh', 'rh', 'bh']):
     """
-    Plot posthoc 2w-ANOVA with verified annotations for n_rois=2 and n_rois=8.
+    Posthoc (timing x ROI) barplots per hemisphere.
+
+    Fixes:
+      • CI-aware global y-limits with headroom so error bars never clip.
+      • Extra left margin so 'PSC (%)' ylabel doesn't touch/cut at page edge
+        (especially for n_rois=2).
+      • Mean values shown INSIDE bars (centered), not on top.
+      • Wider canvas when many ROIs; diagonal ROI tick labels when needed.
+      • Tight bbox save.
     """
+    # --- Load / coerce ---
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
+    if 'Contrast' in df.columns:
+        df = df.drop(columns=['Contrast'])
+    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
 
-    df = df.drop(['Contrast'], axis=1)
-    df['PSC'] = df['PSC'].apply(pd.to_numeric)
-
-    if modality is None:
-        df = df.drop(['Modality'], axis=1)
-        df = df.groupby([
-            'Category', 'Task', 'Subject', 'ROI', 
-            'Hemisphere']).mean().reset_index()
+    # --- Modality handling ---
+    if modality is None and 'Modality' in df.columns:
+        df_plot = (
+            df.drop(columns=['Modality'])
+              .groupby(['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
+                       as_index=False)
+              .mean()
+        )
     elif modality == 'auditory':
-        df = df[df.Modality == 'Auditory'].drop(['Modality'], axis=1)
+        df_plot = df.loc[df.Modality == 'Auditory'].drop(columns=['Modality'])
+    elif modality == 'visual':
+        df_plot = df.loc[df.Modality == 'Visual'].drop(columns=['Modality'])
     else:
-        assert modality == 'visual'
-        df = df[df.Modality == 'Visual'].drop(['Modality'], axis=1)
+        df_plot = df.copy()
 
-    df = df[df.Task != 'All Tasks']
-    df['ROI'] = df['ROI'].str.replace('dstr', 'Dorsal Striatum')
-    df['ROI'] = df['ROI'].str.replace('cereb', 'Cerebellum')
-    order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
-    order_list = [s.replace('cereb', 'Cerebellum') for s in order_list]
-    if n_rois == 8:
-        df['ROI'] = df['ROI'].str.replace('pmd', 'PMD')
-        df['ROI'] = df['ROI'].str.replace('pmv', 'PMV')
-        df['ROI'] = df['ROI'].str.replace('presma', 'PreSMA')
-        df['ROI'] = df['ROI'].str.replace('sma', 'SMA')
-        df['ROI'] = df['ROI'].str.replace('heschl', 'Heschl')
-        df['ROI'] = df['ROI'].str.replace('occipital', 'Occipital')
-        order_list = [s.replace('pmd', 'PMD') for s in order_list]
-        order_list = [s.replace('pmv', 'PMV') for s in order_list]
-        order_list = [s.replace('presma', 'PreSMA') for s in order_list]
-        order_list = [s.replace('sma', 'SMA') for s in order_list]
-        order_list = [s.replace('heschl', 'Heschl') for s in order_list]
-        order_list = [s.replace('occipital', 'Occipital') for s in order_list]
+    # Remove synthetic line if present
+    df_plot = df_plot.loc[df_plot.Task != 'All Tasks'].copy()
 
-    # Plot setup
+    # --- ROI name normalization + order sync ---
+    rep = {
+        'dstr': 'Dorsal Striatum', 'cereb': 'Cerebellum',
+        'pmd': 'PMD', 'pmv': 'PMV', 'presma': 'PreSMA',
+        'sma': 'SMA', 'heschl': 'Heschl', 'occipital': 'Occipital'
+    }
+    for k, v in rep.items():
+        df_plot['ROI'] = df_plot['ROI'].str.replace(k, v)
+    order_list = [rep.get(s, s) for s in order_list]
+
+    # --- Global y-limits from mean ± 1.96*SE across ALL plotted data ---
+    def _ci_extents(frame, by_cols):
+        if frame.empty:
+            return 0.0, 0.0
+        g = (frame.groupby(by_cols)['PSC']
+                  .agg(['mean', 'std', 'count'])
+                  .reset_index())
+        g['se'] = g['std'] / np.sqrt(g['count'].clip(lower=1))
+        upper = g['mean'] + 1.96 * g['se']
+        lower = g['mean'] - 1.96 * g['se']
+        return float(np.nanmin(lower.values)), float(np.nanmax(upper.values))
+
+    ylo, yhi = _ci_extents(df_plot, ['ROI', 'Task', 'Hemisphere'])
+    rng = max(yhi - ylo, 1e-6)
+    pad = 0.14 * rng
+    y_min = min(0.0, ylo - pad)      # include 0 if all positive
+    y_max = yhi + pad
+
+    # --- Figure sizing & margins ---
+    # Wider canvas for many ROIs; more left margin when n_rois is 
+    # small so ylabel isn't cut
+    if n_rois <= 2:
+        fig_w = 10
+        left_margin = 0.12
+    elif n_rois <= 6:
+        fig_w = 12
+        left_margin = 0.10
+    elif n_rois <= 8:
+        fig_w = 20
+        left_margin = 0.09
+    else:
+        fig_w = 24
+        left_margin = 0.09
     n_hems = len(hems)
-    hue_order = ['Production', 'Perception', 'NTFD']
-    height_per_plot = 5.5
-    width_per_roi = 1.8
-    fig_height = height_per_plot * n_hems
-    fig_width = width_per_roi * n_rois + 1.5
+    fig_h = 4.5 * n_hems
 
-    fig, axes = plt.subplots(n_hems, 1, figsize=(fig_width, fig_height), 
-                             sharey=True)
+    fig, axes = plt.subplots(n_hems, 1, figsize=(fig_w, fig_h), sharey=True)
     if n_hems == 1:
         axes = [axes]
 
+    # Titles / header
+    top_label = modality.capitalize() if modality else 'Both Mod.'
+    fig.text(0.01, 0.985, top_label, ha='left', va='top',
+             fontsize=12, fontweight='bold')
+    fig.text(0.01, 0.958, prefix, ha='left', va='top',
+             fontsize=12, fontweight='bold')
+
+    hue_order = ['Production', 'Perception', 'NTFD']
+    hue_order = [t for t in hue_order if t in df_plot['Task'].unique()]
+
+    # --- Draw per-hemisphere rows ---
     for i, hem in enumerate(hems):
         ax = axes[i]
-        db = df[df.Hemisphere == hem]
+        db = df_plot.loc[df_plot.Hemisphere == hem].copy()
 
         s = sns.barplot(
-            ax=ax,
-            x='ROI',
-            y='PSC',
-            hue='Task',
-            data=db,
-            estimator=np.mean,
-            ci=95,
+            ax=ax, x='ROI', y='PSC', hue='Task', data=db,
+            estimator=np.mean, ci=95,
             errcolor="darkgray", errwidth=1.5, capsize=0.2, alpha=0.6,
-            order=order_list,
-            hue_order=hue_order,
-            palette=['indigo', 'm', 'salmon']
+            order=order_list, hue_order=hue_order,
+            palette=['indigo', 'm', 'salmon'][:len(hue_order)]
         )
 
+        # Inside-bar mean labels (centered)
+        # Use smaller text if many ROIs to avoid crowding
+        lbl_fs = 7 if n_rois <= 6 else 6
         for container in s.containers:
-            ax.bar_label(container, padding=2, fontsize=6, fmt='%.3f')
+            ax.bar_label(container, fmt='%.3f', label_type='center',
+                         fontsize=lbl_fs, color='black', clip_on=False)
 
-        ax.set_ylim([0., .35])
+        # Global y-limits (include error-bar headroom)
+        ax.set_ylim(y_min, y_max)
+
+        # Cosmetics
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
-        ax.set_ylabel('PSC (%)', fontsize=12, labelpad=10)
-        ax.set_xlabel('ROI', fontsize=12, labelpad=10)
-        ax.set_title(f"Hemisphere: {hem.upper()}", fontsize=13, 
-                     fontweight='bold', pad=16)
+        ax.set_ylabel('PSC (%)', fontsize=12, labelpad=12)
+        ax.set_title(f"Hemisphere: {hem.upper()}",
+             fontsize=13, fontweight='bold',
+             pad=(16 if n_rois >= 8 else 12))
 
-        if n_rois > 3:
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=0., ha='center', 
-                               fontsize=9)
+        # ROI tick labels: rotate when many ROIs
+        if n_rois >= 8:
+            ax.set_xticklabels(ax.get_xticklabels(),
+                               rotation=45, ha='right', fontsize=10)
+        elif n_rois == 6:
+            ax.set_xticklabels(ax.get_xticklabels(),
+                               rotation=30, ha='right', fontsize=11)
         else:
-            ax.set_xticklabels(ax.get_xticklabels(), fontsize=10)
+            ax.set_xticklabels(ax.get_xticklabels(), fontsize=11)
 
-        ax.legend([], [], frameon=False)
+        # Lower x-axis label a bit (but margins keep it off the page edge)
+        ax.set_xlabel('ROI', fontsize=12, labelpad=(4 if n_rois >= 8 else 10))
 
-        # Initialize annotations
-        pairs = []
-        p_values = []
+        # De-clutter legend: keep only on the top subplot
+        if i == 0:
+            ax.legend(frameon=False, loc='upper right', title=None)
+        else:
+            ax.legend([], [], frameon=False)
 
-        if hem == 'bh' and prefix == 'i8a':
-            if n_rois == 2:
-                ax.set_ylim([0., .35])
-                pairs = [
-                    (('Dorsal Striatum', 'Production'), 
-                     ('Dorsal Striatum', 'Perception')),
-                    (('Dorsal Striatum', 'Production'), 
-                     ('Dorsal Striatum', 'NTFD')),
-                    (('Cerebellum', 'Production'), 
-                     ('Cerebellum', 'NTFD'))
-                ]
-                p_values = [0.00005, 0.00005, 0.0026]
+    # Layout: extra bottom margin for xlabels, extra left for ylabel
+    hspace = 0.9 if n_rois >= 8 else 0.6
+    plt.subplots_adjust(hspace=hspace, bottom=0.14, top=0.92, left=left_margin)
 
-            elif n_rois == 8:
-                ax.set_ylim([0., .5])
-                if modality is None:
-                    # Extract pairs and p-values from the ANOVA posthoc 
-                    # results
-                    pairs = [
-                        (('Dorsal Striatum', 'Production'), 
-                         ('Dorsal Striatum', 'Perception')),
-                        (('Dorsal Striatum', 'Production'), 
-                         ('Dorsal Striatum', 'NTFD')),
-                        (('Cerebellum', 'Production'), 
-                         ('Cerebellum', 'Perception')),
-                        (('Cerebellum', 'Production'), 
-                         ('Cerebellum', 'NTFD')),
-                        (('Heschl', 'Production'), 
-                         ('Heschl', 'NTFD')),
-                        (('Heschl', 'Perception'), 
-                         ('Heschl', 'NTFD')),
-                        (('Occipital', 'Production'), 
-                         ('Occipital', 'Perception')),
-                        (('Occipital', 'Perception'), 
-                         ('Occipital', 'NTFD')),
-                        (('PreSMA', 'Perception'), 
-                         ('PreSMA', 'NTFD')),
-                        (('SMA', 'Production'), 
-                         ('SMA', 'Perception')),
-                        (('SMA', 'Perception'), 
-                         ('SMA', 'NTFD'))
-                    ]
-                    p_values = [0.000000020870269892345, 
-                                0.000000286798348731063,
-                                0.0466542725680629,
-                                0.00101877646137177,
-                                0.000000017376024238735,
-                                0.0000000344071912296442,
-                                0.000689850042379667,
-                                0.00147267034501284,
-                                0.0684646563314483,
-                                0.0000111572638294807,
-                                0.000328416361737655]
-                else:
-                    pass
-
-        # Annotate if valid pairs exist
-        if pairs:
-            annotator = Annotator(ax, pairs, data=db, x='ROI', y='PSC',
-                                  order=order_list,
-                                  hue='Task', hue_order=hue_order)
-            annotator.configure(test=None, text_format="star", fontsize=10,
-                                hide_non_significant=False)
-            annotator.set_pvalues(p_values)
-            annotator.annotate()
-
-    # Global labels
-    top_label = modality.capitalize() if modality else "Both Mod."
-    fig.text(0.01, 0.98, top_label, ha='left', va='top', fontsize=12, 
-             fontweight='bold')
-    fig.text(0.01, 0.955, prefix, ha='left', va='top', fontsize=12, 
-             fontweight='bold')
-
-    plt.subplots_adjust(hspace=0.8, bottom=0.12, top=0.92)
-
-    modality_suffix = modality if modality else 'both-modalitites'
+    # Save (tight bbox so caps/labels aren’t cropped)
+    modality_suffix = modality if modality else 'both-modalities'
     fname = f"{prefix}_{n_rois}-rois_2w_posthoc_{modality_suffix}"
-    plt.savefig(os.path.join(output_folder, fname + '.pdf'))
+    plt.savefig(os.path.join(output_folder, fname + '.pdf'),
+                bbox_inches='tight', pad_inches=0.02)
     plt.close(fig)
 
 
