@@ -42,9 +42,12 @@ import nitools as nt  # optional: write GIFTI for SUIT vectors
 
 # ============================ TOGGLES ==================================
 
-RUN_VOLUME = False
-RUN_SURFACE = True
+RUN_VOLUME = True
+RUN_SURFACE = False
 RUN_SUIT = False
+
+# Run all single-contrast maps
+RUN_ALL_CONTRASTS = True
 
 # Threshold sources for plotting:
 #   - 'volume'  : use volume FDR z-threshold(s)
@@ -70,8 +73,8 @@ SUBJECTS = [
 ]
 
 task_tag = 'All Tasks'
-contrast_name = 'Visual Beat'       # first contrast (required)
-contrast_name2 = 'Visual Interval'  # optional second contrast
+contrast_name = 'Encoding'       # first contrast (required)
+contrast_name2 = None  # None or optional second contrast
 
 n_permutations = 10000
 two_sided_test = False
@@ -86,6 +89,8 @@ else:
 
 music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
+GM_MASK_PATH = os.path.join(derivatives_folder, 'group', 'anat',
+                            'group_mask_gray.nii')
 
 # Volume outputs
 out_root_vol = os.path.join(
@@ -372,6 +377,35 @@ def plot_glass_brain_z(
     disp.savefig(out_png, dpi=300)
     disp.close()
 
+# ---- NEW: helper to mask the z-map for visualization only --------------
+
+def apply_visual_mask(src_img_path, mask_path, out_path):
+    """
+    Save a copy of src_img masked by mask_path (0 outside mask).
+    Does not change the original stats; for visualization only.
+    """
+    if not mask_path:
+        # no-op: return original
+        return src_img_path
+    if not os.path.exists(mask_path):
+        raise FileNotFoundError(f"GM mask not found: {mask_path}")
+
+    z_img = nib.load(src_img_path)
+    z = np.asanyarray(z_img.dataobj).astype(float)
+
+    m_img = nib.load(mask_path)
+    m = np.asanyarray(m_img.dataobj).astype(bool)
+
+    if z.shape != m.shape:
+        raise ValueError(
+            f"Mask shape {m.shape} != image shape {z.shape}. "
+            "Resample your GM mask to match the z-map grid."
+        )
+
+    z_masked = np.where(m, z, 0.0)
+    nib.save(nib.Nifti1Image(z_masked, z_img.affine, z_img.header), out_path)
+    return out_path
+
 # ============================ VOLUME ===================================
 
 def get_single_contrast_paths(
@@ -425,6 +459,7 @@ def run_volume_pipeline_one(contrast_nm, contrast_k, label_out, cap_out):
         derivative_type='sm8wbmasked',
     )
 
+    # NOTE: keep mask_img=None to avoid changing stats
     masker, Y, _, _ = fit_masker_and_stack(
         conpaths, mask_img=None, smoothing_fwhm=None,
     )
@@ -457,6 +492,14 @@ def run_volume_pipeline_one(contrast_nm, contrast_k, label_out, cap_out):
         prefix=label_out, alpha_fdr=fdr_alpha, two_sided=two_sided_test,
     )
 
+    # ---- NEW: produce a GM-masked copy of z-map for visualization only
+    z_path_for_plot = z_path
+    if GM_MASK_PATH:
+        z_path_for_plot = os.path.join(
+            con_folder, f"{label_out}_zmap_gmmasked.nii.gz"
+        )
+        apply_visual_mask(z_path, GM_MASK_PATH, z_path_for_plot)
+
     png_path = os.path.join(
         con_folder,
         f"{label_out}_glassbrain_zmap_FDRz{int(fdr_alpha*100)}.png",
@@ -468,7 +511,7 @@ def run_volume_pipeline_one(contrast_nm, contrast_k, label_out, cap_out):
         f"z* = {z_thr:.3f})"
     )
     plot_glass_brain_z(
-        z_map_path=z_path,
+        z_map_path=z_path_for_plot,  # <- masked copy (if provided)
         z_threshold=z_thr,
         two_sided=two_sided_test,
         title=title,
@@ -483,6 +526,8 @@ def run_volume_pipeline_one(contrast_nm, contrast_k, label_out, cap_out):
     print("[volume] Outputs:")
     print(f"  t-map: {t_path}")
     print(f"  z-map: {z_path}")
+    if GM_MASK_PATH:
+        print(f"  z-map (GM-masked for plot): {z_path_for_plot}")
     print(f"  figure: {png_path}")
 
     return z_thr, zmax, z_path
@@ -843,80 +888,126 @@ def run_suit_plot_two(
 # ============================ MAIN =====================================
 
 if __name__ == '__main__':
-    zthr1_vol = None
-    zthr2_vol = None
+    if RUN_ALL_CONTRASTS:
+        # --- run every single contrast in all_contrasts (no overlays) ---
+        for cid, cname in all_contrasts.items():  # dict {id: name}
+            print(f"\n[MAIN] Running single-contrast: {cid} – {cname}")
 
-    # ---------- VOLUME ----------
-    if RUN_VOLUME:
-        zthr1_vol, _, _ = run_volume_pipeline_one(
-            contrast_nm=contrast_name,
-            contrast_k=contrast_id,
-            label_out=idlabel1,     # '<id>_<snake>'
-            cap_out=cap1,
-        )
-        if RUN_SURFACE and contrast_name2 and contrast_id2:
-            zthr2_vol, _, _ = run_volume_pipeline_one(
-                contrast_nm=contrast_name2,
-                contrast_k=contrast_id2,
-                label_out=idlabel2,  # '<id>_<snake>'
-                cap_out=cap2,
+            # Canonical labels for this contrast
+            idlabel = id_label_folder(cid, cname)            # e.g. "14_visual_beat"
+            cap = cap_label(cname)                           # title-cased label
+
+            zthr_vol = None
+
+            # ---------- VOLUME ----------
+            if RUN_VOLUME:
+                zthr_vol, _, _ = run_volume_pipeline_one(     # uses your existing code
+                    contrast_nm=cname,
+                    contrast_k=cid,
+                    label_out=idlabel,
+                    cap_out=cap,
+                )
+
+            # ---------- SURFACE ----------
+            if RUN_SURFACE:
+                thr_mode = (
+                    'volume'
+                    if (RUN_VOLUME and SURFACE_THR_SOURCE == 'volume')
+                    else 'surface'
+                )
+                # single-contrast surface plot
+                # temporarily bind globals used by helpers
+                contrast_id = cid
+                contrast_name = cname
+                label1_kebab = sanitize_label_kebab(cname)
+                run_surface_plot_single(
+                    thr_mode=thr_mode,
+                    zthr_from_volume=zthr_vol,
+                )
+
+            # ---------- SUIT ----------
+            if RUN_SUIT:
+                need = not os.path.exists(volume_tmap_path(idlabel))
+                if need:
+                    raise FileNotFoundError(
+                        f"Group t-map not found for {cname}. "
+                        "Enable RUN_VOLUME or precompute volume t-maps."
+                    )
+                thr_mode = (
+                    'volume'
+                    if (RUN_VOLUME and SUIT_THR_SOURCE == 'volume')
+                    else 'suit'
+                )
+                # temporarily bind globals used by helpers
+                contrast_name = cname
+                idlabel1 = idlabel
+                run_suit_plot_single(
+                    thr_mode=thr_mode,
+                    zthr_from_volume=zthr_vol,
+                )
+
+    else:
+        # --- original behavior: one contrast (and optional overlay) ---
+        zthr1_vol = None
+        zthr2_vol = None
+
+        if RUN_VOLUME:
+            zthr1_vol, _, _ = run_volume_pipeline_one(
+                contrast_nm=contrast_name,
+                contrast_k=contrast_id,
+                label_out=idlabel1,
+                cap_out=cap1,
             )
+            if RUN_SURFACE and contrast_name2 and contrast_id2:
+                zthr2_vol, _, _ = run_volume_pipeline_one(
+                    contrast_nm=contrast_name2,
+                    contrast_k=contrast_id2,
+                    label_out=idlabel2,
+                    cap_out=cap2,
+                )
 
-    # ---------- SURFACE ----------
-    if RUN_SURFACE:
-        if contrast_name2 and contrast_id2:
+        if RUN_SURFACE:
             thr_mode = (
                 'volume'
                 if (RUN_VOLUME and SURFACE_THR_SOURCE == 'volume')
                 else 'surface'
             )
-            run_surface_plot_two(
-                thr_mode=thr_mode,
-                zthr1_vol=zthr1_vol,
-                zthr2_vol=zthr2_vol,
-                colors=TWO_COLORS,
-            )
-        else:
-            thr_mode = (
-                'volume'
-                if (RUN_VOLUME and SURFACE_THR_SOURCE == 'volume')
-                else 'surface'
-            )
-            run_surface_plot_single(
-                thr_mode=thr_mode,
-                zthr_from_volume=zthr1_vol,
-            )
+            if contrast_name2 and contrast_id2:
+                run_surface_plot_two(
+                    thr_mode=thr_mode,
+                    zthr1_vol=zthr1_vol,
+                    zthr2_vol=zthr2_vol,
+                    colors=TWO_COLORS,
+                )
+            else:
+                run_surface_plot_single(
+                    thr_mode=thr_mode,
+                    zthr_from_volume=zthr1_vol,
+                )
 
-    # ---------- SUIT (volume t-map → SUIT) ----------
-    if RUN_SUIT:
-        need1 = not os.path.exists(volume_tmap_path(idlabel1))
-        need2 = contrast_name2 and contrast_id2 and \
-            (not os.path.exists(volume_tmap_path(idlabel2)))
-        if need1 or need2:
-            raise FileNotFoundError(
-                "Required group t-map(s) not found. "
-                "Enable RUN_VOLUME or precompute the volume t-maps."
-            )
-
-        if contrast_name2 and contrast_id2:
+        if RUN_SUIT:
+            need1 = not os.path.exists(volume_tmap_path(idlabel1))
+            need2 = contrast_name2 and contrast_id2 and \
+                (not os.path.exists(volume_tmap_path(idlabel2)))
+            if need1 or need2:
+                raise FileNotFoundError(
+                    "Required group t-map(s) not found. "
+                    "Enable RUN_VOLUME or precompute the volume t-maps."
+                )
             thr_mode = (
                 'volume'
                 if (RUN_VOLUME and SUIT_THR_SOURCE == 'volume')
                 else 'suit'
             )
-            run_suit_plot_two(
-                thr_mode=thr_mode,
-                zthr1_vol=zthr1_vol,
-                zthr2_vol=zthr2_vol,
-                colors=TWO_COLORS,
-            )
-        else:
-            thr_mode = (
-                'volume'
-                if (RUN_VOLUME and SUIT_THR_SOURCE == 'volume')
-                else 'suit'
-            )
-            run_suit_plot_single(
-                thr_mode=thr_mode,
-                zthr_from_volume=zthr1_vol,
-            )
+            if contrast_name2 and contrast_id2:
+                run_suit_plot_two(
+                    thr_mode=thr_mode,
+                    zthr1_vol=zthr1_vol,
+                    zthr2_vol=zthr2_vol,
+                    colors=TWO_COLORS,
+                )
+            else:
+                run_suit_plot_single(
+                    thr_mode=thr_mode,
+                    zthr_from_volume=zthr1_vol,
+                )
