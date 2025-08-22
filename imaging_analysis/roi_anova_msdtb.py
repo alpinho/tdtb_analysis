@@ -1,11 +1,11 @@
 """
-This script performs several ANOVA analysis using ROIS extracted from contrasts
- of the Music-SDTB Project.
+This script performs several ANOVA analysis using ROIS extracted from 
+contrasts of the Music-SDTB Project.
 
 Author: Ana Luisa Pinho
 
 Created: October 2024
-Last update: June 2025
+Last update: August 2025
 
 Compatibility: Python 3.10.14
 
@@ -613,23 +613,25 @@ def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, effect_type,
 def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                    modality=None, hems=['lh', 'rh', 'bh']):
     """
-    Plot posthoc 2w-ANOVA per task with a single shared y-scale across all
-    output PDFs (auditory, visual, and both), computed from the full dataset.
-
-    Column headings 'LH', 'RH', 'BH' are centered above each column.
+    Posthoc 2w-ANOVA plotting with:
+      • Shared global y-scale across PDFs,
+      • Wider canvas for many ROIs,
+      • Diagonal ROI tick labels (many ROIs),
+      • Raised x-axis label + extra bottom margin,
+      • Thicker bars when single series; overlap-safe width when multiple,
+      • Centered LH/RH/BH headers,
+      • Tight bbox saving to avoid clipping.
     """
-    # --- Load data (keep a copy BEFORE any modality filtering) ---
+    # --- Load / standardize ---
     if isinstance(df, str):
         df_full = pd.read_csv(df, sep='\t')
     else:
         df_full = df.copy()
-
-    # Standardize + safety
     if 'Contrast' in df_full.columns:
         df_full = df_full.drop(['Contrast'], axis=1)
     df_full['PSC'] = pd.to_numeric(df_full['PSC'], errors='coerce')
 
-    # Helper: compute global CI-based y-limits on a given frame
+    # --- Global y-limits from mean ± 1.96*SE ---
     def _ci_extents(frame, by_cols):
         if frame.empty:
             return np.nan, np.nan
@@ -641,12 +643,9 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
         lower = g['mean'] - 1.96 * g['se']
         return np.nanmin(lower.values), np.nanmax(upper.values)
 
-    # Build CI extents for both per-modality and collapsed-modality cases
     base_group = ['ROI', 'Category', 'Task', 'Hemisphere']
-    has_mod = 'Modality' in df_full.columns
-
     ymin_list, ymax_list = [], []
-    if has_mod:
+    if 'Modality' in df_full.columns:
         ylo1, yhi1 = _ci_extents(df_full, base_group + ['Modality'])
         ymin_list.append(ylo1); ymax_list.append(yhi1)
         df_collapsed = (df_full.drop(columns=['Modality'])
@@ -658,21 +657,20 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
         ylo, yhi = _ci_extents(df_full, base_group)
         ymin_list.append(ylo); ymax_list.append(yhi)
 
-    # Global y-scale shared by ALL PDFs produced by this function
     ymin = float(np.nanmin(ymin_list)) if len(ymin_list) else 0.0
     ymax = float(np.nanmax(ymax_list)) if len(ymax_list) else 0.0
     rng = max(ymax - ymin, 1e-6)
-    pad = 0.08 * rng
+    pad = 0.14 * rng
     global_bottom = min(0.0, ymin - pad)
     global_top = ymax + pad
 
-    # -------------- Now proceed with THIS figure's data ---------------
+    # --- Modality handling (match plotting behavior) ---
     df = df_full.copy()
     if modality is None:
         if 'Modality' in df.columns:
             df = df.drop(['Modality'], axis=1)
-            df = (df.groupby(['Category', 'Task', 'Subject', 'ROI',
-                              'Hemisphere'], as_index=False)
+            df = (df.groupby(['Category', 'Task', 'Subject',
+                              'ROI', 'Hemisphere'], as_index=False)
                     .mean())
     elif modality == 'auditory':
         df = df[df.Modality == 'Auditory'].drop(['Modality'], axis=1)
@@ -680,7 +678,7 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
         assert modality == 'visual'
         df = df[df.Modality == 'Visual'].drop(['Modality'], axis=1)
 
-    # Replace ROI tags with names (and sync the order list)
+    # --- ROI naming + order sync ---
     df['ROI'] = df['ROI'].str.replace('dstr', 'Dorsal Striatum')
     df['ROI'] = df['ROI'].str.replace('cereb', 'Cerebellum')
     order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
@@ -690,19 +688,27 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
     ttags = list(tasks_dic.keys())
     tasks_list = list(tasks_dic.values())
 
-    fig = plt.figure(figsize=(12, 12))
+    # --- Wider figure for many ROIs + more bottom margin for xlabel ---
+    if n_rois <= 6:
+        fig_w = 12
+    elif n_rois <= 8:
+        fig_w = 22
+    else:
+        fig_w = 24
+    fig = plt.figure(figsize=(fig_w, 12))
+    fig.subplots_adjust(bottom=0.16)
 
-    # Global labels (kept inside the figure so they won't be cropped)
+    # Figure-level labels (inside canvas)
     top_label = modality.capitalize() if modality else 'Both Mod.'
     fig.text(0.01, 0.985, top_label, ha='left', va='top',
              fontsize=12, fontweight='bold')
     fig.text(0.01, 0.958, prefix, ha='left', va='top',
              fontsize=12, fontweight='bold')
 
-    # We’ll capture the top-row axes to place centered column headers later
+    # Track top row axes for centered column headers
     top_row_axes = []
 
-    # For each hemisphere and task
+    # --- Plot grid ---
     for h, hem in enumerate(hems):
         for t, (ttag, task) in enumerate(zip(ttags, tasks_list)):
             ax = plt.axes([.07 + h*.3, .7825 - t*.2425, .23, .15])
@@ -715,54 +721,64 @@ def posthoc_catroi(df, tasks_dic, output_folder, prefix, n_rois, order_list,
                 ax=ax,
                 x='ROI', y='PSC', hue='Category', data=db,
                 estimator=np.mean, ci=95,
-                errcolor="darkgray", errwidth=1.5, capsize=0.2, alpha=0.5,
+                errcolor="darkgray", errwidth=1.5,
+                capsize=0.2, alpha=0.5,
                 order=order_list
             )
 
-            # Keep note/legend inside axes
-            if hem == 'bh' and task == 'All Tasks':
-                ax.text(0.01, 0.98, '95% CI for the Mean of PSC',
-                        transform=ax.transAxes, va='top', ha='left', fontsize=8)
-                ax.legend(loc='upper right', frameon=False)
+            # --- Overlap-safe bar width adjustment ---
+            nhue = db['Category'].nunique()
+            if nhue <= 1:
+                scale = 1.25 if n_rois >= 8 else 1.10
             else:
-                ax.legend([], [], frameon=False)
+                scale = 0.96  # slightly slimmer to keep a gap between hues
+            for p in s.patches:
+                w = p.get_width()
+                new_w = w * scale
+                dx = (new_w - w) / 2.0
+                p.set_x(p.get_x() - dx)
+                p.set_width(new_w)
 
-            # Bar labels
+            # Value labels (slightly smaller for many ROIs)
+            lbl_fs = 6 if n_rois <= 6 else 5
+            lbl_pad = -8 if n_rois >= 8 else -10
             for container in s.containers:
-                ax.bar_label(container, padding=-10, fontsize=6, fmt='%.3f')
+                ax.bar_label(container, padding=lbl_pad,
+                             fontsize=lbl_fs, fmt='%.3f', clip_on=False)
 
-            # Shared y-scale across ALL PDFs
+            # Shared y-scale
             ax.set_ylim(global_bottom, global_top)
 
-            # Axis cosmetics
+            # Cosmetics
+            ax.legend([], [], frameon=False)
             ax.spines['right'].set_visible(False)
             ax.spines['top'].set_visible(False)
             ax.set_ylabel('Percent Signal Change (%)', labelpad=7)
             ax.margins(x=0.05)
-            if n_rois == 6:
-                ax.set_xticklabels(ax.get_xticklabels(), rotation=30,
-                                   fontsize=10)
 
-            # (Removed old per-axes hemisphere label to avoid duplicates)
+            # Diagonal ROI tick labels when many ROIs
+            if n_rois >= 8:
+                ax.set_xticklabels(ax.get_xticklabels(),
+                                   rotation=45, ha='right', fontsize=9)
+            elif n_rois == 6:
+                ax.set_xticklabels(ax.get_xticklabels(),
+                                   rotation=30, fontsize=10)
 
-    # --- COLUMN HEADERS FOR HEMISPHERES (centered over each column) ---
-    # Use actual axes positions to find each column's horizontal center:
-    # place the label slightly below the top margin so it won't be cropped.
+            # Raise x-axis label slightly; bottom margin already increased
+            ax.set_xlabel('ROI', labelpad=8)
+
+    # --- Centered hemisphere headers above each column ---
     for hem, ax0 in top_row_axes:
         pos = ax0.get_position()
         x_center = 0.5 * (pos.x0 + pos.x1)
-        fig.text(x_center, 0.97, hem.upper(), ha='center', va='top', fontsize=14, 
-                 fontweight='bold')
+        fig.text(x_center, 0.97, hem.upper(),
+                 ha='center', va='top', fontsize=14, fontweight='bold')
 
-    # Save with tight bbox so nothing is cut
-    if modality:
-        fname = f"{prefix}_{n_rois}-rois_2w_posthoc_{modality}"
-    else:
-        fname = f"{prefix}_{n_rois}-rois_2w_posthoc_both-modalities"
-
+    # --- Save ---
+    fname = (f"{prefix}_{n_rois}-rois_2w_posthoc_{modality}"
+             if modality else f"{prefix}_{n_rois}-rois_2w_posthoc_both-modalities")
     plt.savefig(os.path.join(output_folder, fname + '.pdf'),
                 bbox_inches='tight', pad_inches=0.02)
-    
     plt.close(fig)
 
 
