@@ -19,8 +19,6 @@ import numpy as np
 import nibabel as nib
 import pandas as pd
 
-from scipy import stats
-from nilearn.maskers import NiftiMasker
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm.thresholding import fdr_threshold
 
@@ -54,32 +52,71 @@ tasks = {
     'prod': 'Production',
     'percep': 'Perception',
     'ntfd': 'NTFD',
-    'allmain_tasks': 'All Tasks',
+    'rand_ntfd': 'Randomized NTFD',
+    'allmain_tasks': 'All Tasks'
 }
-task_tag = 'All Tasks'  # display label
+task_tag = 'Randomized NTFD'  # display label
 task_id = {v: k for k, v in tasks.items()}[task_tag]  # e.g. 'allmain_tasks'
 
 # Contrast dictionary (id -> name)
-all_contrasts = {
-    1: 'Encoding',
-    2: 'Auditory Encoding',
-    3: 'Visual Encoding',
-    4: 'Auditory vs Visual Encoding',
-    5: 'Visual vs Auditory Encoding',
-    6: 'Beat',
-    7: 'Interval',
-    8: 'Beat vs Interval',
-    9: 'Interval vs Beat',
-    10: 'Auditory Beat',
-    11: 'Auditory Interval',
-    12: 'Auditory Beat vs Auditory Interval',
-    13: 'Auditory Interval vs Auditory Beat',
-    14: 'Visual Beat',
-    15: 'Visual Interval',
-    16: 'Visual Beat vs Visual Interval',
-    17: 'Visual Interval vs Visual Beat',
-    18: 'Decision',
-}
+if task_id != 'rand_ntfd':
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Beat vs Interval',
+        9: 'Interval vs Beat',
+        10: 'Auditory Beat',
+        11: 'Auditory Interval',
+        12: 'Auditory Beat vs Auditory Interval',
+        13: 'Auditory Interval vs Auditory Beat',
+        14: 'Visual Beat',
+        15: 'Visual Interval',
+        16: 'Visual Beat vs Visual Interval',
+        17: 'Visual Interval vs Visual Beat',
+        18: 'Decision',
+    }
+else:
+    assert task_id == 'rand_ntfd'   
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Random',
+        9: 'Beat vs Interval',
+        10: 'Interval vs Beat',
+        11: 'Beat vs Random',
+        12: 'Random vs Beat',
+        13: 'Interval vs Random',
+        14: 'Random vs Interval',
+        15: 'Auditory Beat',
+        16: 'Auditory Interval',
+        17: 'Auditory Random',
+        18: 'Auditory Beat vs Auditory Interval',
+        19: 'Auditory Interval vs Auditory Beat',
+        20: 'Auditory Beat vs Auditory Random',
+        21: 'Auditory Random vs Auditory Beat',
+        22: 'Auditory Interval vs Auditory Random',
+        23: 'Auditory Random vs Auditory Interval',
+        24: 'Visual Beat',
+        25: 'Visual Interval',
+        26: 'Visual Random',
+        27: 'Visual Beat vs Visual Interval',
+        28: 'Visual Interval vs Visual Beat',
+        29: 'Visual Beat vs Visual Random',
+        30: 'Visual Random vs Visual Beat',                 
+        31: 'Visual Interval vs Visual Random',
+        32: 'Visual Random vs Visual Interval',
+        33: 'Decision'
+    }
 
 # Single-contrast selection used when RUN_ALL_CONTRASTS = False
 contrast_name = 'Encoding'  # change when running a single contrast
@@ -100,7 +137,7 @@ GM_MASK_PATH = os.path.join(derivatives_folder, 'group', 'anat',
 # Where to save results (as requested)
 out_root_vol = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    'results', 'parametric_tests', 'volume',
+    'results', 'parametric_tests', 'volume', task_id
 )
 
 # Subject contrast location/pattern (second-level inputs)
@@ -218,6 +255,8 @@ def second_level_one(
     conpaths = build_single_contrast_paths(
         derivatives_folder, subjects, task_key, cid
     )
+    print(f"[volume] Found {len(conpaths)} subject contrast maps.")
+    print(f"conpaths: {np.array(conpaths)}")
 
     # Design: one-sample t-test (intercept-only)
     design = pd.DataFrame({'intercept': [1] * len(conpaths)})
