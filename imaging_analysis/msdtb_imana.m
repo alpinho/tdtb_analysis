@@ -197,41 +197,48 @@ contrasts_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...          
                       'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]; ...                            %18
                       };
          
-contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                              %1
-                    'Auditory Encoding', [1 1 1 0 0 0 0]; ...                     %2
-                    'Visual Encoding', [0 0 0 1 1 1 0]; ...                       %3
-                    'Auditory vs Visual Encoding', [1 1 1 -1 -1 -1 0]; ...        %4
-                    'Visual vs Auditory Encoding', [-1 -1 -1 1 1 1 0]; ...        %5
-                    'Beat', [1 0 0 1 0 0 0]; ...                                  %6
-                    'Interval', [0 1 0 0 1 0 0]; ...                              %7
-                    'Random', [0 0 1 0 0 1 0]; ...                                %8
-                    'Beat vs Interval', [1 -1 0 1 -1 0 0]; ...                    %9
-                    'Interval vs Beat', [-1 1 0 -1 1 0 0]; ...                    %10
-                    'Beat vs Random', [1 0 -1 1 0 -1 0]; ...                      %11
-                    'Random vs Beat', [-1 0 1 -1 0 1 0]; ...                      %12
-                    'Interval vs Random', [0 1 -1 0 1 -1 0]; ...                  %13
-                    'Random vs Interval', [0 -1 1 0 -1 1 0]; ...                  %14
-                    'Auditory Beat', [1 0 0 0 0 0 0]; ...                         %15
-                    'Auditory Interval', [0 1 0 0 0 0 0]; ...                     %16
-                    'Auditory Random', [0 0 1 0 0 0 0]; ...                       %17
-                    'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0]; ...   %18
-                    'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0]; ...   %19
-                    'Auditory Beat vs Auditory Random', [1 0 -1 0 0 0 0]; ...     %20
-                    'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0]; ...     %21
-                    'Auditory Interval vs Auditory Random', [0 1 -1 0 0 0 0]; ... %22
-                    'Auditory Random vs Auditory Interval', [0 -1 1 0 0 0 0]; ... %23
-                    'Visual Beat', [0 0 0 1 0 0 0]; ...                           %24
-                    'Visual Interval', [0 0 0 0 1 0 0]; ...                       %25
-                    'Visual Random', [0 0 0 0 0 1 0]; ...                         %26
-                    'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0]; ...       %27
-                    'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0]; ...       %28
-                    'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0]; ...         %29
-                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...         %30                    
-                    'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0]; ...     %31
-                    'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...     %32
-                    'Decision', [0 0 0 0 0 0 1]; ...                              %33
+contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                                 %1
+                    'Auditory Encoding', [1 1 1 0 0 0 0]; ...                        %2
+                    'Visual Encoding', [0 0 0 1 1 1 0]; ...                          %3
+                    'Auditory vs Visual Encoding', [1 1 1 -1 -1 -1 0]; ...           %4
+                    'Visual vs Auditory Encoding', [-1 -1 -1 1 1 1 0]; ...           %5
+                    'Beat', [1 0 0 1 0 0 0]; ...                                     %6
+                    'Interval', [0 1 0 0 1 0 0]; ...                                 %7
+                    'Random', [0 0 1 0 0 1 0]; ...                                   %8
+                    'Beat vs Interval', [1 -1 0 1 -1 0 0]; ...                       %9
+                    'Interval vs Beat', [-1 1 0 -1 1 0 0]; ...                       %10
+                    'Beat vs Random', [1 0 -1 1 0 -1 0]; ...                         %11
+                    'Random vs Beat', [-1 0 1 -1 0 1 0]; ...                         %12
+                    'Interval vs Random', [0 1 -1 0 1 -1 0]; ...                     %13
+                    'Random vs Interval', [0 -1 1 0 -1 1 0]; ...                     %14
+                    'Non-Random vs Random', [1 1 -1 1 1 -1 0]; ...                   %15
+                    'Random vs Non-Random', [-1 -1 1 -1 -1 1 0]; ...                 %16
+                    'Auditory Beat', [1 0 0 0 0 0 0]; ...                            %17
+                    'Auditory Interval', [0 1 0 0 0 0 0]; ...                        %18
+                    'Auditory Random', [0 0 1 0 0 0 0]; ...                          %19
+                    'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0]; ...      %20
+                    'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0]; ...      %21
+                    'Auditory Beat vs Auditory Random', [1 0 -1 0 0 0 0]; ...        %22
+                    'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0]; ...        %23
+                    'Auditory Interval vs Auditory Random', [0 1 -1 0 0 0 0]; ...    %24
+                    'Auditory Random vs Auditory Interval', [0 -1 1 0 0 0 0]; ...    %25
+                    'Auditory Non-Random vs Auditory Random', [1 1 -1 0 0 0 0]; ...  %26
+                    'Auditory Random vs Auditory Non-Random', [-1 -1 1 0 0 0 0]; ... %27
+                    'Visual Beat', [0 0 0 1 0 0 0]; ...                              %28
+                    'Visual Interval', [0 0 0 0 1 0 0]; ...                          %29
+                    'Visual Random', [0 0 0 0 0 1 0]; ...                            %30
+                    'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0]; ...          %31
+                    'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0]; ...          %32
+                    'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0]; ...            %33
+                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...            %34                    
+                    'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0]; ...        %35
+                    'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...        %36
+                    'Visual Non-Random vs Visual Random', [0 0 0 1 1 -1 0]; ...      %37
+                    'Visual Random vs Visual Non-Random', [0 0 0 -1 -1 1 0]; ...     %38
+                    'Decision', [0 0 0 0 0 0 1]; ...                                 %39
                     };
-                
+
+% This list does not include "Random vs Non-Random" type contrasts
 contrasts_random_time = {'Encoding', [1 0 1 0 1 0 1 0 1 0 1 0 0 0]; ...                              %1
                          'Auditory Encoding', [1 0 1 0 1 0 0 0 0 0 0 0 0 0]; ...                     %2
                          'Visual Encoding', [0 0 0 0 0 0 1 0 1 0 1 0 0 0]; ...                       %3
@@ -266,7 +273,8 @@ contrasts_random_time = {'Encoding', [1 0 1 0 1 0 1 0 1 0 1 0 0 0]; ...         
                          'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 -1 0 1 0 0 0]; ...     %32
                          'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0]; ...                              %33
                         };
-                    
+
+% This list does not include "Random vs Non-Random" type contrasts
 contrasts_random_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                              %1
                              'Auditory Encoding', [1 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                     %2
                              'Visual Encoding', [0 0 0 0 0 0 0 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                       %3
@@ -1918,7 +1926,7 @@ switch what
         model_type = 'dbb';
         % model_type = 'drbb';
         
-        output_folder = 'ffx';
+        output_folder = 'ffx_rwls_dbb_hrf128';
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -1986,7 +1994,7 @@ switch what
         % model_derivatives = 'time'
         % model_derivatives = 'timedisp'
         
-        output_folder = 'ffx';
+        output_folder = 'ffx_rwls_dbb_hrf128';
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -2384,72 +2392,79 @@ switch what
         % hrf_cutoff = 'hrf128_timedispderiv';
         % hrf_cutoff = 'hrf42';
 
+        % NOTE: RUN THE FOLLOWING COMMANDS TILL MASKING FOR ALL SUBJECTS
+        % INCLUDING PILOT
+        % --------------------------------------------------------------
+
 %         msdtb_imana('GLM:grand_design_rwls', 'sn', sbj)
 %         msdtb_imana('GLM:estimate_rwls', 'sn', sbj, 'output_folder', 'ffx')
 %         
 %         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
 %             'output_folder', 'ffx')
-%         msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, ...
-%             'design', {'rand_ntfd'}, 'output_folder', 'ffx')
+        % msdtb_imana('GLM:individual_ffx_t', 'sn', sbj, 'design', {'rand_ntfd'})
 %                 
 %         msdtb_imana('GLM:calc_PSC', 'sn', sbj, ...
 %             'output_folder', 'ffx')
-%         msdtb_imana('GLM:calc_PSC', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-%             'output_folder', 'ffx')
+        % msdtb_imana('GLM:calc_PSC', 'sn', sbj, 'design', {'rand_ntfd'})
 %                 
 %         msdtb_imana('CON:norm_smooth', 'sn', sbj, ...
 %             'input_folder', 'ffx')
-%         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-%             'input_folder', 'ffx')
+        % msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'})
 %         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'spmT', ...
 %             'input_folder', 'ffx')
-%         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
-%             'input_folder', 'ffx')
+        % msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+        %     'file_type', 'spmT')
 %         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'file_type', 'psc', ...
 %             'input_folder', 'ffx')
-%         msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'psc', ...
-%             'input_folder', 'ffx')
+        % msdtb_imana('CON:norm_smooth', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+        %     'file_type', 'psc')
+
+        % NOTE: FROM HERE ONWARDS RUN ONLY FOR ALL SUBJECTS BUT PILOT
+        % -----------------------------------------------------------
         
-        msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
-        msdtb_imana('GROUP:mask', 'sn', subj_id, 'mask_type', 'wrmask_gray') % gray-matter mask
+        % msdtb_imana('GROUP:mask', 'sn', subj_id) % whole-brain mask
+        % msdtb_imana('GROUP:mask', 'sn', subj_id, 'mask_type', 'wrmask_gray') % gray-matter mask
                 
-        msdtb_imana('CON:masking', 'sn', sbj, ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
+        % msdtb_imana('CON:masking', 'sn', sbj, ...
+        %     'input_folder', 'ffx', ...
+        %     'output_folder', 'masked_derivatives')
+
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'})
+
+        % msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', ...
+        %     'input_folder', 'ffx', ...
+        %     'output_folder', 'masked_derivatives')
+
         msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'psc', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
+            'file_type', 'spmT')
+
+        % msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', ...
+        %     'input_folder', 'ffx', ...
+        %     'output_folder', 'masked_derivatives')
+
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'psc')
         
-        msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'masktag', 'gmmasked', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', 'masktag', 'gmmasked', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
-        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, 'file_type', 'psc', 'masktag', 'gmmasked', ...
-            'input_folder', 'ffx', ...
-            'output_folder', 'masked_derivatives')
+        % msdtb_imana('CON:masking', 'sn', sbj, 'masktag', 'gmmasked', ...
+        %     'input_folder', 'ffx', ...
+        %     'output_folder', 'masked_derivatives')
+
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'masktag', 'gmmasked')
+
+        % msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'spmT', 'masktag', 'gmmasked', ...
+        %     'input_folder', 'ffx', ...
+        %     'output_folder', 'masked_derivatives')
+
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'spmT', 'masktag', 'gmmasked')
+
+        % msdtb_imana('CON:masking', 'sn', sbj, 'file_type', 'psc', 'masktag', 'gmmasked', ...
+        %     'input_folder', 'ffx', ...
+        %     'output_folder', 'masked_derivatives')
+
+        msdtb_imana('CON:masking', 'sn', sbj, 'design', {'rand_ntfd'}, ...
+            'file_type', 'psc', 'masktag', 'gmmasked')
         
     case 'GROUP:mean_t1'
         % Example usage: msdtb_imana('GROUP:mean_t1')
