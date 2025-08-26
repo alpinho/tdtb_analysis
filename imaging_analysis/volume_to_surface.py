@@ -57,7 +57,7 @@ sys.path.append('../')
 # importing
 from utils import zval_conversion
 
-
+# %%
 # ========================== FUNCTIONS =================================
 
 def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
@@ -965,6 +965,7 @@ def plotly_surfmap(
     print(f"Saved HTML figure: {outfname}.html")
 
 
+# %%
 # ============================ INPUTS ===================================
 
 # Subjects without pilot
@@ -976,14 +977,14 @@ surfparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
     'surface')
 
-task_tag = 'Production'
+task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
 # To run every contrast:
 # contrast_name = 'ALL' and contrast_name2 = None.
 # To run a subset sequentially:
 # contrast_name = ['Beat', 'Interval', 'Decision'] and contrast_name2 = None.
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'ALL' # 'Beat'
-contrast_name2 = None # E.g. 'Interval'
+contrast_name = 'Auditory Encoding' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = 'Visual Encoding' # E.g. 'Interval'
 
 # ========================= PARAMETERS =================================
 
@@ -1070,6 +1071,7 @@ if contrast_name2:
         {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
     cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
 
+# %%
 # ============================ RUN =====================================
 
 if __name__ == '__main__':
@@ -1292,6 +1294,6 @@ if __name__ == '__main__':
             contrast_tag=cname + '_and_' + cname2,
             output_dir=rgbaplots_folder,
             hemi=['L', 'R'],
-            colors=['#009E73', '#F0E442'],
+            colors=['#D41159', '#1A85FF'],
             vmax=[v1, v2]
         )

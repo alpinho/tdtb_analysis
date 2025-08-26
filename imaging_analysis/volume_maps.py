@@ -4,6 +4,10 @@ Script: Group-level (second-level) volume maps with BH-FDR on z and
           - One contrast, or iterate all contrasts (toggle).
           - Gray-matter mask for visualization only (stats unchanged).
           - Storage under results/volume/<id>_<name>/
+        To run for all contrasts, set RUN_ALL_CONTRASTS = True.
+        To run a single contrast, set RUN_ALL_CONTRASTS = False and
+        set contrast_name to the desired contrast name 
+        (see all_contrasts).
 
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
@@ -26,6 +30,7 @@ from nilearn.glm.thresholding import fdr_threshold
 from ols_permutation_tests import plot_glass_brain_z
 
 
+# %%
 # ============================ TOGGLES ==================================
 
 # Run a single contrast (set below) or all contrasts in all_contrasts
@@ -40,6 +45,8 @@ SMOOTHING_FWHM = 8.0
 # FDR alpha
 FDR_ALPHA = 0.05
 
+
+# %%
 # ============================ INPUTS ===================================
 
 SUBJECTS = [
@@ -152,6 +159,7 @@ DERIVATIVE_SUBFOLDER = 'ffx_rwls_dbb_hrf128'
 FILENAME_TEMPLATE = 'wcon_{cid:04d}.nii'  # e.g., wcon_0014.nii
 
 
+# %%
 # ========================== HELPERS ====================================
 
 def sanitize_label_snake(label: str) -> str:
@@ -327,9 +335,11 @@ def second_level_one(
     return z_thr, z_max, z_path
 
 
+# %%
 # ============================ MAIN =====================================
 
 if __name__ == '__main__':
+
     if RUN_ALL_CONTRASTS:
         # Iterate over all contrasts (single-contrast runs only)
         for cid, cname in all_contrasts.items():
