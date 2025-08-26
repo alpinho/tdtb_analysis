@@ -1,48 +1,64 @@
 """
-Script to do the volume to suit projection of data from the
- Music-SDTB project
+Script to project volumetric contrasts into SUIT space and produce
+cerebellar flatmaps.
 
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of February 2025
-Last Update: July 2025
+Last Update: August 2025
 
-Compatibility: Python 3.10.14, SUITPy 1.3.2
+Compatibility: Python 3.10.x, Nilearn, SUITPy
 
-Note about overlap colorbar:
-The "Overlap" colorbar is simply a third gradient that tells you how 
-strongly both contrasts co-activate at each vertex. Concretely:
+----------------------------------------------------------------------
+Run modes
+----------------------------------------------------------------------
 
-    Range
+You can now choose between different run modes using CLI flags:
 
-        Minimum tick (vmin) = thr1/v1 + thr2/v2
-        (i.e. both maps just at their respective statistical 
-         thresholds)
+1. Single contrast (default)
+   - Runs one contrast specified by `contrast_name`.
+   - Example:
+       python volume_to_suit.py
+     or:
+       python volume_to_suit.py --single
 
-        Maximum tick (vmax) = 1.0
-        (i.e. at least one map at its peak, and the other possibly 
-         contributing up to its peak)
+2. Single + two-contrast overlay
+   - Runs the single contrast AND a second overlay if
+     `contrast_name2` is set.
+   - Example:
+       python volume_to_suit.py --both
 
-    Color gradient
+3. ROI overlay only
+   - Ignores contrasts and produces only the overlaid ROI map.
+   - Example:
+       python volume_to_suit.py --iroi
 
-        The start color is the sum of the two threshold-level colors
+----------------------------------------------------------------------
+Batch mode
+----------------------------------------------------------------------
 
-        The end color is the sum of the two full-bright colors 
-        (clipped to [0, 1])
+You can also run **all contrasts sequentially** in single-contrast 
+mode:
 
-        Intermediate hues reflect intermediate sums of the two 
-        normalized intensities
+- Set:
+    contrast_name = 'ALL'
+    contrast_name2 = None
 
-    Tick labels
+- Run:
+    python volume_to_suit.py
+  (or with `--single` for clarity)
 
-        Show four values:
+This will loop through all contrasts defined in `all_contrasts` and
+produce one flatmap for each.
 
-            Min sum-of-fractions (thr1/v1 + thr2/v2)
+----------------------------------------------------------------------
+Notes
+----------------------------------------------------------------------
 
-            Two intermediate sums (one- and two-thirds along the range)
-
-            Max = 1.0
+- Overlay mode (`--both`) is only available when you define both
+  `contrast_name` and `contrast_name2` at the top of the script.
+- ROI overlay (`--iroi`) runs independently of contrast settings.
 """
 
 import sys
@@ -338,17 +354,15 @@ def plot_suitflat(stats,
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# Relative path for output folder
-suit_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           'results', 'suit_files')
-contrasts_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                'results', 'suit_images')
-irois_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            'results', 'irois')
+# Parent dir for output folders
+suitparametric_folder = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
+    'suit')
 
-task_tag = 'All Tasks'
-contrast_name = 'Beat'
-contrast_name2 = 'Interval' # Set to None if not used
+task_tag = 'Perception' # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
+contrast_name = 'ALL' # 'E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = None # Set to None if not used
+
 
 # %%
 # ========================= PARAMETERS =================================
@@ -372,26 +386,83 @@ iroi_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
          'allmain_tasks': 'All Tasks'}
 
-all_contrasts = {1: 'Encoding',
-                 2: 'Auditory Encoding',
-                 3: 'Visual Encoding',
-                 4: 'Auditory vs Visual Encoding',
-                 5: 'Visual vs Auditory Encoding',
-                 6: 'Beat',
-                 7: 'Interval',
-                 8: 'Beat vs Interval',
-                 9: 'Interval vs Beat',
-                 10: 'Auditory Beat',
-                 11: 'Auditory Interval',
-                 12: 'Auditory Beat vs Auditory Interval',
-                 13: 'Auditory Interval vs Auditory Beat',
-                 14: 'Visual Beat',
-                 15: 'Visual Interval',
-                 16: 'Visual Beat vs Visual Interval',
-                 17: 'Visual Interval vs Visual Beat',
-                 18: 'Decision'}
+# Contrast dictionary (id -> name)
+if task_id != 'rand_ntfd':
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Beat vs Interval',
+        9: 'Interval vs Beat',
+        10: 'Auditory Beat',
+        11: 'Auditory Interval',
+        12: 'Auditory Beat vs Auditory Interval',
+        13: 'Auditory Interval vs Auditory Beat',
+        14: 'Visual Beat',
+        15: 'Visual Interval',
+        16: 'Visual Beat vs Visual Interval',
+        17: 'Visual Interval vs Visual Beat',
+        18: 'Decision'
+    }
+else:
+    assert task_id == 'rand_ntfd'   
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Random',
+        9: 'Beat vs Interval',
+        10: 'Interval vs Beat',
+        11: 'Beat vs Random',
+        12: 'Random vs Beat',
+        13: 'Interval vs Random',
+        14: 'Random vs Interval',
+        15: 'Non-Random vs Random',
+        16: 'Random vs Non-Random',
+        17: 'Auditory Beat',
+        18: 'Auditory Interval',
+        19: 'Auditory Random',
+        20: 'Auditory Beat vs Auditory Interval',
+        21: 'Auditory Interval vs Auditory Beat',
+        22: 'Auditory Beat vs Auditory Random',
+        23: 'Auditory Random vs Auditory Beat',
+        24: 'Auditory Interval vs Auditory Random',
+        25: 'Auditory Random vs Auditory Interval',
+        26: 'Auditory Non-Random vs Auditory Random',
+        27: 'Auditory Random vs Auditory Non-Random',
+        28: 'Visual Beat',
+        29: 'Visual Interval',
+        30: 'Visual Random',
+        31: 'Visual Beat vs Visual Interval',
+        32: 'Visual Interval vs Visual Beat',
+        33: 'Visual Beat vs Visual Random',
+        34: 'Visual Random vs Visual Beat',                    
+        35: 'Visual Interval vs Visual Random',
+        36: 'Visual Random vs Visual Interval',
+        37: 'Visual Non-Random vs Visual Random',
+        38: 'Visual Random vs Visual Non-Random',
+        39: 'Decision'
+    }
 
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
+
+# Output folders
+suit_folder = os.path.join(suitparametric_folder, task_id, 
+                           'suit_files')
+contrasts_folder = os.path.join(suitparametric_folder, task_id, 
+                                'suit_images')
+irois_folder = os.path.join(suitparametric_folder, task_id, 
+                            'suit_irois')
+
+# Contrasts definitions
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
 
@@ -412,47 +483,120 @@ zmax_audio_encoding = 7.366581723533498
 fdr_thresh_visual_encoding = 2.6649611311019035
 zmax_visual_encoding = 6.896651056145507
 
+
 # %%
 # ============================ RUN =====================================
 
 if __name__ == '__main__':
 
-    # Create output folders if they do not exist
-    suitplots_folder = os.path.join(
-        contrasts_folder, str(contrast_id) + '_' + cname.lower())
-    os.makedirs(suitplots_folder, exist_ok=True)
-    os.makedirs(irois_folder, exist_ok=True)
+    # ------------------ choose run mode from CLI flags ------------------
+    # Default behavior (no flag): run single only if contrast_name2 is not
+    # set; if contrast_name2 is set, still run single (you can also use
+    # --both to run single + overlay).
+    #
+    # Flags:
+    #   --single : run one contrast only
+    #   --both   : run one contrast AND the two-contrast overlay
+    #   --iroi   : run ROI overlay only (no contrasts)
+    mode_single = ('--single' in sys.argv)
+    mode_both = ('--both' in sys.argv)
+    mode_iroi = ('--iroi' in sys.argv)
 
-    # #################################################################
+    # Resolve default if no explicit flag was given
+    if not (mode_single or mode_both or mode_iroi):
+        mode_single = True  # default to single only
 
-    # Compute z-values of group contrast in SUIT space, save and return
-    z_values = group_suit(group_folder, task_id, contrast_id, SUBJECTS,
-                          suit_folder)
+    # ---------------- batch (single plots only) as before ----------------
+    _batch = None
+    if isinstance(contrast_name, (list, tuple, np.ndarray)):
+        _batch = list(contrast_name)
+    elif (isinstance(contrast_name, str)
+          and contrast_name.strip().upper() == 'ALL'):
+        _batch = list(all_contrasts.values())
 
-    # Compute whole-brain fdr threshold of volumetric data
-    fdr_thresh, zmax = whole_brain_thresholds(
-        derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask_path)
+    # ------------------------- ROI overlay only -------------------------
+    if mode_iroi:
+        os.makedirs(irois_folder, exist_ok=True)
+        iroi = nib.load(iroi_path)
+        iroi_suitdata = flatmap.vol_to_surf(iroi, space='SUIT')
+        thresh = np.unique(iroi_suitdata)[1]
+        iroi_fname = 'iroi_cerebellum_suit.png'
+        iroi_fpath = os.path.join(irois_folder, iroi_fname)
+        plot_suitflat(
+            iroi_suitdata, 1 / len(SUBJECTS), iroi_fpath,
+            colormap='cividis', vmax=1, sci_notation=True,
+            cmap_title_loc=(.7, .69),
+            cmap_title='Fraction of \n Participants'
+        )
+        sys.exit(0)
 
-    # #### Plot cerebellum stat flatmap ####
-    # One contrast
-    contrast_fname = (
-        f"group_{task_id.replace('_', '-')}_{cname.lower()}_suit.png"
-    )
-    contrast_fpath = os.path.join(suitplots_folder, contrast_fname)
-    plot_suitflat(z_values, fdr_thresh, contrast_fpath, vmax=zmax)
-    
-    # Two contrasts
-    if contrast_name2:
-        z_values2 = group_suit(group_folder, task_id, contrast_id2,
-                               SUBJECTS, suit_folder)
+    # ----------------------- single (with batch) ------------------------
+    if mode_single or mode_both:
+        # Batch single-plot loop (no overlay in batch)
+        if _batch is not None and not contrast_name2:
+            for _cname in _batch:
+                _cid = {v: k for k, v in all_contrasts.items()}.get(_cname)
+                if _cid is None:
+                    print(f"[skip] Unknown contrast: {_cname}")
+                    continue
+
+                _tag = _cname.replace(' vs ', '_vs_').replace(' ', '-')
+                _suitplots_folder = os.path.join(
+                    contrasts_folder, f"{_cid}_{_tag.lower()}"
+                )
+                os.makedirs(_suitplots_folder, exist_ok=True)
+
+                # Compute group z in SUIT
+                _zvals = group_suit(
+                    group_folder, task_id, _cid, SUBJECTS, suit_folder
+                )
+                # Volume FDR threshold and vmax
+                _thr, _zmax = whole_brain_thresholds(
+                    derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask_path
+                )
+                # Plot single-contrast SUIT flatmap
+                _fname = (
+                    f"group_{task_id.replace('_', '-')}_"
+                    f"{_tag.lower()}_suit.png"
+                )
+                _fpath = os.path.join(_suitplots_folder, _fname)
+                plot_suitflat(_zvals, _thr, _fpath, vmax=_zmax)
+
+            # After batch single, do not fall through to overlay
+            sys.exit(0)
+
+        # ---------- single for the currently selected contrast ----------
+        suitplots_folder = os.path.join(
+            contrasts_folder, str(contrast_id) + '_' + cname.lower()
+        )
+        os.makedirs(suitplots_folder, exist_ok=True)
+
+        # Compute group z in SUIT and thresholds
+        z_values = group_suit(
+            group_folder, task_id, contrast_id, SUBJECTS, suit_folder
+        )
+        fdr_thresh, zmax = whole_brain_thresholds(
+            derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask_path
+        )
+
+        # Plot single-contrast SUIT flatmap
+        contrast_fname = (
+            f"group_{task_id.replace('_', '-')}_{cname.lower()}_suit.png"
+        )
+        contrast_fpath = os.path.join(suitplots_folder, contrast_fname)
+        plot_suitflat(z_values, fdr_thresh, contrast_fpath, vmax=zmax)
+
+    # --------------------- optional overlay after single ----------------
+    if mode_both and contrast_name2:
+        z_values2 = group_suit(
+            group_folder, task_id, contrast_id2, SUBJECTS, suit_folder
+        )
         fdr_thresh2, zmax2 = whole_brain_thresholds(
-            derivatives_folder, SUBJECTS, task_id, contrast_id2,
-            wb_gmask_path
-            )
+            derivatives_folder, SUBJECTS, task_id, contrast_id2, wb_gmask_path
+        )
         rgbaplots_folder = os.path.join(
-            contrasts_folder, 'rgba',
-            cname.lower() + '_and_' + cname2.lower()
-            )
+            contrasts_folder, 'rgba', cname.lower() + '_and_' + cname2.lower()
+        )
         os.makedirs(rgbaplots_folder, exist_ok=True)
         contrasts_fname = (
             f"group_{task_id.replace('_', '-')}_"
@@ -464,19 +608,5 @@ if __name__ == '__main__':
             threshold=[fdr_thresh, fdr_thresh2],
             outpath=contrast_fpath2,
             vmax=[zmax, zmax2],
-            colors=('#009E73','#F0E442')
+            colors=('#009E73', '#F0E442')
         )
-
-    # #################################################################
-
-    # # Plot cerebellum overlaid iroi
-    # iroi = nib.load(iroi_path)
-    # iroi_suitdata = flatmap.vol_to_surf(iroi, space='SUIT')
-    # thresh = np.unique(iroi_suitdata)[1]
-    # # iroi_suitdata[iroi_suitdata == 0.] = np.nan
-    # iroi_fname = 'iroi_cerebellum_suit.png'
-    # iroi_fpath = os.path.join(irois_folder, iroi_fname)
-    # plot_suitflat(iroi_suitdata, 1/len(SUBJECTS), iroi_fpath,
-    #               colormap='cividis', vmax=1, sci_notation=True,
-    #               cmap_title_loc=(.7, .69),
-    #               cmap_title='Fraction of \n Participants')
