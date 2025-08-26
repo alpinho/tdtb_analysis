@@ -154,7 +154,7 @@ contrasts = {'Encoding', [1 1 1 1 0]; ...                            %1
              'Visual Interval', [0 0 0 1 0]; ...                     %15
              'Visual Beat vs Visual Interval', [0 0 1 -1 0]; ...     %16            
              'Visual Interval vs Visual Beat', [0 0 -1 1 0]; ...     %17
-             'Decision', [0 0 0 0 1]; ...                            %18
+             'Decision', [0 0 0 0 1]                                 %18
              };
          
 contrasts_time = {'Encoding', [1 0 1 0 1 0 1 0 0 0] ; ...                           %1
@@ -174,7 +174,7 @@ contrasts_time = {'Encoding', [1 0 1 0 1 0 1 0 0 0] ; ...                       
                   'Visual Interval', [0 0 0 0 0 0 1 0 0 0]; ...                     %15
                   'Visual Beat vs Visual Interval', [0 0 0 0 1 0 -1 0 0 0]; ...     %16            
                   'Visual Interval vs Visual Beat', [0 0 0 0 -1 0 1 0 0 0]; ...     %17
-                  'Decision', [0 0 0 0 0 0 0 0 1 0]; ...                            %18
+                  'Decision', [0 0 0 0 0 0 0 0 1 0]                                 %18
                   };
               
 contrasts_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                            %1
@@ -194,7 +194,7 @@ contrasts_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...          
                       'Visual Interval', [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                     %15
                       'Visual Beat vs Visual Interval', [0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...     %16            
                       'Visual Interval vs Visual Beat', [0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...     %17
-                      'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]; ...                            %18
+                      'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]                                 %18
                       };
          
 contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                                 %1
@@ -235,7 +235,7 @@ contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                            
                     'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...        %36
                     'Visual Non-Random vs Visual Random', [0 0 0 1 1 -1 0]; ...      %37
                     'Visual Random vs Visual Non-Random', [0 0 0 -1 -1 1 0]; ...     %38
-                    'Decision', [0 0 0 0 0 0 1]; ...                                 %39
+                    'Decision', [0 0 0 0 0 0 1]                                      %39
                     };
 
 % This list does not include "Random vs Non-Random" type contrasts
@@ -271,7 +271,7 @@ contrasts_random_time = {'Encoding', [1 0 1 0 1 0 1 0 1 0 1 0 0 0]; ...         
                          'Visual Random vs Visual Beat', [0 0 0 0 0 0 -1 0 0 0 1 0 0 0]; ...         %30                    
                          'Visual Interval vs Visual Random', [0 0 0 0 0 0 0 0 1 0 -1 0 0 0]; ...     %31
                          'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 -1 0 1 0 0 0]; ...     %32
-                         'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0]; ...                              %33
+                         'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0]                                   %33
                         };
 
 % This list does not include "Random vs Non-Random" type contrasts
@@ -307,7 +307,7 @@ contrasts_random_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 
                              'Visual Random vs Visual Beat', [0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 1 0 0 0 0 0]; ...         %30                    
                              'Visual Interval vs Visual Random', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...     %31
                              'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...     %32
-                             'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]; ...                              %33
+                             'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]                                   %33
                              };
 
 %==============================================================================
