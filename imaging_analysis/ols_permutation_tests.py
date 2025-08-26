@@ -138,26 +138,72 @@ tasks = {
     'ntfd': 'NTFD',
     'allmain_tasks': 'All Tasks',
 }
-all_contrasts = {
-    1: 'Encoding',
-    2: 'Auditory Encoding',
-    3: 'Visual Encoding',
-    4: 'Auditory vs Visual Encoding',
-    5: 'Visual vs Auditory Encoding',
-    6: 'Beat',
-    7: 'Interval',
-    8: 'Beat vs Interval',
-    9: 'Interval vs Beat',
-    10: 'Auditory Beat',
-    11: 'Auditory Interval',
-    12: 'Auditory Beat vs Auditory Interval',
-    13: 'Auditory Interval vs Auditory Beat',
-    14: 'Visual Beat',
-    15: 'Visual Interval',
-    16: 'Visual Beat vs Visual Interval',
-    17: 'Visual Interval vs Visual Beat',
-    18: 'Decision',
-}
+
+# Contrast dictionary (id -> name)
+if task_id != 'rand_ntfd':
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Beat vs Interval',
+        9: 'Interval vs Beat',
+        10: 'Auditory Beat',
+        11: 'Auditory Interval',
+        12: 'Auditory Beat vs Auditory Interval',
+        13: 'Auditory Interval vs Auditory Beat',
+        14: 'Visual Beat',
+        15: 'Visual Interval',
+        16: 'Visual Beat vs Visual Interval',
+        17: 'Visual Interval vs Visual Beat',
+        18: 'Decision'
+    }
+else:
+    assert task_id == 'rand_ntfd'   
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Random',
+        9: 'Beat vs Interval',
+        10: 'Interval vs Beat',
+        11: 'Beat vs Random',
+        12: 'Random vs Beat',
+        13: 'Interval vs Random',
+        14: 'Random vs Interval',
+        15: 'Non-Random vs Random',
+        16: 'Random vs Non-Random',
+        17: 'Auditory Beat',
+        18: 'Auditory Interval',
+        19: 'Auditory Random',
+        20: 'Auditory Beat vs Auditory Interval',
+        21: 'Auditory Interval vs Auditory Beat',
+        22: 'Auditory Beat vs Auditory Random',
+        23: 'Auditory Random vs Auditory Beat',
+        24: 'Auditory Interval vs Auditory Random',
+        25: 'Auditory Random vs Auditory Interval',
+        26: 'Auditory Non-Random vs Auditory Random',
+        27: 'Auditory Random vs Auditory Non-Random',
+        28: 'Visual Beat',
+        29: 'Visual Interval',
+        30: 'Visual Random',
+        31: 'Visual Beat vs Visual Interval',
+        32: 'Visual Interval vs Visual Beat',
+        33: 'Visual Beat vs Visual Random',
+        34: 'Visual Random vs Visual Beat',                    
+        35: 'Visual Interval vs Visual Random',
+        36: 'Visual Random vs Visual Interval',
+        37: 'Visual Non-Random vs Visual Random',
+        38: 'Visual Random vs Visual Non-Random',
+        39: 'Decision'
+    }
 
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
