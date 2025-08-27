@@ -983,8 +983,8 @@ task_tag = 'Randomized NTFD' # 'Production', 'Perception', 'NTFD', 'Randomized N
 # To run a subset sequentially:
 # contrast_name = ['Beat', 'Interval', 'Decision'] and contrast_name2 = None.
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'ALL' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
-contrast_name2 = None # E.g. 'Interval'
+contrast_name = 'Visual Interval' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = 'Visual Random' # E.g. 'Interval'
 
 # ========================= PARAMETERS =================================
 

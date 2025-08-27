@@ -359,7 +359,7 @@ suitparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
     'suit')
 
-task_tag = 'Perception' # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
+task_tag = 'NTFD' # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
 contrast_name = 'ALL' # 'E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # Set to None if not used
 
@@ -383,8 +383,14 @@ iroi_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          'cerebellum', 'ntk_symmni128', 'cereb',
                          'overlaid_masks', 'i8a_cereb_bh_mask.nii.gz')
 
-tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
+# Tasks definitions
+tasks = {'prod': 'Production', 
+         'percep': 'Perception', 
+         'ntfd': 'NTFD',
+         'rand_ntfd': 'Randomized NTFD',
          'allmain_tasks': 'All Tasks'}
+
+task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
 # Contrast dictionary (id -> name)
 if task_id != 'rand_ntfd':
@@ -451,8 +457,6 @@ else:
         38: 'Visual Random vs Visual Non-Random',
         39: 'Decision'
     }
-
-task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
 # Output folders
 suit_folder = os.path.join(suitparametric_folder, task_id, 
