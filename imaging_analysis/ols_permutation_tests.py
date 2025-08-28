@@ -42,8 +42,8 @@ import nitools as nt  # optional: write GIFTI for SUIT vectors
 
 # ============================ TOGGLES ==================================
 
-RUN_VOLUME = True
-RUN_SURFACE = False
+RUN_VOLUME = False
+RUN_SURFACE = True
 RUN_SUIT = False
 
 # Run all single-contrast maps
@@ -72,7 +72,7 @@ SUBJECTS = [
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 ]
 
-task_tag = 'Perception'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
+task_tag = 'All Tasks'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
 contrast_name = 'Encoding'       # first contrast (required)
 contrast_name2 = None  # None or optional second contrast
 
@@ -156,7 +156,7 @@ else:
         38: 'Visual Random vs Visual Non-Random',
         39: 'Decision'
     }
-
+0/0
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 contrast_id2 = (
     {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
@@ -182,21 +182,21 @@ out_root_vol = os.path.join(
 # Surface files (CIFTI) and plots
 surf_files_root = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    'results', 'surface_files',
+    'results', 'ols_permutation_tests', 'surface', task_id, 'surface_files'
 )
 surf_plots_root = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'surface',
+    'results', 'ols_permutation_tests', 'surface', task_id, 'surface_images'
 )
 
 # SUIT outputs (volume t → SUIT)
 suit_files_root = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'suit', 'files',
+    'results', 'ols_permutation_tests', 'suit', task_id, 'suit_files'
 )
 suit_plots_root = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'suit', 'plots',
+    'results', 'ols_permutation_tests', 'suit', task_id, 'suit_images'
 )
 
 # Medial wall masks (fs_LR 32k)
@@ -967,6 +967,8 @@ if __name__ == '__main__':
                 contrast_id = cid
                 contrast_name = cname
                 label1_kebab = sanitize_label_kebab(cname)
+                idlabel1 = id_label_folder(cid, cname)
+
                 run_surface_plot_single(
                     thr_mode=thr_mode,
                     zthr_from_volume=zthr_vol,
