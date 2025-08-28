@@ -72,7 +72,7 @@ SUBJECTS = [
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 ]
 
-task_tag = 'All Tasks'
+task_tag = 'Perception'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
 contrast_name = 'Encoding'       # first contrast (required)
 contrast_name2 = None  # None or optional second contrast
 
@@ -82,62 +82,14 @@ fdr_alpha = 0.05
 
 # ========================= PATHS / LABELS ==============================
 
-if os.path.isdir('/home/analu/diedrichsen_data/data'):
-    base_dir = '/home/analu/diedrichsen_data/data'
-else:
-    base_dir = '/cifs/diedrichsen/data'
-
-music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
-derivatives_folder = os.path.join(music, 'derivatives')
-GM_MASK_PATH = os.path.join(derivatives_folder, 'group', 'anat',
-                            'group_mask_gray.nii')
-
-# Volume outputs
-out_root_vol = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'volume',
-)
-
-# Surface files (CIFTI) and plots
-surf_files_root = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'surface_files',
-)
-surf_plots_root = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'surface',
-)
-
-# SUIT outputs (volume t → SUIT)
-suit_files_root = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'suit', 'files',
-)
-suit_plots_root = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'ols_permutation_tests', 'suit', 'plots',
-)
-
-# Medial wall masks (fs_LR 32k)
-fslr32k_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'fslr32k_meshes'
-)
-mask_suffix = '1'
-lh_medial_wall_mask_path = os.path.join(
-    fslr32k_folder, 'medialwall_masks',
-    f'fs_LR.32k.L.medialwall.mask{mask_suffix}.gii'
-)
-rh_medial_wall_mask_path = os.path.join(
-    fslr32k_folder, 'medialwall_masks',
-    f'fs_LR.32k.R.medialwall.mask{mask_suffix}.gii'
-)
-
-tasks = {
-    'prod': 'Production',
-    'percep': 'Perception',
-    'ntfd': 'NTFD',
-    'allmain_tasks': 'All Tasks',
+# Tasks definitions
+tasks = {'prod': 'Production', 
+         'percep': 'Perception', 
+         'ntfd': 'NTFD',
+         'rand_ntfd': 'Randomized NTFD',
+         'allmain_tasks': 'All Tasks'
 }
+task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
 # Contrast dictionary (id -> name)
 if task_id != 'rand_ntfd':
@@ -205,11 +157,60 @@ else:
         39: 'Decision'
     }
 
-task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 contrast_id2 = (
     {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
     if contrast_name2 else None
+)
+
+if os.path.isdir('/home/analu/diedrichsen_data/data'):
+    base_dir = '/home/analu/diedrichsen_data/data'
+else:
+    base_dir = '/cifs/diedrichsen/data'
+
+music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
+derivatives_folder = os.path.join(music, 'derivatives')
+GM_MASK_PATH = os.path.join(derivatives_folder, 'group', 'anat',
+                            'group_mask_gray.nii')
+
+# Volume outputs
+out_root_vol = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'ols_permutation_tests', 'volume', task_id
+)
+
+# Surface files (CIFTI) and plots
+surf_files_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'surface_files',
+)
+surf_plots_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'ols_permutation_tests', 'surface',
+)
+
+# SUIT outputs (volume t → SUIT)
+suit_files_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'ols_permutation_tests', 'suit', 'files',
+)
+suit_plots_root = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'ols_permutation_tests', 'suit', 'plots',
+)
+
+# Medial wall masks (fs_LR 32k)
+fslr32k_folder = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'fslr32k_meshes'
+)
+mask_suffix = '1'
+lh_medial_wall_mask_path = os.path.join(
+    fslr32k_folder, 'medialwall_masks',
+    f'fs_LR.32k.L.medialwall.mask{mask_suffix}.gii'
+)
+rh_medial_wall_mask_path = os.path.join(
+    fslr32k_folder, 'medialwall_masks',
+    f'fs_LR.32k.R.medialwall.mask{mask_suffix}.gii'
 )
 
 # ========================== HELPERS ====================================
