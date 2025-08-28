@@ -1033,8 +1033,8 @@ tasks = {'prod': 'Production',
          'percep': 'Perception', 
          'ntfd': 'NTFD',
          'rand_ntfd': 'Randomized NTFD',
-         'allmain_tasks': 'All Tasks'}
-
+         'allmain_tasks': 'All Tasks'
+}
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
 # Contrast dictionary (id -> name)
