@@ -43,8 +43,8 @@ import nitools as nt  # optional: write GIFTI for SUIT vectors
 # ============================ TOGGLES ==================================
 
 RUN_VOLUME = False
-RUN_SURFACE = True
-RUN_SUIT = False
+RUN_SURFACE = False
+RUN_SUIT = True
 
 # Run all single-contrast maps
 RUN_ALL_CONTRASTS = True
@@ -72,8 +72,8 @@ SUBJECTS = [
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 ]
 
-task_tag = 'All Tasks'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
-contrast_name = 'Encoding'       # first contrast (required)
+task_tag = 'Randomized NTFD'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
+contrast_name = 'Encoding'    # first contrast (required)
 contrast_name2 = None  # None or optional second contrast
 
 n_permutations = 10000
@@ -123,40 +123,43 @@ else:
         5: 'Visual vs Auditory Encoding',
         6: 'Beat',
         7: 'Interval',
-        8: 'Random',
-        9: 'Beat vs Interval',
-        10: 'Interval vs Beat',
-        11: 'Beat vs Random',
-        12: 'Random vs Beat',
-        13: 'Interval vs Random',
-        14: 'Random vs Interval',
-        15: 'Non-Random vs Random',
-        16: 'Random vs Non-Random',
-        17: 'Auditory Beat',
-        18: 'Auditory Interval',
-        19: 'Auditory Random',
-        20: 'Auditory Beat vs Auditory Interval',
-        21: 'Auditory Interval vs Auditory Beat',
-        22: 'Auditory Beat vs Auditory Random',
-        23: 'Auditory Random vs Auditory Beat',
-        24: 'Auditory Interval vs Auditory Random',
-        25: 'Auditory Random vs Auditory Interval',
-        26: 'Auditory Non-Random vs Auditory Random',
-        27: 'Auditory Random vs Auditory Non-Random',
-        28: 'Visual Beat',
-        29: 'Visual Interval',
-        30: 'Visual Random',
-        31: 'Visual Beat vs Visual Interval',
-        32: 'Visual Interval vs Visual Beat',
-        33: 'Visual Beat vs Visual Random',
-        34: 'Visual Random vs Visual Beat',                    
-        35: 'Visual Interval vs Visual Random',
-        36: 'Visual Random vs Visual Interval',
-        37: 'Visual Non-Random vs Visual Random',
-        38: 'Visual Random vs Visual Non-Random',
-        39: 'Decision'
+        8: 'Non-Random',
+        9: 'Random',
+        10: 'Beat vs Interval',
+        11: 'Interval vs Beat',
+        12: 'Beat vs Random',
+        13: 'Random vs Beat',
+        14: 'Interval vs Random',
+        15: 'Random vs Interval',
+        16: 'Non-Random vs Random',
+        17: 'Random vs Non-Random',
+        18: 'Auditory Beat',
+        19: 'Auditory Interval',
+        20: 'Auditory Non-Random',                   
+        21: 'Auditory Random',
+        22: 'Auditory Beat vs Auditory Interval',
+        23: 'Auditory Interval vs Auditory Beat',
+        24: 'Auditory Beat vs Auditory Random',
+        25: 'Auditory Random vs Auditory Beat',
+        26: 'Auditory Interval vs Auditory Random',
+        27: 'Auditory Random vs Auditory Interval',
+        28: 'Auditory Non-Random vs Auditory Random',
+        29: 'Auditory Random vs Auditory Non-Random',
+        30: 'Visual Beat',
+        31: 'Visual Interval',
+        32: 'Visual Non-Random',                   
+        33: 'Visual Random',
+        34: 'Visual Beat vs Visual Interval',
+        35: 'Visual Interval vs Visual Beat',
+        36: 'Visual Beat vs Visual Random',
+        37: 'Visual Random vs Visual Beat',                    
+        38: 'Visual Interval vs Visual Random',
+        39: 'Visual Random vs Visual Interval',
+        40: 'Visual Non-Random vs Visual Random',
+        41: 'Visual Random vs Visual Non-Random',
+        42: 'Decision'
     }
-0/0
+
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 contrast_id2 = (
     {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
