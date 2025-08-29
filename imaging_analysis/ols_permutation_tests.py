@@ -47,7 +47,7 @@ RUN_SURFACE = True
 RUN_SUIT = False
 
 # Run all single-contrast maps
-RUN_ALL_CONTRASTS = True
+RUN_ALL_CONTRASTS = False
 
 # Threshold sources for plotting:
 #   - 'volume'  : use volume FDR z-threshold(s)
@@ -72,9 +72,9 @@ SUBJECTS = [
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 ]
 
-task_tag = 'NTFD'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
-contrast_name = 'Encoding'    # first contrast (required)
-contrast_name2 = None  # None or optional second contrast
+task_tag = 'Randomized NTFD'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
+contrast_name = 'Beat'    # first contrast (required)
+contrast_name2 = 'Interval'  # None or optional second contrast
 
 n_permutations = 10000
 two_sided_test = False
@@ -705,7 +705,7 @@ def run_surface_plot_single(contrasts_dic,
     print("[surface] Flatmap (single) saved to:", outdir)
 
 
-def run_surface_plot_two(
+def run_surface_plot_two(contrasts_dic,
     thr_mode="volume", zthr1_vol=None, zthr2_vol=None, colors=TWO_COLORS
 ):
     """
@@ -720,10 +720,10 @@ def run_surface_plot_two(
 
     # Compute surface z for both contrasts via per-vertex permuted OLS
     z_lh1, z_rh1 = surface_z_for_one_contrast(
-        contrast_id, contrast_name, label1_kebab
+        contrasts_dic, contrast_id, contrast_name, label1_kebab
     )
     z_lh2, z_rh2 = surface_z_for_one_contrast(
-        contrast_id2, contrast_name2, label2_kebab
+        contrasts_dic, contrast_id2, contrast_name2, label2_kebab
     )
 
     # Thresholds: from surface z or from volume (if provided)
@@ -1031,6 +1031,7 @@ if __name__ == '__main__':
             )
             if contrast_name2 and contrast_id2:
                 run_surface_plot_two(
+                    all_contrasts,
                     thr_mode=thr_mode,
                     zthr1_vol=zthr1_vol,
                     zthr2_vol=zthr2_vol,
