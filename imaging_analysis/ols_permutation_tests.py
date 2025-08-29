@@ -43,8 +43,8 @@ import nitools as nt  # optional: write GIFTI for SUIT vectors
 # ============================ TOGGLES ==================================
 
 RUN_VOLUME = False
-RUN_SURFACE = False
-RUN_SUIT = True
+RUN_SURFACE = True
+RUN_SUIT = False
 
 # Run all single-contrast maps
 RUN_ALL_CONTRASTS = True
@@ -72,7 +72,7 @@ SUBJECTS = [
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 ]
 
-task_tag = 'Randomized NTFD'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
+task_tag = 'NTFD'  # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
 contrast_name = 'Encoding'    # first contrast (required)
 contrast_name2 = None  # None or optional second contrast
 
@@ -584,7 +584,7 @@ def run_volume_pipeline_one(contrast_nm, contrast_k, label_out, cap_out):
 
 # ============================ SURFACE ==================================
 
-def build_surface_matrices(contrast_k, contrast_lbl_kebab):
+def build_surface_matrices(contrasts_dic, contrast_k, contrast_lbl_kebab):
     """
     Ensure subject CIFTIs exist; return LH/RH matrices of shape
     (subjects, vertices) in fs_LR 32k space.
@@ -600,12 +600,14 @@ def build_surface_matrices(contrast_k, contrast_lbl_kebab):
         f"sub-{SUBJECTS[0]:02d}_{task_id.replace('_','-')}_"
         f"{contrast_lbl_kebab}_{SURFSPACE}.dscalar.nii",
     )
+    
     if make_cifti_if_missing and not os.path.exists(cifti0):
         print("[surface] Creating subject CIFTI (vol->surf)...")
         individual_surf(
             derivatives_dir=derivatives_folder,
             subjects=SUBJECTS,
             task_key=task_id,
+            contrasts_dic=contrasts_dic,
             contrast_key=contrast_k,
             surf_dir=surf_files_root,
             surfspace=SURFSPACE,
@@ -616,7 +618,6 @@ def build_surface_matrices(contrast_k, contrast_lbl_kebab):
         surf_files_root, SUBJECTS, task_id, contrast_k, contrast_lbl_kebab,
         surfspace=SURFSPACE,
     )
-
     lh_list, rh_list = [], []
     for path in cifti_files:
         lh, rh = load_lr_from_cifti(path)
@@ -630,9 +631,11 @@ def build_surface_matrices(contrast_k, contrast_lbl_kebab):
     return Y_lh, Y_rh
 
 
-def surface_z_for_one_contrast(contrast_k, contrast_nm, contrast_lbl_kebab):
+def surface_z_for_one_contrast(contrasts_dic, contrast_k, contrast_nm, 
+                               contrast_lbl_kebab):
     """Per-vertex permuted OLS on surface; return masked LH/RH z."""
-    Y_lh, Y_rh = build_surface_matrices(contrast_k, contrast_lbl_kebab)
+    Y_lh, Y_rh = build_surface_matrices(contrasts_dic, contrast_k, 
+                                        contrast_lbl_kebab)
     n_subj = Y_lh.shape[0]
     df = n_subj - 1
 
@@ -665,10 +668,11 @@ def surface_z_for_one_contrast(contrast_k, contrast_nm, contrast_lbl_kebab):
     return z_lh, z_rh
 
 
-def run_surface_plot_single(thr_mode='volume', zthr_from_volume=None):
+def run_surface_plot_single(contrasts_dic, 
+                            thr_mode='volume', zthr_from_volume=None):
     """Single-contrast surface flatmap with volume/surface FDR(z)."""
     z_lh1, z_rh1 = surface_z_for_one_contrast(
-        contrast_id, contrast_name, label1_kebab
+        contrasts_dic, contrast_id, contrast_name, label1_kebab
     )
 
     if thr_mode == 'surface' or not np.isfinite(zthr_from_volume or np.nan):
@@ -973,6 +977,7 @@ if __name__ == '__main__':
                 idlabel1 = id_label_folder(cid, cname)
 
                 run_surface_plot_single(
+                    all_contrasts,
                     thr_mode=thr_mode,
                     zthr_from_volume=zthr_vol,
                 )
@@ -1033,6 +1038,7 @@ if __name__ == '__main__':
                 )
             else:
                 run_surface_plot_single(
+                    all_contrasts,
                     thr_mode=thr_mode,
                     zthr_from_volume=zthr1_vol,
                 )

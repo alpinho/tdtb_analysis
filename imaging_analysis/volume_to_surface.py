@@ -104,7 +104,7 @@ def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
     return pial_left, pial_right, white_left, white_right
 
 
-def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
+def individual_surf(derivatives_dir, subjects, task_key, contrasts_dic, contrast_key,
                     surf_dir, surfspace='fslr32k', save='gifti'):
 
     # Paths of the NON-NORMALIZED individual contrast map for all subjects
@@ -132,7 +132,7 @@ def individual_surf(derivatives_dir, subjects, task_key, contrast_key,
 
         # Transform numpy arrays in gifti files
         contrast = (
-            all_contrasts[contrast_key]
+            contrasts_dic[contrast_key]
             .replace(' vs ', '_vs_')
             .replace(' ', '-')
         )
@@ -1147,10 +1147,12 @@ if __name__ == '__main__':
             os.makedirs(_cdir, exist_ok=True)
 
             # ---- compute individual surfaces (gifti + cifti) ------------
-            individual_surf(derivatives_folder, SUBJECTS, task_id, _cid,
-                            surf_folder, surfspace='fslr32k', save='gifti')
-            individual_surf(derivatives_folder, SUBJECTS, task_id, _cid,
-                            surf_folder, surfspace='fslr32k', save='cifti')
+            individual_surf(derivatives_folder, SUBJECTS, task_id, 
+                            all_contrasts, _cid, surf_folder, 
+                            surfspace='fslr32k', save='gifti')
+            individual_surf(derivatives_folder, SUBJECTS, task_id, 
+                            all_contrasts, _cid, surf_folder, 
+                            surfspace='fslr32k', save='cifti')
 
             # ---- compute group CIFTI → split → mask ---------------------
             z_values = group_surf(surf_folder, SUBJECTS, task_id, _cid, _tag,
@@ -1208,10 +1210,12 @@ if __name__ == '__main__':
         os.makedirs(cdir, exist_ok=True)
 
         # ---- compute individual (gifti + cifti) -------------------------
-        individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                        surf_folder, surfspace='fslr32k', save='gifti')
-        individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                        surf_folder, surfspace='fslr32k', save='cifti')
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+                        contrast_id, surf_folder, 
+                        surfspace='fslr32k', save='gifti')
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+                        contrast_id, surf_folder, 
+                        surfspace='fslr32k', save='cifti')
 
         # ---- compute group → split → mask -------------------------------
         z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, cname,
@@ -1270,10 +1274,12 @@ if __name__ == '__main__':
         # ---- compute + group + mask for contrast 1 ----------------------
         cdir1 = os.path.join(surf_folder, f"{contrast_id}_{cname.lower()}")
         os.makedirs(cdir1, exist_ok=True)
-        individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                        surf_folder, surfspace='fslr32k', save='gifti')
-        individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id,
-                        surf_folder, surfspace='fslr32k', save='cifti')
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+                        contrast_id, surf_folder, 
+                        surfspace='fslr32k', save='gifti')
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+                        contrast_id, surf_folder, 
+                        surfspace='fslr32k', save='cifti')
         z_values1 = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, cname,
                                surfspace='fslr32k')
         zL1 = mask_cortical_activation(
@@ -1300,12 +1306,14 @@ if __name__ == '__main__':
         # ---- compute + group + mask for contrast 2 ----------------------
         cdir2 = os.path.join(surf_folder, f"{contrast_id2}_{cname2.lower()}")
         os.makedirs(cdir2, exist_ok=True)
-        individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id2,
-                        surf_folder, surfspace='fslr32k', save='gifti')
-        individual_surf(derivatives_folder, SUBJECTS, task_id, contrast_id2,
-                        surf_folder, surfspace='fslr32k', save='cifti')
-        z_values2 = group_surf(surf_folder, SUBJECTS, task_id, contrast_id2, cname2,
-                               surfspace='fslr32k')
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
+                        contrast_id2, surf_folder, 
+                        surfspace='fslr32k', save='gifti')
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+                        contrast_id2, surf_folder, 
+                        surfspace='fslr32k', save='cifti')
+        z_values2 = group_surf(surf_folder, SUBJECTS, task_id, all_contrasts, 
+                               contrast_id2, cname2, surfspace='fslr32k')
         zL2 = mask_cortical_activation(
             np.split(z_values2, 2, axis=0)[0], lh_medial_wall_mask_path)
         zR2 = mask_cortical_activation(
