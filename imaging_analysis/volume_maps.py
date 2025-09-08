@@ -13,7 +13,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 22nd of August 2025
-Last Update: August 2025
+Last Update: September 2025
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 """
@@ -55,14 +55,13 @@ SUBJECTS = [
 ]
 
 # Task selection
-tasks = {
-    'prod': 'Production',
-    'percep': 'Perception',
-    'ntfd': 'NTFD',
-    'rand_ntfd': 'Randomized NTFD',
-    'allmain_tasks': 'All Tasks'
+tasks = {'prod': 'Production', 
+         'percep': 'Perception', 
+         'ntfd': 'NTFD',
+         'rand_ntfd': 'NTFD Random',
+         'allmain_tasks': 'All Tasks'
 }
-task_tag = 'Randomized NTFD'  # display label
+task_tag = 'NTFD Random' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
 task_id = {v: k for k, v in tasks.items()}[task_tag]  # e.g. 'allmain_tasks'
 
 # Contrast dictionary (id -> name)

@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of February 2025
-Last Update: August 2025
+Last Update: September 2025
 
 Compatibility: Python 3.10.x, Nilearn, SUITPy
 
@@ -359,7 +359,7 @@ suitparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
     'suit')
 
-task_tag = 'Randomized NTFD' # 'Production', 'Perception', 'NTFD', 'Randomized NTFD', 'All Tasks'
+task_tag = 'NTFD Random' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
 contrast_name = 'ALL' # 'E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # Set to None if not used
 
@@ -387,7 +387,7 @@ iroi_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 tasks = {'prod': 'Production', 
          'percep': 'Perception', 
          'ntfd': 'NTFD',
-         'rand_ntfd': 'Randomized NTFD',
+         'rand_ntfd': 'NTFD Random',
          'allmain_tasks': 'All Tasks'
 }
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
