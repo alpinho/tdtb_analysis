@@ -5,7 +5,7 @@ for a given set of contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: June 2025
+Last update: September 2025
 
 Compatibility: Python 3.10.14
 
@@ -157,8 +157,9 @@ def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
     n_voxels = np.count_nonzero(msdtb_val)
 
     if not n_voxels:
-        raise ValueError('N_voxels = 0 ! There is no intersection between' + \
-                         'thresholded, group encoding map and atlas-roi mask.')
+        raise ValueError(
+            'N_voxels = 0 ! There is no intersection between ' + \
+            'thresholded, group encoding map and atlas-roi mask.')
 
     # Create msdtb mask
     msdtb_mask = new_img_like(atlas_rmask, msdtb_val)
@@ -299,11 +300,59 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir,
 
 
 def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
-                       group_tmap_path, contrasts_dic, contype, prefix,
-                       derivatives_folder, mask, 
+                       group_tmap_path, tasks_list, contrasts_dic, contype, 
+                       prefix, derivatives_folder, mask, 
                        con_thresh_min=3.385, weights=None, 
                        subregion=False, hems=['lh', 'rh', 'bh'], 
                        derivative_type='sm8wbmasked'):
+    """
+    Extract individual ROIs and compute overlay of individual masks.
+    
+    Parameters
+    ----------
+    main_dir : str
+        Main directory where to store the results.
+    atlas_dir : str
+        Directory where the atlas is located.
+    atlas : str
+        Name of the atlas.
+    region : str
+        Name of the brain region.
+    roi : str
+        Name of the ROI.
+    group_tmap_path : str
+        Path to the group-level encoding t-map.
+    tasks_list : list
+        List of tasks to be considered.
+    contrasts_dic : dict
+        Dictionary with the contrasts to be extracted.
+    contype : str
+        Type of contrast to be extracted.
+    prefix : str
+        Prefix to be used for the output files.
+    derivatives_folder : str
+        Name of the derivatives folder where the individual contrasts 
+        are located.
+    mask : str
+        Masking type used in the first-level analysis.
+    con_thresh_min : float, optional
+        Minimum threshold for the group t-map, by default 3.385.
+    weights : tuple, optional
+        Tuple with the weights for the individual and group t-maps, by 
+        default None. If None, only the individual t-map is used. If 
+        (0., 1.), only the group t-map is used.
+    subregion : bool, optional
+        Whether the ROI is a subregion (i.e., cerebellum) or not, by 
+        default False.
+    hems : list, optional
+        List of hemispheres to be considered, by default 
+        ['lh', 'rh', 'bh'].
+    derivative_type : str, optional
+        Type of derivative to be extracted, by default 'sm8wbmasked'.
+
+    Shape of the ROIs extracted and stored in npy files:
+        (hemisphere, tasks, contrasts, subjects)   
+    """
 
     if subregion:
         roi_dir = os.path.join(main_dir, region, atlas, roi)
@@ -390,7 +439,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
 
             # ### For each task ###
             itasks_contrasts = []
-            for task in tasks.keys():
+            for task in tasks_list.keys():
                 # Extract individual ROIs
                 itask_contrasts = extract_roi(
                     irmask, task, contrasts_dic, estimates_dir,
@@ -417,13 +466,6 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
 
 # ############################# INPUTS ##################################
 
-if os.path.isdir('/home/analu/diedrichsen_data/data'):
-    base_dir = '/home/analu/diedrichsen_data/data'
-else:
-    base_dir = '/cifs/diedrichsen/data'
-
-data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
-
 # Subjects w/ pilot
 # SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21,
 #             22, 23, 26, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
@@ -433,34 +475,112 @@ data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# SUBJECTS = [13]
+# To build ROI Encoding mask
+task_tag = 'Production' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+# To extract data from what tasks
+tasks = {
+    'prod': 'Production', 
+    #'percep': 'Perception', 
+    #'ntfd': 'NTFD',
+    #'rand_ntfd': 'NTFD Random',
+    #'allmain_tasks': 'All Tasks'
+}
 
-tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
-         'allmain_tasks': 'All Tasks'}
+# ========================= PARAMETERS =================================
 
-all_contrasts = {1: 'Encoding',
-                 2: 'Auditory Encoding',
-                 3: 'Visual Encoding',
-                 4: 'Auditory vs Visual Encoding',
-                 5: 'Visual vs Auditory Encoding',
-                 6: 'Beat',
-                 7: 'Interval',
-                 8: 'Beat vs Interval',
-                 9: 'Interval vs Beat',
-                 10: 'Auditory Beat',
-                 11: 'Auditory Interval',
-                 12: 'Auditory Beat vs Auditory Interval',
-                 13: 'Auditory Interval vs Auditory Beat',
-                 14: 'Visual Beat',
-                 15: 'Visual Interval',
-                 16: 'Visual Beat vs Visual Interval',
-                 17: 'Visual Interval vs Visual Beat',
-                 18: 'Decision'}
+if os.path.isdir('/home/analu/diedrichsen_data/data'):
+    base_dir = '/home/analu/diedrichsen_data/data'
+else:
+    base_dir = '/cifs/diedrichsen/data'
 
-selected_contrasts = {10: 'Auditory Beat',
-                      11: 'Auditory Interval',
-                      14: 'Visual Beat',
-                      15: 'Visual Interval'}
+data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
+
+
+task_id = {v: k for k, v in tasks.items()}.get(task_tag)
+
+# Contrast dictionary (id -> name)
+if task_id != 'rand_ntfd':
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Beat vs Interval',
+        9: 'Interval vs Beat',
+        10: 'Auditory Beat',
+        11: 'Auditory Interval',
+        12: 'Auditory Beat vs Auditory Interval',
+        13: 'Auditory Interval vs Auditory Beat',
+        14: 'Visual Beat',
+        15: 'Visual Interval',
+        16: 'Visual Beat vs Visual Interval',
+        17: 'Visual Interval vs Visual Beat',
+        18: 'Decision'
+    }
+    selected_contrasts = {
+        10: 'Auditory Beat',
+        11: 'Auditory Interval',
+        14: 'Visual Beat',
+        15: 'Visual Interval'
+    }
+else:
+    assert task_id == 'rand_ntfd'
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Non-Random',
+        9: 'Random',
+        10: 'Beat vs Interval',
+        11: 'Interval vs Beat',
+        12: 'Beat vs Random',
+        13: 'Random vs Beat',
+        14: 'Interval vs Random',
+        15: 'Random vs Interval',
+        16: 'Non-Random vs Random',
+        17: 'Random vs Non-Random',
+        18: 'Auditory Beat',
+        19: 'Auditory Interval',
+        20: 'Auditory Non-Random',                   
+        21: 'Auditory Random',
+        22: 'Auditory Beat vs Auditory Interval',
+        23: 'Auditory Interval vs Auditory Beat',
+        24: 'Auditory Beat vs Auditory Random',
+        25: 'Auditory Random vs Auditory Beat',
+        26: 'Auditory Interval vs Auditory Random',
+        27: 'Auditory Random vs Auditory Interval',
+        28: 'Auditory Non-Random vs Auditory Random',
+        29: 'Auditory Random vs Auditory Non-Random',
+        30: 'Visual Beat',
+        31: 'Visual Interval',
+        32: 'Visual Non-Random',                   
+        33: 'Visual Random',
+        34: 'Visual Beat vs Visual Interval',
+        35: 'Visual Interval vs Visual Beat',
+        36: 'Visual Beat vs Visual Random',
+        37: 'Visual Random vs Visual Beat',                    
+        38: 'Visual Interval vs Visual Random',
+        39: 'Visual Random vs Visual Interval',
+        40: 'Visual Non-Random vs Visual Random',
+        41: 'Visual Random vs Visual Non-Random',
+        42: 'Decision'
+    }
+    selected_contrasts = {
+        18: 'Auditory Beat',
+        19: 'Auditory Interval',
+        21: 'Auditory Random',
+        30: 'Visual Beat',
+        31: 'Visual Interval',
+        33: 'Visual Random'
+    }  
+keys = list(selected_contrasts.keys())
 
 model = 'rwls' # 'rwls'; or 'standard' (no rwls)
 masking = 'wb' # 'wb' for whole-brain; 'gm' for grey matter
@@ -470,29 +590,41 @@ hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
 # hrf_cutoff = 'hrf128_timederiv'
 # hrf_cutoff = 'hrf128_timedispderiv'
 
-individual_derivatives_folder = 'masked_derivatives_' + model + '_' + \
-    design + '_' + hrf_cutoff
+individual_derivatives_folder = \
+    'masked_derivatives_' + model + '_' + design + '_' + hrf_cutoff
+group_derivatives_folder = \
+    'rfx_onesample_t_' + model + '_' + design + '_' + hrf_cutoff + '_' + \
+    masking
 
-group_relative_path = 'group/allmain_tasks/rfx_onesample_t_' + model + '_'+ \
-    design + '_' + hrf_cutoff + '_' + masking
-
+group_relative_path = os.path.join(
+    'group', 
+    task_id, 
+    group_derivatives_folder
+    )
 group_encoding_folder = 'con_01_Encoding'
-gtmap_encoding = os.path.join(data_dir, group_relative_path,
-                              group_encoding_folder, 'spmT_0001.nii')
+gtmap_encoding = os.path.join(
+    data_dir, group_relative_path,
+    group_encoding_folder, 
+    'spmT_0001.nii'
+    )
 group_audioencoding_folder = 'con_02_Auditory_Encoding'
-gtmap_audioencoding = os.path.join(data_dir, group_relative_path,
-                                   group_audioencoding_folder, 'spmT_0001.nii')
+gtmap_audioencoding = os.path.join(
+    data_dir, group_relative_path,
+    group_audioencoding_folder, 
+    'spmT_0001.nii'
+    )
 group_visualencoding_folder = 'con_03_Visual_Encoding'
-gtmap_visualencoding = os.path.join(data_dir, group_relative_path,
-                                    group_visualencoding_folder, 'spmT_0001.nii')
+gtmap_visualencoding = os.path.join(
+    data_dir, group_relative_path,
+    group_visualencoding_folder, 
+    'spmT_0001.nii'
+    )
 
 #### Group-level cluster size
-
 t_threshold = 3.385 ## for a Z value = 3.1 (p < 0.001 - one tail) and dof = 30 -1 (for one sample t-test)
 # t_threshold = 2.91931699 ## for a Z value = 2.7166013496886174 (p < 0.05 FDR-corrected) and dof = 30 -1 (for one sample t-test)
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
-
 atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 atag_dir = os.path.join(atlases_dir, 'atag_atlas')
@@ -502,7 +634,8 @@ hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 roi_dir = os.path.join(
     working_dir, 
     f'roi_analyses_{model}_{hrf_cutoff}_{masking}'
-    f'_puncorr_unsmoothed')
+    f'_puncorr_unsmoothed'
+)
 
 contrast_type = 'wbmasked' # 'sm8wbmasked'
 
@@ -545,22 +678,28 @@ if __name__ == '__main__':
     assert(len(sys.argv) > 1), "No arg was introduced. " + \
                                "You must pass a valid arg to the script."
 
+    # Encoding type: from what encoding contrast do we define the ROIs?
     encoding_type = sys.argv[1]
-
     if encoding_type == 'all':
         gtmap = gtmap_encoding
         filtered_contrasts = selected_contrasts
-        msdtb_dir = os.path.join(roi_dir, 'all')
+        msdtb_dir = os.path.join(roi_dir, 'all', task_id)
     elif encoding_type == 'auditory':
         gtmap = gtmap_audioencoding
-        filtered_contrasts = {key: selected_contrasts[key]
-                              for key in [10, 11] if key in selected_contrasts}
-        msdtb_dir = os.path.join(roi_dir, 'auditory')
+        auditory_keys = keys[:len(keys)//2]
+        filtered_contrasts = {
+            key: selected_contrasts[key] 
+            for key in auditory_keys if key in selected_contrasts
+        }
+        msdtb_dir = os.path.join(roi_dir, 'auditory', task_id)
     elif encoding_type == 'visual':
         gtmap = gtmap_visualencoding
-        filtered_contrasts = {key: selected_contrasts[key]
-                              for key in [14, 15] if key in selected_contrasts}
-        msdtb_dir = os.path.join(roi_dir, 'visual')
+        visual_keys = keys[len(keys)//2:]
+        filtered_contrasts = {
+            key: selected_contrasts[key]
+            for key in visual_keys if key in selected_contrasts
+        }
+        msdtb_dir = os.path.join(roi_dir, 'visual', task_id)
     else:
         raise ValueError("The argument must be 'all', 'auditory' or 'visual'.")
 
@@ -577,14 +716,14 @@ if __name__ == '__main__':
             if region_name == 'dorsal_striatum':
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, gtmap, filtered_contrasts, 'wpsc', tag,
+                    roi_name, gtmap, tasks, filtered_contrasts, 'wpsc', tag,
                     individual_derivatives_folder, masking,
                     con_thresh_min=t_threshold, weights=wpair, 
                     derivative_type=contrast_type)
             else:
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, gtmap, filtered_contrasts, 'wpsc', tag,
+                    roi_name, gtmap, tasks, filtered_contrasts, 'wpsc', tag,
                     individual_derivatives_folder, masking,
                     con_thresh_min=t_threshold, weights=wpair,
                     subregion=True, derivative_type=contrast_type)
