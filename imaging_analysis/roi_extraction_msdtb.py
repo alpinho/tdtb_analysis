@@ -289,6 +289,7 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir,
 
         masked_con = os.path.join(subject_estimates_dir, task,
                                   derivatives_folder, contrast_fname)
+        print('Extracting ROI data from:', masked_con)
 
         # Extract mean average of contrasts effect-size in ROI...
         # ... for a certain participant
@@ -301,7 +302,7 @@ def extract_roi(rmask, task, contrasts, subject_estimates_dir,
 
 def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                        group_tmap_path, tasks_list, contrasts_dic, contype, 
-                       prefix, derivatives_folder, mask, 
+                       prefix, task_roi_definition, derivatives_folder, mask, 
                        con_thresh_min=3.385, weights=None, 
                        subregion=False, hems=['lh', 'rh', 'bh'], 
                        derivative_type='sm8wbmasked'):
@@ -330,6 +331,8 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
         Type of contrast to be extracted.
     prefix : str
         Prefix to be used for the output files.
+    task_roi_definition : str
+        Task used to define the ROIs.
     derivatives_folder : str
         Name of the derivatives folder where the individual contrasts 
         are located.
@@ -385,6 +388,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
             'g_msdtb_' + atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
 
         if hem in ['lh', 'rh']:
+            print('Group Encoding t-map for ROI mask:', group_tmap_path)
             gmask, cluster_size = create_group_roimask(
                 group_tmap_path,
                 atlasreg_maskpath,
@@ -419,9 +423,11 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
                        for match in re.finditer('con_', group_tmap_path)][0]
                 con_id = int(group_tmap_path[idx: idx+2])
                 subject_encoding_tmap = os.path.join(
-                    estimates_dir, 'allmain_tasks', derivatives_folder,
-                    'wspmT_%04d' % con_id + '_desc-sm8' + mask + 'masked.nii')
-
+                    estimates_dir, task_roi_definition, derivatives_folder,
+                    'wspmT_%04d' % con_id + '_desc-sm8' + mask + 'masked.nii'
+                )
+                print('Subject Encoding t-map for ROI mask:', 
+                      subject_encoding_tmap)
                 if hem in ['lh', 'rh']:
                     irmask = create_iroimask(
                         subject_encoding_tmap, atlasreg_maskpath, gmask,
@@ -475,16 +481,22 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# To build ROI Encoding mask
-task_tag = 'Production' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
-# To extract data from what tasks
+# Tasks dictionary (id -> name)
 tasks = {
     'prod': 'Production', 
-    #'percep': 'Perception', 
-    #'ntfd': 'NTFD',
-    #'rand_ntfd': 'NTFD Random',
-    #'allmain_tasks': 'All Tasks'
+    'percep': 'Perception', 
+    'ntfd': 'NTFD',
+    'rand_ntfd': 'NTFD Random',
+    'allmain_tasks': 'All Tasks'
 }
+
+# To build ROI Encoding mask, select one of the following tasks.
+# The group and individual encoding contrasts from that task will be 
+# used to build the mask.
+# 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+task_roidef = 'All Tasks'
+# Tasks to extract ROI data from
+tasks_roiextract_vals = ['NTFD Random']
 
 # ========================= PARAMETERS =================================
 
@@ -495,11 +507,12 @@ else:
 
 data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
 
-
-task_id = {v: k for k, v in tasks.items()}.get(task_tag)
+task_roidef_id = {v: k for k, v in tasks.items()}.get(task_roidef)
+tasks_roiextract = \
+    {k: v for k, v in tasks.items() if v in tasks_roiextract_vals}
 
 # Contrast dictionary (id -> name)
-if task_id != 'rand_ntfd':
+if 'rand_ntfd' not in tasks_roiextract.keys():
     all_contrasts = {
         1: 'Encoding',
         2: 'Auditory Encoding',
@@ -526,8 +539,9 @@ if task_id != 'rand_ntfd':
         14: 'Visual Beat',
         15: 'Visual Interval'
     }
+    folder_name = 'main_tasks'
 else:
-    assert task_id == 'rand_ntfd'
+    assert 'rand_ntfd' in tasks_roiextract.keys()
     all_contrasts = {
         1: 'Encoding',
         2: 'Auditory Encoding',
@@ -579,7 +593,9 @@ else:
         30: 'Visual Beat',
         31: 'Visual Interval',
         33: 'Visual Random'
-    }  
+    }
+    folder_name = 'rand_ntfd'
+  
 keys = list(selected_contrasts.keys())
 
 model = 'rwls' # 'rwls'; or 'standard' (no rwls)
@@ -598,7 +614,7 @@ group_derivatives_folder = \
 
 group_relative_path = os.path.join(
     'group', 
-    task_id, 
+    task_roidef_id, 
     group_derivatives_folder
     )
 group_encoding_folder = 'con_01_Encoding'
@@ -630,13 +646,11 @@ fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
-
 roi_dir = os.path.join(
     working_dir, 
     f'roi_analyses_{model}_{hrf_cutoff}_{masking}'
     f'_puncorr_unsmoothed'
 )
-
 contrast_type = 'wbmasked' # 'sm8wbmasked'
 
 # All ROIs: 10 ROIs
@@ -678,12 +692,14 @@ if __name__ == '__main__':
     assert(len(sys.argv) > 1), "No arg was introduced. " + \
                                "You must pass a valid arg to the script."
 
-    # Encoding type: from what encoding contrast do we define the ROIs?
+    # Encoding type: what is the sensory modality of the encoding contrast 
+    #                do we define the ROIs?
     encoding_type = sys.argv[1]
-    if encoding_type == 'all':
+    msdtb_dir = os.path.join(roi_dir, encoding_type + '_' + task_roidef_id, 
+                             folder_name)
+    if encoding_type == 'bothmod':
         gtmap = gtmap_encoding
         filtered_contrasts = selected_contrasts
-        msdtb_dir = os.path.join(roi_dir, 'all', task_id)
     elif encoding_type == 'auditory':
         gtmap = gtmap_audioencoding
         auditory_keys = keys[:len(keys)//2]
@@ -691,7 +707,6 @@ if __name__ == '__main__':
             key: selected_contrasts[key] 
             for key in auditory_keys if key in selected_contrasts
         }
-        msdtb_dir = os.path.join(roi_dir, 'auditory', task_id)
     elif encoding_type == 'visual':
         gtmap = gtmap_visualencoding
         visual_keys = keys[len(keys)//2:]
@@ -699,9 +714,9 @@ if __name__ == '__main__':
             key: selected_contrasts[key]
             for key in visual_keys if key in selected_contrasts
         }
-        msdtb_dir = os.path.join(roi_dir, 'visual', task_id)
     else:
-        raise ValueError("The argument must be 'all', 'auditory' or 'visual'.")
+        raise ValueError(
+            "The argument must be 'bothmod', 'auditory' or 'visual'.")
 
     # Create main directory if does not exist
     if not os.path.exists(msdtb_dir):
@@ -716,15 +731,17 @@ if __name__ == '__main__':
             if region_name == 'dorsal_striatum':
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, gtmap, tasks, filtered_contrasts, 'wpsc', tag,
+                    roi_name, gtmap, tasks_roiextract, filtered_contrasts, 
+                    'wpsc', tag, task_roidef_id,
                     individual_derivatives_folder, masking,
                     con_thresh_min=t_threshold, weights=wpair, 
                     derivative_type=contrast_type)
             else:
                 iroicon_estimation(
                     msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, gtmap, tasks, filtered_contrasts, 'wpsc', tag,
-                    individual_derivatives_folder, masking,
+                    roi_name, gtmap, tasks_roiextract, filtered_contrasts, 
+                    'wpsc', tag, task_roidef_id, 
+                    individual_derivatives_folder, masking, 
                     con_thresh_min=t_threshold, weights=wpair,
                     subregion=True, derivative_type=contrast_type)
 
