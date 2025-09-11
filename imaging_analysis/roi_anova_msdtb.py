@@ -1093,7 +1093,7 @@ selected_contrasts = {
     33: 'Visual Random'
 }
 task_roidef_id = 'allmain_tasks'
-folder_name = 'main_tasks'
+folder_name = 'rand_ntfd' # 'main_tasks'
 
 # #############
 
