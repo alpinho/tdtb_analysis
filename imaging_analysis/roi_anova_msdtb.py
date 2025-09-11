@@ -1212,18 +1212,22 @@ if __name__ == '__main__':
     encoding_type = sys.argv[2]
     msdtb_dir = os.path.join(roi_dir, encoding_type + '_' + task_roidef_id, 
                              folder_name)
+    keys = list(selected_contrasts.keys())
     if encoding_type == 'bothmod':
         filtered_contrasts = selected_contrasts
     elif encoding_type == 'auditory':
-        filtered_contrasts = {key: selected_contrasts[key]
-                              for key in [10, 11] if key in selected_contrasts}
-        msdtb_dir = os.path.join(roi_dir, 'auditory')
+        auditory_keys = keys[:len(keys)//2]
+        filtered_contrasts = {
+            key: selected_contrasts[key]
+            for key in auditory_keys if key in selected_contrasts}
     elif encoding_type == 'visual':
-        filtered_contrasts = {key: selected_contrasts[key]
-                              for key in [14, 15] if key in selected_contrasts}
-        msdtb_dir = os.path.join(roi_dir, 'visual')
+        visual_keys = keys[len(keys)//2:]
+        filtered_contrasts = {
+            key: selected_contrasts[key]
+            for key in visual_keys if key in selected_contrasts}
     else:
-        raise ValueError("The argument must be 'bothmod', 'auditory' or 'visual'.")
+        raise ValueError(
+            "The argument must be 'bothmod', 'auditory' or 'visual'.")
 
     # ====================== COMPUTE STATS ===============================
     for tag, wpair in zip(tags, weights_list):
