@@ -1265,7 +1265,7 @@ if __name__ == '__main__':
             # # ############## Run ANOVAs per ROI #########################
 
             if n_rois == 10:
-                if encoding_type == 'all':
+                if encoding_type == 'bothmod':
                     # 3-way RM-ANOVA
                     three_anova_dir = os.path.join(anovas_dir, '3way-anova')
                     threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
@@ -1313,7 +1313,7 @@ if __name__ == '__main__':
                 
         # ##################### 8 ROIs ################################
         if n_rois == 8:
-            if encoding_type == 'all':
+            if encoding_type == 'bothmod':
 
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for both modalities
@@ -1342,7 +1342,7 @@ if __name__ == '__main__':
                     dfrois, threeway_anova_roi_task_modality_dir, tag)
 
 
-            if encoding_type in ['all', 'auditory']:
+            if encoding_type in ['bothmod', 'auditory']:
 
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for auditory tasks
@@ -1365,7 +1365,7 @@ if __name__ == '__main__':
                     dfrois, twoway_anova_timingroi_dir, tag, 8, roi_names, 
                     modality='auditory')
 
-            if encoding_type in ['all', 'visual']:
+            if encoding_type in ['bothmod', 'visual']:
 
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for vision tasks
@@ -1391,7 +1391,7 @@ if __name__ == '__main__':
         # ##################### 2 ROIs ##################################
 
         if n_rois == 2:
-            if encoding_type == 'all':
+            if encoding_type == 'bothmod':
 
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for both modalities
@@ -1412,7 +1412,7 @@ if __name__ == '__main__':
                 posthoc_timingroi(
                     dfrois, twoway_anova_timingroi_dir, tag, 2, roi_names)
 
-            if encoding_type in ['all', 'auditory']:
+            if encoding_type in ['bothmod', 'auditory']:
 
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for auditory tasks
@@ -1435,7 +1435,7 @@ if __name__ == '__main__':
                     dfrois, twoway_anova_timingroi_dir, tag, 2, roi_names, 
                     modality='auditory')
 
-            if encoding_type in ['all', 'visual']:
+            if encoding_type in ['bothmod', 'visual']:
 
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for vision tasks
