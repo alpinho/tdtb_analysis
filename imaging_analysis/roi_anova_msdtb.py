@@ -5,7 +5,7 @@ contrasts of the Music-SDTB Project.
 Author: Ana Luisa Pinho
 
 Created: October 2024
-Last update: August 2025
+Last update: September 2025
 
 Compatibility: Python 3.10.14
 
@@ -1064,16 +1064,50 @@ def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh','rh','bh']):
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-tasks = {'prod': 'Production', 'percep': 'Perception', 'ntfd': 'NTFD',
-         'allmain_tasks': 'All Tasks'}
+# #############
 
-selected_contrasts = {10: 'Auditory Beat',
-                      11: 'Auditory Interval',
-                      14: 'Visual Beat',
-                      15: 'Visual Interval'}
+# tasks = {
+#     'prod': 'Production', 
+#     'percep': 'Perception', 
+#     'ntfd': 'NTFD',
+#     'allmain_tasks': 'All Tasks'
+# }
+# selected_contrasts = {
+#     10: 'Auditory Beat',
+#     11: 'Auditory Interval',
+#     14: 'Visual Beat',
+#     15: 'Visual Interval'
+# }
+# task_roidef_id = 'allmain_tasks'
+# folder_name = 'main_tasks's
+
+tasks = {
+    'rand_ntfd': 'NTFD Random'
+}
+selected_contrasts = {
+    18: 'Auditory Beat',
+    19: 'Auditory Interval',
+    21: 'Auditory Random',
+    30: 'Visual Beat',
+    31: 'Visual Interval',
+    33: 'Visual Random'
+}
+task_roidef_id = 'allmain_tasks'
+folder_name = 'main_tasks'
+
+# #############
+
+tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+
+# #############
+
+# Tuple: (individual_weight, average_weight, group_weight)
+weights_list = [(1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
+                (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)]
+
+# ========================= PARAMETERS =================================
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
-
 atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
 atag_dir = os.path.join(atlases_dir, 'atag_atlas')
@@ -1146,16 +1180,6 @@ atlas_names2 = ['hos', 'ntk_symmni128']
 region_names2 = ['dorsal_striatum', 'cerebellum']
 roi_names2 = ['dstr', 'cereb']
 
-# tags = ['i', 'a', 'g']
-tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
-# tags = ['i8a']
-
-# Tuple: (individual_weight, average_weight, group_weight)
-# weights_list = [(1., 0.), (.5, .5), (0., 1.)]
-weights_list = [(1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
-                (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)]
-# weights_list = [(.8, .2)]
-
 
 # ############################## RUN ####################################
 
@@ -1186,10 +1210,10 @@ if __name__ == '__main__':
         raise ValueError("The number of ROIs must be 10, 8 or 2.")
 
     encoding_type = sys.argv[2]
-
-    if encoding_type == 'all':
+    msdtb_dir = os.path.join(roi_dir, encoding_type + '_' + task_roidef_id, 
+                             folder_name)
+    if encoding_type == 'bothmod':
         filtered_contrasts = selected_contrasts
-        msdtb_dir = os.path.join(roi_dir, 'all')
     elif encoding_type == 'auditory':
         filtered_contrasts = {key: selected_contrasts[key]
                               for key in [10, 11] if key in selected_contrasts}
@@ -1199,7 +1223,7 @@ if __name__ == '__main__':
                               for key in [14, 15] if key in selected_contrasts}
         msdtb_dir = os.path.join(roi_dir, 'visual')
     else:
-        raise ValueError("The argument must be 'all', 'auditory' or 'visual'.")
+        raise ValueError("The argument must be 'bothmod', 'auditory' or 'visual'.")
 
     # ====================== COMPUTE STATS ===============================
     for tag, wpair in zip(tags, weights_list):
