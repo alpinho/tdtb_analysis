@@ -119,7 +119,7 @@ def individual_surf(derivatives_dir, subjects, task_key, contrasts_dic, contrast
 
     # For each subject...
     for emap, pl, pr, wl, wr, sb in zip(encoding_maps, pial_left, pial_right,
-                                        white_left, white_right, SUBJECTS):
+                                        white_left, white_right, subjects):
 
         # Map individual functional data from  Nifti to the surface of...
         # ... left and right hemispheres
@@ -160,8 +160,8 @@ def individual_surf(derivatives_dir, subjects, task_key, contrasts_dic, contrast
                     + contrast.lower()
                     + '_'
                     + surfspace
-                    + '.hem-L.func.gii',
-                ),
+                    + '.hem-L.func.gii'
+                )
             )
             nib.save(
                 GIFTIR,
@@ -173,8 +173,8 @@ def individual_surf(derivatives_dir, subjects, task_key, contrasts_dic, contrast
                     + contrast.lower()
                     + '_'
                     + surfspace
-                    + '.hem-R.func.gii',
-                ),
+                    + '.hem-R.func.gii'
+                )
             )
         else:
             assert save == 'cifti'
@@ -994,7 +994,7 @@ if os.path.isdir('/home/analu/diedrichsen_data/data'):
 else:
     base_dir = '/cifs/diedrichsen/data'
 
-music = os.path.join(base_dir, 'Cerebellum/music-sdtb')
+music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
 wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
                         'group_mask_noskull.nii')
