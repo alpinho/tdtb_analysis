@@ -28,7 +28,7 @@ from nilearn.image import load_img, new_img_like, resample_to_img
 from nilearn.input_data import NiftiLabelsMasker
 
 
-# ############################ FUNCTIONS ################################
+# ########################### FUNCTIONS ###############################
 
 def nonan_map(con_path):
     # Load Encoding Map
