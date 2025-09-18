@@ -22,14 +22,23 @@ from volume_to_surface import get_imeshes
 
 # ########################### FUNCTIONS ###############################
 
-def mask2surf(roi_dir, derivatives_dir, itag, subjects, roi, 
+def mask2surf(roi_dir, derivatives_dir, itag, atlas, subjects, roi, 
               surfspace='fslr32k', save='gifti'):
 
     # Paths of the NON-NORMALIZED individual contrast map for all subjects
-    masks_dir = os.path.join(roi_dir, 'individual_roi_masks')
-    masks = [os.path.join(
-        masks_dir, itag + '_sub-%02d' % sub + '_' + roi + '_bh_mask.nii.gz') 
-        for sub in subjects]
+    if itag == 'g':
+        masks_dir = os.path.join(roi_dir, 'group_roi_masks')
+        masks = [os.path.join(
+            masks_dir,
+            itag + '_msdtb_' + atlas + '_' + roi + '_bh_mask.nii.gz')
+        ]
+    else:
+        masks_dir = os.path.join(roi_dir, 'individual_roi_masks')
+        masks = [os.path.join(
+            masks_dir,
+            itag + '_sub-%02d' % sub + '_' + roi + '_bh_mask.nii.gz')
+            for sub in subjects
+        ]
 
     # Paths of individual meshes per hemisphere
     pial_left, pial_right, white_left, white_right = get_imeshes(
@@ -144,7 +153,12 @@ roi_names = [
     'occipital'
     ]
 
+# region_names = ['motor_area']
+# atlas_names = ['hmat']
+# roi_names = ['pmd']
+
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+# tags = ['g']
 
 # ############################# RUN ###################################
 
@@ -159,6 +173,6 @@ if __name__ == '__main__':
         for tag in tags:
             # Project masks onto surface   
             mask2surf(
-                roi_folder, derivatives_folder, tag, SUBJECTS, roi_name, 
-                surfspace='fslr32k', save='cifti'
+                roi_folder, derivatives_folder, tag, atlas_name, SUBJECTS,
+                roi_name, surfspace='fslr32k', save='cifti'
             )
