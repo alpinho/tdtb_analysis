@@ -1131,7 +1131,8 @@ if __name__ == '__main__':
     _batch = None
     if isinstance(contrast_name, (list, tuple, np.ndarray)):
         _batch = list(contrast_name)
-    elif isinstance(contrast_name, str) and contrast_name.strip().upper() == 'ALL':
+    elif isinstance(contrast_name, str) and \
+            contrast_name.strip().upper() == 'ALL':
         _batch = list(all_contrasts.values())
 
     # ===================== BATCH: multiple single runs ===================
@@ -1202,7 +1203,8 @@ if __name__ == '__main__':
 
     # ========================== SINGLE CONTRAST ==========================
     if not contrast_name2:
-        contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
+        contrast_id = \
+            {v: k for k, v in all_contrasts.items()}.get(contrast_name)
         if contrast_id is None:
             raise ValueError(f"Unknown contrast_name: {contrast_name}")
         cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
@@ -1218,8 +1220,8 @@ if __name__ == '__main__':
                         surfspace='fslr32k', save='cifti')
 
         # ---- compute group → split → mask -------------------------------
-        z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, cname,
-                              surfspace='fslr32k')
+        z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, 
+                              cname, surfspace='fslr32k')
         zvals_lh = np.split(z_values, 2, axis=0)[0]
         zvals_rh = np.split(z_values, 2, axis=0)[1]
         zvals_lh_masked = mask_cortical_activation(
@@ -1264,10 +1266,13 @@ if __name__ == '__main__':
 
     # ======================== TWO-CONTRAST OVERLAY =======================
     else:
-        contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
-        contrast_id2 = {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
+        contrast_id = \
+            {v: k for k, v in all_contrasts.items()}.get(contrast_name)
+        contrast_id2 = \
+            {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
         if contrast_id is None or contrast_id2 is None:
-            raise ValueError(f"Unknown contrasts: {contrast_name}, {contrast_name2}")
+            raise ValueError(
+                f"Unknown contrasts: {contrast_name}, {contrast_name2}")
         cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
         cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
 
@@ -1280,8 +1285,8 @@ if __name__ == '__main__':
         individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
                         contrast_id, surf_folder, 
                         surfspace='fslr32k', save='cifti')
-        z_values1 = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, cname,
-                               surfspace='fslr32k')
+        z_values1 = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, 
+                               cname, surfspace='fslr32k')
         zL1 = mask_cortical_activation(
             np.split(z_values1, 2, axis=0)[0], lh_medial_wall_mask_path)
         zR1 = mask_cortical_activation(
@@ -1313,12 +1318,15 @@ if __name__ == '__main__':
                         contrast_id2, surf_folder, 
                         surfspace='fslr32k', save='cifti')
         z_values2 = group_surf(
-            surf_folder, SUBJECTS, task_id, contrast_id2, cname2, surfspace='fslr32k')
+            surf_folder, SUBJECTS, task_id, contrast_id2, cname2, 
+            surfspace='fslr32k'
+        )
         zL2 = mask_cortical_activation(
             np.split(z_values2, 2, axis=0)[0], lh_medial_wall_mask_path)
         zR2 = mask_cortical_activation(
             np.split(z_values2, 2, axis=0)[1], rh_medial_wall_mask_path)
-        for zm, structure, hemi in zip([zL2, zR2], ['CortexLeft', 'CortexRight'],
+        for zm, structure, hemi in zip([zL2, zR2], 
+                                       ['CortexLeft', 'CortexRight'], 
                                        ['lh', 'rh']):
             gifti_img = nt.gifti.make_func_gifti(
                 zm, anatomical_struct=structure, column_names=[cname2])
