@@ -1183,7 +1183,7 @@ if __name__ == '__main__':
                         + _tag.lower()
                         + '_'
                         + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
-                    ),
+                    )
                 )
 
             # ---- thresholds (volume) + plot flatmaps ---------------------
@@ -1245,7 +1245,7 @@ if __name__ == '__main__':
                     + cname.lower()
                     + '_'
                     + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
-                ),
+                )
             )
 
         # ---- thresholds (volume) + plot flatmaps ------------------------
@@ -1300,7 +1300,7 @@ if __name__ == '__main__':
                     + cname.lower()
                     + '_'
                     + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
-                ),
+                )
             )
 
         # ---- compute + group + mask for contrast 2 ----------------------
@@ -1312,8 +1312,8 @@ if __name__ == '__main__':
         individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
                         contrast_id2, surf_folder, 
                         surfspace='fslr32k', save='cifti')
-        z_values2 = group_surf(surf_folder, SUBJECTS, task_id, all_contrasts, 
-                               contrast_id2, cname2, surfspace='fslr32k')
+        z_values2 = group_surf(
+            surf_folder, SUBJECTS, task_id, contrast_id2, cname2, surfspace='fslr32k')
         zL2 = mask_cortical_activation(
             np.split(z_values2, 2, axis=0)[0], lh_medial_wall_mask_path)
         zR2 = mask_cortical_activation(
@@ -1332,7 +1332,7 @@ if __name__ == '__main__':
                     + cname2.lower()
                     + '_'
                     + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
-                ),
+                )
             )
 
         # ---- thresholds + overlay plot ---------------------------------
