@@ -139,52 +139,89 @@ def extract_roi_means_surface(
         roi_gifti_path: str,
         surfmap_path: str,
         mesh_path: str,
+        medial_wall_path: str = None,   # 1=cortex, 0=MW
         background_label: int = 0,
         mask_threshold: float = 0.5,
     ):
+    """
+    Extract mean beta per ROI from a single-hemisphere surface.
 
-    # ROI labels (allow metric masks → binarize once here)
+    Parameters
+    ----------
+    roi_gifti_path : str
+        .label.gii or thresholdable .func.gii (ROI on the same mesh).
+    surfmap_path : str
+        Single beta map (.func.gii) on the same mesh.
+    mesh_path : str
+        Subject's hemi mesh (same used in vol_to_surf).
+    medial_wall_path : str | None
+        0/1 mask (1=cortex). If given, drop MW from labels and data.
+    background_label : int
+        Label code for background/medial wall (default 0).
+    mask_threshold : float
+        Threshold if ROI is a metric mask (>= threshold → inside).
+
+    Returns
+    -------
+    roi_means : np.ndarray, shape (n_rois,)
+    roi_codes : np.ndarray[int], shape (n_rois,)
+    """
+
+    # ROI labels (binarize if metric)
     lab = load_surf_data(roi_gifti_path)
     if not np.issubdtype(lab.dtype, np.integer):
         lab = (lab >= mask_threshold).astype(int)
 
-    # Load surface map
+    # Beta map
     data = load_surf_data(surfmap_path).astype(float)
 
-    # 3) Sanity + NaN handling: exclude non-finite vertices from ROI
+    # Apply medial wall mask (enforce cortex-only)
+    if medial_wall_path is not None:
+        mw = load_surf_data(medial_wall_path).astype(bool)
+        if mw.shape[-1] != data.shape[-1]:
+            raise ValueError(
+                "Vertex count mismatch: MW "
+                f"{mw.shape[-1]} vs data {data.shape[-1]}"
+            )
+        lab = np.where(mw, lab, background_label).astype(int)
+        data = np.where(mw, data, np.nan)
+
+    # Extra safety: drop any remaining non-finite betas from ROI
     if lab.shape[-1] != data.shape[-1]:
-        raise ValueError(f"Vertex count mismatch: labels {lab.shape[-1]} vs data {data.shape[-1]}")
+        raise ValueError(
+            "Vertex count mismatch: labels "
+            f"{lab.shape[-1]} vs data {data.shape[-1]}"
+        )
     finite = np.isfinite(data)
-    # Any vertex that is NaN/inf in the beta map is set to background in labels
     lab = lab.astype(int)
     lab[~finite] = background_label
 
-    # (Optional) quick visibility:
-    # print("ROI verts:", int((lab != background_label).sum()),
-    #       "finite in ROI:", int(((lab != background_label) & finite).sum()))
-
-    # Set Mesh → PolyMesh for the correct hemisphere
-    hemi_key = "left" if ("hem-L" in mesh_path or ".L." in mesh_path or "Left" in mesh_path) else "right"
+    # Mesh -> PolyMesh for the correct hemisphere
+    hemi_left = ("hem-L" in mesh_path or ".L." in mesh_path or
+                 "Left" in mesh_path)
     smesh = load_surf_mesh(mesh_path)
-    mesh = PolyMesh(left=smesh) if hemi_key == "left" else PolyMesh(right=smesh)
+    if hemi_left:
+        mesh = PolyMesh(left=smesh)
+        hemi_key = "left"
+    else:
+        mesh = PolyMesh(right=smesh)
+        hemi_key = "right"
 
-    # Wrap roi and surface map as SurfaceImages objects
+    # Wrap & extract
     labels_img = SurfaceImage(mesh=mesh, data={hemi_key: lab})
     surf_img = SurfaceImage(mesh=mesh, data={hemi_key: data})
-
-    # Mean within labels (0.11.1 has no 'strategy' arg; mean is default)
     masker = SurfaceLabelsMasker(
         labels_img=labels_img,
         background_label=background_label,
-        standardize=False
     ).fit()
-
-    out = masker.transform(surf_img)  # (n_rois,) for 1D or (N, n_rois) for 2D
+    out = masker.transform(surf_img)
     roi_means = out if out.ndim == 1 else out.squeeze(0)
 
-    # Region codes in ascending order (excluding background)
-    roi_codes = np.array(sorted(c for c in np.unique(lab) if c != background_label), dtype=int)
-
+    # ROI codes (ascending, excluding background)
+    roi_codes = np.array(
+        sorted(c for c in np.unique(lab) if c != background_label),
+        dtype=int,
+    )
     return roi_means, roi_codes
 
 
@@ -206,6 +243,18 @@ task = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tas
 
 surface_space = 'fslr32k'
 
+# ############ Medial Wall Masks ##################
+fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'fslr32k_meshes')
+
+mask_suffix = '1'
+lh_medial_wall_mask_path = os.path.join(
+    fslr32k_folder, 'medialwall_masks',
+    'fs_LR.32k.L.medialwall.mask' + mask_suffix + '.gii')
+rh_medial_wall_mask_path = os.path.join(
+    fslr32k_folder, 'medialwall_masks',
+    'fs_LR.32k.R.medialwall.mask' + mask_suffix + '.gii')
+
 # ########################## PARAMETERS ###############################
 
 # Parent directories
@@ -225,15 +274,6 @@ tasks = {'prod': 'Production',
          'allmain_tasks': 'All Tasks'
 }
 task_id = {v: k for k, v in tasks.items()}.get(task)
-
-surfmaps_pardir = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 
-    'results', 
-    'parametric_tests', 
-    'surface',
-    task_id,
-    'surface_files'
-)
 
 # Contrast dictionary (id -> name)
 if task_id != 'rand_ntfd':
@@ -317,6 +357,15 @@ else:
         31: 'Visual Interval',
         33: 'Visual Random'
     }
+
+surfmaps_pardir = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 
+    'results', 
+    'parametric_tests', 
+    'surface',
+    task_id,
+    'surface_files'
+)
 
 # All ROIs: 10 ROIs
 region_names = [
@@ -423,10 +472,11 @@ if __name__ == '__main__':
                 derivatives_folder, SUBJECTS, surfspace=surface_space)            
                 
             # For each hemisphere
-            for hem, roi_gifti_paths, pial in \
+            for hem, roi_gifti_paths, pial, mw in \
                 zip(['L', 'R'], 
                     [roi_gifti_left_paths, roi_gifti_right_paths], 
-                    [pial_left, pial_right]):
+                    [pial_left, pial_right],
+                    [lh_medial_wall_mask_path, rh_medial_wall_mask_path]):
 
                     # For each subject
                     for s, (roi_gifti_path, subject) in enumerate(zip(
@@ -456,6 +506,6 @@ if __name__ == '__main__':
                                 roi_gifti_path=roi_gifti_path,   # mask/labels for this hemi
                                 surfmap_path=surfmap_path,       # beta map for this hemi
                                 mesh_path=pial[s],               # subject's pial (same used in vol_to_surf)
+                                medial_wall_path=mw,             # medial wall mask for this hemi
                                 background_label=0               # or -1 if that's your medial wall
                             )
-                            0/0
