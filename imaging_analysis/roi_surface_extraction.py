@@ -162,6 +162,15 @@ tasks = {'prod': 'Production',
 }
 task_id = {v: k for k, v in tasks.items()}.get(task)
 
+surfmaps_pardir = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 
+    'results', 
+    'parametric_tests', 
+    'surface',
+    task_id,
+    'surface_files'
+)
+
 # Contrast dictionary (id -> name)
 if task_id != 'rand_ntfd':
     all_contrasts = {
@@ -245,15 +254,6 @@ else:
         33: 'Visual Random'
     }
 
-surfmaps_dir = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 
-    'results', 
-    'parametric_tests', 
-    'surface',
-    task_id,
-    'surface_files'
-)
-
 # All ROIs: 10 ROIs
 region_names = [
     'motor_area', 'motor_area', 'motor_area', 'motor_area', 
@@ -291,50 +291,94 @@ if __name__ == '__main__':
         for tag in tags:
 
             # Project masks onto surface
-            mask2surf(
-                roi_folder, derivatives_folder, tag, atlas_name, SUBJECTS,
-                roi_name, surfspace=surface_space, save='gifti'
-            )   
-            mask2surf(
-                roi_folder, derivatives_folder, tag, atlas_name, SUBJECTS,
-                roi_name, surfspace=surface_space, save='cifti'
-            )
+            # mask2surf(
+            #     roi_folder, derivatives_folder, tag, atlas_name, SUBJECTS,
+            #     roi_name, surfspace=surface_space, save='gifti'
+            # )   
+            # mask2surf(
+            #     roi_folder, derivatives_folder, tag, atlas_name, SUBJECTS,
+            #     roi_name, surfspace=surface_space, save='cifti'
+            # )
 
-            # # Open the group ROI mask in surface space
-            # roi_surfmasks_dir = os.path.join(
-            #     roi_folder, 'individual_roi_' + surface_space + '_masks')
-            # roi_gifti_left_paths = [
-            #     os.path.join(
-            #         output_dir,
-            #         tag
-            #         + '_sub-{sub:02d}_'.format(sb=sb)
-            #         + roi_name
-            #         + '_'
-            #         + surface_space
-            #         + '.hem-L.func.gii'
-            #     ) for sub in SUBJECTS
-            # ]
+            # Open the group ROI mask in surface space
+            if tag == 'g':
+                prefix = 'group'
+                roi_surfmasks_dir = os.path.join(
+                    roi_folder, prefix + '_roi_' + surface_space + '_masks')
+                roi_gifti_left_paths = [
+                    os.path.join(
+                        roi_surfmasks_dir,
+                        tag
+                        + '_msdtb_'
+                        + roi_name
+                        + '_'
+                        + surface_space
+                        + '.hem-L.func.gii'
+                    ) for sub in SUBJECTS
+                ]
+                roi_gifti_right_paths = [
+                    os.path.join(
+                        roi_surfmasks_dir,
+                        tag
+                        + '_msdtb_'
+                        + roi_name
+                        + '_'
+                        + surface_space
+                        + '.hem-R.func.gii'
+                    ) for sub in SUBJECTS
+                ]
+            else:
+                prefix = 'individual'
+                roi_surfmasks_dir = os.path.join(
+                    roi_folder, prefix + '_roi_' + surface_space + '_masks')
+                roi_gifti_left_paths = [
+                    os.path.join(
+                        roi_surfmasks_dir,
+                        tag
+                        + '_sub-{sub:02d}_'.format(sub=sub)
+                        + roi_name
+                        + '_'
+                        + surface_space
+                        + '.hem-L.func.gii'
+                    ) for sub in SUBJECTS
+                ]
+                roi_gifti_right_paths = [
+                    os.path.join(
+                        roi_surfmasks_dir,
+                        tag
+                        + '_sub-{sub:02d}_'.format(sub=sub)
+                        + roi_name
+                        + '_'
+                        + surface_space
+                        + '.hem-R.func.gii'
+                    ) for sub in SUBJECTS
+                ]            
+                
+            # For each hemisphere
+            for hem, roi_gifti_paths in zip(['L', 'R'],
+                                            [roi_gifti_left_paths,
+                                             roi_gifti_right_paths]):
+                        
+                    # For each subject
+                    for roi_gifti_path, subject in zip(roi_gifti_paths, 
+                                                       SUBJECTS):
+                            
+                        # For each selected contrast
+                        for key, value in selected_contrasts.items():
 
-            # # Do the extraction of the individualized ROIs on surface space
-            # for key, value in selected_contrasts.items():
-            #     for sub in SUBJECTS:
-            #         for hem, roi_gifti in zip(['L', 'R'],
-            #                                 [roi_gifti_left,
-            #                                 roi_gifti_right]):
-
-            #             # Load individual ROI mask
-            #             # masker = SurfaceLabelsMasker(
-            #             #     labels_img=roi_gifti,
-            #             #     standardize=False,
-            #             #     smoothing_fwhm=None,
-            #             #     resampling_target='labels',
-            #             #     label_indices=None,
-            #             #     ensure_finite=True
-            #             # )
-            #             # masker.fit()
-
-            #             # Path of surface files
-            #             fname = 'sub-%02d' % sub + '_' + 'allmain_tasks' + '_' + \
-            #                 str(key) + '_' + value.lower().replace(' ', '-') + \
-            #                 '_fslr32k.hem-' + hem + '.func.gii'
-            #             surf_files_path = os.path.join(surfmaps_dir, fname)
+                            # Path of surface files
+                            cname = value.lower().replace(
+                                ' vs ', '_vs_').replace(' ', '-')
+                            surfmaps_dir = os.path.join(
+                                surfmaps_pardir, str(key) + '_' + cname)
+                            if tag == 'g':
+                                fname = 'group' + '_' + \
+                                    task_id.replace('_', '-') + '_' + \
+                                    cname + '_' + surface_space + '.hem-' + \
+                                    hem + '.func.gii'
+                            else:
+                                fname = 'sub-%02d' % subject + '_' + \
+                                    task_id.replace('_', '-') + '_' + \
+                                    cname + '_' + surface_space + '.hem-' + \
+                                    hem + '.func.gii'                        
+                            surfmap_path = os.path.join(surfmaps_dir, fname)
