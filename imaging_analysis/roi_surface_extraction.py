@@ -12,12 +12,14 @@ Compatibility: Python 3.10.16
 """
 
 import os
+import numpy as np
 import nibabel as nib
 import nitools as nt
 
 from nilearn.image import load_img
 from nilearn.surface import vol_to_surf
-from nilearn.surface import SurfaceImage, load_surf_data, load_surf_mesh
+from nilearn.surface import (load_surf_data, load_surf_mesh, SurfaceImage, 
+                             PolyMesh)
 from nilearn.maskers import SurfaceLabelsMasker 
 from volume_to_surface import get_imeshes
 
@@ -123,6 +125,68 @@ def mask2surf(roi_dir, derivatives_dir, itag, atlas, subjects, roi,
                     f'{itag}_sub-{sb:02d}_{roi}_{surfspace}.dscalar.nii'
                 )
             )
+
+
+def _mesh_dict_from_gifti(mesh_path: str):
+    g = nib.load(mesh_path)
+    coords = np.asarray(g.darrays[0].data, dtype=np.float32)
+    faces  = np.asarray(g.darrays[1].data, dtype=np.int32)
+
+    return {"coordinates": coords, "faces": faces}
+
+
+def extract_roi_means_surface(
+        roi_gifti_path: str,
+        surfmap_path: str,
+        mesh_path: str,
+        background_label: int = 0,
+        mask_threshold: float = 0.5,
+    ):
+
+    # ROI labels (allow metric masks → binarize once here)
+    lab = load_surf_data(roi_gifti_path)
+    if not np.issubdtype(lab.dtype, np.integer):
+        lab = (lab >= mask_threshold).astype(int)
+
+    # Load surface map
+    data = load_surf_data(surfmap_path).astype(float)
+
+    # 3) Sanity + NaN handling: exclude non-finite vertices from ROI
+    if lab.shape[-1] != data.shape[-1]:
+        raise ValueError(f"Vertex count mismatch: labels {lab.shape[-1]} vs data {data.shape[-1]}")
+    finite = np.isfinite(data)
+    # Any vertex that is NaN/inf in the beta map is set to background in labels
+    lab = lab.astype(int)
+    lab[~finite] = background_label
+
+    # (Optional) quick visibility:
+    # print("ROI verts:", int((lab != background_label).sum()),
+    #       "finite in ROI:", int(((lab != background_label) & finite).sum()))
+
+    # Set Mesh → PolyMesh for the correct hemisphere
+    hemi_key = "left" if ("hem-L" in mesh_path or ".L." in mesh_path or "Left" in mesh_path) else "right"
+    smesh = load_surf_mesh(mesh_path)
+    mesh = PolyMesh(left=smesh) if hemi_key == "left" else PolyMesh(right=smesh)
+
+    # Wrap roi and surface map as SurfaceImages objects
+    labels_img = SurfaceImage(mesh=mesh, data={hemi_key: lab})
+    surf_img = SurfaceImage(mesh=mesh, data={hemi_key: data})
+
+    # Mean within labels (0.11.1 has no 'strategy' arg; mean is default)
+    masker = SurfaceLabelsMasker(
+        labels_img=labels_img,
+        background_label=background_label,
+        standardize=False
+    ).fit()
+
+    out = masker.transform(surf_img)  # (n_rois,) for 1D or (N, n_rois) for 2D
+    roi_means = out if out.ndim == 1 else out.squeeze(0)
+
+    # Region codes in ascending order (excluding background)
+    roi_codes = np.array(sorted(c for c in np.unique(lab) if c != background_label), dtype=int)
+
+    return roi_means, roi_codes
+
 
 # ############################ INPUTS #################################
 
@@ -352,16 +416,21 @@ if __name__ == '__main__':
                         + surface_space
                         + '.hem-R.func.gii'
                     ) for sub in SUBJECTS
-                ]            
+                ]
+
+            # Paths of individual meshes per hemisphere
+            pial_left, pial_right, _, _ = get_imeshes(
+                derivatives_folder, SUBJECTS, surfspace=surface_space)            
                 
             # For each hemisphere
-            for hem, roi_gifti_paths in zip(['L', 'R'],
-                                            [roi_gifti_left_paths,
-                                             roi_gifti_right_paths]):
-                        
+            for hem, roi_gifti_paths, pial in \
+                zip(['L', 'R'], 
+                    [roi_gifti_left_paths, roi_gifti_right_paths], 
+                    [pial_left, pial_right]):
+
                     # For each subject
-                    for roi_gifti_path, subject in zip(roi_gifti_paths, 
-                                                       SUBJECTS):
+                    for s, (roi_gifti_path, subject) in enumerate(zip(
+                        roi_gifti_paths, SUBJECTS)):
                             
                         # For each selected contrast
                         for key, value in selected_contrasts.items():
@@ -382,3 +451,11 @@ if __name__ == '__main__':
                                     cname + '_' + surface_space + '.hem-' + \
                                     hem + '.func.gii'                        
                             surfmap_path = os.path.join(surfmaps_dir, fname)
+
+                            roi_means, _ = extract_roi_means_surface(
+                                roi_gifti_path=roi_gifti_path,   # mask/labels for this hemi
+                                surfmap_path=surfmap_path,       # beta map for this hemi
+                                mesh_path=pial[s],               # subject's pial (same used in vol_to_surf)
+                                background_label=0               # or -1 if that's your medial wall
+                            )
+                            0/0
