@@ -354,7 +354,14 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
         Type of derivative to be extracted, by default 'sm8wbmasked'.
 
     Shape of the ROIs extracted and stored in npy files:
-        (hemisphere, tasks, contrasts, subjects)   
+        (hemisphere, tasks, contrasts, subjects)
+
+        Note about default order of dimensions:        
+        hemisphere: lh, rh, bh
+        tasks: prod, percep, ntfd, allmain_tasks
+        contrasts: Auditory Beat, Auditory Interval, Visual Beat,
+                   Visual Interval
+        subjects: list of subjects' ids  
     """
 
     if subregion:
@@ -460,6 +467,11 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
         # Change shape: (tasks, contrasts, subjects)
         tasks_allconsubjects = np.moveaxis(subjects_alltaskcon, 0, -1).tolist()
         # ... and append: shape (hemisphere, tasks, contrasts, subjects)
+        # hemisphere: lh, rh, bh
+        # tasks: prod, percep, ntfd, allmain_tasks
+        # contrasts: Auditory Beat, Auditory Interval, Visual Beat,
+        #            Visual Interval
+        # subjects: list of subjects' ids
         roi_hems.append(tasks_allconsubjects)
 
     # Save
