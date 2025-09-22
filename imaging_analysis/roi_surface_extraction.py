@@ -542,4 +542,4 @@ if __name__ == '__main__':
             )
             if os.path.exists(outpath):
                 os.remove(outpath)
-            np.save(roi_surf_dir, hems_rois, allow_pickle=False)
+            np.save(outpath, hems_rois, allow_pickle=False)
