@@ -235,13 +235,12 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 main_dir = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 
     'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed', 
-    'bothmod_allmain_tasks', 
-    'main_tasks'
+    'bothmod_allmain_tasks'
 )
 
-task = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
-
+tasks_roiextract_vals = ['All Tasks'] # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
 surface_space = 'fslr32k'
+contype = 'psc'
 
 # ############ Medial Wall Masks ##################
 fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -273,10 +272,11 @@ tasks = {'prod': 'Production',
          'rand_ntfd': 'NTFD Random',
          'allmain_tasks': 'All Tasks'
 }
-task_id = {v: k for k, v in tasks.items()}.get(task)
+tasks_roiextract = \
+    {k: v for k, v in tasks.items() if v in tasks_roiextract_vals}
 
 # Contrast dictionary (id -> name)
-if task_id != 'rand_ntfd':
+if 'rand_ntfd' not in tasks_roiextract.keys():
     all_contrasts = {
         1: 'Encoding',
         2: 'Auditory Encoding',
@@ -303,8 +303,9 @@ if task_id != 'rand_ntfd':
         14: 'Visual Beat',
         15: 'Visual Interval'
     }
+    folder_name = 'main_tasks'
 else:
-    assert task_id == 'rand_ntfd'   
+    assert 'rand_ntfd' in tasks_roiextract.keys()
     all_contrasts = {
         1: 'Encoding',
         2: 'Auditory Encoding',
@@ -357,15 +358,7 @@ else:
         31: 'Visual Interval',
         33: 'Visual Random'
     }
-
-surfmaps_pardir = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 
-    'results', 
-    'parametric_tests', 
-    'surface',
-    task_id,
-    'surface_files'
-)
+    folder_name = 'main_tasks'
 
 # All ROIs: 10 ROIs
 region_names = [
@@ -399,8 +392,9 @@ if __name__ == '__main__':
                                                  atlas_names,
                                                  roi_names):
         # Define ROI-specific folders
-        roi_folder = os.path.join(main_dir, region_name, atlas_name, roi_name)
-        
+        roi_folder = os.path.join(main_dir, folder_name, region_name, 
+                                  atlas_name, roi_name)
+          
         for tag in tags:
 
             # Project masks onto surface
@@ -426,7 +420,7 @@ if __name__ == '__main__':
                         + roi_name
                         + '_'
                         + surface_space
-                        + '.hem-L.func.gii'
+                        + '.L.func.gii'
                     ) for sub in SUBJECTS
                 ]
                 roi_gifti_right_paths = [
@@ -437,7 +431,7 @@ if __name__ == '__main__':
                         + roi_name
                         + '_'
                         + surface_space
-                        + '.hem-R.func.gii'
+                        + '.R.func.gii'
                     ) for sub in SUBJECTS
                 ]
             else:
@@ -471,6 +465,7 @@ if __name__ == '__main__':
             pial_left, pial_right, _, _ = get_imeshes(
                 derivatives_folder, SUBJECTS, surfspace=surface_space)            
                 
+            hems_rois =  []
             # For each hemisphere
             for hem, roi_gifti_paths, pial, mw in \
                 zip(['L', 'R'], 
@@ -478,12 +473,25 @@ if __name__ == '__main__':
                     [pial_left, pial_right],
                     [lh_medial_wall_mask_path, rh_medial_wall_mask_path]):
 
-                    # For each subject
-                    for s, (roi_gifti_path, subject) in enumerate(zip(
-                        roi_gifti_paths, SUBJECTS)):
-                            
-                        # For each selected contrast
-                        for key, value in selected_contrasts.items():
+                tasks_rois = []
+                for task_key in tasks_roiextract.keys():
+                    surfmaps_pardir = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)), 
+                        'results', 
+                        'parametric_tests', 
+                        'surface',
+                        task_key,
+                        'surface_files'
+                    )
+
+                    contrasts_rois = []
+                    # For each selected contrast
+                    for key, value in selected_contrasts.items():
+
+                        subjects_rois = []
+                        # For each subject
+                        for s, (roi_gifti_path, subject) in \
+                                enumerate(zip(roi_gifti_paths, SUBJECTS)):
 
                             # Path of surface files
                             cname = value.lower().replace(
@@ -492,12 +500,12 @@ if __name__ == '__main__':
                                 surfmaps_pardir, str(key) + '_' + cname)
                             if tag == 'g':
                                 fname = 'group' + '_' + \
-                                    task_id.replace('_', '-') + '_' + \
+                                    task_key.replace('_', '-') + '_' + \
                                     cname + '_' + surface_space + '.hem-' + \
                                     hem + '.func.gii'
                             else:
                                 fname = 'sub-%02d' % subject + '_' + \
-                                    task_id.replace('_', '-') + '_' + \
+                                    task_key.replace('_', '-') + '_' + \
                                     cname + '_' + surface_space + '.hem-' + \
                                     hem + '.func.gii'                        
                             surfmap_path = os.path.join(surfmaps_dir, fname)
@@ -509,3 +517,25 @@ if __name__ == '__main__':
                                 medial_wall_path=mw,             # medial wall mask for this hemi
                                 background_label=0               # or -1 if that's your medial wall
                             )
+
+                            # Append: shape (hemisphere, tasks, contrasts, subjects)
+                            # hemisphere: lh, rh, bh
+                            # tasks: prod, percep, ntfd, allmain_tasks
+                            # contrasts: Auditory Beat, Auditory Interval, Visual Beat,
+                            #            Visual Interval
+                            # subjects: list of subjects' ids
+                            subjects_rois.append(roi_means)                            
+                        contrasts_rois.append(subjects_rois)
+                    tasks_rois.append(subjects_rois)
+                hems_rois.append(tasks_rois)
+
+                # Save
+                roi_surf_dir = os.path.join(roi_folder, 'rois_surf_extraction')
+                os.makedirs(roi_surf_dir, exist_ok=True)
+                outpath = os.path.join(
+                    roi_surf_dir, 
+                    tag + '_' + roi_name + '_' + contype + '.npy'
+                )
+                if os.path.exists(outpath):
+                    os.remove(outpath)
+                np.save(roi_surf_dir, hems_rois, allow_pickle=False)
