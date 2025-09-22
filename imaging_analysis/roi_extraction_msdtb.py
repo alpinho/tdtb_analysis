@@ -493,15 +493,6 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# Tasks dictionary (id -> name)
-tasks = {
-    'prod': 'Production', 
-    'percep': 'Perception', 
-    'ntfd': 'NTFD',
-    'rand_ntfd': 'NTFD Random',
-    'allmain_tasks': 'All Tasks'
-}
-
 # To build ROI Encoding mask, select one of the following tasks.
 # The group and individual encoding contrasts from that task will be 
 # used to build the mask.
@@ -519,6 +510,14 @@ else:
 
 data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
 
+# Tasks dictionary (id -> name)
+tasks = {
+    'prod': 'Production', 
+    'percep': 'Perception', 
+    'ntfd': 'NTFD',
+    'rand_ntfd': 'NTFD Random',
+    'allmain_tasks': 'All Tasks'
+}
 task_roidef_id = {v: k for k, v in tasks.items()}.get(task_roidef)
 tasks_roiextract = \
     {k: v for k, v in tasks.items() if v in tasks_roiextract_vals}
