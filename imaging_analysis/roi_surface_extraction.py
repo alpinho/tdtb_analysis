@@ -238,7 +238,11 @@ main_dir = os.path.join(
     'bothmod_allmain_tasks'
 )
 
-tasks_roiextract_vals = ['All Tasks'] # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+# Tasks to extract ROI data
+# Note: do not select 'NTFD Random' together w/ any other task
+# tasks_roiextract_vals = ['Production', 'Perception', 'NTFD', 'All Tasks']
+# tasks_roiextract_vals = ['NTFD Random']
+tasks_roiextract_vals = ['Production', 'Perception', 'NTFD', 'All Tasks']
 surface_space = 'fslr32k'
 contype = 'psc'
 
@@ -420,7 +424,7 @@ if __name__ == '__main__':
                         + roi_name
                         + '_'
                         + surface_space
-                        + '.L.func.gii'
+                        + '.hem-L.func.gii'
                     ) for sub in SUBJECTS
                 ]
                 roi_gifti_right_paths = [
@@ -431,7 +435,7 @@ if __name__ == '__main__':
                         + roi_name
                         + '_'
                         + surface_space
-                        + '.R.func.gii'
+                        + '.hem-R.func.gii'
                     ) for sub in SUBJECTS
                 ]
             else:
@@ -501,7 +505,7 @@ if __name__ == '__main__':
                             if tag == 'g':
                                 fname = 'group' + '_' + \
                                     task_key.replace('_', '-') + '_' + \
-                                    cname + '_' + surface_space + '.hem-' + \
+                                    cname + '_' + surface_space + '.' + \
                                     hem + '.func.gii'
                             else:
                                 fname = 'sub-%02d' % subject + '_' + \
@@ -519,23 +523,23 @@ if __name__ == '__main__':
                             )
 
                             # Append: shape (hemisphere, tasks, contrasts, subjects)
-                            # hemisphere: lh, rh, bh
+                            # hemisphere: lh, rh
                             # tasks: prod, percep, ntfd, allmain_tasks
                             # contrasts: Auditory Beat, Auditory Interval, Visual Beat,
                             #            Visual Interval
                             # subjects: list of subjects' ids
-                            subjects_rois.append(roi_means)                            
+                            subjects_rois.append(roi_means[0])                            
                         contrasts_rois.append(subjects_rois)
-                    tasks_rois.append(subjects_rois)
+                    tasks_rois.append(contrasts_rois)
                 hems_rois.append(tasks_rois)
 
-                # Save
-                roi_surf_dir = os.path.join(roi_folder, 'rois_surf_extraction')
-                os.makedirs(roi_surf_dir, exist_ok=True)
-                outpath = os.path.join(
-                    roi_surf_dir, 
-                    tag + '_' + roi_name + '_' + contype + '.npy'
-                )
-                if os.path.exists(outpath):
-                    os.remove(outpath)
-                np.save(roi_surf_dir, hems_rois, allow_pickle=False)
+            # Save
+            roi_surf_dir = os.path.join(roi_folder, 'rois_surf_extraction')
+            os.makedirs(roi_surf_dir, exist_ok=True)
+            outpath = os.path.join(
+                roi_surf_dir, 
+                tag + '_' + roi_name + '_' + contype + '.npy'
+            )
+            if os.path.exists(outpath):
+                os.remove(outpath)
+            np.save(roi_surf_dir, hems_rois, allow_pickle=False)
