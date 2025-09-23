@@ -473,18 +473,14 @@ if __name__ == '__main__':
                         + surface_space
                         + '.hem-R.func.gii'
                     ) for sub in SUBJECTS
-                ]
-
-            # Paths of individual meshes per hemisphere
-            pial_left, pial_right, _, _ = get_imeshes(
-                derivatives_folder, SUBJECTS, surfspace=surface_space)            
+                ]         
                 
             hems_rois =  []
             # For each hemisphere
             for hem, roi_gifti_paths, pial, mw in \
                 zip(['L', 'R'], 
                     [roi_gifti_left_paths, roi_gifti_right_paths], 
-                    [pial_left, pial_right],
+                    [fslr32_tpl_pial_left, fslr32_tpl_pial_right],
                     [lh_medial_wall_mask_path, rh_medial_wall_mask_path]):
 
                 tasks_rois = []
@@ -504,8 +500,8 @@ if __name__ == '__main__':
 
                         subjects_rois = []
                         # For each subject
-                        for s, (roi_gifti_path, subject) in \
-                                enumerate(zip(roi_gifti_paths, SUBJECTS)):
+                        for roi_gifti_path, subject in \
+                                zip(roi_gifti_paths, SUBJECTS):
 
                             # Path of surface files
                             cname = value.lower().replace(
@@ -527,7 +523,7 @@ if __name__ == '__main__':
                             roi_means, _ = extract_roi_means_surface(
                                 roi_gifti_path=roi_gifti_path,   # mask/labels for this hemi
                                 surfmap_path=surfmap_path,       # beta map for this hemi
-                                mesh_path=pial[s],               # subject's pial (same used in vol_to_surf)
+                                mesh_path=pial,                  # pial template (same used in vol_to_surf)
                                 medial_wall_path=mw,             # medial wall mask for this hemi
                                 background_label=0               # or -1 if that's your medial wall
                             )
