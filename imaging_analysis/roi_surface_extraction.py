@@ -17,9 +17,8 @@ import nibabel as nib
 import nitools as nt
 
 from nilearn.image import load_img
-from nilearn.surface import vol_to_surf
 from nilearn.surface import (load_surf_data, load_surf_mesh, SurfaceImage, 
-                             PolyMesh)
+                             PolyMesh, vol_to_surf)
 from nilearn.maskers import SurfaceLabelsMasker 
 
 
@@ -32,36 +31,47 @@ def mask2surf(roi_dir, itag, atlas, subjects, roi,
     # Paths of the NON-NORMALIZED individual contrast map for all subjects
     if itag == 'g':
         masks_dir = os.path.join(roi_dir, 'group_roi_masks')
-        masks = [os.path.join(
+        masks_lh = [os.path.join(
             masks_dir,
-            itag + '_msdtb_' + atlas + '_' + roi + '_bh_mask.nii.gz')
+            itag + '_msdtb_' + atlas + '_' + roi + '_lh_mask.nii.gz')
+        ]
+        masks_rh = [os.path.join(
+            masks_dir,
+            itag + '_msdtb_' + atlas + '_' + roi + '_rh_mask.nii.gz')
         ]
         output_dir = os.path.join(
             roi_dir, 'group_roi_' + surfspace + '_masks')
     else:
         masks_dir = os.path.join(roi_dir, 'individual_roi_masks')
-        masks = [os.path.join(
+        masks_lh = [os.path.join(
             masks_dir,
-            itag + '_sub-%02d' % sub + '_' + roi + '_bh_mask.nii.gz')
+            itag + '_sub-%02d' % sub + '_' + roi + '_lh_mask.nii.gz')
+            for sub in subjects
+        ]
+        masks_rh = [os.path.join(
+            masks_dir,
+            itag + '_sub-%02d' % sub + '_' + roi + '_rh_mask.nii.gz')
             for sub in subjects
         ]
         output_dir = os.path.join(
             roi_dir, 'individual_roi_' + surfspace + '_masks')
 
     # For each subject...
-    for mask, sb in zip(masks, subjects):
+    for mask_lh, mask_rh, sb in zip(masks_lh, masks_rh, subjects):
 
         # Map individual functional data from  Nifti to the surface of...
         # ... left and right hemispheres
-        mask_img = load_img(mask)
-        DL = vol_to_surf(mask_img, 
-                         surf_mesh=tpl_pial_left, inner_mesh=tpl_white_left, 
+        mask_img_lh = load_img(mask_lh)
+        mask_img_rh = load_img(mask_rh)
+        DL = vol_to_surf(mask_img_lh, 
+                         surf_mesh=tpl_pial_left, inner_mesh=tpl_white_left,
                          interpolation="nearest")
-        DR = vol_to_surf(mask_img, 
-                         surf_mesh=tpl_pial_right, inner_mesh=tpl_white_right, 
+        DR = vol_to_surf(mask_img_rh, 
+                         surf_mesh=tpl_pial_right, inner_mesh=tpl_white_right,
                          interpolation="nearest")
         print(sb)
-        print(mask)
+        print(mask_lh)
+        print(mask_rh)
         print(DL.shape)
         print(DR.shape)
         print("L> nnz:", int(np.count_nonzero(DL)), 
@@ -126,14 +136,6 @@ def mask2surf(roi_dir, itag, atlas, subjects, roi,
                     f'{itag}_sub-{sb:02d}_{roi}_{surfspace}.dscalar.nii'
                 )
             )
-
-
-def _mesh_dict_from_gifti(mesh_path: str):
-    g = nib.load(mesh_path)
-    coords = np.asarray(g.darrays[0].data, dtype=np.float32)
-    faces  = np.asarray(g.darrays[1].data, dtype=np.int32)
-
-    return {"coordinates": coords, "faces": faces}
 
 
 def extract_roi_means_surface(
@@ -377,28 +379,28 @@ else:
     folder_name = 'main_tasks'
 
 # All ROIs: 10 ROIs
-region_names = [
-    'motor_area', 'motor_area', 'motor_area', 'motor_area', 
-    'heschl_gyrus', 
-    'occipital_lobe'
-    ]
-atlas_names = [
-    'hmat', 'hmat', 'hmat', 'hmat',
-    'hos', 
-    'hos'
-    ]
-roi_names = [
-    'pmd', 'pmv', 'sma', 'presma',
-    'heschl',
-    'occipital'
-    ]
+# region_names = [
+#     'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+#     'heschl_gyrus', 
+#     'occipital_lobe'
+#     ]
+# atlas_names = [
+#     'hmat', 'hmat', 'hmat', 'hmat',
+#     'hos', 
+#     'hos'
+#     ]
+# roi_names = [
+#     'pmd', 'pmv', 'sma', 'presma',
+#     'heschl',
+#     'occipital'
+#     ]
 
-# region_names = ['occipital_lobe']
-# atlas_names = ['hos']
-# roi_names = ['occipital']
+region_names = ['occipital_lobe']
+atlas_names = ['hos']
+roi_names = ['occipital']
 
-tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
-# tags = ['i']
+# tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+tags = ['i6a']
 
 # ############################# RUN ###################################
 
