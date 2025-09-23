@@ -54,14 +54,18 @@ def mask2surf(roi_dir, itag, atlas, subjects, roi,
         # Map individual functional data from  Nifti to the surface of...
         # ... left and right hemispheres
         mask_img = load_img(mask)
-        DL = vol_to_surf(mask_img, surf_mesh=tpl_pial_left, 
-                         inner_mesh=tpl_white_left)
-        DR = vol_to_surf(mask_img, surf_mesh=tpl_pial_right, 
-                         inner_mesh=tpl_white_right)
+        DL = vol_to_surf(mask_img, 
+                         surf_mesh=tpl_pial_left, inner_mesh=tpl_white_left, 
+                         interpolation="nearest")
+        DR = vol_to_surf(mask_img, 
+                         surf_mesh=tpl_pial_right, inner_mesh=tpl_white_right, 
+                         interpolation="nearest")
         print(sb)
         print(mask)
         print(DL.shape)
         print(DR.shape)
+        print("L> nnz:", int(np.count_nonzero(DL)), 
+              "R> nnz:", int(np.count_nonzero(DR)))
 
         # Transform numpy arrays in gifti files
         imask = (itag + '_mask')                    
@@ -228,6 +232,8 @@ def extract_roi_means_surface(
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# SUBJECTS = [47]
+
 # Paths of directories
 main_dir = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 
@@ -387,12 +393,12 @@ roi_names = [
     'occipital'
     ]
 
-# region_names = ['motor_area']
-# atlas_names = ['hmat']
-# roi_names = ['pmd']
+# region_names = ['occipital_lobe']
+# atlas_names = ['hos']
+# roi_names = ['occipital']
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
-# tags = ['g']
+# tags = ['i']
 
 # ############################# RUN ###################################
 
