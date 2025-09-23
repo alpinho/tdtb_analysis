@@ -21,12 +21,12 @@ from nilearn.surface import vol_to_surf
 from nilearn.surface import (load_surf_data, load_surf_mesh, SurfaceImage, 
                              PolyMesh)
 from nilearn.maskers import SurfaceLabelsMasker 
-from volume_to_surface import get_imeshes
 
 
 # ########################### FUNCTIONS ###############################
 
-def mask2surf(roi_dir, derivatives_dir, itag, atlas, subjects, roi, 
+def mask2surf(roi_dir, itag, atlas, subjects, roi, 
+              tpl_pial_left, tpl_pial_right, tpl_white_left, tpl_white_right,
               surfspace='fslr32k', save='gifti'):
 
     # Paths of the NON-NORMALIZED individual contrast map for all subjects
@@ -48,19 +48,16 @@ def mask2surf(roi_dir, derivatives_dir, itag, atlas, subjects, roi,
         output_dir = os.path.join(
             roi_dir, 'individual_roi_' + surfspace + '_masks')
 
-    # Paths of individual meshes per hemisphere
-    pial_left, pial_right, white_left, white_right = get_imeshes(
-        derivatives_dir, subjects, surfspace=surfspace)
-
     # For each subject...
-    for mask, pl, pr, wl, wr, sb in zip(masks, pial_left, pial_right,
-                                        white_left, white_right, SUBJECTS):
+    for mask, sb in zip(masks, subjects):
 
         # Map individual functional data from  Nifti to the surface of...
         # ... left and right hemispheres
         mask_img = load_img(mask)
-        DL = vol_to_surf(mask_img, surf_mesh=pl, inner_mesh=wl)
-        DR = vol_to_surf(mask_img, surf_mesh=pr, inner_mesh=wr)
+        DL = vol_to_surf(mask_img, surf_mesh=tpl_pial_left, 
+                         inner_mesh=tpl_white_left)
+        DR = vol_to_surf(mask_img, surf_mesh=tpl_pial_right, 
+                         inner_mesh=tpl_white_right)
         print(sb)
         print(mask)
         print(DL.shape)
@@ -250,6 +247,15 @@ contype = 'psc'
 fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               'fslr32k_meshes')
 
+fslr32_tpl_pial_left = os.path.join(
+    fslr32k_folder, 'templates', 'tpl-fs32k_hemi-L_pial.surf.gii')
+fslr32_tpl_pial_right = os.path.join(
+    fslr32k_folder, 'templates', 'tpl-fs32k_hemi-R_pial.surf.gii')
+fslr32_tpl_white_left = os.path.join(
+    fslr32k_folder, 'templates', 'tpl-fs32k_hemi-L_white.surf.gii')
+fslr32_tpl_white_right = os.path.join(
+    fslr32k_folder, 'templates', 'tpl-fs32k_hemi-R_white.surf.gii')
+
 mask_suffix = '1'
 lh_medial_wall_mask_path = os.path.join(
     fslr32k_folder, 'medialwall_masks',
@@ -402,14 +408,18 @@ if __name__ == '__main__':
         for tag in tags:
 
             # Project masks onto surface
-            # mask2surf(
-            #     roi_folder, derivatives_folder, tag, atlas_name, SUBJECTS,
-            #     roi_name, surfspace=surface_space, save='gifti'
-            # )   
-            # mask2surf(
-            #     roi_folder, derivatives_folder, tag, atlas_name, SUBJECTS,
-            #     roi_name, surfspace=surface_space, save='cifti'
-            # )
+            mask2surf(
+                roi_folder, tag, atlas_name, SUBJECTS, roi_name,
+                fslr32_tpl_pial_left, fslr32_tpl_pial_right,
+                fslr32_tpl_white_left, fslr32_tpl_white_right, 
+                surfspace=surface_space, save='gifti'
+            )   
+            mask2surf(
+                roi_folder, tag, atlas_name, SUBJECTS, roi_name,
+                fslr32_tpl_pial_left, fslr32_tpl_pial_right,
+                fslr32_tpl_white_left, fslr32_tpl_white_right, 
+                surfspace=surface_space, save='cifti'
+            )
 
             # Open the group ROI mask in surface space
             if tag == 'g':
