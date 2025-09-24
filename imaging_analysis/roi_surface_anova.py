@@ -15,6 +15,9 @@ Compatibility: Python 3.10.14
 
 import os
 import numpy as np
+import pandas as pd
+
+from roi_anova_msdtb import dataframe
 
 
 # ############################ FUNCTIONS ################################
@@ -55,7 +58,7 @@ main_dir = os.path.join(
     'bothmod_allmain_tasks'
 )
 
-folder_name = 'main_tasks' # 'rand_ntfd'
+folder_name = 'main_tasks'  # 'main_tasks' or 'rand_ntfd'
 contype = 'psc'
 
 # ### Define number of ROIs of the analysis ###
@@ -70,13 +73,41 @@ roi_names = ['pmd', 'pmv', 'sma', 'presma',
              'heschl',
              'occipital']
 
-# #############
-
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
 # ########################### PARAMETERS ################################
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
+
+if folder_name == 'main_tasks':
+    tasks = {
+        'prod': 'Production', 
+        'percep': 'Perception', 
+        'ntfd': 'NTFD',
+        'allmain_tasks': 'All Tasks'
+    }
+    selected_contrasts = {
+        10: 'Auditory Beat',
+        11: 'Auditory Interval',
+        14: 'Visual Beat',
+        15: 'Visual Interval'
+    }
+    task_roidef_id = 'allmain_tasks'
+    
+else:
+    assert folder_name == 'rand_ntfd'
+    tasks = {
+        'rand_ntfd': 'NTFD Random'
+    }
+    selected_contrasts = {
+        18: 'Auditory Beat',
+        19: 'Auditory Interval',
+        21: 'Auditory Random',
+        30: 'Visual Beat',
+        31: 'Visual Interval',
+        33: 'Visual Random'
+    }
+    task_roidef_id = 'allmain_tasks'
 
 # ############################## RUN ####################################
 
@@ -88,15 +119,40 @@ if __name__ == '__main__':
         roi_folder = os.path.join(main_dir, folder_name, region_name, 
                                   atlas_name, roi_name)
         roi_surf_folder = os.path.join(roi_folder, 'rois_surf_extraction')
+        roi_anovasurf_folder = os.path.join(roi_folder, 'anova_surf')
         
         for tag in tags:
-
+            # Load both hemispheres (bh) ROI file
+            roi_hems_fname = tag + '_' + roi_name + '_' + contype + '.npy'
             roi_bh_fname = tag + '_' + roi_name + '_bh_' + contype + '.npy'
+            roi_hems_path = os.path.join(roi_surf_folder, roi_hems_fname)
             roi_bh_path = os.path.join(roi_surf_folder, roi_bh_fname)
+
+            roi_hems = np.load(roi_hems_path)
             if os.path.exists(roi_bh_path):
                 roi_bh = np.load(roi_bh_path)
             else:
                 # Create both hemispheres (bh) files
                 roi_bh = create_bh_surf_rois(roi_bh_path)
+
+            # Combine lh and rh with bh in the same array
+            # (hemisphere, tasks, contrasts, subjects)
+            # where hemispheres: lh, rh, bh
+            roi_bh_reshaped = np.expand_dims(roi_bh, axis=0)
+            roi_hems_combined = np.concatenate([roi_hems, roi_bh_reshaped], 
+                                               axis=0)
+
+            # Create dataframe for ANOVAs
+            df_path = os.path.join(
+                roi_anovasurf_folder, tag + '_' + roi_name + '_df.tsv'
+            )
+            dfroi = dataframe(roi_hems_combined,
+                              ['lh', 'rh', 'bh'],
+                              list(tasks.values()),
+                              list(selected_contrasts.values()),
+                              SUBJECTS,
+                              df_path)
+
+
 
 
