@@ -19,6 +19,29 @@ import numpy as np
 
 # ############################ FUNCTIONS ################################
 
+def create_bh_surf_rois(roi_bh_path):
+
+    # Split into (directory, filename)
+    surf_dir, bh_fname = os.path.split(roi_bh_path)
+
+    # Separate extension
+    bh_name, ext = os.path.splitext(bh_fname)
+
+    # Two-hemisphere filenames
+    hems_name = bh_name.replace('_bh', '')
+    
+    # Load left and right hemisphere ROIs
+    roi_hems_path = os.path.join(surf_dir, hems_name + ext)
+    roi_hems = np.load(roi_hems_path)
+
+    # Average across hemispheres (axis 0)
+    roi_bh_arr = roi_hems.mean(axis=0)
+
+    # Save both hemispheres ROI
+    np.save(roi_bh_path, roi_bh_arr, allow_pickle=False)
+
+    return roi_bh_arr
+
 
 # ############################# INPUTS ##################################
 
@@ -62,18 +85,18 @@ if __name__ == '__main__':
     for region_name, atlas_name, roi_name in zip(
         region_names, atlas_names, roi_names):
 
-        # Create both hemispheres (bh) files
         roi_folder = os.path.join(main_dir, folder_name, region_name, 
                                   atlas_name, roi_name)
         roi_surf_folder = os.path.join(roi_folder, 'rois_surf_extraction')
         
         for tag in tags:
-            roi_hems_fname = tag + '_' + roi_name + '_' + contype + '.npy'
-            roi_hems_path = os.path.join(roi_surf_folder, roi_hems_fname)
-            roi_hems = np.load(roi_hems_path)
 
-            roi_bh = roi_hems.mean(axis=0)
             roi_bh_fname = tag + '_' + roi_name + '_bh_' + contype + '.npy'
             roi_bh_path = os.path.join(roi_surf_folder, roi_bh_fname)
-            np.save(roi_bh_path, roi_bh, allow_pickle=False)
+            if os.path.exists(roi_bh_path):
+                roi_bh = np.load(roi_bh_path)
+            else:
+                # Create both hemispheres (bh) files
+                roi_bh = create_bh_surf_rois(roi_bh_path)
+
 
