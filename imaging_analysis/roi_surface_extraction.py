@@ -12,10 +12,12 @@ Compatibility: Python 3.10.16
 """
 
 import os
+import csv
 import numpy as np
 import nibabel as nib
 import nitools as nt
 
+from datetime import datetime
 from nilearn.image import load_img
 from nilearn.surface import (load_surf_data, load_surf_mesh, SurfaceImage, 
                              PolyMesh, vol_to_surf)
@@ -64,11 +66,11 @@ def mask2surf(roi_dir, itag, atlas, subjects, roi,
         mask_img_lh = load_img(mask_lh)
         mask_img_rh = load_img(mask_rh)
         DL = vol_to_surf(mask_img_lh, 
-                         surf_mesh=tpl_pial_left, inner_mesh=tpl_white_left,
-                         interpolation="nearest")
+                         surf_mesh=tpl_pial_left, # inner_mesh=tpl_white_left,
+                         interpolation="nearest", radius=2.)
         DR = vol_to_surf(mask_img_rh, 
-                         surf_mesh=tpl_pial_right, inner_mesh=tpl_white_right,
-                         interpolation="nearest")
+                         surf_mesh=tpl_pial_right, # inner_mesh=tpl_white_right,
+                         interpolation="nearest", radius=2.)
         print(sb)
         print(mask_lh)
         print(mask_rh)
@@ -138,6 +140,97 @@ def mask2surf(roi_dir, itag, atlas, subjects, roi,
             )
 
 
+# ---------- Surface neighbors (cached) ----------
+_ADJ_CACHE = {}
+
+def _neighbors_cached(mesh_path_or_obj):
+    """
+    Build (and cache) per-vertex neighbors from the surface faces.
+    Works with nilearn Surface/tuple/dict mesh objects.
+    """
+    if mesh_path_or_obj in _ADJ_CACHE:
+        return _ADJ_CACHE[mesh_path_or_obj]
+
+    smesh = load_surf_mesh(mesh_path_or_obj)
+    # Be tolerant to nilearn/nibabel mesh formats
+    try:
+        coords = np.asarray(smesh.coordinates)
+        faces  = np.asarray(smesh.faces, dtype=np.int64)
+    except AttributeError:
+        try:
+            coords = np.asarray(smesh["coordinates"])
+            faces  = np.asarray(smesh["faces"], dtype=np.int64)
+        except Exception:
+            coords = np.asarray(smesh[0])
+            faces  = np.asarray(smesh[1], dtype=np.int64)
+
+    n_vertices = int(coords.shape[0])
+    neigh = [set() for _ in range(n_vertices)]
+    for a, b, c in faces:
+        neigh[a].add(b); neigh[a].add(c)
+        neigh[b].add(a); neigh[b].add(c)
+        neigh[c].add(a); neigh[c].add(b)
+    neigh = [np.fromiter(s, dtype=np.int64) if s else np.empty(0, np.int64) for s in neigh]
+    _ADJ_CACHE[mesh_path_or_obj] = neigh
+    return neigh
+
+
+def _expand_seed_to_valid(seed_mask, valid_mask, neighbors, max_rings, allowed_mask):
+    """
+    Expand a boolean seed on the surface up to `max_rings` rings,
+    restricted to `allowed_mask`, until any FINITE vertices are reached.
+
+    Returns
+    -------
+    final_mask : np.ndarray[bool]
+    ring_used  : int  (0..max_rings if success, -1 if none found)
+    """
+    visited  = (seed_mask & allowed_mask).astype(bool, copy=True)
+    frontier = visited.copy()
+
+    for ring in range(max_rings + 1):  # includes ring 0
+        candidate = visited & valid_mask
+        if candidate.any():
+            return candidate, ring
+
+        if ring == max_rings or not frontier.any():
+            break
+
+        nxt = np.zeros_like(visited, dtype=bool)
+        for v in np.where(frontier)[0]:
+            nb = neighbors[v]
+            if nb.size:
+                nxt[nb] = True
+        nxt &= allowed_mask & ~visited
+        visited |= nxt
+        frontier = nxt
+
+    return np.zeros_like(seed_mask, dtype=bool), -1
+
+
+# ---------- CSV logger ----------
+LOG_FIELDS = [
+    "timestamp", "region", "atlas", "roi", "tag", "subject", "hemisphere",
+    "task", "contrast_id", "contrast_name", "mesh",
+    "mask_file", "map_file",
+    "n_vertices", "seed_nonzero", "seed_allowed",
+    "finite_total", "valid_total", "initial_roi_finite",
+    "expanded", "rings_used", "final_mask_size",
+    "returned_mean", "used_nan", "cortex_frac"
+]
+
+def _write_log_row(csv_path, row):
+    exists = os.path.exists(csv_path)
+    with open(csv_path, "a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=LOG_FIELDS)
+        if not exists:
+            w.writeheader()
+        # ensure all fields exist
+        for k in LOG_FIELDS:
+            row.setdefault(k, "")
+        w.writerow(row)
+
+
 def extract_roi_means_surface(
         roi_gifti_path: str,
         surfmap_path: str,
@@ -145,86 +238,122 @@ def extract_roi_means_surface(
         medial_wall_path: str = None,   # 1=cortex, 0=MW
         background_label: int = 0,
         mask_threshold: float = 0.5,
+        expand_rings: int = 2,          # try 2–3 rings if needed
+        log_csv_path: str | None = None,
+        log_context: dict | None = None,
     ):
     """
-    Extract mean beta per ROI from a single-hemisphere surface.
+    Robust single-hemisphere ROI summary using SurfaceLabelsMasker.
 
-    Parameters
-    ----------
-    roi_gifti_path : str
-        .label.gii or thresholdable .func.gii (ROI on the same mesh).
-    surfmap_path : str
-        Single beta map (.func.gii) on the same mesh.
-    mesh_path : str
-        Subject's hemi mesh (same used in vol_to_surf).
-    medial_wall_path : str | None
-        0/1 mask (1=cortex). If given, drop MW from labels and data.
-    background_label : int
-        Label code for background/medial wall (default 0).
-    mask_threshold : float
-        Threshold if ROI is a metric mask (>= threshold → inside).
+    Steps:
+      1) Read ROI labels (binarize if metric).
+      2) Read beta map; define FINITE data on cortex (exclude medial wall).
+      3) Preferred mask = ROI ∩ FINITE ∩ cortex.
+      4) If empty, expand ROI on-surface up to `expand_rings` rings
+         (restricted to cortex) until FINITE data is found.
+      5) Hand the final mask to SurfaceLabelsMasker and compute mean.
 
     Returns
     -------
-    roi_means : np.ndarray, shape (n_rois,)
-    roi_codes : np.ndarray[int], shape (n_rois,)
+    roi_means : np.ndarray, shape (n_rois,)  # here n_rois=1
+    roi_codes : np.ndarray[int], shape (n_rois,)  # [1] if non-empty, else []
     """
 
-    # ROI labels (binarize if metric)
+    # 1) ROI labels (binarize if metric)
     lab = load_surf_data(roi_gifti_path)
     if not np.issubdtype(lab.dtype, np.integer):
         lab = (lab >= mask_threshold).astype(int)
+    seed = (lab != background_label)
 
-    # Beta map
+    # 2) Beta map & masks
     data = load_surf_data(surfmap_path).astype(float)
+    if seed.shape[-1] != data.shape[-1]:
+        raise ValueError(
+            f"Vertex count mismatch: labels {seed.shape[-1]} vs data {data.shape[-1]}"
+        )
 
-    # Apply medial wall mask (enforce cortex-only)
     if medial_wall_path is not None:
-        mw = load_surf_data(medial_wall_path).astype(bool)
+        mw = load_surf_data(medial_wall_path).astype(bool)  # 1=cortex
         if mw.shape[-1] != data.shape[-1]:
             raise ValueError(
-                "Vertex count mismatch: MW "
-                f"{mw.shape[-1]} vs data {data.shape[-1]}"
+                f"Vertex count mismatch: MW {mw.shape[-1]} vs data {data.shape[-1]}"
             )
-        lab = np.where(mw, lab, background_label).astype(int)
-        data = np.where(mw, data, np.nan)
-
-    # Extra safety: drop any remaining non-finite betas from ROI
-    if lab.shape[-1] != data.shape[-1]:
-        raise ValueError(
-            "Vertex count mismatch: labels "
-            f"{lab.shape[-1]} vs data {data.shape[-1]}"
-        )
-    finite = np.isfinite(data)
-    lab = lab.astype(int)
-    lab[~finite] = background_label
-
-    # Mesh -> PolyMesh for the correct hemisphere
-    hemi_left = ("hem-L" in mesh_path or ".L." in mesh_path or
-                 "Left" in mesh_path)
-    smesh = load_surf_mesh(mesh_path)
-    if hemi_left:
-        mesh = PolyMesh(left=smesh)
-        hemi_key = "left"
+        allowed = mw
     else:
-        mesh = PolyMesh(right=smesh)
-        hemi_key = "right"
+        allowed = np.ones_like(seed, dtype=bool)
 
-    # Wrap & extract
-    labels_img = SurfaceImage(mesh=mesh, data={hemi_key: lab})
-    surf_img = SurfaceImage(mesh=mesh, data={hemi_key: data})
-    masker = SurfaceLabelsMasker(
-        labels_img=labels_img,
-        background_label=background_label,
-    ).fit()
-    out = masker.transform(surf_img)
-    roi_means = out if out.ndim == 1 else out.squeeze(0)
+    finite = np.isfinite(data)
+    valid  = finite & allowed
 
-    # ROI codes (ascending, excluding background)
-    roi_codes = np.array(
-        sorted(c for c in np.unique(lab) if c != background_label),
-        dtype=int,
-    )
+    # 3) Preferred mask: inside ROI AND finite AND cortex
+    seed_allowed = seed & allowed
+    final_mask = seed_allowed & valid
+
+    rings_used = 0
+    expanded = False
+
+    # 4) If empty, expand on-surface to nearest FINITE cortical vertices
+    if not final_mask.any() and seed_allowed.any():
+        neighbors = _neighbors_cached(mesh_path)
+        final_mask, rings_used = _expand_seed_to_valid(
+            seed_mask=seed_allowed,
+            valid_mask=valid,
+            neighbors=neighbors,
+            max_rings=expand_rings,
+            allowed_mask=allowed
+        )
+        expanded = rings_used >= 1
+
+    used_nan = False
+    if not final_mask.any():
+        used_nan = True
+        roi_means = np.array([np.nan], dtype=float)
+        roi_codes = np.array([], dtype=int)
+    else:
+        # 5) Build labels for the masker: 1 for ROI, 0 background
+        lab_for_masker = np.zeros_like(seed, dtype=int)
+        lab_for_masker[final_mask] = 1
+
+        # Mesh → PolyMesh (unchanged from your code)
+        hemi_left = ("hem-L" in mesh_path or ".L." in mesh_path or "Left" in mesh_path)
+        smesh = load_surf_mesh(mesh_path)
+        if hemi_left:
+            mesh = PolyMesh(left=smesh); hemi_key = "left"
+        else:
+            mesh = PolyMesh(right=smesh); hemi_key = "right"
+
+        labels_img = SurfaceImage(mesh=mesh, data={hemi_key: lab_for_masker})
+        surf_img   = SurfaceImage(mesh=mesh, data={hemi_key: data})
+
+        masker = SurfaceLabelsMasker(labels_img=labels_img, background_label=0).fit()
+        out = masker.transform(surf_img)
+        roi_means = out if out.ndim == 1 else out.squeeze(0)
+        roi_codes = np.array([1], dtype=int)
+
+    # ---------- LOG ----------
+    if log_csv_path is not None:
+        ctx = log_context.copy() if log_context else {}
+        row = dict(
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+            mesh=os.path.basename(mesh_path),
+            mask_file=os.path.basename(roi_gifti_path),
+            map_file=os.path.basename(surfmap_path),
+            n_vertices=int(seed.size),
+            seed_nonzero=int(np.count_nonzero(seed)),
+            seed_allowed=int(np.count_nonzero(seed_allowed)),
+            finite_total=int(np.count_nonzero(finite)),
+            valid_total=int(np.count_nonzero(valid)),
+            initial_roi_finite=int(np.count_nonzero(seed_allowed & finite)),
+            expanded=int(expanded),
+            rings_used=(int(rings_used) if not used_nan else -1),
+            final_mask_size=int(np.count_nonzero(final_mask)),
+            returned_mean=(float(roi_means[0]) if not used_nan else float("nan")),
+            used_nan=int(used_nan),
+            cortex_frac=float(allowed.mean())
+        )
+        row.update(ctx)
+        _write_log_row(log_csv_path, row)
+
     return roi_means, roi_codes
 
 
@@ -399,8 +528,8 @@ region_names = ['occipital_lobe']
 atlas_names = ['hos']
 roi_names = ['occipital']
 
-# tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
-tags = ['i6a']
+tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+# tags = ['i6a']
 
 # ############################# RUN ###################################
 
@@ -414,6 +543,19 @@ if __name__ == '__main__':
                                   atlas_name, roi_name)
           
         for tag in tags:
+
+            # Ensure output dir exists early (we also save the log here)
+            roi_surf_dir = os.path.join(roi_folder, 'rois_surf_extraction')
+            os.makedirs(roi_surf_dir, exist_ok=True)
+
+            # One CSV log per tag/ROI/contrast type
+            log_csv_path = os.path.join(
+                roi_surf_dir,
+                f'{tag}_{roi_name}_{contype}_extraction_log.csv'
+            )
+            # If you prefer a fresh log each run, uncomment:
+            if os.path.exists(log_csv_path):
+                os.remove(log_csv_path)
 
             # Project masks onto surface
             mask2surf(
@@ -533,7 +675,20 @@ if __name__ == '__main__':
                                 surfmap_path=surfmap_path,       # beta map for this hemi
                                 mesh_path=pial,                  # pial template (same used in vol_to_surf)
                                 medial_wall_path=mw,             # medial wall mask for this hemi
-                                background_label=0               # or -1 if that's your medial wall
+                                background_label=0,              # or -1 if that's your medial wall
+                                expand_rings=3,                  # adjust to 3 if you want to be more aggressive
+                                log_csv_path=log_csv_path,
+                                log_context={
+                                    "region": region_name,
+                                    "atlas": atlas_name,
+                                    "roi": roi_name,
+                                    "tag": tag,
+                                    "subject": f"{subject:02d}",
+                                    "hemisphere": hem,
+                                    "task": task_key,
+                                    "contrast_id": key,
+                                    "contrast_name": value
+                                }
                             )
 
                             # Append: shape (hemisphere, tasks, contrasts, subjects)
