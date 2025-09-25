@@ -9,6 +9,16 @@ Created: 17th of September 2025
 Last update: September 2025
 
 Compatibility: Python 3.10.16
+
+Note on shape of final .npy ROI files created:
+-----
+
+# shape (hemisphere, tasks, contrasts, subjects)
+# hemisphere: lh, rh
+# tasks: prod, percep, ntfd, allmain_tasks
+# contrasts: Auditory Beat, Auditory Interval, Visual Beat,
+#            Visual Interval
+# subjects: list of subjects' ids
 """
 
 import os
