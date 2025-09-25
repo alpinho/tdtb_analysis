@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Aggregate significant posthocs per folder and write a single log.
+Aggregate posthoc-significant results per folder and write one log.
 
 Rules
 -----
@@ -11,10 +11,8 @@ Rules
 - Ignore main effect "ROI".
 - Posthoc rows are listed when p-unc < alpha; mark "(corrected SIG)"
   when p-corr < alpha.
-- If an ANOVA has no significant posthoc rows for any effect, it is
-  omitted from the log.
-- In the log, include all columns before any mean/std column, plus T,
-  p-unc, and p-corr if present.
+- If a folder has no posthoc-significant rows across its ANOVAs,
+  do not create a log for that folder.
 """
 
 import argparse
@@ -144,11 +142,13 @@ def _summarize_one_anova(anova_path: Path, alpha: float) -> Optional[str]:
 
         df_eff = df_p.loc[mask].copy()
         if punc_col:
-            df_eff[punc_col] = pd.to_numeric(df_eff[punc_col],
-                                             errors='coerce')
+            df_eff[punc_col] = pd.to_numeric(
+                df_eff[punc_col], errors='coerce'
+            )
         if pcorr_col:
-            df_eff[pcorr_col] = pd.to_numeric(df_eff[pcorr_col],
-                                              errors='coerce')
+            df_eff[pcorr_col] = pd.to_numeric(
+                df_eff[pcorr_col], errors='coerce'
+            )
 
         if not punc_col or punc_col not in df_eff.columns:
             continue
@@ -190,14 +190,12 @@ def _summarize_one_anova(anova_path: Path, alpha: float) -> Optional[str]:
     if not blocks:
         return None
 
-    # Deduplicate identical heads if multiple effects wrote the same ANOVA
-    # name line; keep as-is for clarity per effect.
     return '\n'.join(blocks) + '\n'
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='Aggregate significant posthocs per folder.'
+        description='Write logs only for folders with posthoc hits.'
     )
     parser.add_argument('root_dir', type=str, help='Root directory')
     parser.add_argument('--alpha', type=float, default=ALPHA_DEFAULT,
@@ -223,11 +221,14 @@ def main() -> None:
         folder_blocks.setdefault(folder, []).append(block)
         print(f'[OK] posthoc-significant: {ap}')
 
+    # Only write logs for folders with at least one block.
     if not folder_blocks:
-        print('[INFO] No posthoc-significant effects under root.')
+        print('[INFO] No posthoc-significant results under root.')
         sys.exit(0)
 
     for folder, blocks in folder_blocks.items():
+        if not blocks:
+            continue
         log_path = folder / 'stats_log.txt'
         header = (f'=== SIGNIFICANCE SUMMARY (alpha={args.alpha}) ===\n'
                   f'Folder: {folder.name}\n')
