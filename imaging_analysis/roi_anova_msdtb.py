@@ -1360,7 +1360,7 @@ if __name__ == '__main__':
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for both modalities
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat8rois')
+                    msdtb_dir, '2way-anova_vol_cat8rois')
                 twoway_rmanova_catroi(
                     dfrois, tasks, twoway_anova_catroi_dir, tag)
                 posthoc_catroi(
@@ -1371,7 +1371,7 @@ if __name__ == '__main__':
                     # 2-way RM-ANOVA for roi and timing type tasks ...
                     # ...for both modalities
                     twoway_anova_timingroi_dir = os.path.join(
-                        msdtb_dir, '2way-anova_timing8rois')
+                        msdtb_dir, '2way-anova_vol_timing8rois')
                     twoway_rmanova_timingroi(
                         dfrois, twoway_anova_timingroi_dir, tag)
                     posthoc_timingroi(
@@ -1379,7 +1379,7 @@ if __name__ == '__main__':
 
                     # ####### 3-WAY ROI × TASK × MODALITY ANOVA #######
                     threeway_anova_roi_task_modality_dir = os.path.join(
-                        msdtb_dir, '3way-anova_timing8rois')
+                        msdtb_dir, '3way-anova_vol_timing8rois')
 
                     threeway_rmanova_timing(
                         dfrois, threeway_anova_roi_task_modality_dir, tag)
@@ -1391,7 +1391,7 @@ if __name__ == '__main__':
                 # 2-way RM-ANOVA for roi and category ...
                 # ... for auditory tasks
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat8rois_auditory')
+                    msdtb_dir, '2way-anova_vol_cat8rois_auditory')
                 twoway_rmanova_catroi(
                     dfrois, tasks, twoway_anova_catroi_dir, tag, 
                     modality='auditory')
@@ -1404,7 +1404,7 @@ if __name__ == '__main__':
                     # 2-way RM-ANOVA for roi and timing type tasks ...
                     # ... for auditory tasks
                     twoway_anova_timingroi_dir = os.path.join(
-                        msdtb_dir, '2way-anova_timing8rois_auditory')
+                        msdtb_dir, '2way-anova_vol_timing8rois_auditory')
                     twoway_rmanova_timingroi(
                         dfrois, twoway_anova_timingroi_dir, tag, 
                         modality='auditory')
@@ -1417,7 +1417,7 @@ if __name__ == '__main__':
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for visual tasks
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat8rois_visual')
+                    msdtb_dir, '2way-anova_vol_cat8rois_visual')
                 twoway_rmanova_catroi(
                     dfrois, tasks, twoway_anova_catroi_dir, tag, 
                     modality='visual')
@@ -1430,7 +1430,7 @@ if __name__ == '__main__':
                     # 2-way RM-ANOVA for roi and timing type tasks for 
                     # visual tasks
                     twoway_anova_timingroi_dir = os.path.join(
-                        msdtb_dir, '2way-anova_timing8rois_visual')
+                        msdtb_dir, '2way-anova_vol_timing8rois_visual')
                     twoway_rmanova_timingroi(
                         dfrois, twoway_anova_timingroi_dir, tag, 
                         modality='visual')
@@ -1446,7 +1446,7 @@ if __name__ == '__main__':
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for both modalities
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat2rois')
+                    msdtb_dir, '2way-anova_vol_cat2rois')
                 twoway_rmanova_catroi(
                     dfrois, tasks, twoway_anova_catroi_dir, tag)
                 posthoc_catroi(
@@ -1457,7 +1457,7 @@ if __name__ == '__main__':
                     # 2-way RM-ANOVA for roi and timing type tasks ...
                     # ... for both modalities
                     twoway_anova_timingroi_dir = os.path.join(
-                        msdtb_dir, '2way-anova_timing2rois')
+                        msdtb_dir, '2way-anova_vol_timing2rois')
                     twoway_rmanova_timingroi(
                         dfrois, twoway_anova_timingroi_dir, tag)
                     posthoc_timingroi(
@@ -1468,7 +1468,7 @@ if __name__ == '__main__':
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for auditory tasks
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat2rois_auditory')
+                    msdtb_dir, '2way-anova_vol_cat2rois_auditory')
                 twoway_rmanova_catroi(
                     dfrois, tasks, twoway_anova_catroi_dir, tag, 
                     modality='auditory')
@@ -1481,7 +1481,7 @@ if __name__ == '__main__':
                     # 2-way RM-ANOVA for roi and timing type tasks ...
                     # ... for auditory tasks
                     twoway_anova_timingroi_dir = os.path.join(
-                        msdtb_dir, '2way-anova_timing2rois_auditory')
+                        msdtb_dir, '2way-anova_vol_timing2rois_auditory')
                     twoway_rmanova_timingroi(
                         dfrois, twoway_anova_timingroi_dir, tag,
                         modality='auditory')
@@ -1494,7 +1494,7 @@ if __name__ == '__main__':
                 # ################# CATROI ANALYSES ###################
                 # 2-way RM-ANOVA for roi and category for vision tasks
                 twoway_anova_catroi_dir = os.path.join(
-                    msdtb_dir, '2way-anova_cat2rois_visual')
+                    msdtb_dir, '2way-anova_vol_cat2rois_visual')
                 twoway_rmanova_catroi(
                     dfrois, tasks, twoway_anova_catroi_dir, tag, 
                     modality='visual')
@@ -1507,7 +1507,7 @@ if __name__ == '__main__':
                     # 2-way RM-ANOVA for roi and timing type tasks ...
                     # ... for visual tasks
                     twoway_anova_timingroi_dir = os.path.join(
-                        msdtb_dir, '2way-anova_timing2rois_visual')
+                        msdtb_dir, '2way-anova_vol_timing2rois_visual')
                     twoway_rmanova_timingroi(
                         dfrois, twoway_anova_timingroi_dir, tag, 
                         modality='visual')
