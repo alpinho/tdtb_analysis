@@ -197,13 +197,31 @@ if __name__ == '__main__':
         # ##################### 6 ROIs ################################
 
         # ################# CATROI ANALYSES ###################
-        # 2-way RM-ANOVA for roi and category for both modalities
+        # 2-way RM-ANOVA for roi and category and...
+        # ... for both modalities
         twoway_anova_catroi_dir = os.path.join(
             main_dir, '2way-anova_surf_cat6rois')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
         posthoc_catroi(
             dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names)
-
+        
+        # ... for the auditory modality
+        twoway_anova_catroi_dir = os.path.join(
+            main_dir, '2way-anova_surf_cat6rois_auditory')
+        twoway_rmanova_catroi(
+            dfrois, tasks, twoway_anova_catroi_dir, tag, modality='auditory')
+        posthoc_catroi(
+            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names, 
+            modality='auditory')
+        
+        # ... for the visual modality
+        twoway_anova_catroi_dir = os.path.join(
+            main_dir, '2way-anova_surf_cat6rois_visual')
+        twoway_rmanova_catroi(
+            dfrois, tasks, twoway_anova_catroi_dir, tag, modality='visual')
+        posthoc_catroi(
+            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names, 
+            modality='visual')
 
         # ##### EXPLICIT/IMPLICIT TIMING ROI ANALYSES ######
         # 2-way RM-ANOVA for roi and timing type tasks ...
@@ -214,6 +232,24 @@ if __name__ == '__main__':
             dfrois, twoway_anova_timingroi_dir, tag)
         posthoc_timingroi(
             dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names)
+        
+        # ... for the auditory modality
+        twoway_anova_timingroi_dir = os.path.join(
+            main_dir, '2way-anova_surf_timing6rois_auditory')
+        twoway_rmanova_timingroi(
+            dfrois, twoway_anova_timingroi_dir, tag, modality='auditory')
+        posthoc_timingroi(
+            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names, 
+            modality='auditory')
+        
+        # ... for the visual modality
+        twoway_anova_timingroi_dir = os.path.join(
+            main_dir, '2way-anova_surf_timing6rois_visual')
+        twoway_rmanova_timingroi(
+            dfrois, twoway_anova_timingroi_dir, tag, modality='visual')
+        posthoc_timingroi(
+            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names, 
+            modality='visual')
 
         # ####### 3-WAY ROI × TASK × MODALITY ANOVA #######
         threeway_anova_roi_task_modality_dir = os.path.join(
