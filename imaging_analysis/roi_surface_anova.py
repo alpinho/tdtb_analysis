@@ -199,7 +199,7 @@ if __name__ == '__main__':
         # ################# CATROI ANALYSES ###################
         # 2-way RM-ANOVA for roi and category for both modalities
         twoway_anova_catroi_dir = os.path.join(
-            main_dir, '2way-anova_cat6rois')
+            main_dir, '2way-anova_surf_cat6rois')
         twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
         posthoc_catroi(
             dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names)
@@ -209,7 +209,7 @@ if __name__ == '__main__':
         # 2-way RM-ANOVA for roi and timing type tasks ...
         # ...for both modalities
         twoway_anova_timingroi_dir = os.path.join(
-            main_dir, '2way-anova_timing6rois')
+            main_dir, '2way-anova_surf_timing6rois')
         twoway_rmanova_timingroi(
             dfrois, twoway_anova_timingroi_dir, tag)
         posthoc_timingroi(
@@ -217,7 +217,7 @@ if __name__ == '__main__':
 
         # ####### 3-WAY ROI × TASK × MODALITY ANOVA #######
         threeway_anova_roi_task_modality_dir = os.path.join(
-            main_dir, '3way-anova_timing6rois')
+            main_dir, '3way-anova_surf_timing6rois')
 
         threeway_rmanova_timing(
             dfrois, threeway_anova_roi_task_modality_dir, tag)
