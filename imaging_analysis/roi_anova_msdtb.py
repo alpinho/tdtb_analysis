@@ -3,6 +3,7 @@ This script performs several ANOVA analysis using ROIS extracted from
 contrasts of the Music-SDTB Project.
 
 Author: Ana Luisa Pinho
+email: agrilopi@uwo.ca
 
 Created: October 2024
 Last update: September 2025
@@ -33,10 +34,42 @@ from matplotlib import pyplot as plt
 
 # ############################ FUNCTIONS ################################
 
-def dataframe(data, hemispheres, tasks, contrasts, n_subjects, outpath):
-    # input data shape: (hemisphere, tasks, contrasts, subjects)
-    # ## Open npy file
-    data = np.load(data)
+def dataframe(rdata, hemispheres, tasks, contrasts, n_subjects, outpath):
+    """
+    Create dataframe from ROI data array
+
+    Input:
+    ------
+    rdata: str or np.ndarray
+        Path to .npy file or numpy array with ROI data
+        input data shape: (hemisphere, tasks, contrasts, subjects)
+    hemispheres: list of str
+        List of hemisphere tags, e.g. ['lh', 'rh', 'bh']
+    tasks: list of str
+        List of task tags, e.g. 
+        ['Production', 'Perception', 'Notefinding', 'All Tasks']
+    contrasts: list of str
+        List of contrast names, e.g. 
+        ['Auditory Beat', 'Auditory Interval', 
+         'Visual Beat', 'Visual Interval']
+    n_subjects: list of int
+    outpath: str
+        Path to save the output dataframe (.tsv file)
+
+    Output:
+    -------
+    df: pandas.DataFrame
+        Dataframe with columns: ['PSC', 'Subject', 'Contrast', 
+                                 'Category', 'Modality', 'Task', 
+                                 'Hemisphere']
+    """
+
+    # Load data
+    if isinstance(rdata, str):
+        data = np.load(rdata)
+    else:
+        data = rdata
+
     subjects = ['sub-%02d' % s for s in n_subjects]
     category = [[contrast[s+1:] for s, char in enumerate(contrast[:-1])
                  if char == ' '][0] for contrast in contrasts]
@@ -1064,38 +1097,8 @@ def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh','rh','bh']):
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# #############
-
-# tasks = {
-#     'prod': 'Production', 
-#     'percep': 'Perception', 
-#     'ntfd': 'NTFD',
-#     'allmain_tasks': 'All Tasks'
-# }
-# selected_contrasts = {
-#     10: 'Auditory Beat',
-#     11: 'Auditory Interval',
-#     14: 'Visual Beat',
-#     15: 'Visual Interval'
-# }
-# task_roidef_id = 'allmain_tasks'
-# folder_name = 'main_tasks's
-
-tasks = {
-    'rand_ntfd': 'NTFD Random'
-}
-selected_contrasts = {
-    18: 'Auditory Beat',
-    19: 'Auditory Interval',
-    21: 'Auditory Random',
-    30: 'Visual Beat',
-    31: 'Visual Interval',
-    33: 'Visual Random'
-}
-task_roidef_id = 'allmain_tasks'
-folder_name = 'rand_ntfd' # 'main_tasks'
-
-# #############
+# Tasks type
+folder_name = 'main_tasks' # 'main_tasks' or 'rand_ntfd'
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
@@ -1128,6 +1131,36 @@ roi_dir = os.path.join(
     + hrf_cutoff + '_' 
     + masking + 
     '_puncorr_unsmoothed')
+
+if folder_name == 'main_tasks':
+    tasks = {
+        'prod': 'Production', 
+        'percep': 'Perception', 
+        'ntfd': 'NTFD',
+        'allmain_tasks': 'All Tasks'
+    }
+    selected_contrasts = {
+        10: 'Auditory Beat',
+        11: 'Auditory Interval',
+        14: 'Visual Beat',
+        15: 'Visual Interval'
+    }
+    task_roidef_id = 'allmain_tasks'
+    
+else:
+    assert folder_name == 'rand_ntfd'
+    tasks = {
+        'rand_ntfd': 'NTFD Random'
+    }
+    selected_contrasts = {
+        18: 'Auditory Beat',
+        19: 'Auditory Interval',
+        21: 'Auditory Random',
+        30: 'Visual Beat',
+        31: 'Visual Interval',
+        33: 'Visual Random'
+    }
+    task_roidef_id = 'allmain_tasks'
 
 # ### Define number of ROIs of the analysis ###
 # All ROIs: 10 ROIs
@@ -1311,9 +1344,13 @@ if __name__ == '__main__':
                         modalities=['Visual'])
                     
         # Save dataframe with all ROIs
+        dfrois_vol_folder = os.path.join(msdtb_dir, 'df_rois_volume')
+        if not os.path.exists(dfrois_vol_folder):
+            os.makedirs(dfrois_vol_folder)
         dfrois.to_csv(
             os.path.join(
-                msdtb_dir, 'dfrois_' + tag + '_' + str(n_rois) + '-rois.tsv'),
+                msdtb_dir, 'df_rois_volume',
+                'dfrois_' + tag + '_' + str(n_rois) + '-rois.tsv'),
             sep='\t', index=False)
                 
         # ##################### 8 ROIs ################################
