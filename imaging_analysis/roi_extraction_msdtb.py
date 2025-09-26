@@ -3,6 +3,7 @@ This script computes the mean activity in ROIS
 for a given set of contrasts of the Music-SDTB Project.
 
 Author: Ana Luisa Pinho
+email: agrilopi@uwo.ca
 
 Created: October 2023
 Last update: September 2025
