@@ -164,6 +164,7 @@ def _neighbors_cached(mesh_path_or_obj):
     neigh = [np.fromiter(s, dtype=np.int64) if s
              else np.empty(0, np.int64) for s in neigh]
     _ADJ_CACHE[mesh_path_or_obj] = neigh
+
     return neigh
 
 
@@ -174,6 +175,7 @@ def _grow_one_ring(mask, neighbors, allowed_mask):
         if nb.size:
             out[nb] = True
     out &= allowed_mask
+    
     return out
 
 
@@ -234,7 +236,7 @@ def extract_roi_means_surface(
         mesh_path: str,
         medial_wall_path: str = None,   # 1=cortex, 0=MW
         background_label: int = 0,
-        mask_threshold: float = 0.25,   # <- lower thr for ball-projected masks
+        mask_threshold: float = 0.25,   # <- lower the for ball-projected masks
         expand_rings: int = 3,          # primary budget
         max_expand_rings: int = 12,     # adaptive cap
         log_csv_path: str | None = None,
@@ -252,6 +254,10 @@ def extract_roi_means_surface(
        else 0.0 if hemisphere is entirely NaN.
     6) Use SurfaceLabelsMasker to compute the mean when a final mask exists.
     """
+
+    print(roi_gifti_path)
+    print(surfmap_path)
+    print(medial_wall_path)
 
     # 1) ROI labels (binarize if metric)
     lab = load_surf_data(roi_gifti_path)
@@ -464,28 +470,28 @@ selected_contrasts = {
 folder_name = 'main_tasks'
 
 # All ROIs: 10 ROIs
-# region_names = [
-#     'motor_area', 'motor_area', 'motor_area', 'motor_area', 
-#     'heschl_gyrus', 
-#     'occipital_lobe'
-#     ]
-# atlas_names = [
-#     'hmat', 'hmat', 'hmat', 'hmat',
-#     'hos', 
-#     'hos'
-#     ]
-# roi_names = [
-#     'pmd', 'pmv', 'sma', 'presma',
-#     'heschl',
-#     'occipital'
-#     ]
+region_names = [
+    'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+    'heschl_gyrus', 
+    'occipital_lobe'
+    ]
+atlas_names = [
+    'hmat', 'hmat', 'hmat', 'hmat',
+    'hos', 
+    'hos'
+    ]
+roi_names = [
+    'pmd', 'pmv', 'sma', 'presma',
+    'heschl',
+    'occipital'
+    ]
 
-region_names = ['occipital_lobe']
-atlas_names = ['hos']
-roi_names = ['occipital']
+# region_names = ['occipital_lobe']
+# atlas_names = ['hos']
+# roi_names = ['occipital']
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
-# tags = ['a']
+# tags = ['g']
 
 
 # ================================ RUN =================================
@@ -592,16 +598,12 @@ if __name__ == '__main__':
                                 ' vs ', '_vs_').replace(' ', '-')
                             surfmaps_dir = os.path.join(
                                 surfmaps_pardir, str(key) + '_' + cname)
-                            if tag == 'g':
-                                fname = ('group_' +
-                                         task_key.replace('_', '-') + '_' +
-                                         cname + '_' + surface_space + '.' +
-                                         hem + '.func.gii')
-                            else:
-                                fname = (f'sub-{subject:02d}_' +
-                                         task_key.replace('_', '-') + '_' +
-                                         cname + '_' + surface_space +
-                                         '.hem-' + hem + '.func.gii')
+                            fname = (
+                                f'sub-{subject:02d}_' + 
+                                task_key.replace('_', '-') + '_' +
+                                cname + '_' + surface_space + 
+                                '.hem-' + hem + '.func.gii'
+                            )
                             surfmap_path = os.path.join(
                                 surfmaps_dir, fname)
 
