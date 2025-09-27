@@ -38,11 +38,11 @@ def create_bh_surf_rois(roi_bh_path):
     hems_name = bh_name.replace('_bh', '')
     
     # Load left and right hemisphere ROIs
-    roi_hems_path = os.path.join(surf_dir, hems_name + ext)
-    roi_hems = np.load(roi_hems_path)
+    roihems_path = os.path.join(surf_dir, hems_name + ext)
+    roihems = np.load(roihems_path)
 
     # Average across hemispheres (axis 0)
-    roi_bh_arr = roi_hems.mean(axis=0)
+    roi_bh_arr = roihems.mean(axis=0)
 
     # Save both hemispheres ROI
     np.save(roi_bh_path, roi_bh_arr, allow_pickle=False)
@@ -136,11 +136,8 @@ if __name__ == '__main__':
             roi_bh_path = os.path.join(roi_surf_folder, roi_bh_fname)
 
             roi_hems = np.load(roi_hems_path)
-            if os.path.exists(roi_bh_path):
-                roi_bh = np.load(roi_bh_path)
-            else:
-                # Create both hemispheres (bh) files
-                roi_bh = create_bh_surf_rois(roi_bh_path)
+            # Always create new bh ROI file
+            roi_bh = create_bh_surf_rois(roi_bh_path)
 
             # Combine lh and rh with bh in the same array
             # (hemisphere, tasks, contrasts, subjects)
