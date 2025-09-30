@@ -498,7 +498,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 # The group and individual encoding contrasts from that task will be 
 # used to build the mask.
 # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
-task_roidef = 'All Tasks'
+task_roidef = 'NTFD Random'
 # Tasks to extract ROI data from
 tasks_roiextract_vals = ['NTFD Random']
 
@@ -666,35 +666,41 @@ roi_dir = os.path.join(
 contrast_type = 'wbmasked' # 'sm8wbmasked'
 
 # All ROIs: 10 ROIs
-atlas_dirnames = [fsl_dir, 
-                  ntk_dir, ntk_dir, ntk_dir,
-                  hmat_dir, hmat_dir, hmat_dir, hmat_dir,
-                  fsl_dir, 
-                  fsl_dir]
-atlas_names = ['hos', 
-               'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-               'hmat', 'hmat', 'hmat', 'hmat',
-               'hos', 
-               'hos']
-region_names = ['dorsal_striatum', 
-                'cerebellum', 'cerebellum', 'cerebellum',
-                'motor_area', 'motor_area', 'motor_area', 'motor_area', 
-                'heschl_gyrus', 
-                'occipital_lobe']
-roi_names = ['dstr', 
-             'cereb-s', 'cereb-i', 'cereb',
-             'pmd', 'pmv', 'sma', 'presma',
-             'heschl',
-             'occipital']
+# atlas_dirnames = [fsl_dir, 
+#                   ntk_dir, ntk_dir, ntk_dir,
+#                   hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+#                   fsl_dir, 
+#                   fsl_dir]
+# atlas_names = ['hos', 
+#                'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat', 'hmat',
+#                'hos', 
+#                'hos']
+# region_names = ['dorsal_striatum', 
+#                 'cerebellum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+#                 'heschl_gyrus', 
+#                 'occipital_lobe']
+# roi_names = ['dstr', 
+#              'cereb-s', 'cereb-i', 'cereb',
+#              'pmd', 'pmv', 'sma', 'presma',
+#              'heschl',
+#              'occipital']
+
+atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
+atlas_names = ['hmat', 'hmat', 'hmat', 'hmat']
+region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
+roi_names = ['pmd', 'pmv', 'sma', 'presma']
 
 # tags = ['i', 'a', 'g']
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
 # Tuple: (individual_weight, average_weight, group_weight)
 # weights_list = [(1.,0.), (.5,.5), (0.,1.)]
-weights_list = [(1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
-                (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)]
-
+weights_list = [
+    (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5), (.4, .6), 
+    (.3, .7), (.2, .8), (.1, .9), (0., 1.)
+    ]
 
 # ############################## RUN ####################################
 
