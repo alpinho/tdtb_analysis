@@ -1,83 +1,83 @@
 """
-This script computes the mean activity in ROIS
-for a given set of contrasts of the Music-SDTB Project.
+Compute mean activity in ROIs for selected contrasts in Music-SDTB.
 
-Author: Ana Luisa Pinho
-email: agrilopi@uwo.ca
+How to run:
+1) Main tasks:
+   python roi_extraction_msdtb.py <encoding_type>
+   <encoding_type> ∈ {bothmod|auditory|visual}
 
-Created: October 2023
-Last update: September 2025
+2) rand_ntfd only:
+   python roi_extraction_msdtb.py <encoding_type> <rand_mode>
+   <rand_mode> ∈ {pairs|nonrandom}
 
-Compatibility: Python 3.10.14
-
-How to run the script:
-python roi_extraction_msdtb.py <encoding_type>
-Example:
-python roi_extraction_msdtb.py auditory
-
+Examples:
+   python roi_extraction_msdtb.py bothmod
+   python roi_extraction_msdtb.py auditory pairs
+   python roi_extraction_msdtb.py visual nonrandom
 """
 
-import os
-import sys
 import glob
+import os
 import re
+import sys
 import numpy as np
 
 from scipy.ndimage import binary_dilation, binary_erosion
-
 from nilearn.image import load_img, new_img_like, resample_to_img
 from nilearn.input_data import NiftiLabelsMasker
 
 
-# ########################### FUNCTIONS ###############################
+# ############################ FUNCTIONS ###############################
 
 def nonan_map(con_path):
-    # Load Encoding Map
+    """Load image and replace NaNs with zero."""
     con = load_img(con_path)
-
-    # Remove NaN's
     con_val = con.get_fdata()
     con_val[np.isnan(con_val)] = 0
     con_map = new_img_like(con, con_val)
-
     return con_val, con_map
 
 
 def threshold_map(con_val, thresh_min, thresh_max=None):
-
-    # Threshold
-    thresholded_con_val = con_val
-    thresholded_con_val[thresholded_con_val < thresh_min] = 0
+    """Apply lower/upper threshold to a 3D array."""
+    thr = con_val.copy()
+    thr[thr < thresh_min] = 0
     if thresh_max is not None:
-        thresholded_con_val[thresholded_con_val > thresh_max] = 0
-
-    return thresholded_con_val
+        thr[thr > thresh_max] = 0
+    return thr
 
 
 def binary_dilation_with_limit(image, target_count, gmask, atlas_con):
- 
-    target_count_0 = target_count
+    """Dilate/erode to reach a voxel count limit inside gmask.
 
+    If over target after loop, drop lowest-value voxels by atlas_con.
+    """
+    target0 = target_count
     s1, s2, s3 = np.random.choice(
-        np.random.permutation(np.random.permutation(np.arange(1, 30))), 3)
-    dilated_image = binary_dilation(image, mask=gmask,
-                                    structure=np.ones((s1, s2, s3)))
+        np.random.permutation(np.random.permutation(np.arange(1, 30))), 3
+    )
+    dil = binary_dilation(
+        image, mask=gmask, structure=np.ones((s1, s2, s3))
+    )
+    cur = np.count_nonzero(dil)
 
-    current_count = np.count_nonzero(dilated_image)
-
-    n_iter = 0
-    flag = 0
-    while current_count != target_count:
+    n_iter, flag = 0, 0
+    while cur != target_count:
         n_iter += 1
         s1, s2, s3 = np.random.choice(
-            np.random.permutation(np.random.permutation(np.arange(1, 30))), 3)
-        if current_count < target_count:
-            dilated_image = binary_dilation(dilated_image, mask=gmask,
-                                            structure=np.ones((s1, s2, s3)))
-        elif current_count > target_count:
-            dilated_image = binary_erosion(dilated_image, mask=gmask,
-                                           structure=np.ones((s1, s2, s3)))
-        current_count = np.count_nonzero(dilated_image)
+            np.random.permutation(
+                np.random.permutation(np.arange(1, 30))
+            ), 3
+        )
+        if cur < target_count:
+            dil = binary_dilation(
+                dil, mask=gmask, structure=np.ones((s1, s2, s3))
+            )
+        else:
+            dil = binary_erosion(
+                dil, mask=gmask, structure=np.ones((s1, s2, s3))
+            )
+        cur = np.count_nonzero(dil)
 
         if n_iter == 100:
             flag += 1
@@ -86,284 +86,159 @@ def binary_dilation_with_limit(image, target_count, gmask, atlas_con):
 
         print('Number of iterations:', flag * 100 + n_iter)
 
-    # Post-process: reduce size if overgrown
-    if current_count > target_count_0:
-        # Get indices of all non-zero voxels in dilated image
-        voxel_indices = np.argwhere(dilated_image)
-        # Extract corresponding bin_msdtb_val values
-        voxel_values = atlas_con[tuple(voxel_indices.T)]
-        # Sort voxel indices by corresponding bin_msdtb_val values (ascending)
-        sorted_indices = voxel_indices[np.argsort(voxel_values)]
-        # Set lowest values to 0
-        excess = current_count - target_count_0
+    if cur > target0:
+        idx = np.argwhere(dil)
+        vals = atlas_con[tuple(idx.T)]
+        order = idx[np.argsort(vals)]
+        excess = cur - target0
         for i in range(excess):
-            x, y, z = sorted_indices[i]
-            dilated_image[x, y, z] = 0
+            x, y, z = order[i]
+            dil[x, y, z] = 0
 
-    return dilated_image
+    return dil
 
 
 def combine_masks(maskpath1, maskpath2, combined_maskpath):
-
-    # Load
-    mask1 = load_img(maskpath1)
-    mask2 = load_img(maskpath2)
-
-    # Get data
-    mask1_val = mask1.get_fdata().astype(np.uint8)
-    mask2_val = mask2.get_fdata().astype(np.uint8)
-
-    # Merge masks in one single file
-    combined_mask_val = mask1_val + mask2_val
-    combined_mask_val[combined_mask_val == 2] = 1
-    combined_mask = new_img_like(mask1, combined_mask_val)
-
-    # Save file
-    combined_mask.to_filename(combined_maskpath)
+    """Union two binary masks and save the result."""
+    m1 = load_img(maskpath1)
+    m2 = load_img(maskpath2)
+    v1 = m1.get_fdata().astype(np.uint8)
+    v2 = m2.get_fdata().astype(np.uint8)
+    v = v1 + v2
+    v[v == 2] = 1
+    out = new_img_like(m1, v)
+    out.to_filename(combined_maskpath)
 
 
 def create_group_roimask(con_path, atlas_maskpath, msdtb_maskpath,
                          con_thresh_min=3.385, con_thresh_max=None):
-    """
-    Compute group ROI: intersection of group encoding map
-    thresholded to p < .001 with a pre-specified atlas.
-    """
-
-    # Remove NaNs from contrast map
+    """Intersect thresholded encoding map with an atlas mask."""
     con_val, con_map = nonan_map(con_path)
 
-    # Threshold contrast map
     if con_thresh_max is None:
-        thresholded_con_val = threshold_map(con_val, con_thresh_min)
+        thr_val = threshold_map(con_val, con_thresh_min)
     else:
-        thresholded_con_val = threshold_map(con_val, con_thresh_min,
-                                            thresh_max=con_thresh_max)
+        thr_val = threshold_map(
+            con_val, con_thresh_min, thresh_max=con_thresh_max
+        )
 
-    # Binarize contrast map
-    bin_con_val = (thresholded_con_val != 0)
+    bin_con = (thr_val != 0)
 
-    # Load masks generated from a selected atlas
     atlas_mask = load_img(atlas_maskpath)
+    atlas_r = resample_to_img(atlas_mask, con_map, interpolation='nearest')
+    atlas_v = atlas_r.get_fdata()
 
-    # Resample atlas mask
-    atlas_rmask = resample_to_img(atlas_mask, con_map,
-                                  interpolation='nearest')
+    msdtb_v = np.logical_and(
+        bin_con.astype(bool), atlas_v.astype(bool)
+    ).astype(int)
 
-    # Get data from atlas mask
-    atlas_val = atlas_rmask.get_fdata()
-
-    # Intersection of contrast-of-interest w/ atlas mask
-    msdtb_val = np.logical_and(
-        bin_con_val.astype(bool), atlas_val.astype(bool)).astype(int)
-    n_voxels = np.count_nonzero(msdtb_val)
-
-    if not n_voxels:
+    n_vox = np.count_nonzero(msdtb_v)
+    if not n_vox:
         raise ValueError(
-            'N_voxels = 0 ! There is no intersection between ' + \
-            'thresholded, group encoding map and atlas-roi mask.')
+            'N_voxels = 0 ! No intersection between thresholded encoding '
+            'and atlas mask.'
+        )
 
-    # Create msdtb mask
-    msdtb_mask = new_img_like(atlas_rmask, msdtb_val)
-
-    # Save msdtb mask
+    msdtb_mask = new_img_like(atlas_r, msdtb_v)
     msdtb_mask.to_filename(msdtb_maskpath)
-
-    return msdtb_mask, np.count_nonzero(msdtb_val)
+    return msdtb_mask, n_vox
 
 
 def create_iroimask(icon_path, atlas_maskpath, gmask, n_voxels,
                     iroi_maskpath, gcon_path=None, weights=None):
-    """
-    Create individual ROIs: intersection between the
-    unthresholded, individual encoding and a pre-specified atlas mask.
+    """Create individual ROI with group-size match and optional dilation."""
+    icon_v, _ = nonan_map(icon_path)
+    gcon_v, gcon_map = nonan_map(gcon_path)
 
-    This individual encoding map can be weight-averaged with the
-    group encoding map, prior to the intersection
-
-    The cluster size of the intersection has the same number of voxels
-    as the group ROI mask produced by :func:`create_group_roimask`.
-    To this end, the voxels displaying larger activity are considered.
-    If the intersection results in a cluster size smaller than the group,
-    dilation towards the group mask is performed.
-    """
-
-    # Load and remove NaNs from contrast map
-    icon_val, _ = nonan_map(icon_path)
-    gcon_val, gcon_map = nonan_map(gcon_path)
-
-    # Load masks generated from a selected atlas
     atlas_mask = load_img(atlas_maskpath)
+    atlas_r = resample_to_img(atlas_mask, gcon_map, interpolation='nearest')
+    atlas_v = atlas_r.get_fdata()
 
-    # Resample atlas mask
-    atlas_rmask = resample_to_img(atlas_mask, gcon_map,
-                                  interpolation='nearest')
+    con_v = np.average(np.array([icon_v, gcon_v]), axis=0, weights=weights)
+    bin_msdtb_v = np.where(atlas_v, con_v, 0)
 
-    # Get data from atlas mask
-    atlas_val = atlas_rmask.get_fdata()
+    iroi_v = np.where(bin_msdtb_v, con_v, 0)
+    flat = iroi_v.ravel()
 
-    # Average individual contrast with group contrast...
-    con_val = np.average(np.array([icon_val, gcon_val]), axis=0,
-                         weights=weights)
-
-    # Get only voxels from the encoding map that lie inside the atlas mask
-    bin_msdtb_val = np.where(atlas_val, con_val, 0)
-
-    # Retain an ROI with the same size as the one found at the group level
-    iroi_val = np.where(bin_msdtb_val, con_val, 0)
-    flat = iroi_val.ravel()
-
-    # Get indices of the top n_voxels (largest values)
     if np.count_nonzero(flat) >= n_voxels:
-        # Only consider non-zero values for the selection
-        nonzero_indices = np.flatnonzero(flat)
-        nonzero_values = flat[nonzero_indices]
-        # Get the indices of the top n_voxels among nonzero values
-        order = np.argpartition(nonzero_values, -n_voxels)[-n_voxels:]
-        selected_indices = nonzero_indices[order]
-        # Create a boolean mask with exactly n_voxels set to True
+        nz_idx = np.flatnonzero(flat)
+        nz_val = flat[nz_idx]
+        order = np.argpartition(nz_val, -n_voxels)[-n_voxels:]
+        sel_idx = nz_idx[order]
         mask = np.zeros_like(flat, dtype=bool)
-        mask[selected_indices] = True
-        bin_iroi_val = mask.reshape(iroi_val.shape)
+        mask[sel_idx] = True
+        bin_i_v = mask.reshape(iroi_v.shape)
     else:
-        # If not enough nonzero voxels, keep all nonzeros
-        bin_iroi_val = (iroi_val != 0)
+        bin_i_v = (iroi_v != 0)
 
-    # Test whether binarized individual roi is empty
-    n_selected = np.count_nonzero(bin_iroi_val)
-    # If it is empty, take group mask
-    if n_selected == 0:
+    n_sel = np.count_nonzero(bin_i_v)
+    if n_sel == 0:
         print('Binarized ROI is empty. Taking the group mask.')
         iroi_mask = gmask
-    # If smaller than the group mask, ...
-    elif n_selected < n_voxels:
-        # Do dilation restricted to n_voxels if you have that function, 
-        # or fallback
-        gmask_val = gmask.get_fdata()
-        dilated_mask_val = binary_dilation_with_limit(
-            bin_iroi_val, n_voxels, gmask_val, bin_msdtb_val)
-        print('Dilation performed! ', np.count_nonzero(dilated_mask_val))
-        iroi_mask = new_img_like(atlas_rmask, dilated_mask_val)
-    # If equal or bigger, ...
+    elif n_sel < n_voxels:
+        gmask_v = gmask.get_fdata()
+        dil_v = binary_dilation_with_limit(
+            bin_i_v, n_voxels, gmask_v, bin_msdtb_v
+        )
+        print('Dilation performed! ', np.count_nonzero(dil_v))
+        iroi_mask = new_img_like(atlas_r, dil_v)
     else:
-        # Do the intersection
-        print(np.count_nonzero(bin_iroi_val))
-        iroi_mask = new_img_like(atlas_rmask, bin_iroi_val)
+        print(np.count_nonzero(bin_i_v))
+        iroi_mask = new_img_like(atlas_r, bin_i_v)
 
-    # Store file
     iroi_mask.to_filename(iroi_maskpath)
-
     return iroi_mask
 
 
 def overlay_masks(pdir, mask_type, roi):
-
+    """Overlay individual masks to show ROI stability."""
     masks_dir = os.path.join(pdir, 'individual_roi_masks')
-    output_dir = os.path.join(pdir, 'overlaid_masks')
-
-    # Create output_dir, if it does not exist
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
+    out_dir = os.path.join(pdir, 'overlaid_masks')
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
 
     for hem in ['lh', 'rh']:
-        string = mask_type + '_sub-*_' + roi + '_' + hem + '_mask.nii.gz'
-        paths = glob.glob(os.path.join(masks_dir, string))
-        images = [load_img(path) for path in paths]
-        images_val = [image.get_fdata().tolist() for image in images]
-        mask_sum_val = np.sum(images_val, axis=0)
-        mask_norm_val = mask_sum_val / len(images_val)
-        mask_norm = new_img_like(images[0], mask_norm_val)
-        mask_name = mask_type + '_' + roi + '_' + hem + '_mask.nii.gz'
-        mask_norm.to_filename(os.path.join(output_dir, mask_name))
+        pat = f'{mask_type}_sub-*_{roi}_{hem}_mask.nii.gz'
+        paths = glob.glob(os.path.join(masks_dir, pat))
+        images = [load_img(p) for p in paths]
+        vals = [im.get_fdata().tolist() for im in images]
+        sm = np.sum(vals, axis=0)
+        nm = sm / len(vals)
+        out = new_img_like(images[0], nm)
+        name = f'{mask_type}_{roi}_{hem}_mask.nii.gz'
+        out.to_filename(os.path.join(out_dir, name))
 
 
 def extract_roi(rmask, task, contrasts, subject_estimates_dir,
                 derivatives_folder, filetype, derivative_type='sm8wbmasked'):
-
-    # # For every contrast
-    task_contrasts = []
+    """Extract mean PSC within ROI for each contrast."""
+    out = []
     for key in list(contrasts.keys()):
-
-        contrast_fname = f'{filetype}_{key:04d}_desc-{derivative_type}.nii'
-
+        cfname = f'{filetype}_{key:04d}_desc-{derivative_type}.nii'
         masker = NiftiLabelsMasker(labels_img=rmask)
         masker.fit()
-
-        masked_con = os.path.join(subject_estimates_dir, task,
-                                  derivatives_folder, contrast_fname)
-        print('Extracting ROI data from:', masked_con)
-
-        # Extract mean average of contrasts effect-size in ROI...
-        # ... for a certain participant
-        mask_data = masker.transform(masked_con)[0][0]
-
-        task_contrasts.append(mask_data)
-
-    return task_contrasts
+        mpath = os.path.join(
+            subject_estimates_dir, task, derivatives_folder, cfname
+        )
+        print('Extracting ROI data from:', mpath)
+        val = masker.transform(mpath)[0][0]
+        out.append(val)
+    return out
 
 
 def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
-                       group_tmap_path, tasks_list, contrasts_dic, contype, 
-                       prefix, task_roi_definition, derivatives_folder, mask, 
-                       con_thresh_min=3.385, weights=None, 
-                       subregion=False, hems=['lh', 'rh', 'bh'], 
+                       group_tmap_path, tasks_list, contrasts_dic, contype,
+                       prefix, task_roi_definition, derivatives_folder, mask,
+                       con_thresh_min=3.385, weights=None,
+                       subregion=False, hems=None,
                        derivative_type='sm8wbmasked'):
-    """
-    Extract individual ROIs and compute overlay of individual masks.
-    
-    Parameters
-    ----------
-    main_dir : str
-        Main directory where to store the results.
-    atlas_dir : str
-        Directory where the atlas is located.
-    atlas : str
-        Name of the atlas.
-    region : str
-        Name of the brain region.
-    roi : str
-        Name of the ROI.
-    group_tmap_path : str
-        Path to the group-level encoding t-map.
-    tasks_list : list
-        List of tasks to be considered.
-    contrasts_dic : dict
-        Dictionary with the contrasts to be extracted.
-    contype : str
-        Type of contrast to be extracted.
-    prefix : str
-        Prefix to be used for the output files.
-    task_roi_definition : str
-        Task used to define the ROIs.
-    derivatives_folder : str
-        Name of the derivatives folder where the individual contrasts 
-        are located.
-    mask : str
-        Masking type used in the first-level analysis.
-    con_thresh_min : float, optional
-        Minimum threshold for the group t-map, by default 3.385.
-    weights : tuple, optional
-        Tuple with the weights for the individual and group t-maps, by 
-        default None. If None, only the individual t-map is used. If 
-        (0., 1.), only the group t-map is used.
-    subregion : bool, optional
-        Whether the ROI is a subregion (i.e., cerebellum) or not, by 
-        default False.
-    hems : list, optional
-        List of hemispheres to be considered, by default 
-        ['lh', 'rh', 'bh'].
-    derivative_type : str, optional
-        Type of derivative to be extracted, by default 'sm8wbmasked'.
+    """Extract ROIs and compute overlays.
 
-    Shape of the ROIs extracted and stored in npy files:
-        (hemisphere, tasks, contrasts, subjects)
-
-        Note about default order of dimensions:        
-        hemisphere: lh, rh, bh
-        tasks: prod, percep, ntfd, allmain_tasks
-        contrasts: Auditory Beat, Auditory Interval, Visual Beat,
-                   Visual Interval
-        subjects: list of subjects' ids  
+    Output array shape:
+    (hemisphere, tasks, contrasts, subjects)
     """
+    if hems is None:
+        hems = ['lh', 'rh', 'bh']
 
     if subregion:
         roi_dir = os.path.join(main_dir, region, atlas, roi)
@@ -376,133 +251,107 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
 
     if not os.path.exists(groi_dir):
         os.makedirs(groi_dir)
-
     if not os.path.exists(iroi_dir):
         os.mkdir(iroi_dir)
-
     if not os.path.exists(roiextr_dir):
         os.mkdir(roiextr_dir)
 
-    # ### For each hemisphere ###
     roi_hems = []
     for hem in hems:
-        atlasreg_maskpath = os.path.join(
-            atlas_dir, atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
-
-        # Create group ROI mask:
-        # Intersection of atlas w/ thresholded encoding group tmap
-        gencoding_atlasreg_maskpath = os.path.join(
-            groi_dir,
-            'g_msdtb_' + atlas + '_' + roi + '_' + hem + '_mask.nii.gz')
+        atlas_mask = os.path.join(
+            atlas_dir, f'{atlas}_{roi}_{hem}_mask.nii.gz'
+        )
+        gmask_path = os.path.join(
+            groi_dir, f'g_msdtb_{atlas}_{roi}_{hem}_mask.nii.gz'
+        )
 
         if hem in ['lh', 'rh']:
             print('Group Encoding t-map for ROI mask:', group_tmap_path)
-            gmask, cluster_size = create_group_roimask(
-                group_tmap_path,
-                atlasreg_maskpath,
-                gencoding_atlasreg_maskpath, 
-                con_thresh_min=con_thresh_min)
+            gmask, clsize = create_group_roimask(
+                group_tmap_path, atlas_mask, gmask_path,
+                con_thresh_min=con_thresh_min
+            )
         else:
-            assert hem == 'bh'
             gmask_lh = os.path.join(
-                groi_dir,
-                'g_msdtb_' + atlas + '_' + roi + '_lh_mask.nii.gz')
+                groi_dir, f'g_msdtb_{atlas}_{roi}_lh_mask.nii.gz'
+            )
             gmask_rh = os.path.join(
-                groi_dir,
-                'g_msdtb_' + atlas + '_' + roi + '_rh_mask.nii.gz')
-            combine_masks(gmask_lh, gmask_rh, gencoding_atlasreg_maskpath)
-            gmask = load_img(gencoding_atlasreg_maskpath)
-        
-        # ### For each subject ###
-        subjects_alltaskcon = []
-        for subject in SUBJECTS:
-            subject_dir = os.path.join(data_dir, 'sub-%02d') % subject
-            estimates_dir = os.path.join(subject_dir, 'estimates')
-            iencoding_atlasreg_maskpath = os.path.join(
-                iroi_dir,
-                prefix + '_sub-%02d_' + roi + '_' + hem +  \
-                '_mask.nii.gz') % subject
+                groi_dir, f'g_msdtb_{atlas}_{roi}_rh_mask.nii.gz'
+            )
+            combine_masks(gmask_lh, gmask_rh, gmask_path)
+            gmask = load_img(gmask_path)
 
-            # Create individual ROI masks
+        subjects_all = []
+        for subject in SUBJECTS:
+            sdir = os.path.join(data_dir, 'sub-%02d') % subject
+            est_dir = os.path.join(sdir, 'estimates')
+            iroi_path = os.path.join(
+                iroi_dir,
+                f'{prefix}_sub-%02d_{roi}_{hem}_mask.nii.gz' % subject
+            )
+
             if weights == (0., 1.):
                 irmask = gmask
             else:
-                idx = [match.end()
-                       for match in re.finditer('con_', group_tmap_path)][0]
-                con_id = int(group_tmap_path[idx: idx+2])
-                subject_encoding_tmap = os.path.join(
-                    estimates_dir, task_roi_definition, derivatives_folder,
-                    'wspmT_%04d' % con_id + '_desc-sm8' + mask + 'masked.nii'
+                idx = [m.end() for m in re.finditer(
+                    'con_', group_tmap_path)][0]
+                con_id = int(group_tmap_path[idx: idx + 2])
+                subj_tmap = os.path.join(
+                    est_dir, task_roi_definition, derivatives_folder,
+                    f'wspmT_{con_id:04d}_desc-sm8{mask}masked.nii'
                 )
-                print('Subject Encoding t-map for ROI mask:', 
-                      subject_encoding_tmap)
+                print('Subject Encoding t-map for ROI mask:', subj_tmap)
                 if hem in ['lh', 'rh']:
                     irmask = create_iroimask(
-                        subject_encoding_tmap, atlasreg_maskpath, gmask,
-                        cluster_size, iencoding_atlasreg_maskpath,
-                        gcon_path=group_tmap_path, weights=weights)
+                        subj_tmap, atlas_mask, gmask, clsize, iroi_path,
+                        gcon_path=group_tmap_path, weights=weights
+                    )
                 else:
-                    assert hem == 'bh'
-                    imask_lh = os.path.join(iroi_dir, prefix + '_sub-%02d_' + \
-                                            roi + '_lh_mask.nii.gz') % subject
-                    imask_rh = os.path.join(iroi_dir, prefix + '_sub-%02d_' + \
-                                            roi + '_rh_mask.nii.gz') % subject
-                    combine_masks(imask_lh, imask_rh,
-                                  iencoding_atlasreg_maskpath)
-                    irmask = load_img(iencoding_atlasreg_maskpath)
+                    im_lh = os.path.join(
+                        iroi_dir,
+                        f'{prefix}_sub-%02d_{roi}_lh_mask.nii.gz' % subject
+                    )
+                    im_rh = os.path.join(
+                        iroi_dir,
+                        f'{prefix}_sub-%02d_{roi}_rh_mask.nii.gz' % subject
+                    )
+                    combine_masks(im_lh, im_rh, iroi_path)
+                    irmask = load_img(iroi_path)
 
-            # ### For each task ###
-            itasks_contrasts = []
+            itasks = []
             for task in tasks_list.keys():
-                # Extract individual ROIs
-                itask_contrasts = extract_roi(
-                    irmask, task, contrasts_dic, estimates_dir,
-                    derivatives_folder, contype, 
-                    derivative_type=derivative_type)
-                # ... and append: shape (tasks, contrasts)
-                itasks_contrasts.append(itask_contrasts)
+                vals = extract_roi(
+                    irmask, task, contrasts_dic, est_dir, derivatives_folder,
+                    contype, derivative_type=derivative_type
+                )
+                itasks.append(vals)
+            subjects_all.append(itasks)
 
-            # Append: shape (subjects, tasks, contrasts)
-            subjects_alltaskcon.append(itasks_contrasts)
+        tasks_all = np.moveaxis(subjects_all, 0, -1).tolist()
+        roi_hems.append(tasks_all)
 
-        # Change shape: (tasks, contrasts, subjects)
-        tasks_allconsubjects = np.moveaxis(subjects_alltaskcon, 0, -1).tolist()
-        # ... and append: shape (hemisphere, tasks, contrasts, subjects)
-        # hemisphere: lh, rh, bh
-        # tasks: prod, percep, ntfd, allmain_tasks
-        # contrasts: Auditory Beat, Auditory Interval, Visual Beat,
-        #            Visual Interval
-        # subjects: list of subjects' ids
-        roi_hems.append(tasks_allconsubjects)
-
-    # Save
-    outpath = os.path.join(
-        roiextr_dir, prefix + '_' + roi + '_' + contype[1:] + '.npy')
+    outpath = os.path.join(roiextr_dir, f'{prefix}_{roi}_{contype[1:]}.npy')
     if os.path.exists(outpath):
         os.remove(outpath)
     np.save(outpath, roi_hems, allow_pickle=False)
 
 
-# ############################# INPUTS ##################################
-
-# Subjects w/ pilot
-# SUBJECTS = [3, 4, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21,
-#             22, 23, 26, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-#             44, 45, 46, 47]
+# ############################## INPUTS #################################
 
 # Subjects without pilot
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SUBJECTS = [
+    3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28, 29, 32,
+    34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47
+]
 
-# To build ROI Encoding mask, select one of the following tasks.
-# The group and individual encoding contrasts from that task will be 
-# used to build the mask.
-# 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+# Task that defines the ROI mask
+# 'Production' | 'Perception' | 'NTFD' | 'NTFD Random' | 'All Tasks'
 task_roidef = 'NTFD Random'
-# Tasks to extract ROI data from
+
+# Tasks to extract from
 tasks_roiextract_vals = ['NTFD Random']
 
-# ========================= PARAMETERS =================================
+# ============================ PARAMETERS ==============================
 
 if os.path.isdir('/home/analu/diedrichsen_data/data'):
     base_dir = '/home/analu/diedrichsen_data/data'
@@ -511,146 +360,127 @@ else:
 
 data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
 
-# Tasks dictionary (id -> name)
+# Tasks dict
 tasks = {
-    'prod': 'Production', 
-    'percep': 'Perception', 
+    'prod': 'Production',
+    'percep': 'Perception',
     'ntfd': 'NTFD',
     'rand_ntfd': 'NTFD Random',
     'allmain_tasks': 'All Tasks'
 }
 task_roidef_id = {v: k for k, v in tasks.items()}.get(task_roidef)
-tasks_roiextract = \
-    {k: v for k, v in tasks.items() if v in tasks_roiextract_vals}
+tasks_roiextract = {
+    k: v for k, v in tasks.items() if v in tasks_roiextract_vals
+}
 
-# Contrast dictionary (id -> name)
-if 'rand_ntfd' not in tasks_roiextract.keys():
-    all_contrasts = {
-        1: 'Encoding',
-        2: 'Auditory Encoding',
-        3: 'Visual Encoding',
-        4: 'Auditory vs Visual Encoding',
-        5: 'Visual vs Auditory Encoding',
-        6: 'Beat',
-        7: 'Interval',
-        8: 'Beat vs Interval',
-        9: 'Interval vs Beat',
-        10: 'Auditory Beat',
-        11: 'Auditory Interval',
-        12: 'Auditory Beat vs Auditory Interval',
-        13: 'Auditory Interval vs Auditory Beat',
-        14: 'Visual Beat',
-        15: 'Visual Interval',
-        16: 'Visual Beat vs Visual Interval',
-        17: 'Visual Interval vs Visual Beat',
-        18: 'Decision'
-    }
-    selected_contrasts = {
-        10: 'Auditory Beat',
-        11: 'Auditory Interval',
-        14: 'Visual Beat',
-        15: 'Visual Interval'
-    }
-    folder_name = 'main_tasks'
-else:
-    assert 'rand_ntfd' in tasks_roiextract.keys()
-    all_contrasts = {
-        1: 'Encoding',
-        2: 'Auditory Encoding',
-        3: 'Visual Encoding',
-        4: 'Auditory vs Visual Encoding',
-        5: 'Visual vs Auditory Encoding',
-        6: 'Beat',
-        7: 'Interval',
-        8: 'Non-Random',
-        9: 'Random',
-        10: 'Beat vs Interval',
-        11: 'Interval vs Beat',
-        12: 'Beat vs Random',
-        13: 'Random vs Beat',
-        14: 'Interval vs Random',
-        15: 'Random vs Interval',
-        16: 'Non-Random vs Random',
-        17: 'Random vs Non-Random',
-        18: 'Auditory Beat',
-        19: 'Auditory Interval',
-        20: 'Auditory Non-Random',                   
-        21: 'Auditory Random',
-        22: 'Auditory Beat vs Auditory Interval',
-        23: 'Auditory Interval vs Auditory Beat',
-        24: 'Auditory Beat vs Auditory Random',
-        25: 'Auditory Random vs Auditory Beat',
-        26: 'Auditory Interval vs Auditory Random',
-        27: 'Auditory Random vs Auditory Interval',
-        28: 'Auditory Non-Random vs Auditory Random',
-        29: 'Auditory Random vs Auditory Non-Random',
-        30: 'Visual Beat',
-        31: 'Visual Interval',
-        32: 'Visual Non-Random',                   
-        33: 'Visual Random',
-        34: 'Visual Beat vs Visual Interval',
-        35: 'Visual Interval vs Visual Beat',
-        36: 'Visual Beat vs Visual Random',
-        37: 'Visual Random vs Visual Beat',                    
-        38: 'Visual Interval vs Visual Random',
-        39: 'Visual Random vs Visual Interval',
-        40: 'Visual Non-Random vs Visual Random',
-        41: 'Visual Random vs Visual Non-Random',
-        42: 'Decision'
-    }
-    selected_contrasts = {
-        18: 'Auditory Beat',
-        19: 'Auditory Interval',
-        21: 'Auditory Random',
-        30: 'Visual Beat',
-        31: 'Visual Interval',
-        33: 'Visual Random'
-    }
-    folder_name = 'rand_ntfd'
-  
-keys = list(selected_contrasts.keys())
+# -------- All contrast dictionaries (kept as requested) --------
 
-model = 'rwls' # 'rwls'; or 'standard' (no rwls)
-masking = 'wb' # 'wb' for whole-brain; 'gm' for grey matter
-design = 'dbb' # 'dbb' if decision and response are modeled together;
-               # 'drbb' if otherwise
-hrf_cutoff = 'hrf128' # 'hrf128' or 'hrf42'
-# hrf_cutoff = 'hrf128_timederiv'
-# hrf_cutoff = 'hrf128_timedispderiv'
+ALL_CONTRASTS_MAIN = {
+    1: 'Encoding',
+    2: 'Auditory Encoding',
+    3: 'Visual Encoding',
+    4: 'Auditory vs Visual Encoding',
+    5: 'Visual vs Auditory Encoding',
+    6: 'Beat',
+    7: 'Interval',
+    8: 'Beat vs Interval',
+    9: 'Interval vs Beat',
+    10: 'Auditory Beat',
+    11: 'Auditory Interval',
+    12: 'Auditory Beat vs Auditory Interval',
+    13: 'Auditory Interval vs Auditory Beat',
+    14: 'Visual Beat',
+    15: 'Visual Interval',
+    16: 'Visual Beat vs Visual Interval',
+    17: 'Visual Interval vs Visual Beat',
+    18: 'Decision'
+}
 
-individual_derivatives_folder = \
+ALL_CONTRASTS_RAND = {
+    1: 'Encoding',
+    2: 'Auditory Encoding',
+    3: 'Visual Encoding',
+    4: 'Auditory vs Visual Encoding',
+    5: 'Visual vs Auditory Encoding',
+    6: 'Beat',
+    7: 'Interval',
+    8: 'Non-Random',
+    9: 'Random',
+    10: 'Beat vs Interval',
+    11: 'Interval vs Beat',
+    12: 'Beat vs Random',
+    13: 'Random vs Beat',
+    14: 'Interval vs Random',
+    15: 'Random vs Interval',
+    16: 'Non-Random vs Random',
+    17: 'Random vs Non-Random',
+    18: 'Auditory Beat',
+    19: 'Auditory Interval',
+    20: 'Auditory Non-Random',
+    21: 'Auditory Random',
+    22: 'Auditory Beat vs Auditory Interval',
+    23: 'Auditory Interval vs Auditory Beat',
+    24: 'Auditory Beat vs Auditory Random',
+    25: 'Auditory Random vs Auditory Beat',
+    26: 'Auditory Interval vs Auditory Random',
+    27: 'Auditory Random vs Auditory Interval',
+    28: 'Auditory Non-Random vs Auditory Random',
+    29: 'Auditory Random vs Auditory Non-Random',
+    30: 'Visual Beat',
+    31: 'Visual Interval',
+    32: 'Visual Non-Random',
+    33: 'Visual Random',
+    34: 'Visual Beat vs Visual Interval',
+    35: 'Visual Interval vs Visual Beat',
+    36: 'Visual Beat vs Visual Random',
+    37: 'Visual Random vs Visual Beat',
+    38: 'Visual Interval vs Visual Random',
+    39: 'Visual Random vs Visual Interval',
+    40: 'Visual Non-Random vs Visual Random',
+    41: 'Visual Random vs Visual Non-Random',
+    42: 'Decision'
+}
+
+# Defaults; will be finalized below
+all_contrasts = ALL_CONTRASTS_MAIN
+selected_contrasts = {
+    10: 'Auditory Beat',
+    11: 'Auditory Interval',
+    14: 'Visual Beat',
+    15: 'Visual Interval'
+}
+folder_name = 'main_tasks'
+
+model = 'rwls'
+masking = 'wb'
+design = 'dbb'
+hrf_cutoff = 'hrf128'
+
+individual_derivatives_folder = (
     'masked_derivatives_' + model + '_' + design + '_' + hrf_cutoff
-group_derivatives_folder = \
-    'rfx_onesample_t_' + model + '_' + design + '_' + hrf_cutoff + '_' + \
+)
+group_derivatives_folder = (
+    'rfx_onesample_t_' + model + '_' + design + '_' + hrf_cutoff + '_' +
     masking
+)
 
 group_relative_path = os.path.join(
-    'group', 
-    task_roidef_id, 
-    group_derivatives_folder
-    )
-group_encoding_folder = 'con_01_Encoding'
+    'group', task_roidef_id, group_derivatives_folder
+)
 gtmap_encoding = os.path.join(
-    data_dir, group_relative_path,
-    group_encoding_folder, 
-    'spmT_0001.nii'
-    )
-group_audioencoding_folder = 'con_02_Auditory_Encoding'
+    data_dir, group_relative_path, 'con_01_Encoding', 'spmT_0001.nii'
+)
 gtmap_audioencoding = os.path.join(
-    data_dir, group_relative_path,
-    group_audioencoding_folder, 
+    data_dir, group_relative_path, 'con_02_Auditory_Encoding',
     'spmT_0001.nii'
-    )
-group_visualencoding_folder = 'con_03_Visual_Encoding'
+)
 gtmap_visualencoding = os.path.join(
-    data_dir, group_relative_path,
-    group_visualencoding_folder, 
+    data_dir, group_relative_path, 'con_03_Visual_Encoding',
     'spmT_0001.nii'
-    )
+)
 
-#### Group-level cluster size
-t_threshold = 3.385 ## for a Z value = 3.1 (p < 0.001 - one tail) and dof = 30 -1 (for one sample t-test)
-# t_threshold = 2.91931699 ## for a Z value = 2.7166013496886174 (p < 0.05 FDR-corrected) and dof = 30 -1 (for one sample t-test)
+# Group-level cluster size threshold (t=3.385 ≈ z=3.1)
+t_threshold = 3.385
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
@@ -659,118 +489,131 @@ atag_dir = os.path.join(atlases_dir, 'atag_atlas')
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 roi_dir = os.path.join(
-    working_dir, 
-    f'roi_analyses_{model}_{hrf_cutoff}_{masking}'
-    f'_puncorr_unsmoothed'
+    working_dir,
+    f'roi_analyses_{model}_{hrf_cutoff}_{masking}_puncorr_unsmoothed'
 )
-contrast_type = 'wbmasked' # 'sm8wbmasked'
+contrast_type = 'wbmasked'  # or 'sm8wbmasked'
 
-# All ROIs: 10 ROIs
-# atlas_dirnames = [fsl_dir, 
-#                   ntk_dir, ntk_dir, ntk_dir,
-#                   hmat_dir, hmat_dir, hmat_dir, hmat_dir,
-#                   fsl_dir, 
-#                   fsl_dir]
-# atlas_names = ['hos', 
-#                'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat', 'hmat',
-#                'hos', 
-#                'hos']
-# region_names = ['dorsal_striatum', 
-#                 'cerebellum', 'cerebellum', 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area', 'motor_area', 
-#                 'heschl_gyrus', 
-#                 'occipital_lobe']
-# roi_names = ['dstr', 
-#              'cereb-s', 'cereb-i', 'cereb',
-#              'pmd', 'pmv', 'sma', 'presma',
-#              'heschl',
-#              'occipital']
-
+# Example: 4 ROIs
 atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
 atlas_names = ['hmat', 'hmat', 'hmat', 'hmat']
 region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
 roi_names = ['pmd', 'pmv', 'sma', 'presma']
 
-# tags = ['i', 'a', 'g']
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
-# Tuple: (individual_weight, average_weight, group_weight)
-# weights_list = [(1.,0.), (.5,.5), (0.,1.)]
+# Weights (individual, group) via two-vector average
 weights_list = [
-    (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5), (.4, .6), 
-    (.3, .7), (.2, .8), (.1, .9), (0., 1.)
-    ]
+    (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
+    (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)
+]
 
-# ############################## RUN ####################################
+
+# ############################### RUN ##################################
 
 if __name__ == '__main__':
+    assert len(sys.argv) > 1, (
+        'Pass at least one arg: encoding_type '
+        '(bothmod|auditory|visual).'
+    )
 
-    # ========= SET COMMAND-LINE ARGUMENTS TO BE PASSED TO THE SCRIPT ====
-    assert(len(sys.argv) > 1), "No arg was introduced. " + \
-                               "You must pass a valid arg to the script."
-
-    # Encoding type: what is the sensory modality of the encoding contrast 
-    #                do we define the ROIs?
     encoding_type = sys.argv[1]
-    msdtb_dir = os.path.join(roi_dir, encoding_type + '_' + task_roidef_id, 
-                             folder_name)
+
+    # Decide contrast pool and selection
+    if 'rand_ntfd' not in tasks_roiextract.keys():
+        all_contrasts = ALL_CONTRASTS_MAIN
+        selected_contrasts = {
+            10: 'Auditory Beat',
+            11: 'Auditory Interval',
+            14: 'Visual Beat',
+            15: 'Visual Interval'
+        }
+        folder_name = 'main_tasks'
+    else:
+        all_contrasts = ALL_CONTRASTS_RAND
+        assert len(sys.argv) > 2, (
+            'For rand_ntfd, pass second arg <rand_mode>: '
+            'pairs|nonrandom.'
+        )
+        rand_mode = sys.argv[2].strip().lower()
+        if rand_mode not in ('pairs', 'nonrandom'):
+            raise ValueError("rand_mode must be 'pairs' or 'nonrandom'.")
+
+        if rand_mode == 'pairs':
+            selected_contrasts = {
+                18: 'Auditory Beat',
+                19: 'Auditory Interval',
+                21: 'Auditory Random',
+                30: 'Visual Beat',
+                31: 'Visual Interval',
+                33: 'Visual Random'
+            }
+        else:
+            selected_contrasts = {
+                20: 'Auditory Non-Random',
+                21: 'Auditory Random',
+                32: 'Visual Non-Random',
+                33: 'Visual Random'
+            }
+        folder_name = 'rand_ntfd_' + rand_mode
+
+    keys = list(selected_contrasts.keys())
+
+    msdtb_dir = os.path.join(
+        roi_dir, f'{encoding_type}_{task_roidef_id}', folder_name
+    )
+
+    # Pick group t-map and optionally filter contrasts by encoding type
     if encoding_type == 'bothmod':
         gtmap = gtmap_encoding
         filtered_contrasts = selected_contrasts
     elif encoding_type == 'auditory':
         gtmap = gtmap_audioencoding
-        auditory_keys = keys[:len(keys)//2]
+        aud_keys = keys[:len(keys) // 2]
         filtered_contrasts = {
-            key: selected_contrasts[key] 
-            for key in auditory_keys if key in selected_contrasts
+            k: selected_contrasts[k] for k in aud_keys
+            if k in selected_contrasts
         }
     elif encoding_type == 'visual':
         gtmap = gtmap_visualencoding
-        visual_keys = keys[len(keys)//2:]
+        vis_keys = keys[len(keys) // 2:]
         filtered_contrasts = {
-            key: selected_contrasts[key]
-            for key in visual_keys if key in selected_contrasts
+            k: selected_contrasts[k] for k in vis_keys
+            if k in selected_contrasts
         }
     else:
         raise ValueError(
-            "The argument must be 'bothmod', 'auditory' or 'visual'.")
+            "encoding_type must be 'bothmod', 'auditory' or 'visual'."
+        )
 
-    # Create main directory if does not exist
     if not os.path.exists(msdtb_dir):
         os.makedirs(msdtb_dir)
 
-    # ###### Extract ROIs and compute overlay of individual masks ######
     for tag, wpair in zip(tags, weights_list):
-        for atlas_dirname, atlas_name, region_name, roi_name in zip(
-                atlas_dirnames, atlas_names, region_names, roi_names):
-
-            # Extraction of individual ROIs
-            if region_name == 'dorsal_striatum':
+        for adir, aname, rname, rlabel in zip(
+            atlas_dirnames, atlas_names, region_names, roi_names
+        ):
+            if rname == 'dorsal_striatum':
                 iroicon_estimation(
-                    msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, gtmap, tasks_roiextract, filtered_contrasts, 
-                    'wpsc', tag, task_roidef_id,
-                    individual_derivatives_folder, masking,
-                    con_thresh_min=t_threshold, weights=wpair, 
-                    derivative_type=contrast_type)
-            else:
-                iroicon_estimation(
-                    msdtb_dir, atlas_dirname, atlas_name, region_name,
-                    roi_name, gtmap, tasks_roiextract, filtered_contrasts, 
-                    'wpsc', tag, task_roidef_id, 
-                    individual_derivatives_folder, masking, 
+                    msdtb_dir, adir, aname, rname, rlabel, gtmap,
+                    tasks_roiextract, filtered_contrasts, 'wpsc', tag,
+                    task_roidef_id, individual_derivatives_folder, masking,
                     con_thresh_min=t_threshold, weights=wpair,
-                    subregion=True, derivative_type=contrast_type)
-
-            # Define output-dir path
-            if region_name == 'dorsal_striatum':
-                outdir = os.path.join(msdtb_dir, region_name, atlas_name)
+                    derivative_type=contrast_type
+                )
             else:
-                outdir = os.path.join(msdtb_dir, region_name, atlas_name,
-                                      roi_name)
+                iroicon_estimation(
+                    msdtb_dir, adir, aname, rname, rlabel, gtmap,
+                    tasks_roiextract, filtered_contrasts, 'wpsc', tag,
+                    task_roidef_id, individual_derivatives_folder, masking,
+                    con_thresh_min=t_threshold, weights=wpair,
+                    subregion=True, derivative_type=contrast_type
+                )
 
-            # ##########################################################
-            # # Overlay Individualized Masks for each ROI
+            if rname == 'dorsal_striatum':
+                outdir = os.path.join(msdtb_dir, rname, aname)
+            else:
+                outdir = os.path.join(msdtb_dir, rname, aname, rlabel)
+
             if tag != 'g':
-                overlay_masks(outdir, tag, roi_name)
+                overlay_masks(outdir, tag, rlabel)
