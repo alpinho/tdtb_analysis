@@ -1,6 +1,14 @@
 """
 Compute mean activity in ROIs for selected contrasts in Music-SDTB.
 
+Author: Ana Luisa Pinho
+email: agrilopi@uwo.ca
+
+Created: October 2023
+Last update: September 2025
+
+Compatibility: Python 3.10.14
+
 How to run:
 1) Main tasks:
    python roi_extraction_msdtb.py <encoding_type>
