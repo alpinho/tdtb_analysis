@@ -99,7 +99,7 @@ n_rois = 8
 individualization = 'i8a'     # e.g., 'i8a', 'g', etc.
 
 # Pair of ROIs to compare
-roi1, roi2 = 'dstr', 'sma'
+roi1, roi2 = 'cereb', 'pmv'
 
 # Human-friendly labels (extend as needed)
 roi_labels = {
@@ -262,7 +262,7 @@ for hemi in hemis:
     fname = os.path.join(
         out_dir,
         f"{fname_prefix}_{individualization}_{n_rois}-rois_"
-        f"{roi1}-{roi2}_{hemi}.png",
+        f"{roi1}-{roi2}_{hemi}_encoding.png",
     )
     plt.savefig(fname, dpi=300, bbox_inches='tight')
     print(f"Saved plot to {fname}")
