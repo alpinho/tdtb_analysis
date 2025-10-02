@@ -15,7 +15,10 @@ For each individualization level, hemisphere, and unordered ROI pair:
   ties broken by larger |Δr|), then:
     * save the repeated-measures panel for that setting;
     * in the same folder, save line plots of p across all
-      individualization levels: uncorrected and Holm–Bonferroni.
+      individualization levels: uncorrected and Holm–Bonferroni;
+    * write a clean winners_p_arrays.tsv with p-arrays and direction.
+- Terminal prints are kept concise: the summary path, then for each
+  winner the Holm p-array and a one-line "Wrote winner ..." message.
 
 Author: Ana Luisa Pinho
 Last Update: 03 Oct 2025
@@ -34,6 +37,7 @@ import matplotlib.pyplot as plt
 
 from scipy.stats import ttest_rel
 import pingouin as pg  # required
+
 
 # ============================== INPUTS =================================
 ANNO_X, ANNO_Y = 0.05, 0.15      # annotation box (axes-fraction)
@@ -63,21 +67,29 @@ CATS = ['Beat', 'Interval']
 MODALITIES = ['Auditory', 'Visual', 'Both']
 EXCLUDE_ROIS = {'heschl', 'occipital'}
 
+
 # ============================ UTIL FUNCS ===============================
 def fisher_z(r: float, eps: float = 1e-7) -> float:
+    """Fisher-z transform with clipping to avoid infinities."""
     r = float(np.clip(r, -1 + eps, 1 - eps))
     return float(np.arctanh(r))
 
+
 def fisher_r(z: float) -> float:
+    """Inverse Fisher-z transform."""
     return float(np.tanh(z))
 
+
 def get_pcol(rmc_df: pd.DataFrame) -> str:
+    """Return the p-value column name from pingouin output."""
     for k in ('p-val', 'pval', 'p'):
         if k in rmc_df.columns:
             return k
     raise KeyError(f"No p column in rm_corr: {list(rmc_df.columns)}")
 
+
 def per_subject_r(wide: pd.DataFrame, roi1: str, roi2: str) -> pd.Series:
+    """Subject-wise Pearson r across tasks for two ROI columns."""
     vals = {}
     for subj, subdf in wide.groupby('Subject', sort=False):
         if subdf[[roi1, roi2]].isna().any().any():
@@ -88,13 +100,21 @@ def per_subject_r(wide: pd.DataFrame, roi1: str, roi2: str) -> pd.Series:
         vals[subj] = r
     return pd.Series(vals, name='r')
 
+
 def unordered_pairs(keys: List[str]) -> List[Tuple[str, str]]:
+    """All unordered, non-identical pairs from a list of ROI keys."""
     return list(itertools.combinations(keys, 2))
+
 
 def make_wide_rmcorr(df: pd.DataFrame,
                      roi1: str,
                      roi2: str,
                      cat: str) -> pd.DataFrame:
+    """Build Subject×Task wide table for rmcorr, averaging duplicates.
+
+    Averages over Modality when both are present so we end with a single
+    PSC per Subject×Task×ROI cell.
+    """
     base = (
         df.query("ROI in [@roi1, @roi2] and Task in @TASKS and "
                  "Category == @cat")
@@ -113,9 +133,11 @@ def make_wide_rmcorr(df: pd.DataFrame,
     )
     return wide
 
+
 def mat_for_plot(sub_grp: pd.DataFrame,
                  roi1: str,
                  roi2: str) -> pd.DataFrame:
+    """Task×ROI matrix for plotting; averages duplicates if any."""
     mat = (
         sub_grp.pivot_table(
             index='Task',
@@ -127,7 +149,9 @@ def mat_for_plot(sub_grp: pd.DataFrame,
     )
     return mat
 
+
 def bucket_for_pair(roi1: str, roi2: str) -> str:
+    """Return folder bucket name for a ROI pair."""
     s = {roi1, roi2}
     if 'dstr' in s and 'cereb' in s:
         return 'dstr_cereb'
@@ -137,12 +161,15 @@ def bucket_for_pair(roi1: str, roi2: str) -> str:
         return 'cereb_only'
     return 'hmat'
 
+
 def ensure_dirs(base_out: str) -> Dict[str, str]:
+    """Prepare base periodicity dirs and return mapping."""
     beat_dir = os.path.join(base_out, 'beat_gt_interval')
     intv_dir = os.path.join(base_out, 'interval_gt_beat')
     for d in (beat_dir, intv_dir):
         os.makedirs(d, exist_ok=True)
     return {'beat': beat_dir, 'intv': intv_dir}
+
 
 # ============================ PATHS/FILES ==============================
 WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -157,6 +184,7 @@ BASE_DIR = os.path.join(
     'main_tasks',
 )
 
+
 # ============================== CORE RUN ==============================
 def compute_stats_for_setting(
     df_all: pd.DataFrame,
@@ -166,6 +194,7 @@ def compute_stats_for_setting(
     roi2: str,
     mod: str,
 ) -> Dict[str, object]:
+    """Compute per-category r_rm and Beat-Interval Δ test for a setting."""
     if mod == 'Both':
         df_mod = df_all[df_all['Hemisphere'] == hemi]
         grp_mod = grp[grp['Hemisphere'] == hemi]
@@ -220,14 +249,17 @@ def compute_stats_for_setting(
     return {
         'r_rm_beat': panel_stats.get('Beat', (np.nan, np.nan))[0],
         'p_beat': panel_stats.get('Beat', (np.nan, np.nan))[1],
-        'r_rm_interval': panel_stats.get('Interval', (np.nan, np.nan))[0],
-        'p_interval': panel_stats.get('Interval', (np.nan, np.nan))[1],
+        'r_rm_interval': panel_stats.get('Interval',
+                                         (np.nan, np.nan))[0],
+        'p_interval': panel_stats.get('Interval',
+                                      (np.nan, np.nan))[1],
         'delta_r': delta_r,
-        'p_delta': p_delta,          # uncorrected p for winner selection
+        'p_delta': p_delta,          # uncorrected p (used for winner)
         'n_subjects': n_subj,
         'significant': sig,
         'direction': direction,
     }
+
 
 def render_best_panel_plot(
     df_all: pd.DataFrame,
@@ -241,6 +273,7 @@ def render_best_panel_plot(
     delta_r: float,
     p_delta: float,
 ) -> str:
+    """Render the two-panel rmcorr figure for the chosen setting."""
     if mod == 'Both':
         df_mod = df_all[df_all['Hemisphere'] == hemi]
         grp_mod = grp[grp['Hemisphere'] == hemi]
@@ -319,24 +352,32 @@ def render_best_panel_plot(
     plt.close(fig)
     return fname
 
+
 def render_p_summary_plots(
     base_out_folder: str,
     indiv_levels: List[str],
-    p_unc: List[float],
+    p_unc_full: List[float],
     title: str,
     stem: str,
-) -> Tuple[str, str]:
-    """Save uncorrected and Holm–Bonferroni p across individualization."""
-    p_unc = [np.nan if v is None else v for v in p_unc]
+) -> Tuple[str, str, List[float], List[float]]:
+    """Save uncorrected and Holm p across individualization. Return both."""
+    p_unc = [np.nan if v is None else v for v in p_unc_full]
     mask = ~np.isnan(p_unc)
     xs = np.arange(len(indiv_levels))[mask]
     labs = np.array(indiv_levels)[mask]
     y_unc = np.array(p_unc, float)[mask]
 
-    # Holm–Bonferroni via Pingouin
+    # Holm–Bonferroni via Pingouin (masked only)
+    # (rejects, corrected_p)
     _, y_holm = pg.multicomp(y_unc.tolist(), method='holm')
 
-    print(y_holm)
+    # rebuild full-length Holm list with NaNs in missing positions
+    y_holm_full = [np.nan] * len(indiv_levels)
+    j = 0
+    for i, m in enumerate(mask):
+        if m:
+            y_holm_full[i] = float(y_holm[j])
+            j += 1
 
     # Uncorrected
     plt.figure(figsize=(6, 3))
@@ -348,7 +389,8 @@ def render_p_summary_plots(
     plt.title(title + ' • p across individualization')
     plt.tight_layout()
     f_unc = os.path.join(base_out_folder, f"{stem}_p_unc.png")
-    plt.savefig(f_unc, dpi=300, bbox_inches='tight'); plt.close()
+    plt.savefig(f_unc, dpi=300, bbox_inches='tight')
+    plt.close()
 
     # Holm–Bonferroni
     plt.figure(figsize=(6, 3))
@@ -360,9 +402,11 @@ def render_p_summary_plots(
     plt.title(title + ' • Holm-adjusted p')
     plt.tight_layout()
     f_holm = os.path.join(base_out_folder, f"{stem}_p_holm.png")
-    plt.savefig(f_holm, dpi=300, bbox_inches='tight'); plt.close()
+    plt.savefig(f_holm, dpi=300, bbox_inches='tight')
+    plt.close()
 
-    return f_unc, f_holm
+    return f_unc, f_holm, p_unc, y_holm_full
+
 
 # =============================== MAIN =================================
 def main() -> None:
@@ -402,7 +446,9 @@ def main() -> None:
             .reset_index()
         )
 
-        candidate_rois = [k for k in ROI_LABELS.keys() if k not in EXCLUDE_ROIS]
+        candidate_rois = [
+            k for k in ROI_LABELS.keys() if k not in EXCLUDE_ROIS
+        ]
         roi_pairs = unordered_pairs(candidate_rois)
 
         for hemi in HEMIS:
@@ -439,17 +485,16 @@ def main() -> None:
         by=['individualization', 'hemisphere', 'modality', 'roi1', 'roi2']
     )
     tsv_path = os.path.join(out_dir, 'summary_periodicity.tsv')
-    df_res.to_csv(tsv_path, sep='\t', index=False)
     print(f"Saved summary table to {tsv_path}")
+    df_res.to_csv(tsv_path, sep='\t', index=False)
 
     # For each ROI pair, choose the "winner" by smallest UNCORRECTED p
-    # among significant rows; break ties by larger |delta_r|.
+    # among significant rows; tie-break by larger |delta_r|.
     best_rows = []
     for (roi1, roi2), g in df_res.groupby(['roi1', 'roi2']):
         g_sig = g[(~g['p_delta'].isna()) & (g['p_delta'] < ALPHA)]
         if g_sig.empty:
             continue
-        # idx of min p; if multiple, pick max |delta_r|
         min_p = g_sig['p_delta'].min()
         g_min = g_sig[g_sig['p_delta'] == min_p]
         if len(g_min) > 1:
@@ -457,6 +502,9 @@ def main() -> None:
         else:
             idx = g_min.index[0]
         best_rows.append(df_res.loc[idx].to_dict())
+
+    # Prepare tidy winners p-array TSV
+    winners_rows: List[Dict[str, object]] = []
 
     # Render the winning panel and p-summary plots (unc & Holm)
     for best in best_rows:
@@ -468,6 +516,7 @@ def main() -> None:
         bucket = best['bucket']
         d_r = float(best['delta_r'])
         p_d = float(best['p_delta'])
+        direction = ("Beat > Interval" if d_r > 0 else "Interval > Beat")
 
         # Load data for this indiv to render the panel figure
         df_path = os.path.join(
@@ -475,7 +524,9 @@ def main() -> None:
             f"dfrois_{indiv_star}_{N_ROIS}-rois.tsv"
         )
         if not os.path.exists(df_path):
+            print(f"[WARN] Missing winner file {df_path}")
             continue
+
         df_all = pd.read_csv(
             df_path,
             sep='\t',
@@ -494,7 +545,7 @@ def main() -> None:
             .reset_index()
         )
 
-        # Decide parent folder based on direction/sign of delta
+        # Decide parent folder by direction/sign of delta
         if d_r > 0:
             parent = os.path.join(ensure_dirs(out_dir)['beat'], bucket)
         else:
@@ -516,13 +567,36 @@ def main() -> None:
 
         p_list = [sub['p_delta'].get(ind, np.nan) for ind in INDIVID_LEVELS]
 
-        # Save uncorrected and Holm-adjusted p plots (10 comparisons)
         title = (f"{hemi} • {ROI_LABELS.get(roi1, roi1)} vs "
                  f"{ROI_LABELS.get(roi2, roi2)} • {mod}")
         stem = (f"p_across_indiv_{roi1}-{roi2}_{hemi}_{mod.lower()}")
-        render_p_summary_plots(parent, INDIVID_LEVELS, p_list, title, stem)
 
+        f_unc, f_holm, p_unc_full, p_holm_full = render_p_summary_plots(
+            parent, INDIVID_LEVELS, p_list, title, stem
+        )
+
+        # Print Holm array then the winner line (matches your clean log)
+        print(np.array(p_holm_full))
         print(f"Wrote winner + p-plots for {roi1}-{roi2} ({hemi}, {mod})")
+
+        # Append one tidy row to the winners TSV
+        winners_rows.append({
+            'roi1': roi1,
+            'roi2': roi2,
+            'hemisphere': hemi,
+            'modality': mod,
+            'direction': direction,
+            'p_unc': str(np.array(p_unc_full)),
+            'p_holm': str(np.array(p_holm_full)),
+        })
+
+    # Write winners p-array log as TSV next to the summary table
+    if winners_rows:
+        winners_tsv = os.path.join(out_dir, 'winners_p_arrays.tsv')
+        pd.DataFrame(winners_rows).to_csv(winners_tsv, sep='\t',
+                                          index=False)
+        print(f"Wrote winners p-array log to {winners_tsv}")
+
 
 if __name__ == "__main__":
     main()
