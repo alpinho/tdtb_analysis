@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2024
-Last update: September 2025
+Last update: October 2025
 
 Compatibility: Python 3.10.14
 
@@ -777,10 +777,11 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 
 # What task(s) used for the roi extraction and what ANOVA to do?
 # 'main_tasks' | 'rand_ntfd_pairs' | 'rand_ntfd_nonrandom'
-folder_name = 'main_tasks'
+folder_name = 'rand_ntfd_nonrandom'
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a',
-        'a4g', 'a3g', 'a2g', 'a1g', 'g']
+        'a4g', 'a3g', 'a2g', 'a1g', 'g'
+]
 weights_list = [
     (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
     (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)
@@ -886,7 +887,6 @@ if folder_name == 'main_tasks':
         14: 'Visual Beat',
         15: 'Visual Interval'
     }
-
 elif folder_name == 'rand_ntfd_pairs':
     tasks = {'rand_ntfd': 'NTFD Random'}
     selected_contrasts = {
@@ -897,7 +897,6 @@ elif folder_name == 'rand_ntfd_pairs':
         31: 'Visual Interval',
         33: 'Visual Random'
     }
-
 else:
     assert folder_name == 'rand_ntfd_nonrandom'
     tasks = {'rand_ntfd': 'NTFD Random'}
@@ -908,7 +907,7 @@ else:
         33: 'Visual Random'
     }
 
-# ROI sets
+# ###### ROI sets ######
 atlas_dirnames10 = [
     fsl_dir, ntk_dir, ntk_dir, ntk_dir, hmat_dir, hmat_dir, hmat_dir,
     hmat_dir, fsl_dir, fsl_dir
@@ -928,6 +927,8 @@ roi_names10 = [
     'heschl', 'occipital'
 ]
 
+# #######################
+
 atlas_dirnames8 = [
     fsl_dir, ntk_dir, hmat_dir, hmat_dir, hmat_dir, hmat_dir,
     fsl_dir, fsl_dir
@@ -946,10 +947,32 @@ roi_names8 = [
     'heschl', 'occipital'
 ]
 
+# #######################
+
+atlas_dirnames6 = [
+    fsl_dir, ntk_dir, hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+    fsl_dir, fsl_dir
+]
+atlas_names6 = [
+    'hmat', 'hmat', 'hmat', 'hmat', 'hos', 'hos'
+]
+region_names6 = [
+    'motor_area', 'motor_area', 'motor_area', 'motor_area',
+    'heschl_gyrus', 'occipital_lobe'
+]
+roi_names6 = [
+    'pmd', 'pmv', 'sma', 'presma', 
+    'heschl', 'occipital'
+]
+
+# #######################
+
 atlas_dirnames4 = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
 atlas_names4 = ['hmat', 'hmat', 'hmat', 'hmat']
 region_names4 = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
 roi_names4 = ['pmd', 'pmv', 'sma', 'presma']
+
+# #######################
 
 atlas_dirnames2 = [fsl_dir, ntk_dir]
 atlas_names2 = ['hos', 'ntk_symmni128']
@@ -978,6 +1001,11 @@ if __name__ == '__main__':
         atlas_names = atlas_names8
         region_names = region_names8
         roi_names = roi_names8
+    elif n_rois == 6:
+        atlas_dirnames = atlas_dirnames6
+        atlas_names = atlas_names6
+        region_names = region_names6
+        roi_names = roi_names6
     elif n_rois == 4:
         atlas_dirnames = atlas_dirnames4
         atlas_names = atlas_names4
@@ -989,7 +1017,7 @@ if __name__ == '__main__':
         region_names = region_names2
         roi_names = roi_names2
     else:
-        raise ValueError("n_rois must be one of {2, 4, 8, 10}.")
+        raise ValueError("n_rois must be one of {2, 4, 6, 8, 10}.")
 
     encoding_type = sys.argv[2]
     msdtb_dir = os.path.join(
@@ -1040,7 +1068,7 @@ if __name__ == '__main__':
             dfrois = pd.concat([dfrois, dfroi], ignore_index=True)
 
             # Per-ROI analyses (and posthocs written to TSVs)
-            if n_rois in [4, 10]:
+            if n_rois in [4, 6, 10]:
                 if encoding_type == 'bothmod':
 
                     if folder_name == 'main_tasks':
@@ -1082,7 +1110,7 @@ if __name__ == '__main__':
         )
 
         # Multi-ROI analyses + posthoc plots
-        if n_rois in (8, 4, 2):
+        if n_rois in (2, 4, 6, 8):
             # both modalities
             cat_dir = os.path.join(
                 msdtb_dir, f"2way-anova_vol_cat{n_rois}rois"

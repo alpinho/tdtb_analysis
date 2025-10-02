@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2023
-Last update: September 2025
+Last update: October 2025
 
 Compatibility: Python 3.10.14
 
@@ -354,7 +354,7 @@ SUBJECTS = [
 
 # Task that defines the ROI mask
 # 'Production' | 'Perception' | 'NTFD' | 'NTFD Random' | 'All Tasks'
-task_roidef = 'NTFD Random'
+task_roidef = 'All Tasks'
 
 # Tasks to extract from
 tasks_roiextract_vals = ['NTFD Random']
@@ -502,6 +502,31 @@ roi_dir = os.path.join(
 )
 contrast_type = 'wbmasked'  # or 'sm8wbmasked'
 
+# All ROIs: 10 ROIs
+# atlas_dirnames = [fsl_dir, 
+#                   ntk_dir, ntk_dir, ntk_dir,
+#                   hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+#                   fsl_dir, 
+#                   fsl_dir]
+
+# atlas_names = ['hos', 
+#                'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+#                'hmat', 'hmat', 'hmat', 'hmat'
+#                'hos', 
+#                'hos']
+
+# region_names = ['dorsal_striatum', 
+#                 'cerebellum', 'cerebellum', 'cerebellum',
+#                 'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+#                 'heschl_gyrus', 
+#                 'occipital_lobe']
+
+# roi_names = ['dstr', 
+#              'cereb-s', 'cereb-i', 'cereb',
+#              'pmd', 'pmv', 'sma', 'presma',
+#              'heschl',
+#              'occipital']
+
 # Example: 4 ROIs
 atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
 atlas_names = ['hmat', 'hmat', 'hmat', 'hmat']
@@ -515,7 +540,6 @@ weights_list = [
     (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
     (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)
 ]
-
 
 # ############################### RUN ##################################
 
