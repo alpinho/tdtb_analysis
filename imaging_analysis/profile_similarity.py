@@ -1,12 +1,12 @@
 """
 Script to quantify “profile similarity” between two ROIs across tasks
-using repeated‐measures correlation
+using repeated-measures correlation
 
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of June 2025
-Last Update: July 2025
+Last Update: October 2025
 
 Compatibility: Python 3.10.16
 """
@@ -17,38 +17,55 @@ import numpy as np
 import pandas as pd
 import pingouin as pg
 
+from scipy.spatial.distance import cosine
+
 import matplotlib.pyplot as plt
 
-# ############################# INPUTS ##################################
+
+# ############################# INPUTS ################################
+
+n_rois = 8  # number of ROIs in the set (2, 4, 6, or 8)
+individualization = 'i8a'  # 'i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', or 'g'
+roi1, roi2 = 'dstr', 'sma'  # the two ROIs to compare
+
+loc_leg = 'upper right'  # legend location
+
+# ########################### PARAMETERS ##############################
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
-model      = 'rwls'      # 'rwls' or 'standard'
-masking    = 'wb'        # 'wb' or 'gm'
-hrf_cutoff = 'hrf128'    # 'hrf128' or 'hrf42'
+model = 'rwls'         # 'rwls' or 'standard'
+masking = 'wb'         # 'wb' or 'gm'
+hrf_cutoff = 'hrf128'  # 'hrf128' or 'hrf42'
 
-roi_dir   = os.path.join(
+rois_dir = os.path.join(
     working_dir,
-    f"roi_analyses_{model}_{hrf_cutoff}_{masking}_puncorr_unsmoothed"
+    f"roi_analyses_{model}_{hrf_cutoff}_{masking}_puncorr_unsmoothed",
+    'bothmod_allmain_tasks', 'main_tasks'
 )
-msdtb_dir = os.path.join(roi_dir, 'all')
-df_path   = os.path.join(msdtb_dir, 'dfrois_i8a_8-rois.tsv')
+df_dir = os.path.join(rois_dir, 'df_rois_volume')
+df_path = os.path.join(
+    df_dir, 
+    f"dfrois_{individualization}_{str(n_rois)}-rois.tsv"
+)
 
 # ——— SET of ROIs ———
-roi1, roi2 = 'cereb', 'pmv'
 rois = [roi1, roi2]
 roi_labels = {
     'dstr': 'Dorsal Striatum',
-    'sma':  'SMA',
     'cereb': 'Cerebellum',
     'pmv': 'PMV',
-    # add more mappings for other ROIs
+    'pmd': 'PMD',
+    'presma': 'preSMA',
+    'sma': 'SMA',
+    'heschl': 'Heschl Gyrus',
+    'occipital_lobe': 'Occipital Lobe'
 }
 
 hemis = ['bh']   # hemisphere labels
 tasks = ['Production', 'Perception', 'NTFD']  # exact Task strings
 
 # Text‐box coordinates
-anno_x, anno_y = 0.05, 0.1
+anno_x, anno_y = .05, .1
 
 # ############################## RUN ####################################
 
@@ -95,11 +112,11 @@ for hemi in hemis:
     # --- Group-mean profiles for plotting ---
     grp = (
         df_all
-        .groupby(['Hemisphere','ROI','Task'])['PSC']
+        .groupby(['Hemisphere', 'ROI', 'Task'])['PSC']
         .mean()
         .reset_index()
     )
-    sub_grp = grp[(grp['Hemisphere']==hemi) & (grp['ROI'].isin(rois))]
+    sub_grp = grp[(grp['Hemisphere'] == hemi) & (grp['ROI'].isin(rois))]
     mat = sub_grp.pivot(index='Task', columns='ROI', values='PSC').loc[tasks]
 
     # --- Plot with annotation ---
@@ -119,24 +136,25 @@ for hemi in hemis:
     ax.spines['right'].set_visible(False)
 
     # draw the ROI legend without a frame
-    leg = ax.legend(frameon=False, loc='best')
+    leg = ax.legend(frameon=False, loc=loc_leg)
 
     ax.text(
         anno_x, anno_y,
         rf"$r_{{rm}} = {r_val:.3f},\ p = {p_val:.3f}$",
         transform=ax.transAxes,
         verticalalignment='top',
-        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.7)
+        bbox=dict(boxstyle="round,pad=.3", fc="white", ec="gray", alpha=0.7)
     )
 
     plt.tight_layout()
 
     # --- Save figure ---
-    out_dir = os.path.join(msdtb_dir, 'rmcorr_profile_similarity')
+    out_dir = os.path.join(rois_dir, 'rmcorr_profile_similarity')
     os.makedirs(out_dir, exist_ok=True)
     fname = os.path.join(
         out_dir,
-        f'profile_similarity_i8a_8-rois_{roi1}-{roi2}_{hemi}.png'
+        f"pearson_{individualization}_{str(n_rois)}-rois_{roi1}-"
+        f"{roi2}_{hemi}.png"
     )
     plt.savefig(fname, dpi=300, bbox_inches='tight')
     print(f"Saved plot to {fname}")
