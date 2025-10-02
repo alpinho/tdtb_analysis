@@ -7,15 +7,14 @@ For each individualization level, hemisphere, and unordered ROI pair:
 - Test Beat vs Interval using subject-wise Pearson r across tasks,
   Fisher-z transform, and paired t-test (within-subject).
 - Save a TSV summary (adds 'direction' column).
-- Plot ONLY when Beat > Interval is significant (Δr > 0 and p < ALPHA).
-- Outputs saved under .../profile_similarity/periodicity/.
+- Save plots ONLY when Beat vs Interval is significant; route to:
+    periodicity/beat_gt_interval/<bucket>/
+    periodicity/interval_gt_beat/<bucket>/
+  where <bucket> ∈ {dstr_only, cereb_only, dstr_cereb, hmat}.
+- Exclude ROI pairs that contain 'heschl' or 'occipital'.
 
 Author: Ana Luisa Pinho
-email: agrilopi@uwo.ca
-
-Creation: 1st of October 2025
-Last Update: October 2025
-
+Last Update: 03 Oct 2025
 Compat.: Python 3.10.16
 """
 
@@ -37,7 +36,7 @@ except Exception:
     pg = None
 
 
-# ============================== INPUTS ===============================
+# ============================== INPUTS =================================
 # Plot cosmetics
 ANNO_X, ANNO_Y = 0.05, 0.15      # annotation box (axes-fraction)
 LOC_LEG = 'best'                 # legend location, frameless
@@ -63,13 +62,16 @@ ROI_LABELS: Dict[str, str] = {
 }
 
 # Hemispheres, tasks, categories, modalities
-HEMIS = ['bh', 'lh', 'rh']       # updated per request
+HEMIS = ['bh', 'lh', 'rh']
 TASKS = ['Production', 'Perception', 'NTFD']
 CATS = ['Beat', 'Interval']
 MODALITIES = ['Auditory', 'Visual', 'Both']  # 'Both' pools modalities
 
+# Exclusion list for ROI pairs
+EXCLUDE_ROIS = {'heschl', 'occipital'}
 
-# ============================ UTIL FUNCS =============================
+
+# ============================ UTIL FUNCS ===============================
 def fisher_z(r: float, eps: float = 1e-7) -> float:
     """Fisher-z transform with clipping to avoid infinities."""
     r = float(np.clip(r, -1 + eps, 1 - eps))
@@ -151,6 +153,18 @@ def mat_for_plot(sub_grp: pd.DataFrame,
     return mat
 
 
+def bucket_for_pair(roi1: str, roi2: str) -> str:
+    """Return folder bucket name for a ROI pair."""
+    s = {roi1, roi2}
+    if 'dstr' in s and 'cereb' in s:
+        return 'dstr_cereb'
+    if 'dstr' in s:
+        return 'dstr_only'
+    if 'cereb' in s:
+        return 'cereb_only'
+    return 'hmat'
+
+
 def run_pair_one_mod(
     df_mod: pd.DataFrame,
     grp_mod: pd.DataFrame,
@@ -158,7 +172,8 @@ def run_pair_one_mod(
     roi1: str,
     roi2: str,
     mod: str,
-    out_dir: str,
+    out_dir_beat: str,
+    out_dir_interval: str,
     indiv: str,
     do_plot: bool,
 ) -> Optional[Dict[str, object]]:
@@ -261,8 +276,8 @@ def run_pair_one_mod(
         p_diff, d_r, sig, direction = np.nan, np.nan, False, "n.s."
         diff_text = "Insufficient subjects for paired test."
 
-    # Decide plotting: only if significant and Δr > 0 (Beat > Interval)
-    if do_plot and sig and d_r > 0:
+    # Decide plotting: only if significant (route by direction & bucket)
+    if do_plot and sig:
         fig.suptitle(
             f"{hemi} • {ROI_LABELS.get(roi1, roi1)} vs "
             f"{ROI_LABELS.get(roi2, roi2)}"
@@ -270,8 +285,15 @@ def run_pair_one_mod(
         fig.text(0.5, 0.01, diff_text, ha='center', va='bottom')
         plt.tight_layout(rect=[0, 0.05, 1, 0.95])
 
+        bucket = bucket_for_pair(roi1, roi2)
+        if d_r > 0:
+            target_dir = os.path.join(out_dir_beat, bucket)
+        else:
+            target_dir = os.path.join(out_dir_interval, bucket)
+
+        os.makedirs(target_dir, exist_ok=True)
         fname = os.path.join(
-            out_dir,
+            target_dir,
             f"rmcorr_catdiff_{indiv}_{N_ROIS}-rois_"
             f"{roi1}-{roi2}_{hemi}_{mod.lower()}.png"
         )
@@ -298,12 +320,13 @@ def run_pair_one_mod(
             'n_subjects': int(len(common)),
             'significant': bool(sig),
             'direction': direction,
+            'bucket': bucket_for_pair(roi1, roi2),
         }
         return ret
     return None
 
 
-# ============================ PATHS/FILES ============================
+# ============================ PATHS/FILES ==============================
 WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL = 'rwls'          # 'rwls' or 'standard'
 MASKING = 'wb'          # 'wb' or 'gm'
@@ -317,7 +340,7 @@ BASE_DIR = os.path.join(
 )
 
 
-# =============================== RUN =================================
+# =============================== RUN ==================================
 def main() -> None:
     """Run rmcorr by Category×Modality across indiv levels and ROI pairs."""
     if pg is None:
@@ -325,7 +348,6 @@ def main() -> None:
 
     results: List[Dict[str, object]] = []
 
-    # Loop all individualization levels
     for indiv in INDIVID_LEVELS:
         df_dir = os.path.join(BASE_DIR, 'df_rois_volume')
         df_path = os.path.join(df_dir, f"dfrois_{indiv}_{N_ROIS}-rois.tsv")
@@ -361,7 +383,11 @@ def main() -> None:
             .reset_index()
         )
 
-        roi_pairs = unordered_pairs(list(ROI_LABELS.keys()))
+        # ROI pairs excluding 'heschl' and 'occipital'
+        candidate_rois = [
+            k for k in ROI_LABELS.keys() if k not in EXCLUDE_ROIS
+        ]
+        roi_pairs = unordered_pairs(candidate_rois)
 
         for hemi in HEMIS:
             for roi1, roi2 in roi_pairs:
@@ -390,10 +416,17 @@ def main() -> None:
                             (grp['Modality'] == mod)
                         ]
 
-                    out_dir = os.path.join(
+                    base_out = os.path.join(
                         BASE_DIR, 'profile_similarity', 'periodicity'
                     )
-                    os.makedirs(out_dir, exist_ok=True)
+                    out_dir_beat = os.path.join(
+                        base_out, 'beat_gt_interval'
+                    )
+                    out_dir_interval = os.path.join(
+                        base_out, 'interval_gt_beat'
+                    )
+                    os.makedirs(out_dir_beat, exist_ok=True)
+                    os.makedirs(out_dir_interval, exist_ok=True)
 
                     stat = run_pair_one_mod(
                         df_mod=df_mod,
@@ -402,24 +435,23 @@ def main() -> None:
                         roi1=roi1,
                         roi2=roi2,
                         mod=mod,
-                        out_dir=out_dir,
+                        out_dir_beat=out_dir_beat,
+                        out_dir_interval=out_dir_interval,
                         indiv=indiv,
-                        do_plot=True,   # plots only if sig and Δr > 0
+                        do_plot=True,  # plots only if significant
                     )
                     if stat is not None:
                         results.append(stat)
 
     # Save summary table
+    base_out = os.path.join(BASE_DIR, 'profile_similarity', 'periodicity')
+    os.makedirs(base_out, exist_ok=True)
     if results:
-        df_res = pd.DataFrame(results)
-        # Sort for readability
-        df_res = df_res.sort_values(
+        df_res = pd.DataFrame(results).sort_values(
             by=['individualization', 'hemisphere', 'modality',
                 'roi1', 'roi2']
         )
-        out_dir = os.path.join(BASE_DIR, 'profile_similarity', 'periodicity')
-        os.makedirs(out_dir, exist_ok=True)
-        tsv_path = os.path.join(out_dir, 'summary_periodicity.tsv')
+        tsv_path = os.path.join(base_out, 'summary_periodicity.tsv')
         df_res.to_csv(tsv_path, sep='\t', index=False)
         print(f"Saved summary table to {tsv_path}")
     else:
