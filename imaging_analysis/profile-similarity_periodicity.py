@@ -17,8 +17,12 @@ For each individualization level, hemisphere, and unordered ROI pair:
     * write winners_p_arrays.tsv sorted by pair, modality, hemisphere.
 
 Author: Ana Luisa Pinho
-Last Update: 03 Oct 2025
-Compat.: Python 3.10.16
+email: agrilopi@uwo.ca
+
+Created: 1st of October 2025
+Last Update: 2nd of October 2025
+
+Compatibility: Python 3.10.16
 """
 
 from __future__ import annotations
