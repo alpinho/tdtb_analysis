@@ -312,6 +312,9 @@ def plot_matrix(
 ALPHA: float = 0.05
 N_ROIS: int = 8
 
+# Toggle: include synthetic Rest (Task/Category/Modality = 'Rest')
+ADD_REST: bool = True  # set True to include Rest
+
 INDIVID_LEVELS: List[str] = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
     'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
@@ -326,8 +329,8 @@ TASKS_NO_REST: List[str] = ['Production', 'Perception', 'NTFD']
 CATS: List[str] = ['Beat', 'Interval']
 MODALITIES: List[str] = ['Both', 'Auditory', 'Visual']
 
-# Toggle: include synthetic Rest (Task/Category/Modality = 'Rest')
-ADD_REST: bool = True  # set True to include Rest
+# Directory name switches with Rest toggle
+ENCODING_DIRNAME: str = 'encoding_rest' if ADD_REST else 'encoding'
 
 ROI_LABELS: Dict[str, str] = {
     'dstr': 'Dorsal Striatum',
