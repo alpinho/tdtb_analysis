@@ -376,7 +376,7 @@ if __name__ == "__main__":
             continue
 
         indiv_root = (
-            Path(BASE_DIR) / 'profile_similarity' / 'encoding_rest' / indiv
+            Path(BASE_DIR) / 'profile_similarity' / ENCODING_DIRNAME / indiv
         )
         for sub in ('cereb_only', 'dstr_only', 'hmat', 'matrices'):
             os.makedirs(indiv_root / sub, exist_ok=True)
