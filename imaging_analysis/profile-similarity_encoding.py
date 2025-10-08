@@ -337,7 +337,7 @@ def main() -> None:
                 'Category': str,
                 'Modality': str,
                 'PSC': float,
-            },
+            }
         )
         df_all = df_all[df_all['Task'].isin(TASKS)]
 
@@ -469,7 +469,7 @@ def main() -> None:
             dtype={
                 'Subject': str, 'Task': str, 'ROI': str, 'Hemisphere': str,
                 'Category': str, 'Modality': str, 'PSC': float,
-            },
+            }
         )
         df_all = df_all[df_all['Task'].isin(TASKS)]
         grp = (
