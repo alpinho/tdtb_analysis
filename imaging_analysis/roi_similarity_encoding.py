@@ -2,37 +2,86 @@
 # -*- coding: utf-8 -*-
 
 """
-Profile similarity (encoding) using repeated-measures correlation.
+Profile similarity (encoding) with repeated-measures correlation.
 
 - For each individualization × modality × hemisphere:
-  * Build Subject×Task×Category×Modality wide PSC for two ROIs.
-  * Keep 12 points per subject for 'Both', 6 for Aud/Vis.
-  * Compute rm-corr (within-subject) with Pingouin.
-  * Plot group-mean task profiles for the two ROIs and annotate
-    r_rm and p.
+  * Build Subject×Task×Category×Modality PSC for two ROIs (no
+    collapse across Category/Modality).
+  * Keep 12 points per subject for 'Both' (3×2×2), 6 for Aud/Vis
+    (3×2×1).
+  * Compute rm-corr (Pingouin) for all ROI pairs (alphabetical).
+  * Plot ONLY significant pairs (p < ALPHA).
+  * Store under:
+      BASE_DIR/profile_similarity/encoding/<indiv>/
+    with buckets:
+      - cereb_only: includes cereb, excludes dstr
+      - dstr_only : includes dstr, excludes cereb
+      - hmat      : remaining (incl. cereb–dstr)
 
-Outputs:
-- PNG figures under:
-  BASE_DIR/profile_similarity/encoding_matrices
-
-Author: Ana Luisa Pinho
-Email: agrilopi@uwo.ca
-
-Created: 7 Oct 2025
-Last Update: Oct 2025
-Compatibility: Python 3.10.16
+Also writes a TSV per (modality × hemisphere) with r, p, n_subj,
+n_points, and a 'significant' column.
 """
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pingouin as pg
+
+
+# ============================ USER INPUTS ============================ #
+
+ALPHA: float = 0.05
+N_ROIS: int = 8
+
+INDIVID_LEVELS: List[str] = [
+    'i', 'i9a', 'i8a', 'i7a', 'i6a',
+    'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
+]
+# INDIVID_LEVELS: List[str] = ['i8a']
+
+HEMIS: List[str] = ['bh', 'lh', 'rh']
+TASKS: List[str] = ['Production', 'Perception', 'NTFD']
+CATS: List[str] = ['Beat', 'Interval']
+MODALITIES: List[str] = ['Both', 'Auditory', 'Visual']
+
+ROI_LABELS: Dict[str, str] = {
+    'dstr': 'Dorsal Striatum',
+    'cereb': 'Cerebellum',
+    'pmv': 'PMV',
+    'pmd': 'PMD',
+    'presma': 'preSMA',
+    'sma': 'SMA',
+    'heschl': 'Heschl Gyrus',
+    'occipital': 'Occipital Lobe',
+    'occipital_lobe': 'Occipital Lobe',
+}
+
+LEG_LOC: str = 'upper right'
+ANNO_X, ANNO_Y = 0.05, 0.10
+
+
+# =============================== PATHS ============================== #
+
+WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL = 'rwls'
+MASKING = 'wb'
+HRF = 'hrf128'
+
+BASE_DIR = os.path.join(
+    WORKING_DIR,
+    f"roi_analyses_{MODEL}_{HRF}_{MASKING}_puncorr_unsmoothed",
+    'bothmod_allmain_tasks',
+    'main_tasks',
+)
+
+DF_DIR = os.path.join(BASE_DIR, 'df_rois_volume')
 
 
 # ============================== HELPERS ============================= #
@@ -55,7 +104,7 @@ def _mod_mask(df: pd.DataFrame, modality: str) -> pd.Series:
 
 def _load_df(indiv: str) -> pd.DataFrame:
     """
-    Load one dataframe and subset to desired tasks.
+    Load one dataframe and subset to desired tasks/categories.
     """
     path = os.path.join(DF_DIR, f"dfrois_{indiv}_{N_ROIS}-rois.tsv")
     if not os.path.exists(path):
@@ -84,11 +133,10 @@ def _wide_for_rmcorr(
     roi2: str,
 ) -> pd.DataFrame:
     """
-    Build Subject×Task×Category×Modality wide table for two ROIs.
+    Subject×Task×Category×Modality table for two ROIs.
 
-    - Keeps 12 points per subject for 'Both' (3×2×2).
-    - Keeps 6 points for Auditory/Visual (3×2×1).
-    - Does not collapse across Category or Modality.
+    Keeps 12 points per subject for 'Both' (3×2×2) and 6 for Aud/Vis
+    (3×2×1). No collapse across Category or Modality.
     """
     if df.empty:
         return df
@@ -102,7 +150,7 @@ def _wide_for_rmcorr(
     if sub.empty:
         return pd.DataFrame()
 
-    # Average only if exact duplicates exist within a cell.
+    # Average if exact duplicates exist within a cell.
     sub = (
         sub.groupby(
             ['Subject', 'Task', 'Category', 'Modality', 'ROI'],
@@ -119,18 +167,17 @@ def _wide_for_rmcorr(
         .reset_index()
     )
 
-    # Ensure both ROI columns exist and are complete
     if roi1 not in wide.columns or roi2 not in wide.columns:
         return pd.DataFrame()
+
     wide = wide.dropna(subset=[roi1, roi2])
 
-    # Enforce per-subject completeness
+    # Enforce per-subject completeness.
     need = _expected_n(modality)
     cnt = wide.groupby('Subject').size().rename('n').reset_index()
     keep = set(cnt.loc[cnt['n'] == need, 'Subject'])
     wide = wide[wide['Subject'].isin(keep)].copy()
 
-    # Final tidy columns for pg.rm_corr
     cols = ['Subject', 'Task', 'Category', 'Modality', roi1, roi2]
     wide = wide.loc[:, cols]
     wide.index.name = None
@@ -151,8 +198,7 @@ def _group_means_for_plot(
     """
     Group-mean PSC per Task for roi1 and roi2 in a hemisphere.
 
-    Note: plot mirrors your original script (Task-only means),
-    while rmcorr uses 6/12 points per subject internally.
+    Plot mirrors original script (Task-only means).
     """
     if df.empty:
         return pd.DataFrame()
@@ -171,12 +217,23 @@ def _group_means_for_plot(
         .mean()
         .reset_index()
     )
-
     mat = (
         grp.pivot(index='Task', columns='ROI', values='PSC')
         .reindex(index=TASKS)
     )
     return mat
+
+
+def _bucket_for_pair(roi_a: str, roi_b: str) -> str:
+    """
+    Decide output bucket for a pair (alphabetical order).
+    """
+    a, b = sorted([roi_a, roi_b])
+    if 'cereb' in (a, b) and 'dstr' not in (a, b):
+        return 'cereb_only'
+    if 'dstr' in (a, b) and 'cereb' not in (a, b):
+        return 'dstr_only'
+    return 'hmat'
 
 
 def _plot_profiles(
@@ -230,103 +287,98 @@ def _plot_profiles(
     print(f"[SAVED] {out_png}")
 
 
-# ============================ USER INPUTS ============================ #
-
-N_ROIS: int = 8
-
-# INDIVID_LEVELS: List[str] = [
-#     'i', 'i9a', 'i8a', 'i7a', 'i6a',
-#     'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
-# ]
-INDIVID_LEVELS: List[str] = ['i8a']
-
-ROI1, ROI2 = 'dstr', 'sma'
-
-ROI_LABELS: Dict[str, str] = {
-    'dstr': 'Dorsal Striatum',
-    'cereb': 'Cerebellum',
-    'pmv': 'PMV',
-    'pmd': 'PMD',
-    'presma': 'preSMA',
-    'sma': 'SMA',
-    'heschl': 'Heschl Gyrus',
-    'occipital': 'Occipital Lobe',
-    'occipital_lobe': 'Occipital Lobe',
-}
-
-HEMIS: List[str] = ['bh', 'lh', 'rh']
-TASKS: List[str] = ['Production', 'Perception', 'NTFD']
-CATS: List[str] = ['Beat', 'Interval']
-MODALITIES: List[str] = ['Both', 'Auditory', 'Visual']
-
-LEG_LOC: str = 'upper right'
-ANNO_X, ANNO_Y = 0.05, 0.10
-
-
-# =============================== PATHS ============================== #
-
-WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL = 'rwls'
-MASKING = 'wb'
-HRF = 'hrf128'
-
-BASE_DIR = os.path.join(
-    WORKING_DIR,
-    f"roi_analyses_{MODEL}_{HRF}_{MASKING}_puncorr_unsmoothed",
-    'bothmod_allmain_tasks',
-    'main_tasks',
-)
-
-DF_DIR = os.path.join(BASE_DIR, 'df_rois_volume')
-
-OUT_DIR = os.path.join(
-    BASE_DIR, 'profile_similarity', 'encoding_matrices'
-)
-os.makedirs(OUT_DIR, exist_ok=True)
-
-
 # ================================ RUN =============================== #
 
 if __name__ == "__main__":
-    rois = [ROI1, ROI2]
-
     for indiv in INDIVID_LEVELS:
         df_all = _load_df(indiv)
         if df_all.empty:
             continue
 
+        # Per-individualization output root and buckets
+        indiv_root = Path(BASE_DIR) / 'profile_similarity' / 'encoding' / indiv
+        for sub in ('cereb_only', 'dstr_only', 'hmat'):
+            os.makedirs(indiv_root / sub, exist_ok=True)
+
+        # ROI codes present and recognized
+        present = sorted(set(df_all['ROI'].unique()) & set(ROI_LABELS))
+        if len(present) < 2:
+            print(f"[SKIP] {indiv}: <2 ROIs present")
+            continue
+
         for modality in MODALITIES:
             for hemi in HEMIS:
-                wide = _wide_for_rmcorr(
-                    df_all, hemi=hemi, modality=modality,
-                    roi1=ROI1, roi2=ROI2
-                )
-                if wide.empty:
-                    print(f"[SKIP] {indiv} {modality} {hemi}: no data")
-                    continue
-                
-                rmc = pg.rm_corr(
-                    data=wide, x=ROI1, y=ROI2, subject='Subject'
-                )
-                r_val = float(rmc['r'].iloc[0])
-                p_col = 'pval' if 'pval' in rmc.columns else 'p'
-                p_val = float(rmc[p_col].iloc[0])
 
-                mat = _group_means_for_plot(
-                    df_all, hemi=hemi, modality=modality,
-                    roi1=ROI1, roi2=ROI2
-                )
-                if mat.empty:
-                    print(f"[SKIP] {indiv} {modality} {hemi}: no plot")
-                    continue
+                # Collect stats for all pairs for this combo
+                summary_rows: List[Dict[str, object]] = []
 
-                fname = (
-                    f"rmcorr_profile_{indiv}_{modality}_{hemi}_"
-                    f"{ROI1}-{ROI2}_{N_ROIS}-rois.png"
+                for roi_a, roi_b in combinations(present, 2):
+                    roi1, roi2 = sorted([roi_a, roi_b])
+
+                    wide = _wide_for_rmcorr(
+                        df_all, hemi=hemi, modality=modality,
+                        roi1=roi1, roi2=roi2
+                    )
+                    if wide.empty:
+                        summary_rows.append({
+                            'individualization': indiv,
+                            'modality': modality,
+                            'hemisphere': hemi,
+                            'pair': f"{roi1}-{roi2}",
+                            'r': np.nan, 'p': np.nan,
+                            'n_subj': 0, 'n_points': 0,
+                            'significant': False,
+                        })
+                        continue
+
+                    rmc = pg.rm_corr(
+                        data=wide, x=roi1, y=roi2, subject='Subject'
+                    )
+                    r_val = float(rmc['r'].iloc[0])
+                    p_col = 'pval' if 'pval' in rmc.columns else 'p'
+                    p_val = float(rmc[p_col].iloc[0])
+                    is_sig = bool(p_val < ALPHA)
+
+                    summary_rows.append({
+                        'individualization': indiv,
+                        'modality': modality,
+                        'hemisphere': hemi,
+                        'pair': f"{roi1}-{roi2}",
+                        'r': r_val, 'p': p_val,
+                        'n_subj': wide['Subject'].nunique(),
+                        'n_points': len(wide),
+                        'significant': is_sig,
+                    })
+
+                    if not is_sig:
+                        continue
+
+                    mat = _group_means_for_plot(
+                        df_all, hemi=hemi, modality=modality,
+                        roi1=roi1, roi2=roi2
+                    )
+                    if mat.empty:
+                        continue
+
+                    bucket = _bucket_for_pair(roi1, roi2)
+                    out_dir = indiv_root / bucket
+                    fname = (
+                        f"rmcorr_profile_{indiv}_{modality}_{hemi}_"
+                        f"{roi1}-{roi2}_{N_ROIS}-rois.png"
+                    )
+                    out_png = out_dir / fname
+                    _plot_profiles(
+                        mat=mat, r_val=r_val, p_val=p_val,
+                        indiv=indiv, modality=modality, hemi=hemi,
+                        roi1=roi1, roi2=roi2, out_png=out_png
+                    )
+
+                # Save per-combo summary TSV (all pairs)
+                sum_name = (
+                    f"summary_{indiv}_{modality}_{hemi}_{N_ROIS}-rois.tsv"
                 )
-                out_png = Path(OUT_DIR) / fname
-                _plot_profiles(
-                    mat=mat, r_val=r_val, p_val=p_val,
-                    indiv=indiv, modality=modality, hemi=hemi,
-                    roi1=ROI1, roi2=ROI2, out_png=out_png
+                out_tsv = indiv_root / sum_name
+                pd.DataFrame(summary_rows).to_csv(
+                    out_tsv, sep='\t', index=False
                 )
+                print(f"[SAVED] {out_tsv}")
