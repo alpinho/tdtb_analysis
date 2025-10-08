@@ -13,7 +13,7 @@ Profile similarity (encoding) with repeated-measures correlation.
   * Compute rm-corr (Pingouin) for all ROI pairs (alphabetical).
   * Plot ONLY significant pairs (p < ALPHA).
   * Store under:
-      BASE_DIR/profile_similarity/encoding/<indiv>/
+      BASE_DIR/profile_similarity/encoding(<_rest>)/<indiv>/
     with buckets:
       - cereb_only: includes cereb, excludes dstr
       - dstr_only : includes dstr, excludes cereb
@@ -24,8 +24,8 @@ Also writes:
   and a 'significant' column.
 - An ROI × ROI r-matrix (TSV + PNG) per (modality × hemisphere).
 
-The global toggle ADD_REST controls whether the synthetic Rest
-condition is included across the pipeline and filenames.
+Matrix PNG shows all correlations; significant cells have stars;
+NaN cells are marked with a white square (black outline).
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from __future__ import annotations
 import os
 from itertools import combinations
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -80,6 +80,26 @@ def _add_rest_rows(sub: pd.DataFrame) -> pd.DataFrame:
     out = pd.concat([sub[cols], rest], axis=0, ignore_index=True)
     out = out.drop_duplicates(subset=cols)
     return out
+
+
+# Significance stars
+STAR_THRESHOLDS: List[Tuple[float, str]] = [
+    (0.001, '***'),
+    (0.01, '**'),
+    (0.05, '*'),
+]
+
+
+def p_to_stars(p: float) -> str:
+    """
+    Return significance stars for a p-value.
+    """
+    if not np.isfinite(p):
+        return ''
+    for thr, sym in STAR_THRESHOLDS:
+        if p < thr:
+            return sym
+    return ''
 
 
 # =========================== PUBLIC HELPERS ========================== #
@@ -248,21 +268,25 @@ def plot_profiles(
     print(f"[SAVED] {out_png}")
 
 
-def roi_matrix(
+def roi_matrix_stats(
     df: pd.DataFrame,
     rois: List[str],
     hemi: str,
     modality: str,
     add_rest: bool = False,
-) -> pd.DataFrame:
+    alpha: float = 0.05,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Build an ROI×ROI matrix of rmcorr r values for a given combo.
+    Build ROI×ROI matrices for r, p, and significance (p<alpha).
     """
     rois_sorted = sorted(rois)
     n = len(rois_sorted)
-    M = np.full((n, n), np.nan, dtype=float)
+    R = np.full((n, n), np.nan, dtype=float)
+    P = np.full((n, n), np.nan, dtype=float)
+
     for i in range(n):
-        M[i, i] = 1.0
+        R[i, i] = 1.0
+        P[i, i] = 0.0
         for j in range(i + 1, n):
             r1, r2 = rois_sorted[i], rois_sorted[j]
             wide = wide_for_rmcorr(
@@ -270,28 +294,42 @@ def roi_matrix(
                 roi1=r1, roi2=r2, add_rest=add_rest
             )
             if wide.empty:
-                r_val = np.nan
+                r_val, p_val = np.nan, np.nan
             else:
                 res = pg.rm_corr(data=wide, x=r1, y=r2, subject='Subject')
                 r_val = float(res['r'].iloc[0])
-            M[i, j] = r_val
-            M[j, i] = r_val
-    mat = pd.DataFrame(M, index=rois_sorted, columns=rois_sorted)
-    return mat
+                p_col = 'pval' if 'pval' in res.columns else 'p'
+                p_val = float(res[p_col].iloc[0])
+            R[i, j] = R[j, i] = r_val
+            P[i, j] = P[j, i] = p_val
+
+    r_mat = pd.DataFrame(R, index=rois_sorted, columns=rois_sorted)
+    p_mat = pd.DataFrame(P, index=rois_sorted, columns=rois_sorted)
+    sig_mat = (p_mat < alpha).astype(int)
+    return r_mat, p_mat, sig_mat
 
 
 def plot_matrix(
     mat: pd.DataFrame,
     title: str,
     out_png: Path,
+    p_mat: pd.DataFrame | None = None,
+    alpha_thr: float = 0.05,
 ) -> None:
     """
-    Plot an r-matrix heatmap with ROI codes on axes.
+    Plot an r-matrix heatmap. Significant cells get stars; NaNs are
+    marked with a white square (black outline). Non-significant cells
+    are shown normally (no dimming, no stars).
     """
     if mat.empty:
         return
-    plt.figure(figsize=(6.0, 5.2))
-    im = plt.imshow(mat.values, vmin=-1.0, vmax=1.0, cmap='coolwarm')
+
+    plt.figure(figsize=(6.2, 5.4))
+
+    im = plt.imshow(
+        mat.values, vmin=-1.0, vmax=1.0, cmap='coolwarm'
+    )
+
     plt.xticks(
         ticks=np.arange(mat.shape[1]),
         labels=mat.columns, rotation=45, ha='right'
@@ -300,6 +338,31 @@ def plot_matrix(
     plt.title(title)
     cbar = plt.colorbar(im)
     cbar.set_label('r (rmcorr)')
+
+    # Stars for significant cells (upper triangle), keep values visible
+    if p_mat is not None:
+        n = mat.shape[0]
+        for i in range(n):
+            for j in range(i + 1, n):
+                p = p_mat.values[i, j]
+                if np.isfinite(p) and p < alpha_thr:
+                    stars = p_to_stars(p)
+                    if stars:
+                        plt.text(
+                            j, i, stars,
+                            ha='center', va='center', fontsize=9,
+                            color='k', fontweight='bold'
+                        )
+
+    # Overlay white squares for NaN cells
+    nan_mask = ~np.isfinite(mat.values)
+    if nan_mask.any():
+        ys, xs = np.where(nan_mask)
+        plt.scatter(
+            xs, ys, marker='s', s=140,
+            facecolors='white', edgecolors='black', linewidths=0.8
+        )
+
     plt.tight_layout()
     out_png.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_png, dpi=300, bbox_inches='tight')
@@ -329,7 +392,7 @@ TASKS_NO_REST: List[str] = ['Production', 'Perception', 'NTFD']
 CATS: List[str] = ['Beat', 'Interval']
 MODALITIES: List[str] = ['Both', 'Auditory', 'Visual']
 
-# Directory name switches with Rest toggle
+# Directory switches with Rest toggle
 ENCODING_DIRNAME: str = 'encoding_rest' if ADD_REST else 'encoding'
 
 ROI_LABELS: Dict[str, str] = {
@@ -376,7 +439,8 @@ if __name__ == "__main__":
             continue
 
         indiv_root = (
-            Path(BASE_DIR) / 'profile_similarity' / ENCODING_DIRNAME / indiv
+            Path(BASE_DIR) / 'profile_similarity' /
+            ENCODING_DIRNAME / indiv
         )
         for sub in ('cereb_only', 'dstr_only', 'hmat', 'matrices'):
             os.makedirs(indiv_root / sub, exist_ok=True)
@@ -464,26 +528,42 @@ if __name__ == "__main__":
                 )
                 print(f"[SAVED] {out_tsv}")
 
-                # ROI×ROI matrix (TSV + PNG) for this combo
+                # ROI×ROI matrices (r, p, sig) + PNG (stars for sig; NaN box)
                 mat_dir = indiv_root / 'matrices'
                 roi_list = present
-                mat_df = roi_matrix(
+
+                r_mat, p_mat, sig_mat = roi_matrix_stats(
                     df_all, rois=roi_list, hemi=hemi,
-                    modality=modality, add_rest=ADD_REST
+                    modality=modality, add_rest=ADD_REST, alpha=ALPHA
                 )
-                mat_tsv = mat_dir / (
-                    f"matrix_{indiv}_{modality}_{hemi}_"
+
+                r_tsv = mat_dir / (
+                    f"matrix_r_{indiv}_{modality}_{hemi}_"
                     f"{N_ROIS}-rois_{rest_tag}.tsv"
                 )
-                mat_df.to_csv(mat_tsv, sep='\t')
-                print(f"[SAVED] {mat_tsv}")
+                p_tsv = mat_dir / (
+                    f"matrix_p_{indiv}_{modality}_{hemi}_"
+                    f"{N_ROIS}-rois_{rest_tag}.tsv"
+                )
+                s_tsv = mat_dir / (
+                    f"matrix_sig_{indiv}_{modality}_{hemi}_"
+                    f"{N_ROIS}-rois_{rest_tag}.tsv"
+                )
+                r_mat.to_csv(r_tsv, sep='\t')
+                p_mat.to_csv(p_tsv, sep='\t')
+                sig_mat.to_csv(s_tsv, sep='\t')
+                print(f"[SAVED] {r_tsv}")
+                print(f"[SAVED] {p_tsv}")
+                print(f"[SAVED] {s_tsv}")
 
                 mat_png = mat_dir / (
                     f"matrix_{indiv}_{modality}_{hemi}_"
                     f"{N_ROIS}-rois_{rest_tag}.png"
                 )
                 plot_matrix(
-                    mat=mat_df,
+                    mat=r_mat,
                     title=f"{indiv} | {modality} | {hemi} ({rest_tag})",
-                    out_png=mat_png
+                    out_png=mat_png,
+                    p_mat=p_mat,
+                    alpha_thr=ALPHA,
                 )
