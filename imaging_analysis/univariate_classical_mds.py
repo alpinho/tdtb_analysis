@@ -79,7 +79,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 # ============================= CONFIG ============================== #
 
 # Number of components to keep from the decomposition
-N_COMPONENTS = 2
+N_COMPONENTS = 3
 
 # Individualization level of input data
 INDIVID_LEVEL = 'i'
@@ -116,9 +116,13 @@ if __name__ == "__main__":
     df = pd.read_csv(mtx_path, sep="\t", index_col=0)
     mtx = df.to_numpy(dtype=float)
 
+    # Normalize the correlation matrix by its rank
+    rank = np.linalg.matrix_rank(mtx)
+    mtx = mtx / rank
+
     # Classical MDS on the Gram/correlation matrix
     # scores are V * sqrt(eigenvalues); eigval are eigenvalues
-    scores, eigval = pcm.util.classical_mds(mtx, thres=0)
+    scores, eigval = pcm.util.classical_mds(mtx)
 
     # Keep the first N components
     coords = scores[:, :N_COMPONENTS]
