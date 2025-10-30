@@ -85,6 +85,7 @@ def _add_rest_rows(sub: pd.DataFrame) -> pd.DataFrame:
 
 
 STAR_THRESHOLDS: List[Tuple[float, str]] = [
+    (0.0001, '****'),
     (0.001, '***'),
     (0.01, '**'),
     (0.05, '*'),
@@ -514,8 +515,8 @@ def plot_matrix(
 ALPHA: float = 0.05
 N_ROIS: int = 8
 
-ADD_REST: bool = False
-USE_RAND: bool = False
+ADD_REST: bool = True
+USE_RAND: bool = True
 
 INDIVID_LEVELS: List[str] = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
