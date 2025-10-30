@@ -79,7 +79,10 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 # ============================= CONFIG ============================== #
 
 # Number of components to keep from the decomposition
-N_COMPONENTS = 8
+N_COMPONENTS = 2
+
+# Individualization level of input data
+INDIVID_LEVEL = 'i'
 
 # =============================== PATHS ============================= #
 
@@ -98,7 +101,8 @@ BASE_ALL = os.path.join(
     'matrices',
 )
 
-MDS_OUTPUT_DIR = os.path.join(BASE_ALL, 'mds')
+MDS_OUTPUT_DIR = os.path.join(BASE_ALL, 'mds', INDIVID_LEVEL, 
+                              f'{N_COMPONENTS}comps')
 
 # ================================ RUN ============================== #
 
@@ -106,20 +110,21 @@ if __name__ == "__main__":
 
     # Load input matrix (ROI x ROI correlation or Gram matrix)
     mtx_path = os.path.join(
-        BASE_ALL, 'matrix_r_i_Both_bh_8-rois_withrestrand.tsv'
+        BASE_ALL, 
+        'matrix_r_' + INDIVID_LEVEL + '_Both_bh_8-rois_withrestrand.tsv'
     )
     df = pd.read_csv(mtx_path, sep="\t", index_col=0)
     mtx = df.to_numpy(dtype=float)
 
     # Classical MDS on the Gram/correlation matrix
-    # scores are V * sqrt(Lambda); eigval are eigenvalues
+    # scores are V * sqrt(eigenvalues); eigval are eigenvalues
     scores, eigval = pcm.util.classical_mds(mtx, thres=0)
 
     # Keep the first N components
     coords = scores[:, :N_COMPONENTS]
     ev = eigval[:N_COMPONENTS]
 
-    # Variance share over all positive eigenvalues (stable labels)
+    # Variance share over all positive eigenvalues
     ev_pos = np.clip(eigval, 0, None)
     denom = ev_pos.sum() if ev_pos.sum() > 0 else 1.0
     ev_ratio_full = ev_pos[:N_COMPONENTS] / denom
@@ -129,7 +134,10 @@ if __name__ == "__main__":
     # All 2D pairs
     axes_1based = list(range(1, coords.shape[1] + 1))
     for a, b in combinations(axes_1based, 2):
-        out2d = os.path.join(MDS_OUTPUT_DIR, f"mds_pair_{a}_{b}.png")
+        out2d = os.path.join(
+            MDS_OUTPUT_DIR, 
+            f"{INDIVID_LEVEL}_ncomps-{N_COMPONENTS}_mds_pair_{a}_{b}.png"
+        )
         plot_mds_2d(
             coords=coords,
             labels=df.index,
@@ -142,7 +150,9 @@ if __name__ == "__main__":
     if coords.shape[1] >= 3:
         for a, b, c in combinations(axes_1based, 3):
             out3d = os.path.join(
-                MDS_OUTPUT_DIR, f"mds_triplet_{a}_{b}_{c}.png"
+                MDS_OUTPUT_DIR, 
+                f"{INDIVID_LEVEL}_ncomps-{N_COMPONENTS}_mds_triplet_"
+                f"{a}_{b}_{c}.png"
             )
             plot_mds_3d(
                 coords=coords,
