@@ -1,203 +1,223 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 P-values profile of results obtained across different
  individualizations of ROIs
 
 Author: Ana Luisa Pinho
+email: agrilopi@uwo.ca
 
 Created: 14th of March, 2025
-Last update: June 2025
+Last update: November 2025
 
 Compatibility: Python 3.10.14
 """
 
+from __future__ import annotations
+
 import os
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
-
 import matplotlib.pyplot as plt
 
 
-# ############################ FUNCTIONS ################################
-
-def plot_pvalues(weights, pvals, ylabel, ylim_min, ylim_max, y_step,
-                 output_path='./pval_plot.png'):
-    """
-    Plots corrected p-values as a function of the weighting factor for
-    ROI individualization, ensuring the markers at the boundaries are
-    fully visible, increasing the spacing between axes and grid, and
-    adjusting the layout so the x-label is not cut off.
-
-    Parameters:
-    -----------
-    weights : array-like
-        Weighting factors for individualization (numeric values).
-    pvals : array-like
-        p-values corresponding to the weighting factors.
-    output_path : str, optional (default='./pcorr_plot_final.png')
-        File path where the plot will be saved.
-
-    Returns:
-    --------
-    None
-    """
+# ============================== helpers ================================
+def plot_pvals(weights: Iterable[float],
+               pvals: Iterable[float],
+               ylabel: str,
+               y_min: float,
+               y_max: float,
+               y_nticks: int,
+               out_png: str) -> None:
+    """Plot p-values vs individualization weight."""
     plt.figure(figsize=(8, 5))
+    plt.grid(True, linewidth=2.0, zorder=0)
 
-    # Set grid
-    plt.grid(True, linewidth=2., zorder=0)
-    
-    # Use clip_on=False to ensure markers are fully drawn even if...
-    # ... slightly outside the axes.
-    plt.scatter(weights, pvals, color='k', s=80, edgecolors='black',
-                linewidth=1.5, clip_on=False, zorder=3)
-    plt.plot(weights, pvals, linestyle='-', alpha=.7, linewidth=3., color='k')
+    plt.scatter(weights,
+                pvals,
+                color="k",
+                s=80,
+                edgecolors="black",
+                linewidth=1.5,
+                clip_on=False,
+                zorder=3)
+    plt.plot(weights, pvals, linestyle="-", alpha=0.7, linewidth=3.0, c="k")
 
-    plt.xlabel(r'$w_{i}$', labelpad=14, fontsize=24)
+    plt.xlabel(r"$w_{i}$", labelpad=14, fontsize=24)
     plt.ylabel(ylabel, labelpad=14, fontsize=24)
 
     ax = plt.gca()
-    # Remove top and right spines
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-
-    # Increase space between axes and grid by moving spines outward
-    ax.spines["bottom"].set_position(('outward', 10))
-    ax.spines["left"].set_position(('outward', 10))
+    ax.spines["bottom"].set_position(("outward", 10))
+    ax.spines["left"].set_position(("outward", 10))
     ax.spines["bottom"].set_bounds(0, 1)
+    ax.spines["bottom"].set_linewidth(2.0)
+    ax.spines["left"].set_linewidth(2.0)
 
-    # Increase width of axis
-    ax.spines['bottom'].set_linewidth(2.)  # X-axis
-    ax.spines['left'].set_linewidth(2.)    # Y-axis
+    plt.xlim(0.0, 1.0)
+    plt.ylim(y_min, y_max)
 
-    # Set axis limits and ticks
-    plt.xlim(0., 1.)
-    plt.ylim(ylim_min, ylim_max)
-    plt.xticks(np.linspace(0, 1., 11), fontsize=18)
-    ax.set_xticklabels([str(tick) if tick in [0.0, 0.5, 1.0] else ''
-                        for tick in np.arange(0.0, 1.1, 0.1)], fontsize=18)
-    plt.yticks(np.linspace(ylim_min, ylim_max, y_step), fontsize=18)
+    xt = np.linspace(0.0, 1.0, 11)
+    plt.xticks(xt, fontsize=18)
+    ax.set_xticklabels([str(t) if t in [0.0, 0.5, 1.0] else ""
+                        for t in xt],
+                       fontsize=18)
 
-    # Set y-axis labels to exactly three decimals
-    ax.set_yticklabels([f'{tick:.3f}' for tick in ax.get_yticks()],
+    yt = np.linspace(y_min, y_max, y_nticks)
+    plt.yticks(yt, fontsize=18)
+    ax.set_yticklabels([f"{tick:.3f}" for tick in ax.get_yticks()],
                        fontsize=20)
 
-    # Add margin to avoid clipping markers at the edges
-    plt.margins(x=.05)
-
-    # Adjust layout to prevent the x-label from being cut off.
-    plt.subplots_adjust(bottom=.2)
-
-    # Remove spaces in the borders
+    plt.margins(x=0.05)
+    plt.subplots_adjust(bottom=0.2)
     plt.tight_layout()
-
-    # Save figure
-    plt.savefig(output_path, dpi=300)
-    # plt.show()
+    plt.savefig(out_png, dpi=300)
+    plt.close()
 
 
-# ############################# INPUTS ##################################
+def holm_levels(pvals: Iterable[float]) -> np.ndarray:
+    """Holm step-down across a 1D array (use uncorrected p-values)."""
+    p = np.asarray(list(pvals), dtype=float)
+    m = p.size
+    if m == 0:
+        return p
+    order = np.argsort(p)
+    ranked = p[order]
+    raw = (m - np.arange(m)) * ranked
+    adj_ranked = np.maximum.accumulate(raw)
+    adj_ranked = np.minimum(adj_ranked, 1.0)
+    out = np.empty_like(adj_ranked)
+    out[order] = adj_ranked
 
-# ### Mask Type
-encoding_mask_type = 'all' # all, auditory, visual
+    return out
 
-# ### Tasks Modality Included
-# anova_type = '2way-anova_cat2rois'        # all
-anova_type = '2way-anova_cat2rois_auditory' # auditory
-# anova_type = '2way-anova_cat2rois_visual'   # visual
 
-tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
-hemisphere = 'bh'
-task = 'allmain_tasks'
+def pick_row(df: pd.DataFrame) -> pd.Series:
+    """Pick the exact target row from a Pingouin posthoc table."""
+    q = (
+        (df["Contrast"] == "ROI * Category") &
+        (df["ROI"] == "dstr") &
+        (df["A"] == "Beat") &
+        (df["B"] == "Interval")
+    )
+    sub = df.loc[q]
+    if sub.empty:
+        raise ValueError("Row not found: ROI*Category, dstr, Beat vs Interval")
+    return sub.iloc[0]
 
-step = .005
 
-# ########################### PARAMETERS ################################
+# ============================== inputs ================================
+# Mask type: all, auditory, visual
+ENC_MASK = "bothmod_allmain_tasks"
 
-working_dir = os.path.dirname(os.path.abspath(__file__))
-anovas_dir = os.path.join(working_dir, 'roi_analyses_rwls_hrf128_wb_puncorr',
-                          encoding_mask_type, anova_type)
-output_dir = os.path.join(working_dir, 'results/pvalues_stability_plots')
+TASK_TYPE = "main_tasks"
 
-# ############################## RUN ####################################
+# anova_type options:
+# - "2way-anova_vol_cat2rois"
+# - "2way-anova_vol_cat2rois_auditory"
+# - "2way-anova_vol_cat2rois_visual"
+ANOVA_TYPE = "2way-anova_vol_cat2rois_auditory"
 
-if __name__ == '__main__':
+TAGS = ["i", "i9a", "i8a", "i7a", "i6a",
+        "a", "a4g", "a3g", "a2g", "a1g", "g"]
+HEMI = "bh"
+TASK = "allmain_tasks"
 
-    # Create output_dir if it does not exist
-    os.makedirs(output_dir, exist_ok=True)
+STEP = 0.005
 
-    reversed_tags = tags[::-1]
 
+# =============================== main =================================
+if __name__ == "__main__":
+    workdir = os.path.dirname(os.path.abspath(__file__))
+    out_dir = os.path.join(workdir, "results", "pvalues_stability_plots")
+    base_dir = os.path.join(
+        workdir,
+        "roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed",
+        ENC_MASK,
+        TASK_TYPE,
+        ANOVA_TYPE,
+    )
+    os.makedirs(out_dir, exist_ok=True)
+
+    rev_tags = TAGS[::-1]
     posthoc_paths = [
         os.path.join(
-            anovas_dir,
-            rtag + '_' + hemisphere + '_' + '2w-' + task + '_posthoc.tsv')
-        for rtag in reversed_tags]
+            base_dir,
+            f"{tag}_{HEMI}_2w-{TASK}_posthoc.tsv",
+        )
+        for tag in rev_tags
+    ]
 
-    df_list = [pd.read_csv(posthoc_path, sep='\t')
-               for posthoc_path in posthoc_paths]
+    df_list = [pd.read_csv(pth, sep="\t") for pth in posthoc_paths]
+    rows = [pick_row(df) for df in df_list]
 
-    p_corr_vals = np.array(
-        [
-            round(df.loc[df['ROI'] == 'dstr', 'p-corr'].iloc[-1], 3)
-            for df in df_list
-        ]
+    # series as before
+    p_corr = np.array(
+        [np.nan if pd.isna(r["p-corr"]) else round(r["p-corr"], 3)
+         for r in rows]
     )
+    p_unc = np.array([round(r["p-unc"], 3) for r in rows])
 
-    p_uncorr_vals = np.array(
-        [
-            round(df.loc[df['ROI'] == 'dstr', 'p-unc'].iloc[-1], 3)
-            for df in df_list
-        ]
-    )
+    # new: holm across levels on uncorrected p-values
+    p_holm = np.array([round(x, 6) for x in holm_levels(p_unc)])
 
-    # #### Plot ####
-    ws = np.round(np.arange(0, 1.1, .1), 1)  # Ensures numeric values
+    # x-axis weights
+    w = np.round(np.arange(0.0, 1.1, 0.1), 1)
 
-    if anova_type == '2way-anova_cat2rois':
-        pcorr_path = os.path.join(
-            output_dir,
-            f'pcorrected_mask-{encoding_mask_type}_task-all_plot.png'
-        )
-        puncorr_path = os.path.join(
-            output_dir,
-            f'puncorrected_mask-{encoding_mask_type}_task-all_plot.png'
-        )
-    elif anova_type == '2way-anova_cat2rois_auditory':
-        pcorr_path = os.path.join(
-            output_dir,
-            f'pcorrected_mask-{encoding_mask_type}_task-auditory_plot.png'
-        )
-        puncorr_path = os.path.join(
-            output_dir,
-            f'puncorrected_mask-{encoding_mask_type}_task-auditory_plot.png'
-        )
+    # filenames
+    if ANOVA_TYPE == "2way-anova_vol_cat2rois":
+        suffix = "task-all"
+    elif ANOVA_TYPE == "2way-anova_vol_cat2rois_auditory":
+        suffix = "task-auditory"
     else:
-        assert anova_type == '2way-anova_cat2rois_visual'
-        pcorr_path = os.path.join(
-            output_dir,
-            f'pcorrected_mask-{encoding_mask_type}_task-visual_plot.png'
+        suffix = "task-visual"
+
+    f_corr = os.path.join(
+        out_dir, f"pcorrected_mask-{ENC_MASK}_{suffix}_plot.png"
+    )
+    f_unc = os.path.join(
+        out_dir, f"puncorrected_mask-{ENC_MASK}_{suffix}_plot.png"
+    )
+    f_holm = os.path.join(
+        out_dir, f"pcorrected-ilevels_mask-{ENC_MASK}_{suffix}_plot.png"
+    )
+
+    # y-lims
+    if np.all(np.isnan(p_corr)):
+        ycorr_min, ycorr_max = 0.0, 1.0
+    else:
+        ycorr_min = float(
+            np.round(np.floor((np.nanmin(p_corr) - 1e-8) / STEP) * STEP, 3)
         )
-        puncorr_path = os.path.join(
-            output_dir,
-            f'puncorrected_mask-{encoding_mask_type}_task-visual_plot.png'
+        ycorr_max = float(
+            np.round(np.ceil((np.nanmax(p_corr) + 1e-8) / STEP) * STEP, 3)
         )
 
-    # Determine the nearest lower multiple of 0.005 for y_min
-    ycorr_min = np.round(
-        np.floor((np.amin(p_corr_vals) - 1e-8) / step) * step, 3)
-    yunc_min = np.round(
-        np.floor((np.amin(p_uncorr_vals) - 1e-8) / step) * step, 3)
+    yunc_min = float(
+        np.round(np.floor((np.amin(p_unc) - 1e-8) / STEP) * STEP, 3)
+    )
+    yunc_max = float(
+        np.round(np.ceil((np.amax(p_unc) + 1e-8) / STEP) * STEP, 3)
+    )
 
-    # Determine the nearest higher multiple of 0.005 for y_max
-    ycorr_max = np.round(
-        np.ceil((np.amax(p_corr_vals) + 1e-8) / step) * step, 3)
-    yunc_max = np.round(
-        np.ceil((np.amax(p_uncorr_vals) + 1e-8) / step) * step, 3)
+    yholm_min = float(
+        np.round(np.floor((np.amin(p_holm) - 1e-8) / STEP) * STEP, 3)
+    )
+    yholm_max = float(
+        np.round(np.ceil((np.amax(p_holm) + 1e-8) / STEP) * STEP, 3)
+    )
 
-    pcorr_label = r'$p_{\mathrm{FWE}}(w_{i})$'
-    plot_pvalues(ws, p_corr_vals, pcorr_label, ycorr_min, ycorr_max,
-                 6, output_path=pcorr_path)
+    # labels
+    lab_corr = r"$p_{\mathrm{FWE}}(w_{i})$"
+    lab_unc = r"$p_{\mathrm{uncorr}}(w_{i})$"
+    lab_holm = r"$p_{\mathrm{FWE}}(w_{i})$"
 
-    puncorr_label = r'$p_{\mathrm{uncorr}}(w_{i})$'
-    plot_pvalues(ws, p_uncorr_vals, puncorr_label, yunc_min, yunc_max,
-                 4, output_path=puncorr_path)
+    # plots
+    if not np.all(np.isnan(p_corr)):
+        plot_pvals(w, p_corr, lab_corr, ycorr_min, ycorr_max, 6, f_corr)
+
+    plot_pvals(w, p_unc, lab_unc, yunc_min, yunc_max, 4, f_unc)
+    plot_pvals(w, p_holm, lab_holm, yholm_min, yholm_max, 6, f_holm)
