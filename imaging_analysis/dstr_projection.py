@@ -652,6 +652,10 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 
 # OVERLAY_CMAP = 'cividis'
 
+# Projection parameters
+# INNER_MESH_SCALE = .82
+# EXTRAPOLATION = 1.
+
 # ###############################################
 
 # Note: These inputs are specific to the projection of the contrast
@@ -686,6 +690,9 @@ outfile_prefix = 'group_allmain-tasks_encoding_dstr'
 
 OVERLAY_CMAP = 'viridis'
 
+# Projection parameters
+INNER_MESH_SCALE = .99
+EXTRAPOLATION = 1.
 
 # ============================ RUN =====================================
 
@@ -709,7 +716,8 @@ if __name__ == "__main__":
         # Compute sulcal depth from the refined and smoothed surface
         compute_sulc_gii(rs_surf, sulc)
         # Create an inner mesh from the refined and smoothed surface
-        _ = create_inner_mesh(rs_surf, scale=.82, output_path=inner_surf)
+        _ = create_inner_mesh(rs_surf, scale=INNER_MESH_SCALE, 
+                              output_path=inner_surf)
 
         # Load the activation map
         dstr_activation_img = load_img(activation_map)
@@ -732,7 +740,7 @@ if __name__ == "__main__":
             inner_surf, # ignored for single-sampled methods
             method='multisample_max_linear',
             n_samples=20,
-            extrapolation_factor=1.
+            extrapolation_factor=EXTRAPOLATION
         )
         print(
             f"Max value of surface data: "
