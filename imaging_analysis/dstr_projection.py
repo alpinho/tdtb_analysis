@@ -7,7 +7,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 30th of March 2025
-Last Update: April 2025
+Last Update: November 2025
 
 Compatibility: Python 3.10.16, nilearn 0.11.1
 """
@@ -630,60 +630,61 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 #       smoothing function and manipulate fwhm and change 
 #       extrapolation_factor from vol_to_surf function
 
-# Overlay image (NIfTI)
-activation_map = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'roi_analyses_rwls_hrf128_wb_puncorr',
-    'all',
-    'dorsal_striatum',
-    'hos',
-    'overlaid_masks',
-    'i_dstr_bh_mask.nii.gz'
-)
+# # Overlay image (NIfTI)
+# activation_map = os.path.join(
+#     os.path.dirname(os.path.abspath(__file__)),
+#     'roi_analyses_rwls_hrf128_wb_puncorr',
+#     'all',
+#     'dorsal_striatum',
+#     'hos',
+#     'overlaid_masks',
+#     'i_dstr_bh_mask.nii.gz'
+# )
 
-# Output folder for HTML
-outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'results', 'irois')
-outfile_prefix = 'iroi_dstr_surf'
+# # Output folder for HTML
+# outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                               'results', 'irois')
+# outfile_prefix = 'iroi_dstr_surf'
 
-# Define threshold and intensity range.
-THRESHOLD = 1 / len(SUBJECTS)  # vmin
-VMAX = 1
+# # Define threshold and intensity range.
+# THRESHOLD = 1 / len(SUBJECTS)  # vmin
+# VMAX = 1
 
-OVERLAY_CMAP = 'cividis'
+# OVERLAY_CMAP = 'cividis'
 
 # ###############################################
 
 # Note: These inputs are specific to the projection of the contrast
 #       "Encoding vs. Rest"
 
-# home = os.path.expanduser('~')
-# derivatives_folder = os.path.join(
-#     home,
-#     'diedrichsen_data',
-#     'data',
-#     'Cerebellum',
-#     'music-sdtb',
-#     'derivatives'
-# )
-# group_folder = os.path.join(derivatives_folder, 'group')
-# wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
+home = os.path.expanduser('~')
+derivatives_folder = os.path.join(
+    home,
+    'diedrichsen_data',
+    'data',
+    'Cerebellum',
+    'music-sdtb',
+    'derivatives'
+)
+group_folder = os.path.join(derivatives_folder, 'group')
+wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
 
-# volfile_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-#                               'results', 'volume_files')
-# activation_map = os.path.join(volfile_folder,
-#                               'group_allmain-tasks_encoding_wb_zmap.nii')
+volfile_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'results', 'parametric_tests', 'volume', 
+                              'allmain_tasks', '1_encoding')
+activation_map = os.path.join(volfile_folder,
+                              '1_encoding_zmap_gmmasked.nii.gz')
 
-# THRESHOLD, VMAX = compute_zmap(derivatives_folder, SUBJECTS, 'allmain_tasks',
-#                                1, wb_gmask_path, activation_map,
-#                                threshold=.05)
+THRESHOLD, VMAX = compute_zmap(derivatives_folder, SUBJECTS, 'allmain_tasks',
+                               1, wb_gmask_path, activation_map,
+                               threshold=.05)
 
-# # Output folder for HTML
-# outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-#                               'results', 'control_contrasts')
-# outfile_prefix = 'group_allmain-tasks_encoding_dstr'
+# Output folder for HTML
+outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'results', 'control_contrasts')
+outfile_prefix = 'group_allmain-tasks_encoding_dstr'
 
-# OVERLAY_CMAP = 'viridis'
+OVERLAY_CMAP = 'viridis'
 
 
 # ============================ RUN =====================================
