@@ -34,7 +34,7 @@ from ols_permutation_tests import plot_glass_brain_z
 # ============================ TOGGLES ==================================
 
 # Run a single contrast (set below) or all contrasts in all_contrasts
-RUN_ALL_CONTRASTS = True
+RUN_ALL_CONTRASTS = False
 
 # Two-sided vs one-sided BH-FDR on z for reporting/plotting
 TWO_SIDED_TEST = False
@@ -61,7 +61,7 @@ tasks = {'prod': 'Production',
          'rand_ntfd': 'NTFD Random',
          'allmain_tasks': 'All Tasks'
 }
-task_tag = 'NTFD Random' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
 task_id = {v: k for k, v in tasks.items()}[task_tag]  # e.g. 'allmain_tasks'
 
 # Contrast dictionary (id -> name)
