@@ -4,7 +4,7 @@ This script creates masks from Harvard-Oxford subcortical atlas.
 Author: Ana Luisa Pinho
 
 Created: October 2023
-Last update: June 2025
+Last update: January 2026
 
 Compatibility: Python 3.10.14
 

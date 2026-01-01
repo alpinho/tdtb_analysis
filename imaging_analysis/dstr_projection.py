@@ -7,7 +7,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 30th of March 2025
-Last Update: November 2025
+Last Update: January, 2026
 
 Compatibility: Python 3.10.16, nilearn 0.11.1
 """
@@ -23,7 +23,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import trimesh
 
-from scipy.ndimage import map_coordinates
+from scipy.ndimage import map_coordinates, maximum_filter, gaussian_filter
 from nilearn.image import load_img, smooth_img
 from nilearn.surface import load_surf_mesh
 from nilearn.maskers import NiftiMasker
@@ -101,7 +101,7 @@ def max_preserving_smooth(data, size=3, sigma=1):
     smoothed_data : np.ndarray
         The smoothed data array.
     """
-    from scipy.ndimage import maximum_filter, gaussian_filter
+    
     data_max = maximum_filter(data, size=size)
     data_smooth = gaussian_filter(data_max, sigma=sigma)
     return data_smooth
@@ -625,74 +625,86 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 # ###############################################
 
 # Note: These inputs are specific to the projection of the individual
-#       ROIs overlay (i8a)
-#       For pure i__rois, manipulate scale of inner mesh, uncomment
-#       smoothing function and manipulate fwhm and change 
-#       extrapolation_factor from vol_to_surf function
+#       ROIs overlay (i) - maximum individualization
+#       To adjust mapping for other levels of individualization, 
+#       manipulate scale of inner mesh,
+#       change extrapolation_factor from vol_to_surf function. 
+#       uncomment smoothing function and manipulate fwhm.
 
-# # Overlay image (NIfTI)
-# activation_map = os.path.join(
-#     os.path.dirname(os.path.abspath(__file__)),
-#     'roi_analyses_rwls_hrf128_wb_puncorr',
-#     'all',
-#     'dorsal_striatum',
-#     'hos',
-#     'overlaid_masks',
-#     'i_dstr_bh_mask.nii.gz'
-# )
+is_roi = True
 
-# # Output folder for HTML
-# outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-#                               'results', 'irois')
-# outfile_prefix = 'iroi_dstr_surf'
+# Individualization level of input data
+INDIVID_LEVEL = 'i'
 
-# # Define threshold and intensity range.
-# THRESHOLD = 1 / len(SUBJECTS)  # vmin
-# VMAX = 1
+# Overlay image (NIfTI)
+activation_map = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed',
+    'bothmod_allmain_tasks',
+    'main_tasks',
+    'dorsal_striatum',
+    'hos',
+    'overlaid_masks',
+    INDIVID_LEVEL + '_dstr_bh_mask.nii.gz'
+)
 
-# OVERLAY_CMAP = 'cividis'
+# Output folder for HTML
+outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'results', 'irois')
+outfile_prefix = 'iroi_dstr_surf_' + INDIVID_LEVEL
+
+# Define threshold and intensity range.
+THRESHOLD = 1 / len(SUBJECTS)  # vmin
+VMAX = 1
+
+OVERLAY_CMAP = 'cividis'
 
 # Projection parameters
-# INNER_MESH_SCALE = .82
-# EXTRAPOLATION = 1.
+INNER_MESH_SCALE = .99
+EXTRAPOLATION = 1.
+
+# Smoothing parameters for ROI data (if desired)
+FWHM = 4.  # in mm
 
 # ###############################################
 
 # Note: These inputs are specific to the projection of the contrast
 #       "Encoding vs. Rest"
 
-home = os.path.expanduser('~')
-derivatives_folder = os.path.join(
-    home,
-    'diedrichsen_data',
-    'data',
-    'Cerebellum',
-    'music-sdtb',
-    'derivatives'
-)
-group_folder = os.path.join(derivatives_folder, 'group')
-wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
+# is_roi = False
 
-volfile_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'results', 'parametric_tests', 'volume', 
-                              'allmain_tasks', '1_encoding')
-activation_map = os.path.join(volfile_folder,
-                              '1_encoding_zmap_gmmasked.nii.gz')
+# home = os.path.expanduser('~')
+# derivatives_folder = os.path.join(
+#     home,
+#     'diedrichsen_data',
+#     'data',
+#     'Cerebellum',
+#     'music-sdtb',
+#     'derivatives'
+# )
+# group_folder = os.path.join(derivatives_folder, 'group')
+# wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
 
-THRESHOLD, VMAX = compute_zmap(derivatives_folder, SUBJECTS, 'allmain_tasks',
-                               1, wb_gmask_path, activation_map,
-                               threshold=.05)
+# volfile_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                               'results', 'parametric_tests', 'volume', 
+#                               'allmain_tasks', '1_encoding')
+# activation_map = os.path.join(volfile_folder,
+#                               '1_encoding_zmap_gmmasked.nii.gz')
 
-# Output folder for HTML
-outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'results', 'control_contrasts')
-outfile_prefix = 'group_allmain-tasks_encoding_dstr'
+# THRESHOLD, VMAX = compute_zmap(derivatives_folder, SUBJECTS, 'allmain_tasks',
+#                                1, wb_gmask_path, activation_map,
+#                                threshold=.05)
 
-OVERLAY_CMAP = 'viridis'
+# # Output folder for HTML
+# outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+#                               'results', 'control_contrasts')
+# outfile_prefix = 'group_allmain-tasks_encoding_dstr'
 
-# Projection parameters
-INNER_MESH_SCALE = .99
-EXTRAPOLATION = 1.
+# OVERLAY_CMAP = 'viridis'
+
+# # Projection parameters
+# INNER_MESH_SCALE = .99
+# EXTRAPOLATION = 1.
 
 # ============================ RUN =====================================
 
@@ -727,11 +739,12 @@ if __name__ == "__main__":
         )   
 
         # Smooth ROI data
-        # dstr_activation_img = smooth_img(dstr_activation_img, fwhm=3.6)
-        # print(
-        #     f"Max value of smoothed volume data: "
-        #     + f"{np.amax(dstr_activation_img.get_fdata())}"
-        # )   
+        if is_roi:
+            dstr_activation_img = smooth_img(dstr_activation_img, fwhm=FWHM)
+            print(
+                f"Max value of smoothed volume data: "
+                + f"{np.amax(dstr_activation_img.get_fdata())}"
+            )   
 
         # Project the activation map onto the refined surface mesh
         surf_data = vol_to_surf(
