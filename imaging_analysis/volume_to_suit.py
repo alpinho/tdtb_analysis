@@ -188,7 +188,17 @@ def plot_suitflat(stats,
             if sci_notation:
                 formatter = ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
                 cbar.yaxis.set_major_formatter(formatter)
-            fig.text(*cmap_title_loc, cmap_title, fontsize=15, color='black')
+            fig.text(
+                cmap_title_loc[0],
+                cmap_title_loc[1],
+                cmap_title,
+                fontsize=15,
+                color='black',
+                ha='center',
+                va='center',
+                multialignment='center',
+                linespacing=1.6
+            )
         fig.savefig(outpath, dpi=300)
         return
 
@@ -359,8 +369,8 @@ suitparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
     'suit')
 
-task_tag = 'NTFD Random' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
-contrast_name = 'ALL' # 'E.g. 'Beat', 'Interval', 'ALL', etc.
+task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+contrast_name = 'Encoding' # 'E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # Set to None if not used
 
 
@@ -378,10 +388,17 @@ derivatives_folder = os.path.join(music, 'derivatives')
 group_folder = os.path.join(derivatives_folder, 'group')
 wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
 
+# Individualization level of rois
+INDIVID_LEVEL = 'i'
 iroi_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         'roi_analyses_rwls_hrf128_wb_puncorr', 'all',
-                         'cerebellum', 'ntk_symmni128', 'cereb',
-                         'overlaid_masks', 'i8a_cereb_bh_mask.nii.gz')
+                         'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed', 
+                         'bothmod_allmain_tasks', 
+                         'main_tasks',
+                         'cerebellum', 
+                         'ntk_symmni128', 
+                         'cereb',
+                         'overlaid_masks', 
+                         INDIVID_LEVEL + '_cereb_bh_mask.nii.gz')
 
 # Tasks definitions
 tasks = {'prod': 'Production', 
@@ -527,13 +544,13 @@ if __name__ == '__main__':
         iroi = nib.load(iroi_path)
         iroi_suitdata = flatmap.vol_to_surf(iroi, space='SUIT')
         thresh = np.unique(iroi_suitdata)[1]
-        iroi_fname = 'iroi_cerebellum_suit.png'
+        iroi_fname = 'iroi_cerebellum_suit_' + INDIVID_LEVEL + '.png'
         iroi_fpath = os.path.join(irois_folder, iroi_fname)
         plot_suitflat(
             iroi_suitdata, 1 / len(SUBJECTS), iroi_fpath,
             colormap='cividis', vmax=1, sci_notation=True,
-            cmap_title_loc=(.7, .69),
-            cmap_title='Fraction of \n Participants'
+            cmap_title_loc=(.9, .72),
+            cmap_title='Fraction of\nParticipants'
         )
         sys.exit(0)
 
