@@ -9,7 +9,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 10th of March 2025
-Last Update: June 2025
+Last Update: January 2026
 
 Compatibility: Python 3.10.14
 """
@@ -344,7 +344,10 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Relative path for output folders
-output_folder = 'results/ipscs'
+output_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'results', 
+                             'single_dissociation_plots'
+                )
 
 task_tag = 'All Tasks'
 contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', or
@@ -356,7 +359,7 @@ contrast_mask = 'Encoding' # 'Encoding', 'Auditory Encoding', or
 home = os.path.expanduser('~')
 rois_folder = os.path.join(
     home, os.path.dirname(os.path.abspath(__file__)),
-    'roi_analyses_rwls_hrf128_wb_puncorr')
+    'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed')
 
 if contrast_mask == 'Auditory Encoding':
     contrast_mask_folder = os.path.join(rois_folder, 'auditory')
@@ -370,7 +373,8 @@ elif contrast_mask == 'Visual Encoding':
     modalities = ['visual']
 else:
     assert contrast_mask == 'Encoding'
-    contrast_mask_folder = os.path.join(rois_folder, 'all')
+    contrast_mask_folder = os.path.join(rois_folder, 'bothmod_allmain_tasks', 
+                                        'main_tasks')
     x_label = ['Auditory Conditions', 'Visual Conditions']
     n_conditions = 4
     modalities = ['auditory', 'visual', 'both']
@@ -380,8 +384,12 @@ dstr_folder = os.path.join(contrast_mask_folder, 'dorsal_striatum', 'hos',
 cerebellum_folder = os.path.join(contrast_mask_folder, 'cerebellum',
                                  'ntk_symmni128', 'cereb', 'rois_extraction')
 
-dstr_file = os.path.join(dstr_folder, 'i_dstr_psc.npy')
-cerebellum_file = os.path.join(cerebellum_folder, 'i_cereb_psc.npy')
+# Individualization level of input data
+INDIVID_LEVEL = 'i'
+# Paths of input files
+dstr_file = os.path.join(dstr_folder, INDIVID_LEVEL + '_dstr_psc.npy')
+cerebellum_file = os.path.join(cerebellum_folder, 
+                               INDIVID_LEVEL + '_cereb_psc.npy')
 
 # ######################################################################
 
@@ -441,7 +449,7 @@ if __name__ == '__main__':
         rois_data_list.append(roi_data)
 
         # Name of output files
-        outname_roi = 'ipscs_roi-' + roi + '_task-' + \
+        outname_roi = INDIVID_LEVEL + '_psc_roi-' + roi + '_task-' + \
             task_id.replace('_', '-') + '_mask-' + \
             contrast_mask.lower().replace(' ', '-')
         
@@ -455,7 +463,7 @@ if __name__ == '__main__':
 
     # Final shape: (rois, subjects, contrasts)
     rois_data = np.stack(rois_data_list, axis=0)
-    outname_rois = 'ipscs_two-rois_task-' + \
+    outname_rois = INDIVID_LEVEL + '_psc_two-rois_task-' + \
         task_id.replace('_', '-') + '_mask-' + \
         contrast_mask.lower().replace(' ', '-')
     for tmod in modalities:
