@@ -650,7 +650,7 @@ activation_map = os.path.join(
 
 # Output folder for HTML
 outputs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'results', 'irois')
+                              'results', 'dstr_irois')
 outfile_prefix = 'iroi_dstr_surf_' + INDIVID_LEVEL
 
 # Define threshold and intensity range.
