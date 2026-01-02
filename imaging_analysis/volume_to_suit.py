@@ -38,7 +38,7 @@ You can now choose between different run modes using CLI flags:
 Batch mode
 ----------------------------------------------------------------------
 
-You can also run **all contrasts sequentially** in single-contrast 
+You can also run **all contrasts sequentially** in single-contrast
 mode:
 
 - Set:
@@ -140,8 +140,13 @@ def plot_suitflat(stats,
                   vmax=10,
                   colors=('r', 'b'),
                   sci_notation=False,
+                  tick_decimals=None,
+                  cbar_orientation='vertical',
+                  cbar_rect=None,
                   cmap_title_loc=(.775, .69),
-                  cmap_title='Z-values'):
+                  cmap_title='Z-values',
+                  cbar_ticks=None
+    ):
     """
     Plot one or two contrasts on a SUIT flatmap.
 
@@ -168,26 +173,66 @@ def plot_suitflat(stats,
     if not is_overlay:
         # ——— single contrast ———
         vmin = threshold
-        # only show colorbar if threshold is finite and...
-        # ... at least one value ≥ thr
+        # Only show a colorbar if threshold is finite and at least one value
+        # is ≥ threshold.
         show_cbar1 = np.isfinite(vmin) and np.nanmax(stats) >= vmin
+
+        # For horizontal bars we create a dedicated colorbar axis (SUITPy's
+        # internal colorbar is vertical and harder to reposition cleanly).
+        use_horizontal = (cbar_orientation == 'horizontal')
+
         flatmap.plot(
             stats,
             cmap=colormap,
             cscale=[vmin, vmax],
             underscale=[-5., 5.],
             threshold=vmin,
-            colorbar=show_cbar1,
+            colorbar=(show_cbar1 and not use_horizontal),
             render='matplotlib'
         )
         fig = plt.gcf()
-        if show_cbar1:
+
+        if show_cbar1 and use_horizontal:
+            # Build a standalone mappable so we can control placement,
+            # tick formatting and the label.
+            cmap = plt.get_cmap(colormap)
+            sm = ScalarMappable(norm=Normalize(vmin=vmin, vmax=vmax), cmap=cmap)
+            sm.set_array([])
+
+            rect = cbar_rect if cbar_rect is not None else [.2, .1, .6, .03]
+            cax = fig.add_axes(rect)
+            cb = fig.colorbar(sm, cax=cax, orientation='horizontal', 
+                              ticks=cbar_ticks)
+
+            cb.ax.tick_params(labelsize=14)
+
+            if tick_decimals is not None:
+                cb.ax.xaxis.set_major_formatter(
+                    ticker.FormatStrFormatter('%.2f'))
+            elif sci_notation:
+                cb.ax.xaxis.set_major_formatter(
+                    ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
+                )
+
+            # Center the title on the bar
+            cb.set_label(cmap_title, fontsize=15, labelpad=8)
+            cb.ax.xaxis.set_label_position('top')
+            cb.ax.xaxis.set_ticks_position('bottom')
+
+        elif show_cbar1 and not use_horizontal:
+            # SUITPy/Matplotlib-provided vertical colorbar (default path).
             cbar = fig.axes[-1]
             cbar.tick_params(labelsize=14)
             cbar.set_position([.825, .2, .03, .6])
-            if sci_notation:
+
+            if tick_decimals is not None:
+                cbar.yaxis.set_major_formatter(
+                    ticker.FormatStrFormatter(f"%.{tick_decimals}f")
+                )
+            elif sci_notation:
                 formatter = ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
                 cbar.yaxis.set_major_formatter(formatter)
+
             fig.text(
                 cmap_title_loc[0],
                 cmap_title_loc[1],
@@ -199,6 +244,7 @@ def plot_suitflat(stats,
                 multialignment='center',
                 linespacing=1.6
             )
+
         fig.savefig(outpath, dpi=300)
         return
 
@@ -273,7 +319,7 @@ def plot_suitflat(stats,
             raise ValueError(f"Can't find '_vs_' or '_and_' separator in "
                              f"'{fname}'")
 
-        # Pull only the contrast key from the left side 
+        # Pull only the contrast key from the left side
         # (drop any 'group_…_' prefix)
         c1_key = left.split('_')[-1]
         c2_key = right  # this is already just the second contrast
@@ -313,14 +359,14 @@ def plot_suitflat(stats,
 
         cmap3 = LinearSegmentedColormap.from_list(
             "c3", [thr_overlap, max_overlap])
-        # We normalize overlap on a 0–1 scale of (norm1+norm2)... 
+        # We normalize overlap on a 0–1 scale of (norm1+norm2)...
         # ... clipped -> [thr_frac1 + thr_frac2, 1]
         min_ol = thr_frac1 + thr_frac2
-        sm3 = ScalarMappable(norm=Normalize(vmin=min_ol, vmax=1.0), 
+        sm3 = ScalarMappable(norm=Normalize(vmin=min_ol, vmax=1.0),
                              cmap=cmap3)
         sm3.set_array([])
 
-        # Compute mid‑ticks
+        # Compute mid-ticks
         m1_1 = thr1 + (v1 - thr1) / 3
         m1_2 = thr1 + 2*(v1 - thr1) / 3
         m2_1 = thr2 + (v2 - thr2) / 3
@@ -332,11 +378,11 @@ def plot_suitflat(stats,
         bars = [
             # colorbar positions: [left, bottom, width, height]
             (sm1, [.04, .125, .25, .03], thr1, m1_1, m1_2, v1,
-            f"Z-Values ({label1})"),
+             f"Z-Values ({label1})"),
             (sm2, [.3825, .125, .25, .03], thr2, m2_1, m2_2, v2,
-            f"Z-Values ({label2})"),
-            (sm3, [.715, .125, .25, .03], min_ol, m3_1, m3_2, 1.0, 
-            "Co-activation")
+             f"Z-Values ({label2})"),
+            (sm3, [.715, .125, .25, .03], min_ol, m3_1, m3_2, 1.0,
+             "Co-activation")
         ]
 
         # Do colorbars
@@ -348,8 +394,8 @@ def plot_suitflat(stats,
                 ticks=[lo, m1, m2, hi]
             )
             cb.set_label(lbl, fontsize=11, labelpad=10)
-            cb.ax.set_xticklabels([f"{lo:.2f}", f"{m1:.2f}", f"{m2:.2f}", 
-                                f"{hi:.2f}"])
+            cb.ax.set_xticklabels([f"{lo:.2f}", f"{m1:.2f}", f"{m2:.2f}",
+                                   f"{hi:.2f}"])
             cb.ax.tick_params(labelsize=10)
 
     # ########################### SAVE ################################
@@ -366,12 +412,12 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 
 # Parent dir for output folders
 suitparametric_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
+    os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests',
     'suit')
 
-task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
-contrast_name = 'Encoding' # 'E.g. 'Beat', 'Interval', 'ALL', etc.
-contrast_name2 = None # Set to None if not used
+task_tag = 'All Tasks'  # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+contrast_name = 'Encoding'  # 'E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = None  # Set to None if not used
 
 
 # %%
@@ -391,22 +437,22 @@ wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
 # Individualization level of rois
 INDIVID_LEVEL = 'i'
 iroi_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed', 
-                         'bothmod_allmain_tasks', 
+                         'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed',
+                         'bothmod_allmain_tasks',
                          'main_tasks',
-                         'cerebellum', 
-                         'ntk_symmni128', 
+                         'cerebellum',
+                         'ntk_symmni128',
                          'cereb',
-                         'overlaid_masks', 
+                         'overlaid_masks',
                          INDIVID_LEVEL + '_cereb_bh_mask.nii.gz')
 
 # Tasks definitions
-tasks = {'prod': 'Production', 
-         'percep': 'Perception', 
+tasks = {'prod': 'Production',
+         'percep': 'Perception',
          'ntfd': 'NTFD',
          'rand_ntfd': 'NTFD Random',
          'allmain_tasks': 'All Tasks'
-}
+         }
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
 # Contrast dictionary (id -> name)
@@ -432,7 +478,7 @@ if task_id != 'rand_ntfd':
         18: 'Decision'
     }
 else:
-    assert task_id == 'rand_ntfd'   
+    assert task_id == 'rand_ntfd'
     all_contrasts = {
         1: 'Encoding',
         2: 'Auditory Encoding',
@@ -453,7 +499,7 @@ else:
         17: 'Random vs Non-Random',
         18: 'Auditory Beat',
         19: 'Auditory Interval',
-        20: 'Auditory Non-Random',                   
+        20: 'Auditory Non-Random',
         21: 'Auditory Random',
         22: 'Auditory Beat vs Auditory Interval',
         23: 'Auditory Interval vs Auditory Beat',
@@ -465,12 +511,12 @@ else:
         29: 'Auditory Random vs Auditory Non-Random',
         30: 'Visual Beat',
         31: 'Visual Interval',
-        32: 'Visual Non-Random',                   
+        32: 'Visual Non-Random',
         33: 'Visual Random',
         34: 'Visual Beat vs Visual Interval',
         35: 'Visual Interval vs Visual Beat',
         36: 'Visual Beat vs Visual Random',
-        37: 'Visual Random vs Visual Beat',                    
+        37: 'Visual Random vs Visual Beat',
         38: 'Visual Interval vs Visual Random',
         39: 'Visual Random vs Visual Interval',
         40: 'Visual Non-Random vs Visual Random',
@@ -479,11 +525,11 @@ else:
     }
 
 # Output folders
-suit_folder = os.path.join(suitparametric_folder, task_id, 
+suit_folder = os.path.join(suitparametric_folder, task_id,
                            'suit_files')
-contrasts_folder = os.path.join(suitparametric_folder, task_id, 
+contrasts_folder = os.path.join(suitparametric_folder, task_id,
                                 'suit_images')
-irois_folder = os.path.join(suitparametric_folder, task_id, 
+irois_folder = os.path.join(suitparametric_folder, task_id,
                             'suit_irois')
 
 # Contrasts definitions
@@ -541,17 +587,33 @@ if __name__ == '__main__':
     # ------------------------- ROI overlay only -------------------------
     if mode_iroi:
         os.makedirs(irois_folder, exist_ok=True)
+
         iroi = nib.load(iroi_path)
         iroi_suitdata = flatmap.vol_to_surf(iroi, space='SUIT')
-        thresh = np.unique(iroi_suitdata)[1]
-        iroi_fname = 'iroi_cerebellum_suit_' + INDIVID_LEVEL + '.png'
+
+        vmin = 1 / len(SUBJECTS)
+        vmax = 1.0
+
+        # five ticks: min + 3 middle + max
+        ticks = np.linspace(vmin, vmax, 5)
+
+        iroi_fname = f'iroi_cerebellum_suit_{INDIVID_LEVEL}.png'
         iroi_fpath = os.path.join(irois_folder, iroi_fname)
+
         plot_suitflat(
-            iroi_suitdata, 1 / len(SUBJECTS), iroi_fpath,
-            colormap='cividis', vmax=1, sci_notation=True,
-            cmap_title_loc=(.9, .72),
-            cmap_title='Fraction of\nParticipants'
+            iroi_suitdata,
+            threshold=vmin,
+            outpath=iroi_fpath,
+            colormap='cividis',
+            vmax=vmax,
+            sci_notation=False,
+            tick_decimals=2,
+            cbar_orientation='horizontal',
+            cbar_rect=[.2, .06, .6, .03],
+            cmap_title='Fraction of Participants',
+            cbar_ticks=ticks
         )
+
         sys.exit(0)
 
     # ----------------------- single (with batch) ------------------------
