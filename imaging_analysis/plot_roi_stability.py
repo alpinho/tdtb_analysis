@@ -8,7 +8,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 14th of March, 2025
-Last update: November 2025
+Last update: January 2026
 
 Compatibility: Python 3.10.14
 """
@@ -154,14 +154,14 @@ if __name__ == "__main__":
     df_list = [pd.read_csv(pth, sep="\t") for pth in posthoc_paths]
     rows = [pick_row(df) for df in df_list]
 
-    # series as before
+    # p_corr across ROIs computed by pingouin
     p_corr = np.array(
         [np.nan if pd.isna(r["p-corr"]) else round(r["p-corr"], 3)
          for r in rows]
     )
     p_unc = np.array([round(r["p-unc"], 3) for r in rows])
 
-    # new: holm across levels on uncorrected p-values
+    # holm across individualization levels on **uncorrected** p-values
     p_holm = np.array([round(x, 6) for x in holm_levels(p_unc)])
 
     # x-axis weights
