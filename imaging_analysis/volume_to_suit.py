@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of February 2025
-Last Update: September 2025
+Last Update: January 2026
 
 Compatibility: Python 3.10.x, Nilearn, SUITPy
 
