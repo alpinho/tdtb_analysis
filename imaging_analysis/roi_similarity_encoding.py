@@ -509,11 +509,11 @@ def plot_matrix(
         axis='y', left=True, right=False, labelleft=True, labelright=False
     )
 
-    ax.set_title(title)
+    # ax.set_title(title)
 
     # --- colorbar: keep compact and avoid huge right whitespace
     cbar = fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
-    cbar.set_label('Repeated measures correlation ($r_{rm}$)')
+    cbar.set_label('Repeated measures correlation ($r_{rm}$)', labelpad=10)
 
     # --- stars
     if p_mat is not None:
