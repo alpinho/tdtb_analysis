@@ -34,7 +34,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 7th of October 2025
-Last Update: October 2025
+Last Update: January 2026
 
 Compatibility: Python 3.10.16
 """
@@ -102,6 +102,18 @@ def p_to_stars(p: float) -> str:
         if p < thr:
             return sym
     return ''
+
+
+def roi_display_labels(rois: List[str]) -> List[str]:
+    """
+    Return ROI labels using ROI_LABELS with first letter capitalized.
+    Falls back to ROI key if not found.
+    """
+    out = []
+    for r in rois:
+        lbl = ROI_LABELS.get(r, r)
+        out.append(lbl[:1].upper() + lbl[1:])
+    return out
 
 
 # =========================== PUBLIC HELPERS ========================== #
@@ -463,50 +475,66 @@ def roi_matrix_stats(
 
 
 def plot_matrix(
-    mat: pd.DataFrame,
-    title: str,
-    out_png: Path,
-    p_mat: pd.DataFrame | None = None,
-    alpha_thr: float = 0.05,
-) -> None:
+        mat: pd.DataFrame,
+        title: str,
+        out_png: Path,
+        p_mat: pd.DataFrame | None = None,
+        alpha_thr: float = 0.05,
+    ) -> None:
     """
     Plot r-matrix heatmap with stars on significant cells.
-
-    Raises
-    ------
-    ValueError if matrix is empty.
+    Keeps formatting stable while using ROI_LABELS for tick labels.
     """
     if mat.empty:
         raise ValueError("[ERROR] empty matrix for plot_matrix.")
 
-    plt.figure(figsize=(6.2, 5.4))
-    im = plt.imshow(mat.values, vmin=-1.0, vmax=1.0, cmap='coolwarm')
+    rois = list(mat.index)
+    labels = roi_display_labels(rois)
+    n = len(rois)
+    ticks = np.arange(n)
 
-    xt = np.arange(mat.shape[1])
-    yt = np.arange(mat.shape[0])
-    plt.xticks(ticks=xt, labels=mat.columns, rotation=45, ha='right')
-    plt.yticks(ticks=yt, labels=mat.index)
-    plt.title(title)
-    cbar = plt.colorbar(im)
-    cbar.set_label('r (rmcorr)')
+    fig, ax = plt.subplots(figsize=(6.2, 5.4))
+    im = ax.imshow(mat.values, vmin=-1.0, vmax=1.0, cmap='coolwarm')
 
+    # --- ticks/labels: force classic layout (bottom x-labels, left y-labels)
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=9)
+    ax.set_yticklabels(labels, fontsize=9)
+
+    ax.tick_params(
+        axis='x', bottom=True, top=False, labelbottom=True, labeltop=False
+    )
+    ax.tick_params(
+        axis='y', left=True, right=False, labelleft=True, labelright=False
+    )
+
+    ax.set_title(title)
+
+    # --- colorbar: keep compact and avoid huge right whitespace
+    cbar = fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
+    cbar.set_label('Repeated measures correlation ($r_{rm}$)')
+
+    # --- stars
     if p_mat is not None:
-        n = mat.shape[0]
         for i in range(n):
             for j in range(i + 1, n):
                 p = p_mat.values[i, j]
                 if np.isfinite(p) and p < alpha_thr:
                     stars = p_to_stars(p)
                     if stars:
-                        plt.text(
-                            j, i, stars, ha='center', va='center',
+                        ax.text(
+                            j, i, stars,
+                            ha='center', va='center',
                             fontsize=9, color='k', fontweight='bold'
                         )
 
-    plt.tight_layout()
+    # --- margins tuned for long y-labels and rotated x-labels
+    fig.subplots_adjust(left=0.28, bottom=0.22, right=0.94, top=0.92)
+
     out_png.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out_png, dpi=300, bbox_inches='tight')
-    plt.close()
+    fig.savefig(out_png, dpi=300, bbox_inches='tight')
+    plt.close(fig)
     print(f"[SAVED] {out_png}")
 
 
