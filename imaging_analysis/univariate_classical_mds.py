@@ -11,20 +11,69 @@ from mpl_toolkits.mplot3d import Axes3D  # needed for 3D
 
 # ============================= FUNCTIONS =========================== #
 
-def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
-    """
-    Plot 2D MDS for chosen components (1-based indices).
+def nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30):
+    """Nudge 2D text labels so their bboxes fit inside axes box.
 
-    coords : (n, p) array of MDS scores
-    labels : list-like of length n (e.g., ROI names)
-    explained_var : (p,) eigenvalues or per-axis variance
-    out_path : PNG output path
-    comps : tuple of 2 components, 1-based (e.g., (1, 3))
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure hosting the axes.
+    ax : matplotlib.axes.Axes
+        Target axes.
+    texts : list[matplotlib.text.Text]
+        Text artists to constrain.
+    pad_px : int
+        Pixel padding from axes box to avoid spines/ticks.
+    max_iter : int
+        Max iterations per label to reach containment.
     """
-    c1, c2 = comps[0] - 1, comps[1] - 1
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    ax_bbox = ax.get_window_extent(renderer=renderer)
+
+    x0 = ax_bbox.x0 + pad_px
+    x1 = ax_bbox.x1 - pad_px
+    y0 = ax_bbox.y0 + pad_px
+    y1 = ax_bbox.y1 - pad_px
+
+    inv = ax.transData.inverted()
+
+    for txt in texts:
+        for _ in range(max_iter):
+            fig.canvas.draw()
+            renderer = fig.canvas.get_renderer()
+            bbox = txt.get_window_extent(renderer=renderer)
+
+            shift_x = 0.0
+            shift_y = 0.0
+
+            if bbox.x0 < x0:
+                shift_x += (x0 - bbox.x0)
+            if bbox.x1 > x1:
+                shift_x -= (bbox.x1 - x1)
+            if bbox.y0 < y0:
+                shift_y += (y0 - bbox.y0)
+            if bbox.y1 > y1:
+                shift_y -= (bbox.y1 - y1)
+
+            if shift_x == 0.0 and shift_y == 0.0:
+                break
+
+            x_dat, y_dat = txt.get_position()
+            p0 = ax.transData.transform((x_dat, y_dat))
+            p1 = (p0[0] + shift_x, p0[1] + shift_y)
+            x_new, y_new = inv.transform(p1)
+            txt.set_position((x_new, y_new))
+            
+
+def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
+    """Plot 2D classical MDS and keep labels fully inside axes."""
+    c1 = comps[0] - 1
+    c2 = comps[1] - 1
 
     var = np.clip(explained_var, 0, None)
-    var = var / (var.sum() if var.sum() > 0 else 1.0)
+    denom = var.sum() if var.sum() > 0 else 1.0
+    var = var / denom
 
     fig, ax = plt.subplots(figsize=(6, 5), dpi=150)
     ax.scatter(coords[:, c1], coords[:, c2])
@@ -47,18 +96,29 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
         (-dx, -dy),
     ]
 
-    for k, (x, y, name) in enumerate(zip(coords[:, c1], coords[:, c2], 
-                                         labels)):
-        ox, oy = offsets[k % len(offsets)]
-        ax.text(x + ox, y + oy, name, va="center", ha="left")
+    texts = []
+    for k, (x_val, y_val, name) in enumerate(
+        zip(coords[:, c1], coords[:, c2], labels)
+    ):
+        off_x, off_y = offsets[k % len(offsets)]
+        txt = ax.text(
+            x_val + off_x,
+            y_val + off_y,
+            name,
+            va="center",
+            ha="left",
+            clip_on=True,
+        )
+        texts.append(txt)
 
-    ax.set_xlabel(f"MDS{c1+1} ({var[c1]:.1%})")
-    ax.set_ylabel(f"MDS{c2+1} ({var[c2]:.1%})")
+    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
+    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
     ax.axhline(0, lw=0.5)
     ax.axvline(0, lw=0.5)
-    ax.set_title(
-        f"Classical MDS - 2D (MDS{c1+1} vs MDS{c2+1})"
-    )
+    ax.set_title(f"Classical MDS - 2D (MDS{c1 + 1} vs MDS{c2 + 1})")
+
+    nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30)
+
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
