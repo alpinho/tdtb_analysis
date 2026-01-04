@@ -156,7 +156,15 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     fig = plt.figure(figsize=(6, 5), dpi=150)
     ax = fig.add_subplot(111, projection="3d")
-    ax.scatter(coords[:, c1], coords[:, c2], coords[:, c3])
+    
+    ax.scatter(
+        coords[:, c1],
+        coords[:, c2],
+        coords[:, c3],
+        color="C0",
+        alpha=0.8,
+    )
+
 
     labels = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
