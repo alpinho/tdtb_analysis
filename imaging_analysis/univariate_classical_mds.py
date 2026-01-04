@@ -183,7 +183,61 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         zip(coords[:, c1], coords[:, c2], coords[:, c3], labels)
     ):
         ox, oy, oz = offsets[k % len(offsets)]
-        ax.text(x + ox, y + oy, z + oz, name)
+        ha = "left"
+        va = "center"
+
+        if name == "Heschl Gyrus":
+            # Keep inside axes; slightly closer to the marker.
+            ox = -1.6 * dx
+            oy = 2.6 * dy
+            oz = .6 * dz
+            ha = "right"
+
+        elif name == "PreSMA":
+            # Place label left and slightly below the marker.
+            ox = -.4 * dx
+            oy = -1.4 * dy
+            ha = "right"
+
+        elif name == "Dorsal Striatum":
+            # Lift label above the marker.
+            oz = 2.5 * dz
+
+        elif name == "Occipital Lobe":
+            # Push label slightly forward and upward.
+            oy = 1.8 * dy
+            oz = 1.5 * dz
+
+        elif name == "Cerebellum":
+            # Pull label toward the cluster center.
+            ox = 1. * dx
+            oy = .6 * dy
+
+        elif name == "PMV":
+            # Pull label toward the cluster center.
+            ox = .7 * dx
+            oy = 1. * dy
+
+        elif name == "PMD":
+            # Pull label toward the cluster center.
+            ox = .9 * dx
+            oy = .4 * dy
+
+        elif name == "SMA":
+            # Toward center, but slightly higher than others.
+            ox = .8 * dx
+            oy = .7 * dy
+
+
+        ax.text(
+            x + ox,
+            y + oy,
+            z + oz,
+            name,
+            ha=ha,
+            va=va,
+            clip_on=True,
+        )
 
     ax.set_xlabel(f"MDS{c1+1} ({var[c1]:.1%})")
     ax.set_ylabel(f"MDS{c2+1} ({var[c2]:.1%})")
