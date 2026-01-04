@@ -253,6 +253,19 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.set_title(
         f"Classical MDS - 3D (MDS{c1+1}, {c2+1}, {c3+1})"
     )
+
+    ax.view_init(elev=25, azim=-90)
+
+    # MDS1: start at 0 and extend to the most negative value.
+    x_min = float(np.min(coords[:, c1]))
+    ax.set_xlim(x_min, 0.0)
+
+    # Center MDS2 and MDS3 at 0 (symmetric limits).
+    y_max = float(np.max(np.abs(coords[:, c2])))
+    z_max = float(np.max(np.abs(coords[:, c3])))
+    ax.set_ylim(-y_max, y_max)
+    ax.set_zlim(-z_max, z_max)
+
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
