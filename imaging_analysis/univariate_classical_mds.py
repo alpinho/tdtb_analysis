@@ -28,8 +28,29 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
 
     fig, ax = plt.subplots(figsize=(6, 5), dpi=150)
     ax.scatter(coords[:, c1], coords[:, c2])
-    for x, y, name in zip(coords[:, c1], coords[:, c2], labels):
-        ax.text(x, y, f" {name}", va="center", ha="left")
+
+    labels = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
+
+    x_rng = float(coords[:, c1].max() - coords[:, c1].min())
+    y_rng = float(coords[:, c2].max() - coords[:, c2].min())
+    dx = x_rng * 0.015 if x_rng > 0 else 0.01
+    dy = y_rng * 0.015 if y_rng > 0 else 0.01
+
+    offsets = [
+        (dx, 0.0),
+        (0.0, dy),
+        (-dx, 0.0),
+        (0.0, -dy),
+        (dx, dy),
+        (-dx, dy),
+        (dx, -dy),
+        (-dx, -dy),
+    ]
+
+    for k, (x, y, name) in enumerate(zip(coords[:, c1], coords[:, c2], 
+                                         labels)):
+        ox, oy = offsets[k % len(offsets)]
+        ax.text(x + ox, y + oy, name, va="center", ha="left")
 
     ax.set_xlabel(f"MDS{c1+1} ({var[c1]:.1%})")
     ax.set_ylabel(f"MDS{c2+1} ({var[c2]:.1%})")
@@ -61,10 +82,33 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     fig = plt.figure(figsize=(6, 5), dpi=150)
     ax = fig.add_subplot(111, projection="3d")
     ax.scatter(coords[:, c1], coords[:, c2], coords[:, c3])
-    for x, y, z, name in zip(
-        coords[:, c1], coords[:, c2], coords[:, c3], labels
+
+    labels = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
+
+    x_rng = float(coords[:, c1].max() - coords[:, c1].min())
+    y_rng = float(coords[:, c2].max() - coords[:, c2].min())
+    z_rng = float(coords[:, c3].max() - coords[:, c3].min())
+
+    dx = x_rng * 0.02 if x_rng > 0 else 0.01
+    dy = y_rng * 0.02 if y_rng > 0 else 0.01
+    dz = z_rng * 0.02 if z_rng > 0 else 0.01
+
+    offsets = [
+        (dx, 0.0, 0.0),
+        (0.0, dy, 0.0),
+        (0.0, 0.0, dz),
+        (-dx, 0.0, 0.0),
+        (0.0, -dy, 0.0),
+        (0.0, 0.0, -dz),
+        (dx, dy, 0.0),
+        (-dx, -dy, 0.0),
+    ]
+
+    for k, (x, y, z, name) in enumerate(
+        zip(coords[:, c1], coords[:, c2], coords[:, c3], labels)
     ):
-        ax.text(x, y, z, f" {name}")
+        ox, oy, oz = offsets[k % len(offsets)]
+        ax.text(x + ox, y + oy, z + oz, name)
 
     ax.set_xlabel(f"MDS{c1+1} ({var[c1]:.1%})")
     ax.set_ylabel(f"MDS{c2+1} ({var[c2]:.1%})")
@@ -83,6 +127,18 @@ N_COMPONENTS = 3
 
 # Individualization level of input data
 INDIVID_LEVEL = 'i'
+
+ROI_LABELS = {
+    'dstr': 'Dorsal Striatum',
+    'cereb': 'Cerebellum',
+    'pmv': 'PMV',
+    'pmd': 'PMD',
+    'presma': 'PreSMA',
+    'sma': 'SMA',
+    'heschl': 'Heschl Gyrus',
+    'occipital': 'Occipital Lobe',
+    'occipital_lobe': 'Occipital Lobe',
+}
 
 # =============================== PATHS ============================= #
 
