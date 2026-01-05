@@ -316,6 +316,11 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             linewidth=0.8,
         )
 
+    # Rotate tick labels to match the view angle (screen-space).
+    ax.tick_params(axis="x", labelrotation=20)
+    ax.tick_params(axis="y", labelrotation=-35)
+    ax.tick_params(axis="z", labelrotation=90)
+
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
