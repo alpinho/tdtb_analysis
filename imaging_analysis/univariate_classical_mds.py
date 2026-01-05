@@ -168,8 +168,6 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
         )
         texts.append(txt)
 
-    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
-    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
     ax.axhline(0, lw=0.5)
     ax.axvline(0, lw=0.5)
     ax.set_title(f"Classical MDS - 2D (MDS{c1 + 1} vs MDS{c2 + 1})")
@@ -281,17 +279,17 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             clip_on=True,
         )
 
-    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
-    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
-    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})")
+    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})", labelpad=1)
+    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1)
+    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1)
     ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
 
     ax.view_init(elev=15, azim=-10)
 
     # Fixed axis limits (explicit, not data-driven)
-    ax.set_xlim(-0.35, 0.0)      # MDS1
-    ax.set_ylim(0.35, -0.35)     # MDS2
-    ax.set_zlim(-0.30, 0.30)     # MDS3
+    ax.set_xlim(-.35, 0.)      # MDS1
+    ax.set_ylim(.35, -.35)     # MDS2
+    ax.set_zlim(-.30, .30)     # MDS3
 
     # Make panes transparent (we will draw our own black box edges).
     ax.xaxis.pane.set_alpha(0.0)
@@ -366,17 +364,21 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
                 antialiased=True,
                 zorder=2,
             )
+    # Change size of ticks
+    #ax.xaxis.set_tick_params(length=5, width=1.2)
+    #ax.yaxis.set_tick_params(length=5, width=1.2)
+    #ax.zaxis.set_tick_params(length=100, width=1.0)
 
     # Rotate tick labels to match the view angle (screen-space).
-    ax.tick_params(axis="x", labelrotation=20)
-    ax.tick_params(axis="y", labelrotation=-35)
-    ax.tick_params(axis="z", labelrotation=90)
+    ax.tick_params(axis="x", labelrotation=20, labelsize=10)
+    ax.tick_params(axis="y", labelrotation=5, labelsize=10)
+    ax.tick_params(axis="z", labelrotation=0, labelsize=10)
 
     # Padding between ticks and tick labels (points).
     # Avoid negative padding in 3D to prevent clipping.
     ax.tick_params(axis="x", pad=2)
-    ax.tick_params(axis="y", pad=3)
-    ax.tick_params(axis="z", pad=3)
+    ax.tick_params(axis="y", pad=-4.)
+    ax.tick_params(axis="z", pad=1)
 
     # Draw a black 3D bounding box (12 edges). This is the only robust way
     # to enforce black plane edges across Matplotlib backends/versions.
