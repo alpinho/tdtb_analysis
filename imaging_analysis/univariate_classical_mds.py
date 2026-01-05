@@ -156,7 +156,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     fig = plt.figure(figsize=(6, 5), dpi=150)
     ax = fig.add_subplot(111, projection="3d")
-    
+
     ax.scatter(
         coords[:, c1],
         coords[:, c2],
@@ -164,7 +164,6 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         color="C0",
         alpha=0.8,
     )
-
 
     labels = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
@@ -198,12 +197,12 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             # Keep inside axes; slightly closer to the marker.
             ox = -1.6 * dx
             oy = 2.6 * dy
-            oz = .6 * dz
+            oz = 0.6 * dz
             ha = "right"
 
         elif name == "PreSMA":
             # Place label left and slightly below the marker.
-            ox = -.4 * dx
+            ox = -0.4 * dx
             oy = -1.4 * dy
             ha = "right"
 
@@ -218,24 +217,23 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
         elif name == "Cerebellum":
             # Pull label toward the cluster center.
-            ox = 1. * dx
-            oy = .6 * dy
+            ox = 1.0 * dx
+            oy = 0.6 * dy
 
         elif name == "PMV":
             # Pull label toward the cluster center.
-            ox = .7 * dx
-            oy = 1. * dy
+            ox = 0.7 * dx
+            oy = 1.0 * dy
 
         elif name == "PMD":
             # Pull label toward the cluster center.
-            ox = .9 * dx
-            oy = .4 * dy
+            ox = 0.9 * dx
+            oy = 0.4 * dy
 
         elif name == "SMA":
             # Toward center, but slightly higher than others.
-            ox = .8 * dx
-            oy = .7 * dy
-
+            ox = 0.8 * dx
+            oy = 0.7 * dy
 
         ax.text(
             x + ox,
@@ -247,14 +245,12 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             clip_on=True,
         )
 
-    ax.set_xlabel(f"MDS{c1+1} ({var[c1]:.1%})")
-    ax.set_ylabel(f"MDS{c2+1} ({var[c2]:.1%})")
-    ax.set_zlabel(f"MDS{c3+1} ({var[c3]:.1%})")
-    ax.set_title(
-        f"Classical MDS - 3D (MDS{c1+1}, {c2+1}, {c3+1})"
-    )
+    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
+    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
+    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})")
+    ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
 
-    ax.view_init(elev=25, azim=-90)
+    ax.view_init(elev=25, azim=-75)
 
     # MDS1: start at 0 and extend to the most negative value.
     x_min = float(np.min(coords[:, c1]))
@@ -266,9 +262,64 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.set_ylim(-y_max, y_max)
     ax.set_zlim(-z_max, z_max)
 
+    # Make panes transparent so lines keep uniform color.
+    ax.xaxis.pane.set_alpha(0.0)
+    ax.yaxis.pane.set_alpha(0.0)
+    ax.zaxis.pane.set_alpha(0.0)
+
+    # Ticks: fixed 0.05 step for MDS2 and MDS3.
+    tick_step_yz = 0.05
+
+    y0, y1 = ax.get_ylim()
+    z0, z1 = ax.get_zlim()
+
+    y_start = np.floor(min(y0, y1) / tick_step_yz) * tick_step_yz
+    y_stop = np.ceil(max(y0, y1) / tick_step_yz) * tick_step_yz
+    z_start = np.floor(min(z0, z1) / tick_step_yz) * tick_step_yz
+    z_stop = np.ceil(max(z0, z1) / tick_step_yz) * tick_step_yz
+
+    yt = np.arange(y_start, y_stop + tick_step_yz / 2.0, tick_step_yz)
+    zt = np.arange(z_start, z_stop + tick_step_yz / 2.0, tick_step_yz)
+
+    ax.set_yticks(yt)
+    ax.set_zticks(zt)
+
+    ax.set_yticklabels(
+        [f"{0.0 if np.isclose(t, 0.0) else t:.1f}" for t in yt]
+    )
+    ax.set_zticklabels(
+        [f"{0.0 if np.isclose(t, 0.0) else t:.1f}" for t in zt]
+    )
+
+    # Keep equal visual spacing per tick-step across all axes.
+    x0, x1 = ax.get_xlim()
+    xt = ax.get_xticks()
+    if len(xt) >= 2:
+        tick_step_x = float(np.median(np.diff(np.sort(xt))))
+    else:
+        tick_step_x = tick_step_yz
+
+    nx = abs(x1 - x0) / tick_step_x if tick_step_x > 0 else 1.0
+    ny = abs(y1 - y0) / tick_step_yz
+    nz = abs(z1 - z0) / tick_step_yz
+    ax.set_box_aspect((nx, ny, nz))
+
+    # Draw vertical lines after setting axis limits so they touch plane.
+    z_bottom = float(ax.get_zlim()[0])
+    for x, y, z in zip(coords[:, c1], coords[:, c2], coords[:, c3]):
+        ax.plot(
+            [x, x],
+            [y, y],
+            [z_bottom, z],
+            color="C1",
+            alpha=0.5,
+            linewidth=0.8,
+        )
+
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
+
 
 # ============================= CONFIG ============================== #
 
