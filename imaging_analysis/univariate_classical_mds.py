@@ -21,10 +21,52 @@ import pandas as pd
 import PcmPy as pcm
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator, FuncFormatter
 from mpl_toolkits.mplot3d import Axes3D  # needed for 3D
 
 
 # ============================= FUNCTIONS =========================== #
+
+class SparseTickLabeler:
+    """Callable tick labeler: label every `label_step`, keep others blank."""
+
+    def __init__(
+        self,
+        label_step=0.1,
+        decimals=1,
+        zero_str="0.0",
+        atol_mult=1e-8,
+        atol_zero=1e-12,
+    ):
+        self.label_step = float(label_step)
+        self.decimals = int(decimals)
+        self.zero_str = str(zero_str)
+        self.atol_mult = float(atol_mult)
+        self.atol_zero = float(atol_zero)
+
+    def __call__(self, val, _pos):
+        q = val / self.label_step if self.label_step != 0 else val
+        if np.isclose(q, np.round(q), atol=self.atol_mult):
+            if np.isclose(val, 0.0, atol=self.atol_zero):
+                return self.zero_str
+            return f"{val:.{self.decimals}f}"
+        return ""
+
+
+def build_fixed_ticks(vmin, vmax, step):
+    """Return fixed ticks spanning [vmin, vmax] with the given step."""
+    step = float(step)
+    if step <= 0:
+        return np.array([vmin, vmax], dtype=float)
+
+    lo = float(min(vmin, vmax))
+    hi = float(max(vmin, vmax))
+
+    start = np.floor(lo / step) * step
+    stop = np.ceil(hi / step) * step
+
+    return np.arange(start, stop + step / 2.0, step, dtype=float)
+
 
 def nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30):
     """Nudge 2D text labels so their bboxes fit inside axes box.
@@ -79,7 +121,7 @@ def nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30):
             p1 = (p0[0] + shift_x, p0[1] + shift_y)
             x_new, y_new = inv.transform(p1)
             txt.set_position((x_new, y_new))
-            
+
 
 def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     """Plot 2D classical MDS and keep labels fully inside axes."""
@@ -267,41 +309,43 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.yaxis.pane.set_alpha(0.0)
     ax.zaxis.pane.set_alpha(0.0)
 
-    # Ticks: fixed 0.05 step for MDS2 and MDS3.
-    tick_step_yz = 0.05
+    # Ticks: keep 0.05 tick spacing on all axes, but label every 0.1.
+    tick_step = 0.05
+    label_step = 0.1
 
+    labeler = SparseTickLabeler(
+        label_step=label_step,
+        decimals=1,
+        zero_str="0.0",
+        atol_mult=1e-8,
+        atol_zero=1e-12,
+    )
+    formatter = FuncFormatter(labeler)
+
+    x0, x1 = ax.get_xlim()
     y0, y1 = ax.get_ylim()
     z0, z1 = ax.get_zlim()
 
-    y_start = np.floor(min(y0, y1) / tick_step_yz) * tick_step_yz
-    y_stop = np.ceil(max(y0, y1) / tick_step_yz) * tick_step_yz
-    z_start = np.floor(min(z0, z1) / tick_step_yz) * tick_step_yz
-    z_stop = np.ceil(max(z0, z1) / tick_step_yz) * tick_step_yz
+    xt = build_fixed_ticks(x0, x1, tick_step)
+    yt = build_fixed_ticks(y0, y1, tick_step)
+    zt = build_fixed_ticks(z0, z1, tick_step)
 
-    yt = np.arange(y_start, y_stop + tick_step_yz / 2.0, tick_step_yz)
-    zt = np.arange(z_start, z_stop + tick_step_yz / 2.0, tick_step_yz)
+    ax.xaxis.set_major_locator(FixedLocator(xt))
+    ax.yaxis.set_major_locator(FixedLocator(yt))
+    ax.zaxis.set_major_locator(FixedLocator(zt))
 
-    ax.set_yticks(yt)
-    ax.set_zticks(zt)
-
-    ax.set_yticklabels(
-        [f"{0.0 if np.isclose(t, 0.0) else t:.1f}" for t in yt]
-    )
-    ax.set_zticklabels(
-        [f"{0.0 if np.isclose(t, 0.0) else t:.1f}" for t in zt]
-    )
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    ax.zaxis.set_major_formatter(formatter)
 
     # Keep equal visual spacing per tick-step across all axes.
     x0, x1 = ax.get_xlim()
-    xt = ax.get_xticks()
-    if len(xt) >= 2:
-        tick_step_x = float(np.median(np.diff(np.sort(xt))))
-    else:
-        tick_step_x = tick_step_yz
+    y0, y1 = ax.get_ylim()
+    z0, z1 = ax.get_zlim()
 
-    nx = abs(x1 - x0) / tick_step_x if tick_step_x > 0 else 1.0
-    ny = abs(y1 - y0) / tick_step_yz
-    nz = abs(z1 - z0) / tick_step_yz
+    nx = abs(x1 - x0) / tick_step if tick_step > 0 else 1.0
+    ny = abs(y1 - y0) / tick_step if tick_step > 0 else 1.0
+    nz = abs(z1 - z0) / tick_step if tick_step > 0 else 1.0
     ax.set_box_aspect((nx, ny, nz))
 
     # Draw vertical lines after setting axis limits so they touch plane.
@@ -321,6 +365,11 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.tick_params(axis="y", labelrotation=-35)
     ax.tick_params(axis="z", labelrotation=90)
 
+    # Padding between ticks and tick labels (points)
+    ax.tick_params(axis="x", pad=-3)
+    ax.tick_params(axis="y", pad=3)
+    ax.tick_params(axis="z", pad=3)
+
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
@@ -332,39 +381,43 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 N_COMPONENTS = 3
 
 # Individualization level of input data
-INDIVID_LEVEL = 'i'
+INDIVID_LEVEL = "i"
 
 ROI_LABELS = {
-    'dstr': 'Dorsal Striatum',
-    'cereb': 'Cerebellum',
-    'pmv': 'PMV',
-    'pmd': 'PMD',
-    'presma': 'PreSMA',
-    'sma': 'SMA',
-    'heschl': 'Heschl Gyrus',
-    'occipital': 'Occipital Lobe',
-    'occipital_lobe': 'Occipital Lobe',
+    "dstr": "Dorsal Striatum",
+    "cereb": "Cerebellum",
+    "pmv": "PMV",
+    "pmd": "PMD",
+    "presma": "PreSMA",
+    "sma": "SMA",
+    "heschl": "Heschl Gyrus",
+    "occipital": "Occipital Lobe",
+    "occipital_lobe": "Occipital Lobe",
 }
 
 # =============================== PATHS ============================= #
 
 WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL = 'rwls'
-MASKING = 'wb'
-HRF = 'hrf128'
+MODEL = "rwls"
+MASKING = "wb"
+HRF = "hrf128"
 
 BASE_ALL = os.path.join(
     WORKING_DIR,
     f"roi_analyses_{MODEL}_{HRF}_{MASKING}_puncorr_unsmoothed",
-    'bothmod_allmain_tasks',
-    'profile_similarity',
-    'encoding_restrand',
-    'i',
-    'matrices',
+    "bothmod_allmain_tasks",
+    "profile_similarity",
+    "encoding_restrand",
+    "i",
+    "matrices",
 )
 
-MDS_OUTPUT_DIR = os.path.join(BASE_ALL, 'mds', INDIVID_LEVEL, 
-                              f'{N_COMPONENTS}comps')
+MDS_OUTPUT_DIR = os.path.join(
+    BASE_ALL,
+    "mds",
+    INDIVID_LEVEL,
+    f"{N_COMPONENTS}comps",
+)
 
 # ================================ RUN ============================== #
 
@@ -372,8 +425,10 @@ if __name__ == "__main__":
 
     # Load input matrix (ROI x ROI correlation or Gram matrix)
     mtx_path = os.path.join(
-        BASE_ALL, 
-        'matrix_r_' + INDIVID_LEVEL + '_Both_bh_8-rois_withrestrand.tsv'
+        BASE_ALL,
+        "matrix_r_"
+        + INDIVID_LEVEL
+        + "_Both_bh_8-rois_withrestrand.tsv",
     )
     df = pd.read_csv(mtx_path, sep="\t", index_col=0)
     mtx = df.to_numpy(dtype=float)
@@ -401,8 +456,8 @@ if __name__ == "__main__":
     axes_1based = list(range(1, coords.shape[1] + 1))
     for a, b in combinations(axes_1based, 2):
         out2d = os.path.join(
-            MDS_OUTPUT_DIR, 
-            f"{INDIVID_LEVEL}_ncomps-{N_COMPONENTS}_mds_pair_{a}_{b}.png"
+            MDS_OUTPUT_DIR,
+            f"{INDIVID_LEVEL}_ncomps-{N_COMPONENTS}_mds_pair_{a}_{b}.png",
         )
         plot_mds_2d(
             coords=coords,
@@ -416,9 +471,9 @@ if __name__ == "__main__":
     if coords.shape[1] >= 3:
         for a, b, c in combinations(axes_1based, 3):
             out3d = os.path.join(
-                MDS_OUTPUT_DIR, 
+                MDS_OUTPUT_DIR,
                 f"{INDIVID_LEVEL}_ncomps-{N_COMPONENTS}_mds_triplet_"
-                f"{a}_{b}_{c}.png"
+                f"{a}_{b}_{c}.png",
             )
             plot_mds_3d(
                 coords=coords,
