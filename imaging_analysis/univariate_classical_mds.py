@@ -22,7 +22,7 @@ import PcmPy as pcm
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator, FuncFormatter
-from mpl_toolkits.mplot3d import Axes3D  # needed for 3D
+from mpl_toolkits.mplot3d import proj3d
 
 
 # ============================= FUNCTIONS =========================== #
@@ -69,21 +69,7 @@ def build_fixed_ticks(vmin, vmax, step):
 
 
 def nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30):
-    """Nudge 2D text labels so their bboxes fit inside axes box.
-
-    Parameters
-    ----------
-    fig : matplotlib.figure.Figure
-        Figure hosting the axes.
-    ax : matplotlib.axes.Axes
-        Target axes.
-    texts : list[matplotlib.text.Text]
-        Text artists to constrain.
-    pad_px : int
-        Pixel padding from axes box to avoid spines/ticks.
-    max_iter : int
-        Max iterations per label to reach containment.
-    """
+    """Nudge 2D text labels so their bboxes fit inside axes box."""
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     ax_bbox = ax.get_window_extent(renderer=renderer)
@@ -179,6 +165,47 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     plt.close(fig)
 
 
+def _draw_custom_xticklabels_3d(fig, ax, fontsize=10, dx_px=0.0, dy_px=0.0):
+    """
+    Redraw x tick labels in 3D at projected tick positions,
+    with explicit screen-space (pixel) offsets.
+    """
+
+    fig.canvas.draw()
+
+    # Hide default x tick labels
+    for t in ax.get_xticklabels():
+        t.set_visible(False)
+
+    # Anchor for x-axis ticks
+    y0 = float(ax.get_ylim()[0])
+    z0 = float(ax.get_zlim()[0])
+
+    inv_fig = fig.transFigure.inverted()
+
+    for xv in ax.get_xticks():
+        x2, y2, _ = proj3d.proj_transform(
+            float(xv), y0, z0, ax.get_proj()
+        )
+        x_disp, y_disp = ax.transData.transform((x2, y2))
+
+        # --- screen-space offsets ---
+        x_disp += float(dx_px)   # horizontal shift
+        y_disp += float(dy_px)   # vertical shift
+
+        x_fig, y_fig = inv_fig.transform((x_disp, y_disp))
+
+        txt = fig.text(
+            x_fig,
+            y_fig,
+            ax.xaxis.get_major_formatter()(xv, None),
+            ha="center",
+            va="bottom",
+            fontsize=fontsize,
+        )
+        txt.set_in_layout(False)
+
+
 def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     """
     Plot 3D MDS for chosen components (1-based indices).
@@ -201,7 +228,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         coords[:, c1],
         coords[:, c2],
         coords[:, c3],
-        color='black',
+        color="black",
         alpha=0.8,
     )
 
@@ -235,39 +262,32 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
         if name == "Heschl Gyrus":
             ox = -1.6 * dx
-            oy = 3. * dy
-            oz = .4 * dz
+            oy = 3.0 * dy
+            oz = 0.4 * dz
             ha = "right"
-
         elif name == "PreSMA":
             oy = 1.1 * dy
-            oz = -.5 * dz
+            oz = -0.5 * dz
             ha = "right"
-
         elif name == "Dorsal Striatum":
-            oy = 10. * dy
+            oy = 10.0 * dy
             oz = 4.5 * dz
-
         elif name == "Occipital\nLobe":
-            oy = 3. * dy
-            oz = 6. * dz
-
+            oy = 3.0 * dy
+            oz = 6.0 * dz
         elif name == "Cerebellum":
-            oy = 16. * dy
+            oy = 16.0 * dy
             oz = 1.5 * dz
-
         elif name == "PMV":
             ox = 0.7 * dx
             oy = 6.8 * dy
             oz = 1.0 * dz
-
         elif name == "PMD":
             ox = 0.9 * dx
             oy = 7.8 * dy
-
         elif name == "SMA":
             oy = -1.3 * dy
-            oz = .1 * dz
+            oz = 0.1 * dz
 
         ax.text(
             x + ox,
@@ -279,7 +299,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             clip_on=True,
         )
 
-    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})", labelpad=8.)
+    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})", labelpad=2.)
     ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.)
     ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.)
     ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
@@ -287,9 +307,9 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.view_init(elev=15, azim=-10)
 
     # Fixed axis limits (explicit, not data-driven)
-    ax.set_xlim(-.35, 0.)      # MDS1
-    ax.set_ylim(.35, -.35)     # MDS2
-    ax.set_zlim(-.30, .30)     # MDS3
+    ax.set_xlim(-0.35, 0.0)      # MDS1
+    ax.set_ylim(0.35, -0.35)     # MDS2
+    ax.set_zlim(-0.30, 0.30)     # MDS3
 
     # Make panes transparent (we will draw our own black box edges).
     ax.xaxis.pane.set_alpha(0.0)
@@ -336,7 +356,6 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.set_box_aspect((nx, ny, nz))
 
     # Draw vertical stems with an opacity gradient, without "dashed" artifacts.
-    # Important: use butt caps (not round) and dense segments.
     z_bottom = float(ax.get_zlim()[0])
     n_segments = 640  # dense enough to look continuous in raster output
 
@@ -346,9 +365,6 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         for i in range(n_segments):
             z0s = zs[i]
             z1s = zs[i + 1]
-
-            # Fade from opaque at the bottom plane to transparent at...
-            # ... the point.
             alpha = 1.0 - (i / n_segments)
 
             ax.plot(
@@ -359,29 +375,30 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
                 linewidth=1.5,
                 alpha=alpha,
                 linestyle="-",
-                solid_capstyle="butt",  # critical: avoids beaded/dashed look
+                solid_capstyle="butt",
                 solid_joinstyle="miter",
                 antialiased=True,
                 zorder=2,
             )
 
-    # Rotate tick labels to match the view angle (screen-space).
-    ax.tick_params(axis="x", labelrotation=0., labelsize=10, 
-                   pad=2.)
-    ax.tick_params(axis="y", labelrotation=5., labelsize=10, 
-                   pad=-4.)
-    ax.tick_params(axis="z", labelrotation=0., labelsize=10, 
-                   pad=1.)
+    # Tick label styling (keep your y/z behavior as-is).
+    ax.tick_params(axis="x", labelrotation=0.0, labelsize=10.0, pad=0.)
+    ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.0)
+    ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.0)
 
-    # for t in ax.get_xticklabels():
-    #     t.set_rotation(20)
-    #     t.set_rotation_mode("anchor")
-    #     t.set_ha("right")
-    #     t.set_va("center")      # key: avoids huge vertical bbox
-    #     t.set_in_layout(False)  # key: prevents tight_layout from shrinking axes
+    # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
+    # Tune this if needed: typical working range is 6–12 px.
+    X_TICKLABEL_DY_PX = -12.
+    X_TICKLABEL_DX_PX = -36.
+    _draw_custom_xticklabels_3d(
+        fig=fig,
+        ax=ax,
+        fontsize=10,
+        dx_px=X_TICKLABEL_DX_PX,
+        dy_px=X_TICKLABEL_DY_PX,
+    )
 
-    # Draw a black 3D bounding box (12 edges). This is the only robust way
-    # to enforce black plane edges across Matplotlib backends/versions.
+    # Draw a black 3D bounding box (selected edges).
     x0, x1 = ax.get_xlim()
     y0, y1 = ax.get_ylim()
     z0, z1 = ax.get_zlim()
@@ -404,14 +421,11 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         # Vertical back edges
         (0, 1), (2, 3), (3, 7),
 
-        # Vertical front edges (keep only bottom-to-top depth cues)
+        # Vertical front edge (keep one depth cue)
         (6, 7),
 
-        # Back top edge (keep)
+        # Back top edge
         (1, 3),
-
-        # DO NOT draw front top edges:
-        # (4, 5), (5, 7)  # removed on purpose
     ]
 
     for i, j in edges:
@@ -426,7 +440,6 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             alpha=1.0,
         )
 
-    fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
 
@@ -499,7 +512,6 @@ if __name__ == "__main__":
 
     # Keep the first N components
     coords = scores[:, :N_COMPONENTS]
-    ev = eigval[:N_COMPONENTS]
 
     # Variance share over all positive eigenvalues
     ev_pos = np.clip(eigval, 0, None)
