@@ -337,17 +337,35 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     nz = abs(z1 - z0) / tick_step if tick_step > 0 else 1.0
     ax.set_box_aspect((nx, ny, nz))
 
-    # Draw vertical lines after setting axis limits so they touch plane.
+    # Draw vertical stems with an opacity gradient, without "dashed" artifacts.
+    # Important: use butt caps (not round) and dense segments.
     z_bottom = float(ax.get_zlim()[0])
-    for x, y, z in zip(coords[:, c1], coords[:, c2], coords[:, c3]):
-        ax.plot(
-            [x, x],
-            [y, y],
-            [z_bottom, z],
-            color='black',
-            alpha=1.,
-            linewidth=1.5,
-        )
+    n_segments = 640  # dense enough to look continuous in raster output
+
+    for x, y, z_top in zip(coords[:, c1], coords[:, c2], coords[:, c3]):
+        zs = np.linspace(z_bottom, z_top, n_segments + 1)
+
+        for i in range(n_segments):
+            z0s = zs[i]
+            z1s = zs[i + 1]
+
+            # Fade from opaque at the bottom plane to transparent at...
+            # ... the point.
+            alpha = 1.0 - (i / n_segments)
+
+            ax.plot(
+                [x, x],
+                [y, y],
+                [z0s, z1s],
+                color="black",
+                linewidth=1.5,
+                alpha=alpha,
+                linestyle="-",
+                solid_capstyle="butt",  # critical: avoids beaded/dashed look
+                solid_joinstyle="miter",
+                antialiased=True,
+                zorder=2,
+            )
 
     # Rotate tick labels to match the view angle (screen-space).
     ax.tick_params(axis="x", labelrotation=20)
