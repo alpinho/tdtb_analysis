@@ -236,44 +236,36 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         va = "center"
 
         if name == "Heschl Gyrus":
-            # Keep inside axes; slightly closer to the marker.
             ox = -1.6 * dx
             oy = 2.6 * dy
             oz = 0.6 * dz
             ha = "right"
 
         elif name == "PreSMA":
-            # Place label left and slightly below the marker.
             ox = -0.4 * dx
             oy = -1.4 * dy
             ha = "right"
 
         elif name == "Dorsal Striatum":
-            # Lift label above the marker.
             oz = 2.5 * dz
 
         elif name == "Occipital Lobe":
-            # Push label slightly forward and upward.
             oy = 1.8 * dy
             oz = 1.5 * dz
 
         elif name == "Cerebellum":
-            # Pull label toward the cluster center.
             ox = 1.0 * dx
             oy = 0.6 * dy
 
         elif name == "PMV":
-            # Pull label toward the cluster center.
             ox = 0.7 * dx
             oy = 1.0 * dy
 
         elif name == "PMD":
-            # Pull label toward the cluster center.
             ox = 0.9 * dx
             oy = 0.4 * dy
 
         elif name == "SMA":
-            # Toward center, but slightly higher than others.
             ox = 0.8 * dx
             oy = 0.7 * dy
 
@@ -292,19 +284,14 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})")
     ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
 
-    ax.view_init(elev=25, azim=-75)
+    ax.view_init(elev=15, azim=-30)
 
-    # MDS1: start at 0 and extend to the most negative value.
-    x_min = float(np.min(coords[:, c1]))
-    ax.set_xlim(x_min, 0.0)
+    # Fixed axis limits (explicit, not data-driven)
+    ax.set_xlim(-0.35, 0.0)      # MDS1
+    ax.set_ylim(0.35, -0.35)     # MDS2
+    ax.set_zlim(-0.30, 0.30)     # MDS3
 
-    # Center MDS2 and MDS3 at 0 (symmetric limits).
-    y_max = float(np.max(np.abs(coords[:, c2])))
-    z_max = float(np.max(np.abs(coords[:, c3])))
-    ax.set_ylim(-y_max, y_max)
-    ax.set_zlim(-z_max, z_max)
-
-    # Make panes transparent so lines keep uniform color.
+    # Make panes transparent (we will draw our own black box edges).
     ax.xaxis.pane.set_alpha(0.0)
     ax.yaxis.pane.set_alpha(0.0)
     ax.zaxis.pane.set_alpha(0.0)
@@ -356,8 +343,8 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             [y, y],
             [z_bottom, z],
             color="C1",
-            alpha=0.5,
-            linewidth=0.8,
+            alpha=1.,
+            linewidth=1.5,
         )
 
     # Rotate tick labels to match the view angle (screen-space).
@@ -365,10 +352,58 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.tick_params(axis="y", labelrotation=-35)
     ax.tick_params(axis="z", labelrotation=90)
 
-    # Padding between ticks and tick labels (points)
-    ax.tick_params(axis="x", pad=-3)
+    # Padding between ticks and tick labels (points).
+    # Avoid negative padding in 3D to prevent clipping.
+    ax.tick_params(axis="x", pad=2)
     ax.tick_params(axis="y", pad=3)
     ax.tick_params(axis="z", pad=3)
+
+    # Draw a black 3D bounding box (12 edges). This is the only robust way
+    # to enforce black plane edges across Matplotlib backends/versions.
+    x0, x1 = ax.get_xlim()
+    y0, y1 = ax.get_ylim()
+    z0, z1 = ax.get_zlim()
+
+    corners = [
+        (x0, y0, z0),
+        (x0, y0, z1),
+        (x0, y1, z0),
+        (x0, y1, z1),
+        (x1, y0, z0),
+        (x1, y0, z1),
+        (x1, y1, z0),
+        (x1, y1, z1),
+    ]
+
+    edges = [
+        # Bottom rectangle (z = z0)
+        (0, 2), (2, 6), (6, 4), (4, 0),
+
+        # Vertical back edges
+        (0, 1), (2, 3), (3, 7),
+
+        # Vertical front edges (keep only bottom-to-top depth cues)
+        (6, 7),
+
+        # Back top edge (keep)
+        (1, 3),
+
+        # DO NOT draw front top edges:
+        # (4, 5), (5, 7)  # removed on purpose
+    ]
+
+
+    for i, j in edges:
+        xi, yi, zi = corners[i]
+        xj, yj, zj = corners[j]
+        ax.plot(
+            [xi, xj],
+            [yi, yj],
+            [zi, zj],
+            color="black",
+            linewidth=1.0,
+            alpha=1.0,
+        )
 
     fig.tight_layout()
     fig.savefig(out_path)
