@@ -203,7 +203,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         coords[:, c1],
         coords[:, c2],
         coords[:, c3],
-        color="C0",
+        color='black',
         alpha=0.8,
     )
 
@@ -237,37 +237,39 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
         if name == "Heschl Gyrus":
             ox = -1.6 * dx
-            oy = 2.6 * dy
-            oz = 0.6 * dz
+            oy = 3. * dy
+            oz = .4 * dz
             ha = "right"
 
         elif name == "PreSMA":
-            ox = -0.4 * dx
-            oy = -1.4 * dy
+            oy = 1.1 * dy
+            oz = -.5 * dz
             ha = "right"
 
         elif name == "Dorsal Striatum":
-            oz = 2.5 * dz
+            oy = 10. * dy
+            oz = 4.5 * dz
 
-        elif name == "Occipital Lobe":
-            oy = 1.8 * dy
-            oz = 1.5 * dz
+        elif name == "Occipital\nLobe":
+            oy = 3. * dy
+            oz = 6. * dz
 
         elif name == "Cerebellum":
-            ox = 1.0 * dx
-            oy = 0.6 * dy
+            oy = 16. * dy
+            oz = 1.5 * dz
 
         elif name == "PMV":
             ox = 0.7 * dx
-            oy = 1.0 * dy
+            oy = 6.8 * dy
+            oz = 1.0 * dz
 
         elif name == "PMD":
             ox = 0.9 * dx
-            oy = 0.4 * dy
+            oy = 7.8 * dy
 
         elif name == "SMA":
-            ox = 0.8 * dx
-            oy = 0.7 * dy
+            oy = -1.3 * dy
+            oz = .1 * dz
 
         ax.text(
             x + ox,
@@ -284,7 +286,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})")
     ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
 
-    ax.view_init(elev=15, azim=-30)
+    ax.view_init(elev=15, azim=-10)
 
     # Fixed axis limits (explicit, not data-driven)
     ax.set_xlim(-0.35, 0.0)      # MDS1
@@ -342,7 +344,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             [x, x],
             [y, y],
             [z_bottom, z],
-            color="C1",
+            color='black',
             alpha=1.,
             linewidth=1.5,
         )
@@ -392,7 +394,6 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         # (4, 5), (5, 7)  # removed on purpose
     ]
 
-
     for i, j in edges:
         xi, yi, zi = corners[i]
         xj, yj, zj = corners[j]
@@ -426,7 +427,7 @@ ROI_LABELS = {
     "presma": "PreSMA",
     "sma": "SMA",
     "heschl": "Heschl Gyrus",
-    "occipital": "Occipital Lobe",
+    "occipital": "Occipital\nLobe",
     "occipital_lobe": "Occipital Lobe",
 }
 
