@@ -279,9 +279,9 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             clip_on=True,
         )
 
-    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})", labelpad=1)
-    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1)
-    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1)
+    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})", labelpad=8.)
+    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.)
+    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.)
     ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
 
     ax.view_init(elev=15, azim=-10)
@@ -364,21 +364,21 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
                 antialiased=True,
                 zorder=2,
             )
-    # Change size of ticks
-    #ax.xaxis.set_tick_params(length=5, width=1.2)
-    #ax.yaxis.set_tick_params(length=5, width=1.2)
-    #ax.zaxis.set_tick_params(length=100, width=1.0)
 
     # Rotate tick labels to match the view angle (screen-space).
-    ax.tick_params(axis="x", labelrotation=20, labelsize=10)
-    ax.tick_params(axis="y", labelrotation=5, labelsize=10)
-    ax.tick_params(axis="z", labelrotation=0, labelsize=10)
+    ax.tick_params(axis="x", labelrotation=0., labelsize=10, 
+                   pad=2.)
+    ax.tick_params(axis="y", labelrotation=5., labelsize=10, 
+                   pad=-4.)
+    ax.tick_params(axis="z", labelrotation=0., labelsize=10, 
+                   pad=1.)
 
-    # Padding between ticks and tick labels (points).
-    # Avoid negative padding in 3D to prevent clipping.
-    ax.tick_params(axis="x", pad=2)
-    ax.tick_params(axis="y", pad=-4.)
-    ax.tick_params(axis="z", pad=1)
+    # for t in ax.get_xticklabels():
+    #     t.set_rotation(20)
+    #     t.set_rotation_mode("anchor")
+    #     t.set_ha("right")
+    #     t.set_va("center")      # key: avoids huge vertical bbox
+    #     t.set_in_layout(False)  # key: prevents tight_layout from shrinking axes
 
     # Draw a black 3D bounding box (12 edges). This is the only robust way
     # to enforce black plane edges across Matplotlib backends/versions.
