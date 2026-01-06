@@ -165,44 +165,85 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     plt.close(fig)
 
 
-def _draw_custom_xticklabels_3d(fig, ax, fontsize=10, dx_px=0.0, dy_px=0.0):
+def _draw_custom_xticklabels_3d(
+    fig,
+    ax,
+    fontsize=10,
+    dx_px=0.0,
+    dy_px=0.0,
+    spread_x_px=12.0,
+    spread_y_px=0.0,
+):
     """
-    Redraw x tick labels in 3D at projected tick positions,
-    with explicit screen-space (pixel) offsets.
+    Redraw x tick labels in 3D at projected tick positions, with 
+    explicit screen-space (pixel) offsets and optional symmetric 
+    spreading in x and y.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure containing the 3D axis.
+    ax : mpl_toolkits.mplot3d.axes3d.Axes3D
+        3D axis.
+    fontsize : int
+        Font size for tick labels.
+    dx_px, dy_px : float
+        Constant pixel shifts applied to all x tick labels 
+        (right/up positive).
+    spread_x_px, spread_y_px : float
+        Additional symmetric "fan-out" applied based on tick value 
+        relative to the center tick, in pixels. Positive values spread 
+        labels away from the center tick in screen-space x and y, 
+        respectively.
     """
 
+    # Ensure final projection is available and tick Text artists exist.
     fig.canvas.draw()
 
-    # Hide default x tick labels
+    # Hide the default x tick labels (keep tick marks).
     for t in ax.get_xticklabels():
         t.set_visible(False)
 
-    # Anchor for x-axis ticks
+    xticks = np.asarray(ax.get_xticks(), dtype=float)
+    if xticks.size == 0:
+        return
+
+    # Center and half-range for normalized tick coordinate u in [-1, 1].
+    x_center = 0.5 * (float(xticks.min()) + float(xticks.max()))
+    x_half_range = 0.5 * (float(xticks.max()) - float(xticks.min()))
+    if x_half_range <= 0:
+        x_half_range = 1.0
+
+    # Anchor for x-axis tick locations in mplot3d: (ymin, zmin).
     y0 = float(ax.get_ylim()[0])
     z0 = float(ax.get_zlim()[0])
 
     inv_fig = fig.transFigure.inverted()
+    formatter = ax.xaxis.get_major_formatter()
 
-    for xv in ax.get_xticks():
-        x2, y2, _ = proj3d.proj_transform(
-            float(xv), y0, z0, ax.get_proj()
-        )
+    for xv in xticks:
+        # Project 3D tick anchor to 2D.
+        x2, y2, _ = proj3d.proj_transform(float(xv), y0, z0, ax.get_proj())
         x_disp, y_disp = ax.transData.transform((x2, y2))
 
-        # --- screen-space offsets ---
-        x_disp += float(dx_px)   # horizontal shift
-        y_disp += float(dy_px)   # vertical shift
+        # Normalized position (center tick -> 0), used for symmetric spreading.
+        u = (float(xv) - x_center) / x_half_range
 
+        # Screen-space offsets (pixels): base shift + fan-out.
+        x_disp += float(dx_px) + float(spread_x_px) * u
+        y_disp += float(dy_px) + float(spread_y_px) * u
+
+        # Convert display coords to figure fraction and draw label.
         x_fig, y_fig = inv_fig.transform((x_disp, y_disp))
-
         txt = fig.text(
             x_fig,
             y_fig,
-            ax.xaxis.get_major_formatter()(xv, None),
+            formatter(xv, None),
             ha="center",
             va="bottom",
             fontsize=fontsize,
         )
+        # Prevent layout engines from shrinking the axes due to these artists.
         txt.set_in_layout(False)
 
 
@@ -429,15 +470,17 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
     # Tune this if needed: typical working range is 6–12 px.
-    X_TICKLABEL_DX_PX = -80.
-    X_TICKLABEL_DY_PX = -57.
+    X_TICKLABEL_DX_PX = -83.
+    X_TICKLABEL_DY_PX = -54.
     _draw_custom_xticklabels_3d(
-        fig=fig,
-        ax=ax,
-        fontsize=10,
-        dy_px=X_TICKLABEL_DY_PX,
-        dx_px=X_TICKLABEL_DX_PX,
-    )
+            fig=fig,
+            ax=ax,
+            fontsize=10,
+            dy_px=X_TICKLABEL_DY_PX,
+            dx_px=X_TICKLABEL_DX_PX,
+            spread_x_px=5.,
+            spread_y_px=-5.,
+        )
 
     # ---- X-axis-only fix: redraw x-axis title with pixel offsets ----
     X_LABEL_DX_PX = -125.     # horizontal shift: +right / -left
