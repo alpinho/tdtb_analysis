@@ -52,7 +52,7 @@ import pandas as pd
 import pingouin as pg
 
 
-# ============================== HELPERS ============================= #
+# =========================== FUNCTIONS ============================= #
 
 def _mod_mask(df: pd.DataFrame, modality: str) -> pd.Series:
     """
@@ -115,8 +115,6 @@ def roi_display_labels(rois: List[str]) -> List[str]:
         out.append(lbl[:1].upper() + lbl[1:])
     return out
 
-
-# =========================== PUBLIC HELPERS ========================== #
 
 def load_df(indiv: str) -> pd.DataFrame:
     """
@@ -200,7 +198,6 @@ def load_df(indiv: str) -> pd.DataFrame:
                 "[ERROR] rand source Category outside allowed set "
                 f"{sorted(ok)}: {bad_cats}"
             )
-        # --------------------------------------------------
 
         dfs.append(df_rand)
 
@@ -513,7 +510,7 @@ def plot_matrix(
 
     # --- colorbar: keep compact and avoid huge right whitespace
     cbar = fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
-    cbar.set_label('Repeated measures correlation ($r_{rm}$)', labelpad=10)
+    cbar.set_label('Repeated-measures correlation ($r_{rm}$)', labelpad=10)
 
     # --- stars
     if p_mat is not None:
