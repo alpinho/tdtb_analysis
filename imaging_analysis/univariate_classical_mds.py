@@ -308,7 +308,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         coords[:, c1],
         coords[:, c2],
         coords[:, c3],
-        color="black",
+        color="mediumblue",
         alpha=0.8,
     )
 
@@ -396,7 +396,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.)
     ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.)
-    ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
+    # ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
 
     ax.view_init(elev=15, azim=-10)
 
@@ -465,7 +465,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
                 [x, x],
                 [y, y],
                 [z0s, z1s],
-                color="black",
+                color="mediumblue",
                 linewidth=1.5,
                 alpha=alpha,
                 linestyle="-",
