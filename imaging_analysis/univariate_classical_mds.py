@@ -346,7 +346,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             oz = 0.4 * dz
             ha = "right"
         elif name == "PreSMA":
-            oy = 1.1 * dy
+            oy = 1.3 * dy
             oz = -0.5 * dz
             ha = "right"
         elif name == "Dorsal Striatum":
@@ -360,7 +360,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             oz = 1.5 * dz
         elif name == "PMV":
             ox = 0.7 * dx
-            oy = 6.8 * dy
+            oy = 6.7 * dy
             oz = 1.0 * dz
         elif name == "PMD":
             ox = 0.9 * dx
@@ -482,8 +482,8 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
     # Tune this if needed: typical working range is 6–12 px.
-    X_TICKLABEL_DX_PX = -83.
-    X_TICKLABEL_DY_PX = -54.
+    X_TICKLABEL_DX_PX = -87.
+    X_TICKLABEL_DY_PX = -48.
     _draw_custom_xticklabels_3d(
             fig=fig,
             ax=ax,
@@ -495,7 +495,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         )
 
     # ---- X-axis-only fix: redraw x-axis title with pixel offsets ----
-    X_LABEL_DX_PX = -125.     # horizontal shift: +right / -left
+    X_LABEL_DX_PX = -126.     # horizontal shift: +right / -left
     X_LABEL_DY_PX = -50.   # vertical shift: +up / -down (tune)
 
     _draw_custom_xlabel_3d(
