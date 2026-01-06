@@ -353,7 +353,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             oy = 10.0 * dy
             oz = 4.5 * dz
         elif name == "Occipital\nLobe":
-            oy = 3.0 * dy
+            oy = 0. * dy
             oz = 6.0 * dz
         elif name == "Cerebellum":
             oy = 16.0 * dy
@@ -369,15 +369,27 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             oy = -1.3 * dy
             oz = 0.1 * dz
 
-        ax.text(
-            x + ox,
-            y + oy,
-            z + oz,
-            name,
-            ha=ha,
-            va=va,
-            clip_on=True,
-        )
+        if name == "Occipital\nLobe":
+            ax.text(
+                x + ox,
+                y + oy,
+                z + oz,
+                name,
+                ha="center",
+                va="center",
+                multialignment="center",
+                clip_on=True,
+            )
+        else:
+            ax.text(
+                x + ox,
+                y + oy,
+                z + oz,
+                name,
+                ha=ha,
+                va=va,
+                clip_on=True,
+            )
 
     xlabel_text = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ax.set_xlabel("")  # hide default 3D xlabel (we redraw it below)
