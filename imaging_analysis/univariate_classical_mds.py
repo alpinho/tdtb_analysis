@@ -429,8 +429,8 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
     # Tune this if needed: typical working range is 6–12 px.
-    X_TICKLABEL_DX_PX = -36.
-    X_TICKLABEL_DY_PX = 20.
+    X_TICKLABEL_DX_PX = -80.
+    X_TICKLABEL_DY_PX = -57.
     _draw_custom_xticklabels_3d(
         fig=fig,
         ax=ax,
@@ -440,8 +440,8 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     )
 
     # ---- X-axis-only fix: redraw x-axis title with pixel offsets ----
-    X_LABEL_DX_PX = -67.     # horizontal shift: +right / -left
-    X_LABEL_DY_PX = -24.   # vertical shift: +up / -down (tune)
+    X_LABEL_DX_PX = -125.     # horizontal shift: +right / -left
+    X_LABEL_DY_PX = -50.   # vertical shift: +up / -down (tune)
 
     _draw_custom_xlabel_3d(
         fig=fig,
@@ -450,7 +450,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         fontsize=10,
         dx_px=X_LABEL_DX_PX,
         dy_px=X_LABEL_DY_PX,
-        rotation=-72.
+        rotation=-73.
     )
 
     # Draw a black 3D bounding box (selected edges).
