@@ -1,6 +1,6 @@
 """
 Script to do the volume to surface projection of data from the
- Music-SDTB project. It plots o flatmaps and dynamic inflated maps. 
+ Music-SDTB project. It plots flatmaps and dynamic inflated maps.
 
 Plotting modes
 Use flatmaps (default) or dynamic HTML maps (Plotly) by passing a flag:
@@ -19,7 +19,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 24th of February 2025
-Last Update: September 2025
+Last Update: January 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
