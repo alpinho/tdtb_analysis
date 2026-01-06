@@ -465,8 +465,8 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     # Tick label styling (keep your y/z behavior as-is).
     ax.tick_params(axis="x", labelrotation=0.0, labelsize=10.0, pad=0.)
-    ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.0)
-    ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.0)
+    ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.)
+    ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.)
 
     # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
     # Tune this if needed: typical working range is 6–12 px.
@@ -537,6 +537,14 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             linewidth=1.0,
             alpha=1.0,
         )
+
+    # --- Remove tick marks (3D "spikes") but keep tick labels + grid ---
+    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        axis._axinfo["tick"]["inward_factor"] = 0.0
+        axis._axinfo["tick"]["outward_factor"] = 0.0
+
+    # Keep grid visible (uses locator positions, not tick mark length)
+    ax.grid(True)
 
     fig.tight_layout()
     fig.savefig(out_path)
