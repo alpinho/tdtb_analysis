@@ -331,6 +331,10 @@ def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, roi_name,
                                       column_names=['PMD'])
     GIFTIR = nt.gifti.make_func_gifti(DR, anatomical_struct='CortexRight',
                                       column_names=['PMD'])
+    
+    # Create directory to save outputs if does not exist
+    irois_files_folder = os.path.join(surf_dir, 'surface_irois_files')
+    os.makedirs(irois_files_folder, exist_ok=True)
 
     # Save output
     if save == 'gifti':
@@ -338,7 +342,7 @@ def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, roi_name,
         nib.save(
             GIFTIL,
             os.path.join(
-                surf_dir,
+                irois_files_folder,
                 individualization + '_' + roi_name + '_mask'
                 + '_'
                 + surfspace
@@ -348,7 +352,7 @@ def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, roi_name,
         nib.save(
             GIFTIR,
             os.path.join(
-                surf_dir,
+                irois_files_folder,
                 individualization + '_' + roi_name + '_mask'
                 + '_'
                 + surfspace
@@ -364,7 +368,11 @@ def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, roi_name,
         nib.save(
             CIFTI,
             os.path.join(
-                f'i_pmd_mask_{surfspace}.dscalar.nii'
+                + irois_files_folder,
+                + individualization + '_' + roi_name + '_mask'
+                + '_'
+                + surfspace
+                + '.dscalar.nii'
             )
         )
 
@@ -1231,9 +1239,7 @@ contrasts_folder = os.path.join(surfparametric_folder, task_id,
                                 'surface_images')
 
 # Output folder for ROI overlap (cortex) flatmaps
-irois_folder = os.path.join(surfparametric_folder, task_id,
-                           'surface_irois')
-
+irois_parfolder = os.path.join(surfparametric_folder, task_id)
 
 # Contrasts definitions
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
@@ -1253,7 +1259,6 @@ if __name__ == '__main__':
     # ------------------ ROI overlap (cortex) ------------------
     # Run independently of contrasts (flatmaps only).
     if '--iroi' in sys.argv:
-        os.makedirs(irois_folder, exist_ok=True)
 
         vmin = 1 / len(SUBJECTS)
         vmax = 1.0
@@ -1283,20 +1288,19 @@ if __name__ == '__main__':
                     lh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='lh')
                     rh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='rh')
 
-                if not os.path.exists(lh_path) or not os.path.exists(rh_path):
-                    print(
-                        f"[skip] Missing iROI files for level '{lvl}':\n"
-                        f"  LH: {lh_path}\n"
-                        f"  RH: {rh_path}"
-                    )
-                    continue
-
                 print(f"[iROI] Individualization level '{lvl}' "
                       f"for ROI '{roi}'...")
+                
                 lh_arr, rh_arr = roi_to_surf(
                     lh_path, rh_path, 
                     lh_tpl_pial, rh_tpl_pial, lh_tpl_white, rh_tpl_white,
-                    irois_folder, roi, individualization=lvl)
+                    irois_parfolder, roi, individualization=lvl)
+                
+                # Create directory to save outputs if does not exist
+                irois_imgs_folder = os.path.join(irois_parfolder, 
+                                                'surface_irois_images')
+                os.makedirs(irois_imgs_folder, exist_ok=True)
+                
                 # Discard values below the minimum observable fraction.
                 lh_arr = np.asarray(lh_arr)
                 rh_arr = np.asarray(rh_arr)
@@ -1312,7 +1316,7 @@ if __name__ == '__main__':
                     threshold=vmin,
                     task_key=task_id,
                     contrast_tag=f"{lvl}_{roi}",
-                    output_dir=irois_folder,
+                    output_dir=irois_imgs_folder,
                     hemi=['L', 'R'],
                     colormap='cividis',
                     vmax=vmax,
