@@ -307,14 +307,22 @@ def mask_cortical_activation(activation_data, medial_wall_mask_path):
 
 
 def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, surfspace='fslr32k', 
-                save='gifti'):
+                save='gifti', individualization='i'):
 
     # Map volumetric roi data in MNI from Nifti to the surface of...
     # ... left and right hemispheres
     lh_roi_img = load_img(lh_roi_path)
     rh_roi_img = load_img(rh_roi_path)
-    DL = vol_to_surf(lh_roi_img, surf_mesh=pl, inner_mesh=wl)
-    DR = vol_to_surf(rh_roi_img, surf_mesh=pr, inner_mesh=wr)
+    DL = vol_to_surf(lh_roi_img, surf_mesh=pl, inner_mesh=wl, 
+                     interpolation='nearest')
+    DR = vol_to_surf(rh_roi_img, surf_mesh=pr, inner_mesh=wr, 
+                     interpolation='nearest')
+    
+    # Binarize the data if group-level individualization
+    if individualization == 'g':
+        DL[:] = (DL >= 0.5)
+        DR[:] = (DR >= 0.5)
+
     print(DL.shape)
     print(DR.shape)
 
@@ -1057,7 +1065,12 @@ derivatives_folder = os.path.join(music, 'derivatives')
 wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
                         'group_mask_noskull.nii')
 
-
+rois_pardir = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed',
+    'bothmod_allmain_tasks',
+    'main_tasks'
+)
 
 # ---------------- ROI overlap (cortex) inputs ------------------------
 # Used only when running:  python volume_to_surface.py --iroi
@@ -1070,22 +1083,26 @@ wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
 # ['i', 'i9a', 'i8a', 'i7a', 'i6a', 
 #  'a', 
 #  'a4g', 'a3g', 'a2g', 'a1g', 'g']
-IROI_LEVELS = ['i']
+IROI_LEVELS = ['i8a']
+
+# All ROIs: 8 ROIs
+region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area',
+                'heschl_gyrus',
+                'occipital_lobe']
+
+atlas_names = ['hmat', 'hmat', 'hmat', 'hmat',
+               'hos',
+               'hos']
+
+roi_names = ['pmd', 'pmv', 'sma', 'presma',
+             'heschl',
+             'occipital']
 
 # Example file names:
 #   i_pmd_lh_mask.nii.gz
 #   i_pmd_rh_mask.nii.gz
-IROI_CORTEX_PATH_PATTERN = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed',
-    'bothmod_allmain_tasks',
-    'main_tasks',
-    'motor_area',
-    'hmat',
-    'pmd',
-    'overlaid_masks',
-    '{level}_pmd_{hemi}_mask.nii.gz'
-)
+# Path to individual cortical ROI masks
+
 # ###################### fs_LR32k Meshes ##############################
 fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               'fslr32k_meshes')
@@ -1235,35 +1252,58 @@ if __name__ == '__main__':
         vmin = 1 / len(SUBJECTS)
         vmax = 1.0
 
-        for lvl in IROI_LEVELS:
-            lh_path = IROI_CORTEX_PATH_PATTERN.format(level=lvl, hemi='lh')
-            rh_path = IROI_CORTEX_PATH_PATTERN.format(level=lvl, hemi='rh')
+        for region, atlas, roi in zip(region_names, atlas_names, roi_names):
+            for lvl in IROI_LEVELS:
+                if lvl == 'g':
+                    IROI_CORTEX_PATH_PATTERN = os.path.join(
+                        rois_pardir,
+                        region,
+                        atlas,
+                        roi,
+                        'group_roi_masks',
+                        f'g_msdtb_{atlas}_{roi}_' + '{hemi}_mask.nii.gz'
+                    )
+                    lh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='lh')
+                    rh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='rh')
+                else:   
+                    IROI_CORTEX_PATH_PATTERN = os.path.join(
+                        rois_pardir,
+                        region,
+                        atlas,
+                        roi,
+                        'overlaid_masks',
+                        f'{lvl}_{roi}_' + '{hemi}_mask.nii.gz'
+                    )
+                    lh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='lh')
+                    rh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='rh')
 
-            if not os.path.exists(lh_path) or not os.path.exists(rh_path):
-                print(
-                    f"[skip] Missing iROI files for level '{lvl}':\n"
-                    f"  LH: {lh_path}\n"
-                    f"  RH: {rh_path}"
+                if not os.path.exists(lh_path) or not os.path.exists(rh_path):
+                    print(
+                        f"[skip] Missing iROI files for level '{lvl}':\n"
+                        f"  LH: {lh_path}\n"
+                        f"  RH: {rh_path}"
+                    )
+                    continue
+
+                print(f"[iROI] Individualization level '{lvl}' "
+                      f"for ROI '{roi}'...")
+                lh_arr, rh_arr = roi_to_surf(
+                    lh_path, rh_path, 
+                    lh_tpl_pial, rh_tpl_pial, lh_tpl_white, rh_tpl_white,
+                    irois_folder, individualization=lvl)
+
+                # One figure with two flatmaps (L/R), saved in iroi_images.
+                plot_flatmap(
+                    stats=[lh_arr, rh_arr],
+                    threshold=vmin,
+                    task_key=task_id,
+                    contrast_tag=f"{lvl}_{roi}",
+                    output_dir=irois_folder,
+                    hemi=['L', 'R'],
+                    colormap='cividis',
+                    vmax=vmax,
+                    cbar_title='Fraction of Participants'
                 )
-                continue
-
-            lh, rh = roi_to_surf(
-                lh_path, rh_path, 
-                lh_tpl_pial, rh_tpl_pial, lh_tpl_white, rh_tpl_white,
-                irois_folder)
-
-            # One figure with two flatmaps (L/R), saved in iroi_images.
-            plot_flatmap(
-                stats=[lh, rh],
-                threshold=vmin,
-                task_key=task_id,
-                contrast_tag=f"{lvl}_pmd",
-                output_dir=irois_folder,
-                hemi=['L', 'R'],
-                colormap='cividis',
-                vmax=vmax,
-                cbar_title='Fraction of Participants'
-            )
 
         sys.exit(0)
 
