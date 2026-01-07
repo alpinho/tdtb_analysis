@@ -306,6 +306,62 @@ def mask_cortical_activation(activation_data, medial_wall_mask_path):
     return masked_activation
 
 
+def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, surfspace='fslr32k', 
+                save='gifti'):
+
+    # Map volumetric roi data in MNI from Nifti to the surface of...
+    # ... left and right hemispheres
+    lh_roi_img = load_img(lh_roi_path)
+    rh_roi_img = load_img(rh_roi_path)
+    DL = vol_to_surf(lh_roi_img, surf_mesh=pl, inner_mesh=wl)
+    DR = vol_to_surf(rh_roi_img, surf_mesh=pr, inner_mesh=wr)
+    print(DL.shape)
+    print(DR.shape)
+
+    # Transform numpy arrays in gifti files
+    GIFTIL = nt.gifti.make_func_gifti(DL, anatomical_struct='CortexLeft',
+                                      column_names=['PMD'])
+    GIFTIR = nt.gifti.make_func_gifti(DR, anatomical_struct='CortexRight',
+                                      column_names=['PMD'])
+
+    # Save output
+    if save == 'gifti':
+        # Save Gifti files
+        nib.save(
+            GIFTIL,
+            os.path.join(
+                surf_dir,
+                'i_pmd_mask'
+                + '_'
+                + surfspace
+                + '.hem-L.func.gii'
+            )
+        )
+        nib.save(
+            GIFTIR,
+            os.path.join(
+                'i_pmd_mask'
+                + '_'
+                + surfspace
+                + '.hem-R.func.gii'
+            )
+        )
+    else:
+        assert save == 'cifti'
+        # Create CIFTI
+        CIFTI = nt.cifti.join_giftis_to_cifti([GIFTIL, GIFTIR], 
+                                              mask=[None, None])
+        # Save CIFT file
+        nib.save(
+            CIFTI,
+            os.path.join(
+                f'i_pmd_mask_{surfspace}.dscalar.nii'
+            )
+        )
+
+    return DL, DR
+
+
 def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
                            gmask):
 
@@ -977,7 +1033,7 @@ surfparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
     'surface')
 
-task_tag = 'NTFD Random' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
 # To run every contrast:
 # contrast_name = 'ALL' and contrast_name2 = None.
 # To run a subset sequentially:
@@ -999,6 +1055,31 @@ derivatives_folder = os.path.join(music, 'derivatives')
 wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
                         'group_mask_noskull.nii')
 
+
+
+# ---------------- ROI overlap (cortex) inputs --------------------------
+# Used only when running:  python volume_to_surface.py --iroi
+#
+# This simplified implementation assumes the ROI overlap masks are already
+# in fs_LR32k surface space (one 1D value per vertex), stored as NIfTI
+# files per hemisphere (lh/rh).
+#
+# Example file names:
+#   i_pmd_lh_mask.nii.gz
+#   i_pmd_rh_mask.nii.gz
+IROI_LEVELS = ['i']
+
+IROI_CORTEX_PATH_PATTERN = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed',
+    'bothmod_allmain_tasks',
+    'main_tasks',
+    'motor_area',
+    'hmat',
+    'pmd',
+    'overlaid_masks',
+    '{level}_pmd_{hemi}_mask.nii.gz'
+)
 # ###################### fs_LR32k Meshes ###############################
 fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               'fslr32k_meshes')
@@ -1006,6 +1087,14 @@ lh_veryinflated = os.path.join(fslr32k_folder, 'templates',
                                'tpl-fs32k_hemi-L_veryinflated.surf.gii')
 rh_veryinflated = os.path.join(fslr32k_folder, 'templates',
                                'tpl-fs32k_hemi-R_veryinflated.surf.gii')
+lh_tpl_pial = os.path.join(fslr32k_folder, 'templates', 
+                           'tpl-fs32k_hemi-L_pial.surf.gii')
+rh_tpl_pial = os.path.join(fslr32k_folder, 'templates', 
+                           'tpl-fs32k_hemi-R_pial.surf.gii')
+lh_tpl_white = os.path.join(fslr32k_folder, 'templates', 
+                            'tpl-fs32k_hemi-L_white.surf.gii')
+rh_tpl_white = os.path.join(fslr32k_folder, 'templates', 
+                            'tpl-fs32k_hemi-R_white.surf.gii')
 sulc_folder = os.path.join(fslr32k_folder, 'sulc')
 lr_sulc_path = os.path.join(sulc_folder,
                             'fs_LR.32k.LR.sulc.dscalar.nii')
@@ -1112,6 +1201,11 @@ surf_folder = os.path.join(surfparametric_folder, task_id,
 contrasts_folder = os.path.join(surfparametric_folder, task_id, 
                                 'surface_images')
 
+# Output folder for ROI overlap (cortex) flatmaps
+irois_folder = os.path.join(surfparametric_folder, task_id,
+                           'surface_irois')
+
+
 # Contrasts definitions
 contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
 cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
@@ -1127,7 +1221,46 @@ if contrast_name2:
 
 if __name__ == '__main__':
 
-    # -------- detect batch mode without reordering inputs ---------------
+    # ------------------ ROI overlap (cortex) ------------------
+    # Run independently of contrasts (flatmaps only).
+    if '--iroi' in sys.argv:
+        os.makedirs(irois_folder, exist_ok=True)
+
+        vmin = 1 / len(SUBJECTS)
+        vmax = 1.0
+
+        for lvl in IROI_LEVELS:
+            lh_path = IROI_CORTEX_PATH_PATTERN.format(level=lvl, hemi='lh')
+            rh_path = IROI_CORTEX_PATH_PATTERN.format(level=lvl, hemi='rh')
+
+            if not os.path.exists(lh_path) or not os.path.exists(rh_path):
+                print(
+                    f"[skip] Missing iROI files for level '{lvl}':\n"
+                    f"  LH: {lh_path}\n"
+                    f"  RH: {rh_path}"
+                )
+                continue
+
+            lh, rh = roi_to_surf(
+                lh_path, rh_path, 
+                lh_tpl_pial, rh_tpl_pial, lh_tpl_white, rh_tpl_white,
+                irois_folder)
+
+            # One figure with two flatmaps (L/R), saved in iroi_images.
+            plot_flatmap(
+                stats=[lh, rh],
+                threshold=vmin,
+                task_key=task_id,
+                contrast_tag=f"{lvl}_pmd",
+                output_dir=irois_folder,
+                hemi=['L', 'R'],
+                colormap='cividis',
+                vmax=vmax,
+            )
+
+        sys.exit(0)
+
+# -------- detect batch mode without reordering inputs ---------------
     _batch = None
     if isinstance(contrast_name, (list, tuple, np.ndarray)):
         _batch = list(contrast_name)
