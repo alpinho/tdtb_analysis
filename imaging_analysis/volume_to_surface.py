@@ -610,18 +610,19 @@ def plot_flatmap(stats,
         plt.subplots_adjust(left=0.0, right=0.77, top=0.97, bottom=0.10)
 
         n_maps = len(labels)
-        x0 = 0.79
+        x0 = 0.78
         w = 0.20
 
         # Stack horizontal colorbars vertically without overlap.
         # Define geometry in figure-relative coordinates.
-        top = 0.95
+        top = 0.75
         bottom = 0.10
-        gap = 0.012
+        gap = 0.025
         avail = top - bottom
 
         # Compute a bar height that fits all maps. If needed, shrink the gap.
-        bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
+        BAR_THICKNESS_SCALE = 0.40  # <--- new (0.45–0.65 are reasonable)
+        bar_h = (avail / n_maps) * BAR_THICKNESS_SCALE
         if bar_h < 0.01:
             gap = 0.005
             bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
