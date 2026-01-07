@@ -435,7 +435,12 @@ group_folder = os.path.join(derivatives_folder, 'group')
 wb_gmask_path = os.path.join(group_folder, 'anat', 'group_mask_noskull.nii')
 
 # Individualization level of rois
+# All possible levels: 
+# ['i', 'i9a', 'i8a', 'i7a', 'i6a', 
+#  'a', 
+#  'a4g', 'a3g', 'a2g', 'a1g', 'g']
 INDIVID_LEVEL = 'i'
+# Path to individual cerebellar ROI mask
 iroi_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed',
                          'bothmod_allmain_tasks',
