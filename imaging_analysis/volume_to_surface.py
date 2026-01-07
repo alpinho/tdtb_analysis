@@ -1551,6 +1551,15 @@ if __name__ == '__main__':
                     tick_decimals=2
                 )
 
+            # Desired top-to-bottom order of iROI colorbars
+            IROI_ORDER = ['presma', 'sma', 'pmd', 'pmv', 'heschl', 
+                          'occipital']
+            order_idx = [roi_names.index(r) for r in IROI_ORDER]
+            all_lh = [all_lh[i] for i in order_idx]
+            all_rh = [all_rh[i] for i in order_idx]
+            all_labels = [all_labels[i] for i in order_idx]
+            iroi_cmaps = [iroi_cmaps[i] for i in order_idx]
+
             # Combined plot: all iROIs in the same flatmap (L/R)
             combined_stats = [[lh, rh] for lh, rh in zip(all_lh, all_rh)]
             plot_flatmap(
