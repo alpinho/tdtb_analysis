@@ -422,7 +422,9 @@ def plot_flatmap(stats,
                  colormap='viridis',
                  colors=['Reds','Blues'],
                  vmax=10,
-                 cbar_title='Z-values'
+                 cbar_title='Z-values',
+                 cbar_ticks=None,
+                 tick_decimals=1
     ):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -534,16 +536,24 @@ def plot_flatmap(stats,
         if show_cbar1:
             norm = plt.Normalize(vmin=threshold, vmax=vmax)
             sm = ScalarMappable(norm=norm, cmap=colormap)
+
             cbar = fig.colorbar(
-                sm, ax=list(axs), orientation='horizontal',
-                fraction=0.05, pad=0.02
+                sm,
+                ax=list(axs),
+                orientation='horizontal',
+                fraction=0.05,
+                pad=0.02,
             )
+
             cbar.set_label(cbar_title, fontsize=12, labelpad=8)
-            ticks = np.linspace(threshold, vmax, 4)
+
+            ticks = cbar_ticks \
+                if cbar_ticks is not None else np.linspace(threshold, vmax, 4)
             cbar.set_ticks(ticks)
-            cbar.ax.set_xticklabels(
-                [f'{t:.1f}' for t in ticks], fontsize=12
-            )
+
+            dec = int(tick_decimals) if tick_decimals is not None else 1
+            cbar.ax.set_xticklabels([f"{t:.{dec}f}" for t in ticks], 
+                                    fontsize=12)
 
     # two-contrast RGB overlay
     else:
@@ -1084,7 +1094,7 @@ rois_pardir = os.path.join(
 # ['i', 'i9a', 'i8a', 'i7a', 'i6a', 
 #  'a', 
 #  'a4g', 'a3g', 'a2g', 'a1g', 'g']
-IROI_LEVELS = ['i', 'i8a', 'g']
+IROI_LEVELS = ['i']
 
 # All ROIs: 8 ROIs
 region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area',
@@ -1287,6 +1297,14 @@ if __name__ == '__main__':
                     lh_path, rh_path, 
                     lh_tpl_pial, rh_tpl_pial, lh_tpl_white, rh_tpl_white,
                     irois_folder, roi, individualization=lvl)
+                # Discard values below the minimum observable fraction.
+                lh_arr = np.asarray(lh_arr)
+                rh_arr = np.asarray(rh_arr)
+                lh_arr[lh_arr < vmin] = 0
+                rh_arr[rh_arr < vmin] = 0
+
+                # five ticks: min + 3 middle + max
+                cticks = np.linspace(vmin, vmax, 5)
 
                 # One figure with two flatmaps (L/R), saved in iroi_images.
                 plot_flatmap(
@@ -1298,7 +1316,9 @@ if __name__ == '__main__':
                     hemi=['L', 'R'],
                     colormap='cividis',
                     vmax=vmax,
-                    cbar_title='Fraction of Participants'
+                    cbar_title='Fraction of Participants',
+                    cbar_ticks=cticks,
+                    tick_decimals=2
                 )
 
         sys.exit(0)
