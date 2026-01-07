@@ -23,8 +23,8 @@ Last Update: January 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
-Note: The all pipeline of this script only works for surf_files saved as
-      cifti in fs_LR32k.
+Note: The all pipeline of this script only works for surf_files saved 
+      as cifti in fs_LR32k.
 """
 
 import sys
@@ -58,7 +58,7 @@ sys.path.append('../')
 from utils import zval_conversion
 
 # %%
-# ========================== FUNCTIONS =================================
+# ========================== FUNCTIONS ================================
 
 def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
 
@@ -412,7 +412,9 @@ def plot_flatmap(stats,
                  hemi=['L', 'R'],
                  colormap='viridis',
                  colors=['Reds','Blues'],
-                 vmax=10):
+                 vmax=10,
+                 cbar_title='Z-values'
+    ):
     """
     Plot one or two contrasts on a flat cortical map.
 
@@ -527,7 +529,7 @@ def plot_flatmap(stats,
                 sm, ax=list(axs), orientation='horizontal',
                 fraction=0.05, pad=0.02
             )
-            cbar.set_label('Z-values', fontsize=12, labelpad=8)
+            cbar.set_label(cbar_title, fontsize=12, labelpad=8)
             ticks = np.linspace(threshold, vmax, 4)
             cbar.set_ticks(ticks)
             cbar.ax.set_xticklabels(
@@ -597,7 +599,7 @@ def plot_flatmap(stats,
             )
 
         if show_cbar2:
-            # ################### LEGEND LABELS ########################
+            # ################### LEGEND LABELS #######################
 
             # Split off the two contrast parts at the last 
             # '_vs_' or '_and_'
@@ -1022,7 +1024,7 @@ def plotly_surfmap(
 
 
 # %%
-# ============================ INPUTS ===================================
+# ============================ INPUTS =================================
 
 # Subjects without pilot
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
@@ -1042,7 +1044,7 @@ task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All
 contrast_name = 'ALL' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # E.g. 'Interval'
 
-# ========================= PARAMETERS =================================
+# ========================= PARAMETERS ================================
 
 # Parent directories
 if os.path.isdir('/home/analu/diedrichsen_data/data'):
@@ -1057,18 +1059,22 @@ wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
 
 
 
-# ---------------- ROI overlap (cortex) inputs --------------------------
+# ---------------- ROI overlap (cortex) inputs ------------------------
 # Used only when running:  python volume_to_surface.py --iroi
 #
-# This simplified implementation assumes the ROI overlap masks are already
-# in fs_LR32k surface space (one 1D value per vertex), stored as NIfTI
-# files per hemisphere (lh/rh).
+# This simplified implementation assumes the ROI overlap masks are 
+# already in fs_LR32k surface space (one 1D value per vertex), 
+# stored as NIfTI files per hemisphere (lh/rh).
 #
+# All possible levels: 
+# ['i', 'i9a', 'i8a', 'i7a', 'i6a', 
+#  'a', 
+#  'a4g', 'a3g', 'a2g', 'a1g', 'g']
+IROI_LEVELS = ['i']
+
 # Example file names:
 #   i_pmd_lh_mask.nii.gz
 #   i_pmd_rh_mask.nii.gz
-IROI_LEVELS = ['i']
-
 IROI_CORTEX_PATH_PATTERN = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     'roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed',
@@ -1080,7 +1086,7 @@ IROI_CORTEX_PATH_PATTERN = os.path.join(
     'overlaid_masks',
     '{level}_pmd_{hemi}_mask.nii.gz'
 )
-# ###################### fs_LR32k Meshes ###############################
+# ###################### fs_LR32k Meshes ##############################
 fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               'fslr32k_meshes')
 lh_veryinflated = os.path.join(fslr32k_folder, 'templates',
@@ -1115,7 +1121,7 @@ rh_medial_wall_mask_path = os.path.join(
     fslr32k_folder, 'medialwall_masks',
     'fs_LR.32k.R.medialwall.mask' + mask_suffix + '.gii')
 
-# ######################################################################
+# #####################################################################
 
 # Tasks definitions
 tasks = {'prod': 'Production', 
@@ -1217,7 +1223,7 @@ if contrast_name2:
     cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
 
 # %%
-# ============================ RUN =====================================
+# ============================ RUN ====================================
 
 if __name__ == '__main__':
 
@@ -1256,6 +1262,7 @@ if __name__ == '__main__':
                 hemi=['L', 'R'],
                 colormap='cividis',
                 vmax=vmax,
+                cbar_title='Fraction of Participants'
             )
 
         sys.exit(0)
@@ -1268,7 +1275,7 @@ if __name__ == '__main__':
             contrast_name.strip().upper() == 'ALL':
         _batch = list(all_contrasts.values())
 
-    # ===================== BATCH: multiple single runs ===================
+    # =================== BATCH: multiple single runs =================
     if _batch is not None and not contrast_name2:
         for _cname in _batch:
             _cid = {v: k for k, v in all_contrasts.items()}.get(_cname)
@@ -1280,7 +1287,7 @@ if __name__ == '__main__':
             _cdir = os.path.join(surf_folder, f"{_cid}_{_tag.lower()}")
             os.makedirs(_cdir, exist_ok=True)
 
-            # ---- compute individual surfaces (gifti + cifti) ------------
+            # ---- compute individual surfaces (gifti + cifti) --------
             individual_surf(derivatives_folder, SUBJECTS, task_id, 
                             all_contrasts, _cid, surf_folder, 
                             surfspace='fslr32k', save='gifti')
@@ -1288,7 +1295,7 @@ if __name__ == '__main__':
                             all_contrasts, _cid, surf_folder, 
                             surfspace='fslr32k', save='cifti')
 
-            # ---- compute group CIFTI → split → mask ---------------------
+            # ---- compute group CIFTI → split → mask -----------------
             z_values = group_surf(surf_folder, SUBJECTS, task_id, _cid, _tag,
                                   surfspace='fslr32k')
             zvals_lh = np.split(z_values, 2, axis=0)[0]
@@ -1299,7 +1306,7 @@ if __name__ == '__main__':
             zvals_rh_masked = mask_cortical_activation(
                 zvals_rh, rh_medial_wall_mask_path)
 
-            # ---- save group z-maps as GIFTI (L/R) ------------------------
+            # ---- save group z-maps as GIFTI (L/R) -------------------
             for zm, structure, hemi in zip(
                 [zvals_lh_masked, zvals_rh_masked],
                 ['CortexLeft', 'CortexRight'],
@@ -1320,7 +1327,7 @@ if __name__ == '__main__':
                     )
                 )
 
-            # ---- thresholds (volume) + plot flatmaps ---------------------
+            # ---- thresholds (volume) + plot flatmaps ----------------
             thresh, v_max = whole_brain_thresholds(
                 derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
             )
@@ -1334,7 +1341,7 @@ if __name__ == '__main__':
 
         sys.exit(0)  # do not fall through to single/overlay
 
-    # ========================== SINGLE CONTRAST ==========================
+    # ======================== SINGLE CONTRAST ========================
     if not contrast_name2:
         contrast_id = \
             {v: k for k, v in all_contrasts.items()}.get(contrast_name)
@@ -1344,7 +1351,7 @@ if __name__ == '__main__':
         cdir = os.path.join(surf_folder, f"{contrast_id}_{cname.lower()}")
         os.makedirs(cdir, exist_ok=True)
 
-        # ---- compute individual (gifti + cifti) -------------------------
+        # ---- compute individual (gifti + cifti) ---------------------
         individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
                         contrast_id, surf_folder, 
                         surfspace='fslr32k', save='gifti')
@@ -1352,7 +1359,7 @@ if __name__ == '__main__':
                         contrast_id, surf_folder, 
                         surfspace='fslr32k', save='cifti')
 
-        # ---- compute group → split → mask -------------------------------
+        # ---- compute group → split → mask ---------------------------
         z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, 
                               cname, surfspace='fslr32k')
         zvals_lh = np.split(z_values, 2, axis=0)[0]
@@ -1362,7 +1369,7 @@ if __name__ == '__main__':
         zvals_rh_masked = mask_cortical_activation(
             zvals_rh, rh_medial_wall_mask_path)
 
-        # ---- save group z-maps (L/R) -----------------------------------
+        # ---- save group z-maps (L/R) --------------------------------
         for zm, structure, hemi in zip(
             [zvals_lh_masked, zvals_rh_masked],
             ['CortexLeft', 'CortexRight'],
@@ -1383,7 +1390,7 @@ if __name__ == '__main__':
                 )
             )
 
-        # ---- thresholds (volume) + plot flatmaps ------------------------
+        # ---- thresholds (volume) + plot flatmaps --------------------
         thresh, v_max = whole_brain_thresholds(
             derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask
         )
@@ -1397,7 +1404,7 @@ if __name__ == '__main__':
             hemi=['L', 'R'], colormap='viridis', vmax=v_max
         )
 
-    # ======================== TWO-CONTRAST OVERLAY =======================
+    # ====================== TWO-CONTRAST OVERLAY =====================
     else:
         contrast_id = \
             {v: k for k, v in all_contrasts.items()}.get(contrast_name)
@@ -1409,7 +1416,7 @@ if __name__ == '__main__':
         cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
         cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
 
-        # ---- compute + group + mask for contrast 1 ----------------------
+        # ---- compute + group + mask for contrast 1 ------------------
         cdir1 = os.path.join(surf_folder, f"{contrast_id}_{cname.lower()}")
         os.makedirs(cdir1, exist_ok=True)
         individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
@@ -1441,7 +1448,7 @@ if __name__ == '__main__':
                 )
             )
 
-        # ---- compute + group + mask for contrast 2 ----------------------
+        # ---- compute + group + mask for contrast 2 ------------------
         cdir2 = os.path.join(surf_folder, f"{contrast_id2}_{cname2.lower()}")
         os.makedirs(cdir2, exist_ok=True)
         individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
@@ -1476,7 +1483,7 @@ if __name__ == '__main__':
                 )
             )
 
-        # ---- thresholds + overlay plot ---------------------------------
+        # ---- thresholds + overlay plot ------------------------------
         thr1, v1 = whole_brain_thresholds(
             derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask
         )
