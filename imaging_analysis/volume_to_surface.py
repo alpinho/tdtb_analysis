@@ -306,8 +306,8 @@ def mask_cortical_activation(activation_data, medial_wall_mask_path):
     return masked_activation
 
 
-def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, surfspace='fslr32k', 
-                save='gifti', individualization='i'):
+def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, roi_name, 
+                surfspace='fslr32k', save='gifti', individualization='i'):
 
     # Map volumetric roi data in MNI from Nifti to the surface of...
     # ... left and right hemispheres
@@ -339,7 +339,7 @@ def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, surfspace='f
             GIFTIL,
             os.path.join(
                 surf_dir,
-                'i_pmd_mask'
+                individualization + '_' + roi_name + '_mask'
                 + '_'
                 + surfspace
                 + '.hem-L.func.gii'
@@ -348,7 +348,8 @@ def roi_to_surf(lh_roi_path, rh_roi_path, pl, pr, wl, wr, surf_dir, surfspace='f
         nib.save(
             GIFTIR,
             os.path.join(
-                'i_pmd_mask'
+                surf_dir,
+                individualization + '_' + roi_name + '_mask'
                 + '_'
                 + surfspace
                 + '.hem-R.func.gii'
@@ -1083,7 +1084,7 @@ rois_pardir = os.path.join(
 # ['i', 'i9a', 'i8a', 'i7a', 'i6a', 
 #  'a', 
 #  'a4g', 'a3g', 'a2g', 'a1g', 'g']
-IROI_LEVELS = ['i8a']
+IROI_LEVELS = ['i', 'i8a', 'g']
 
 # All ROIs: 8 ROIs
 region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area',
@@ -1097,11 +1098,6 @@ atlas_names = ['hmat', 'hmat', 'hmat', 'hmat',
 roi_names = ['pmd', 'pmv', 'sma', 'presma',
              'heschl',
              'occipital']
-
-# Example file names:
-#   i_pmd_lh_mask.nii.gz
-#   i_pmd_rh_mask.nii.gz
-# Path to individual cortical ROI masks
 
 # ###################### fs_LR32k Meshes ##############################
 fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1290,7 +1286,7 @@ if __name__ == '__main__':
                 lh_arr, rh_arr = roi_to_surf(
                     lh_path, rh_path, 
                     lh_tpl_pial, rh_tpl_pial, lh_tpl_white, rh_tpl_white,
-                    irois_folder, individualization=lvl)
+                    irois_folder, roi, individualization=lvl)
 
                 # One figure with two flatmaps (L/R), saved in iroi_images.
                 plot_flatmap(
