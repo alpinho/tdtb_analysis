@@ -1319,6 +1319,17 @@ roi_names = ['pmd', 'pmv', 'sma', 'presma',
              'heschl',
              'occipital']
 
+ROI_LABELS = {
+    "dstr": "Dorsal Striatum",
+    "cereb": "Cerebellum",
+    "pmv": "PMV",
+    "pmd": "PMD",
+    "presma": "PreSMA",
+    "sma": "SMA",
+    "heschl": "Heschl Gyrus",
+    "occipital": "Occipital Lobe",
+}
+
 # ###################### fs_LR32k Meshes ##############################
 fslr32k_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               'fslr32k_meshes')
@@ -1522,7 +1533,7 @@ if __name__ == '__main__':
                 # Collect for combined plot
                 all_lh.append(lh_arr)
                 all_rh.append(rh_arr)
-                all_labels.append(roi)
+                all_labels.append(ROI_LABELS.get(roi, roi))
 
                 # Individual ROI plot
                 cticks = np.linspace(vmin, vmax, 5)
