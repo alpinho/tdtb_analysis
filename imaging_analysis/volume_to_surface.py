@@ -428,11 +428,14 @@ def plot_flatmap(stats,
                  output_dir,
                  hemi=['L', 'R'],
                  colormap='viridis',
-                 colors=['Reds','Blues'],
+                 colors=['Reds', 'Blues'],
+                 colormaps=None,
+                 labels=None,
                  vmax=10,
                  cbar_title='Z-values',
                  cbar_ticks=None,
-                 tick_decimals=1
+                 tick_decimals=1,
+                 multi_alpha=0.85
     ):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -505,8 +508,17 @@ def plot_flatmap(stats,
         for h in hemi
     }
 
-    two_rgb = (
+    multi_overlay = (
         isinstance(stats, (list, tuple))
+        and len(stats) > 2
+        and isinstance(stats[0], (list, tuple))
+        and len(stats[0]) == 2
+        and colormaps is not None
+    )
+
+    two_rgb = (
+        (not multi_overlay)
+        and isinstance(stats, (list, tuple))
         and len(stats) == 2
         and isinstance(stats[0], (list, tuple))
         and colors is not None
@@ -518,7 +530,153 @@ def plot_flatmap(stats,
         gridspec_kw={'wspace': 0.05}
     )
 
-    # single-contrast branch
+    
+    # multi-contrast overlay (N > 2): alpha-composited RGBA layers
+    if multi_overlay:
+        # stats is a list like: [[lh1, rh1], [lh2, rh2], ...]
+        # We alpha-composite per-ROI RGBA layers, each using its own colormap.
+        thr = float(threshold)
+        vhi = float(vmax) if not isinstance(vmax, (list, tuple)) else float(vmax[0])
+
+        if labels is None:
+            labels = [f"map-{i+1}" for i in range(len(stats))]
+
+        if len(colormaps) != len(stats):
+            raise ValueError(
+                "When using multi_overlay, 'colormaps' must have the same "
+                "length as 'stats'."
+            )
+
+        # Plot hemispheres
+        for ax, h in zip(axs, hemi):
+            plt.sca(ax)
+
+            # Initialize composite RGBA
+            arr0 = stats[0][0] if h == 'L' else stats[0][1]
+            nvert = int(arr0.shape[0])
+            out_rgb = np.zeros((nvert, 3), float)
+            out_a = np.zeros((nvert,), float)
+
+            for (lh_i, rh_i), cmap_i in zip(stats, colormaps):
+                arr = lh_i if h == 'L' else rh_i
+                arr = np.asarray(arr, float)
+
+                # Discard below threshold
+                arr_use = arr.copy()
+                arr_use[arr_use < thr] = np.nan
+
+                # Normalize for colormap lookup
+                norm = np.clip(arr_use / vhi, 0, 1)
+
+                cmap_obj = plt.get_cmap(cmap_i)
+                rgba = cmap_obj(np.nan_to_num(norm, nan=0.0))
+                layer_rgb = rgba[:, :3]
+
+                # Binary alpha mask; keep alpha constant for legibility
+                a = (~np.isnan(arr_use)).astype(float) * float(multi_alpha)
+
+                # Porter-Duff "over" compositing
+                out_rgb = out_rgb * (1.0 - a[:, None]) + layer_rgb * a[:, None]
+                out_a = out_a + a * (1.0 - out_a)
+
+            data = np.zeros((nvert, 4), float)
+            data[:, :3] = np.clip(out_rgb, 0, 1)
+            data[:, 3] = np.clip(out_a, 0, 1)
+
+            # Transparent where nothing contributes
+            data[out_a == 0, :] = np.nan
+
+            flatmap.plot(
+                data,
+                overlay_type='rgb',
+                surf=surfaces[h],
+                underlay=underlays[h],
+                undermap='gray',
+                underscale=[-1.5, 1],
+                borders=borders[h],
+                bordersize=1.5,
+                bordercolor='k',
+                new_figure=False,
+                frame=None
+            )
+
+        # 6 small colorbars (2x3) using the same normalization
+        cticks = cbar_ticks if cbar_ticks is not None else np.linspace(thr, vhi, 5)
+        dec = int(tick_decimals) if tick_decimals is not None else 2
+
+        fig = plt.gcf()
+
+        # Leave room on the right for a vertical stack of horizontal colorbars
+        plt.subplots_adjust(left=0.0, right=0.77, top=0.97, bottom=0.10)
+
+        n_maps = len(labels)
+        x0 = 0.79
+        w = 0.20
+
+        # Stack horizontal colorbars vertically without overlap.
+        # Define geometry in figure-relative coordinates.
+        top = 0.95
+        bottom = 0.10
+        gap = 0.012
+        avail = top - bottom
+
+        # Compute a bar height that fits all maps. If needed, shrink the gap.
+        bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
+        if bar_h < 0.01:
+            gap = 0.005
+            bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
+        bar_h = max(bar_h, 0.01)
+
+        for i, (cmap_i, lab) in enumerate(zip(colormaps, labels)):
+            y = top - (i + 1) * bar_h - i * gap
+
+            rect = [x0, y, w, bar_h]
+            cax = fig.add_axes(rect)
+
+            sm = ScalarMappable(norm=Normalize(vmin=thr, vmax=vhi), cmap=cmap_i)
+            sm.set_array([])
+
+            cb = fig.colorbar(
+                sm,
+                cax=cax,
+                orientation='horizontal',
+                ticks=cticks,
+            )
+            if i < n_maps - 1:
+                cb.ax.set_xticklabels([])
+                cb.ax.tick_params(labelbottom=False, labelsize=7, length=2)
+            else:
+                cb.ax.set_xticklabels([f"{t:.{dec}f}" for t in cticks])
+                cb.ax.tick_params(labelsize=7, length=2)
+
+            # Put the ROI label on the right side of the bar
+            cax.text(
+                1.02,
+                0.5,
+                lab,
+                va='center',
+                ha='left',
+                transform=cax.transAxes,
+                fontsize=8,
+            )
+
+        fig.set_size_inches(7.2, 2.75)
+
+        suffix = 'flat_all_irois'
+        fname = (
+            f'group_{task_name}_{contrast}_{suffix}_fslr32k.png'
+            if len(hemi) == 2 else
+            f'group_{task_name}_{contrast}_{suffix}_fslr32k_{hemi[0]}.png'
+        )
+        fig.savefig(
+            os.path.join(output_dir, fname),
+            dpi=300,
+            bbox_inches='tight',
+            pad_inches=0
+        )
+        return
+
+# single-contrast branch
     if not two_rgb:
         lh, rh = stats
         for ax, stat, h in zip(axs, (lh, rh), hemi):
@@ -707,19 +865,62 @@ def plot_flatmap(stats,
 
             # Do colorbars
             fig = plt.gcf()
-            for sm, rect, lo, m1, m2, hi, lbl in bars:
-                cax = fig.add_axes(rect)
-                cb = fig.colorbar(
-                    sm, cax=cax, orientation='horizontal',
-                    ticks=[lo, m1, m2, hi]
-                )
-                cb.set_label(lbl, fontsize=9, labelpad=5)
-                cb.ax.set_xticklabels([f"{lo:.2f}", f"{m1:.2f}", f"{m2:.2f}", 
-                                       f"{hi:.2f}"])
-                cb.ax.tick_params(labelsize=8)
 
-    plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
-    fig.set_size_inches(6, 2.75)
+        # Leave room on the right for a vertical stack of horizontal colorbars
+        plt.subplots_adjust(left=0.0, right=0.77, top=0.97, bottom=0.10)
+
+        n_maps = len(labels)
+        x0 = 0.79
+        w = 0.20
+
+        # Stack horizontal colorbars vertically without overlap.
+        # Define geometry in figure-relative coordinates.
+        top = 0.95
+        bottom = 0.10
+        gap = 0.012
+        avail = top - bottom
+
+        # Compute a bar height that fits all maps. If needed, shrink the gap.
+        bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
+        if bar_h < 0.01:
+            gap = 0.005
+            bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
+        bar_h = max(bar_h, 0.01)
+
+        for i, (cmap_i, lab) in enumerate(zip(colormaps, labels)):
+            y = top - (i + 1) * bar_h - i * gap
+
+            rect = [x0, y, w, bar_h]
+            cax = fig.add_axes(rect)
+
+            sm = ScalarMappable(norm=Normalize(vmin=thr, vmax=vhi), cmap=cmap_i)
+            sm.set_array([])
+
+            cb = fig.colorbar(
+                sm,
+                cax=cax,
+                orientation='horizontal',
+                ticks=cticks,
+            )
+            if i < n_maps - 1:
+                cb.ax.set_xticklabels([])
+                cb.ax.tick_params(labelbottom=False, labelsize=7, length=2)
+            else:
+                cb.ax.set_xticklabels([f"{t:.{dec}f}" for t in cticks])
+                cb.ax.tick_params(labelsize=7, length=2)
+
+            # Put the ROI label on the right side of the bar
+            cax.text(
+                1.02,
+                0.5,
+                lab,
+                va='center',
+                ha='left',
+                transform=cax.transAxes,
+                fontsize=8,
+            )
+
+        fig.set_size_inches(7.2, 2.75)
     suffix = 'flat' if not two_rgb else 'flat_overlay'
     fname = (
         f'group_{task_name}_{contrast}_{suffix}_'
@@ -1263,10 +1464,25 @@ if __name__ == '__main__':
         vmin = 1 / len(SUBJECTS)
         vmax = 1.0
 
-        for region, atlas, roi in zip(region_names, atlas_names, roi_names):
-            for lvl in IROI_LEVELS:
+        iroi_cmaps = ['Blues_r', 'Oranges_r', 'Purples_r', 'Reds_r', 'YlGnBu_r', 'PuBu_r']
+
+        # Create directory to save outputs if does not exist
+        irois_imgs_folder = os.path.join(irois_parfolder, 'surface_irois_images')
+        os.makedirs(irois_imgs_folder, exist_ok=True)
+
+        for lvl in IROI_LEVELS:
+
+            print(f"[iROI] Individualization level '{lvl}'...")
+
+            all_lh = []
+            all_rh = []
+            all_labels = []
+
+            for idx, (region, atlas, roi) in enumerate(
+                zip(region_names, atlas_names, roi_names)
+            ):
                 if lvl == 'g':
-                    IROI_CORTEX_PATH_PATTERN = os.path.join(
+                    pattern = os.path.join(
                         rois_pardir,
                         region,
                         atlas,
@@ -1274,10 +1490,10 @@ if __name__ == '__main__':
                         'group_roi_masks',
                         f'g_msdtb_{atlas}_{roi}_' + '{hemi}_mask.nii.gz'
                     )
-                    lh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='lh')
-                    rh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='rh')
-                else:   
-                    IROI_CORTEX_PATH_PATTERN = os.path.join(
+                    lh_path = pattern.format(hemi='lh')
+                    rh_path = pattern.format(hemi='rh')
+                else:
+                    pattern = os.path.join(
                         rois_pardir,
                         region,
                         atlas,
@@ -1285,32 +1501,30 @@ if __name__ == '__main__':
                         'overlaid_masks',
                         f'{lvl}_{roi}_' + '{hemi}_mask.nii.gz'
                     )
-                    lh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='lh')
-                    rh_path = IROI_CORTEX_PATH_PATTERN.format(hemi='rh')
+                    lh_path = pattern.format(hemi='lh')
+                    rh_path = pattern.format(hemi='rh')
 
-                print(f"[iROI] Individualization level '{lvl}' "
-                      f"for ROI '{roi}'...")
-                
+                print(f"[iROI]   ROI '{roi}'...")
+
                 lh_arr, rh_arr = roi_to_surf(
-                    lh_path, rh_path, 
+                    lh_path, rh_path,
                     lh_tpl_pial, rh_tpl_pial, lh_tpl_white, rh_tpl_white,
-                    irois_parfolder, roi, individualization=lvl)
-                
-                # Create directory to save outputs if does not exist
-                irois_imgs_folder = os.path.join(irois_parfolder, 
-                                                'surface_irois_images')
-                os.makedirs(irois_imgs_folder, exist_ok=True)
-                
+                    irois_parfolder, roi, individualization=lvl
+                )
+
                 # Discard values below the minimum observable fraction.
-                lh_arr = np.asarray(lh_arr)
-                rh_arr = np.asarray(rh_arr)
+                lh_arr = np.asarray(lh_arr, float)
+                rh_arr = np.asarray(rh_arr, float)
                 lh_arr[lh_arr < vmin] = 0
                 rh_arr[rh_arr < vmin] = 0
 
-                # five ticks: min + 3 middle + max
-                cticks = np.linspace(vmin, vmax, 5)
+                # Collect for combined plot
+                all_lh.append(lh_arr)
+                all_rh.append(rh_arr)
+                all_labels.append(roi)
 
-                # One figure with two flatmaps (L/R), saved in iroi_images.
+                # Individual ROI plot
+                cticks = np.linspace(vmin, vmax, 5)
                 plot_flatmap(
                     stats=[lh_arr, rh_arr],
                     threshold=vmin,
@@ -1318,16 +1532,32 @@ if __name__ == '__main__':
                     contrast_tag=f"{lvl}_{roi}",
                     output_dir=irois_imgs_folder,
                     hemi=['L', 'R'],
-                    colormap='cividis',
+                    colormap=iroi_cmaps[idx % len(iroi_cmaps)],
                     vmax=vmax,
                     cbar_title='Fraction of Participants',
                     cbar_ticks=cticks,
                     tick_decimals=2
                 )
 
+            # Combined plot: all iROIs in the same flatmap (L/R)
+            combined_stats = [[lh, rh] for lh, rh in zip(all_lh, all_rh)]
+            plot_flatmap(
+                stats=combined_stats,
+                threshold=vmin,
+                task_key=task_id,
+                contrast_tag=f"{lvl}_all-irois",
+                output_dir=irois_imgs_folder,
+                hemi=['L', 'R'],
+                colormaps=iroi_cmaps[:len(combined_stats)],
+                labels=all_labels,
+                vmax=vmax,
+                cbar_ticks=np.linspace(vmin, vmax, 5),
+                tick_decimals=2
+            )
+
         sys.exit(0)
 
-# -------- detect batch mode without reordering inputs ---------------
+    # -------- detect batch mode without reordering inputs ---------------
     _batch = None
     if isinstance(contrast_name, (list, tuple, np.ndarray)):
         _batch = list(contrast_name)
