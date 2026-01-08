@@ -104,8 +104,16 @@ def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
     return pial_left, pial_right, white_left, white_right
 
 
-def individual_surf(derivatives_dir, subjects, task_key, contrasts_dic, contrast_key,
-                    surf_dir, surfspace='fslr32k', save='gifti'):
+def individual_surf(
+        derivatives_dir,
+        subjects,
+        task_key,
+        contrasts_dic,
+        contrast_key,
+        surf_dir,
+        surfspace='fslr32k',
+        save='gifti',
+    ):
 
     # Paths of the NON-NORMALIZED individual contrast map for all subjects
     encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
@@ -389,9 +397,12 @@ def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
                      for sub in subjects]
 
     # Create design matrix (one-sample t-test)
-    design_matrix = pd.DataFrame([1] * len(encoding_maps), columns=['intercept'])
+    design_matrix = pd.DataFrame(
+        [1] * len(encoding_maps),
+        columns=['intercept'],
+    )
 
-    # Initialize a NiftiMasker (it will create an implicit mask from the Z-map)
+    # Initialize a NiftiMasker (creates an implicit mask from the Z-map).
     masker = NiftiMasker(mask_img=gmask)
 
     # Initialize and fit the SecondLevelModel
@@ -508,21 +519,30 @@ def plot_flatmap(stats,
         for h in hemi
     }
 
+    # Multi-iROI categorical overlay (N >= 2): list of [lh, rh] pairs.
+    # This branch is selected explicitly by passing `colormaps`.
+    # It must also handle N == 2 (your current debugging case).
     multi_overlay = (
         isinstance(stats, (list, tuple))
-        and len(stats) > 2
+        and len(stats) >= 2
         and isinstance(stats[0], (list, tuple))
         and len(stats[0]) == 2
         and colormaps is not None
     )
 
+    # Two-contrast RGB overlay: list of exactly two [lh, rh] pairs.
+    # This branch is selected when `threshold` and `vmax` are 2-lists
+    # and `colormaps` is not provided.
     two_rgb = (
         (not multi_overlay)
         and isinstance(stats, (list, tuple))
         and len(stats) == 2
         and isinstance(stats[0], (list, tuple))
-        and colors is not None
+        and isinstance(threshold, (list, tuple))
+        and len(threshold) == 2
         and isinstance(vmax, (list, tuple))
+        and len(vmax) == 2
+        and colors is not None
     )
 
     fig, axs = plt.subplots(
@@ -536,7 +556,11 @@ def plot_flatmap(stats,
         # stats is a list like: [[lh1, rh1], [lh2, rh2], ...]
         # We alpha-composite per-ROI RGBA layers, each using its own colormap.
         thr = float(threshold)
-        vhi = float(vmax) if not isinstance(vmax, (list, tuple)) else float(vmax[0])
+        vhi = (
+            float(vmax)
+            if not isinstance(vmax, (list, tuple))
+            else float(vmax[0])
+        )
 
         if labels is None:
             labels = [f"map-{i+1}" for i in range(len(stats))]
@@ -554,37 +578,52 @@ def plot_flatmap(stats,
             # Initialize composite RGBA
             arr0 = stats[0][0] if h == 'L' else stats[0][1]
             nvert = int(arr0.shape[0])
-            out_rgb = np.zeros((nvert, 3), float)
-            out_a = np.zeros((nvert,), float)
 
-            for (lh_i, rh_i), cmap_i in zip(stats, colormaps):
+            # Build a categorical RGB overlay: each vertex is assigned to
+            # the iROI with the maximum value (after thresholding). This
+            # avoids any alpha-compositing darkening when iROIs do not
+            # overlap (the intended use-case here).
+            vals = []
+            for (lh_i, rh_i) in stats:
                 arr = lh_i if h == 'L' else rh_i
                 arr = np.asarray(arr, float)
+                arr[arr < thr] = np.nan
+                vals.append(arr)
 
-                # Discard below threshold
-                arr_use = arr.copy()
-                arr_use[arr_use < thr] = np.nan
+            vals = np.vstack(vals)  # shape: (n_maps, nvert)
+            n_maps = int(vals.shape[0])
+            valid = np.any(np.isfinite(vals), axis=0)
 
-                # Normalize for colormap lookup
-                norm = np.clip(arr_use / vhi, 0, 1)
+            # Winner-take-all index and winning value per vertex.
+            vals_fill = np.where(np.isfinite(vals), vals, -np.inf)
+            winner = np.argmax(vals_fill, axis=0)
+            win_val = np.max(vals_fill, axis=0)
 
+            data = np.full((nvert, 4), np.nan, float)
+
+            roi_vmax = []
+            for i in range(n_maps):
+                has_vals = np.any(np.isfinite(vals[i]))
+                vmax_i = np.nanmax(vals[i]) if has_vals else thr
+                if not np.isfinite(vmax_i) or vmax_i <= thr:
+                    vmax_i = thr
+                roi_vmax.append(float(vmax_i))
+
+            for i, cmap_i in enumerate(colormaps):
+                idx = valid & (winner == i)
+                if not np.any(idx):
+                    continue
+
+                denom_i = roi_vmax[i] - thr
+                if denom_i <= 0:
+                    denom_i = 1.0
+
+                norm = np.clip((win_val[idx] - thr) / denom_i, 0.0, 1.0)
                 cmap_obj = plt.get_cmap(cmap_i)
-                rgba = cmap_obj(np.nan_to_num(norm, nan=0.0))
-                layer_rgb = rgba[:, :3]
+                rgba = cmap_obj(norm)
 
-                # Binary alpha mask; keep alpha constant for legibility
-                a = (~np.isnan(arr_use)).astype(float) * float(multi_alpha)
-
-                # Porter-Duff "over" compositing
-                out_rgb = out_rgb * (1.0 - a[:, None]) + layer_rgb * a[:, None]
-                out_a = out_a + a * (1.0 - out_a)
-
-            data = np.zeros((nvert, 4), float)
-            data[:, :3] = np.clip(out_rgb, 0, 1)
-            data[:, 3] = np.clip(out_a, 0, 1)
-
-            # Transparent where nothing contributes
-            data[out_a == 0, :] = np.nan
+                data[idx, :3] = rgba[:, :3]
+                data[idx, 3] = 1.0
 
             flatmap.plot(
                 data,
@@ -601,7 +640,11 @@ def plot_flatmap(stats,
             )
 
         # 6 small colorbars (2x3) using the same normalization
-        cticks = cbar_ticks if cbar_ticks is not None else np.linspace(thr, vhi, 5)
+        cticks = (
+            cbar_ticks
+            if cbar_ticks is not None
+            else np.linspace(thr, vhi, 5)
+        )
         dec = int(tick_decimals) if tick_decimals is not None else 2
 
         fig = plt.gcf()
@@ -634,7 +677,10 @@ def plot_flatmap(stats,
             rect = [x0, y, w, bar_h]
             cax = fig.add_axes(rect)
 
-            sm = ScalarMappable(norm=Normalize(vmin=thr, vmax=vhi), cmap=cmap_i)
+            sm = ScalarMappable(
+                norm=Normalize(vmin=thr, vmax=vhi),
+                cmap=cmap_i,
+            )
             sm.set_array([])
 
             cb = fig.colorbar(
@@ -894,7 +940,10 @@ def plot_flatmap(stats,
             rect = [x0, y, w, bar_h]
             cax = fig.add_axes(rect)
 
-            sm = ScalarMappable(norm=Normalize(vmin=thr, vmax=vhi), cmap=cmap_i)
+            sm = ScalarMappable(
+                norm=Normalize(vmin=thr, vmax=vhi),
+                cmap=cmap_i,
+            )
             sm.set_array([])
 
             cb = fig.colorbar(
@@ -1264,11 +1313,12 @@ surfparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
     'surface')
 
-task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+task_tag = 'All Tasks'  # Production/Perception/NTFD/NTFD Random/All Tasks
 # To run every contrast:
 # contrast_name = 'ALL' and contrast_name2 = None.
 # To run a subset sequentially:
-# contrast_name = ['Beat', 'Interval', 'Decision'] and contrast_name2 = None.
+# contrast_name = ['Beat', 'Interval', 'Decision']
+# contrast_name2 = None.
 # For single or overlay, keep contrast_name/contrast_name2 as strings
 contrast_name = 'ALL' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # E.g. 'Interval'
@@ -1479,6 +1529,11 @@ if __name__ == '__main__':
         iroi_cmaps = ['Blues_r', 'Oranges_r', 'Purples_r', 'Reds_r',
                       'PuBuGn_r', 'PuRd_r']
 
+        # Start small for debugging parity between single and multi-iROI.
+        # Expand this list once the multi-iROI color scaling is validated.
+        IROI_SELECTED = ['presma', 'occipital']
+
+
         # Create directory to save outputs if does not exist
         irois_imgs_folder = os.path.join(irois_parfolder, 
                                          'surface_irois_images')
@@ -1491,10 +1546,15 @@ if __name__ == '__main__':
             all_lh = []
             all_rh = []
             all_labels = []
+            all_rois = []
+            all_cmaps = []
 
             for idx, (region, atlas, roi) in enumerate(
                 zip(region_names, atlas_names, roi_names)
             ):
+                if roi not in IROI_SELECTED:
+                    continue
+
                 if lvl == 'g':
                     pattern = os.path.join(
                         rois_pardir,
@@ -1539,6 +1599,7 @@ if __name__ == '__main__':
 
                 # Individual ROI plot
                 cticks = np.linspace(vmin, vmax, 5)
+                cmap_used = iroi_cmaps[idx % len(iroi_cmaps)]
                 plot_flatmap(
                     stats=[lh_arr, rh_arr],
                     threshold=vmin,
@@ -1546,21 +1607,33 @@ if __name__ == '__main__':
                     contrast_tag=f"{lvl}_{roi}",
                     output_dir=irois_imgs_folder,
                     hemi=['L', 'R'],
-                    colormap=iroi_cmaps[idx % len(iroi_cmaps)],
+                    colormap=cmap_used,
                     vmax=vmax,
                     cbar_title='Fraction of Participants',
                     cbar_ticks=cticks,
                     tick_decimals=2
                 )
-
+                all_rois.append(roi)
+                all_cmaps.append(cmap_used)
             # Desired top-to-bottom order of iROI colorbars
-            IROI_ORDER = ['presma', 'sma', 'pmd', 'pmv', 'heschl', 
-                          'occipital']
-            order_idx = [roi_names.index(r) for r in IROI_ORDER]
-            all_lh = [all_lh[i] for i in order_idx]
-            all_rh = [all_rh[i] for i in order_idx]
-            all_labels = [all_labels[i] for i in order_idx]
-            iroi_cmaps = [iroi_cmaps[i] for i in order_idx]
+            IROI_ORDER = list(IROI_SELECTED)
+
+            roi_to_lh = {r: a for r, a in zip(all_rois, all_lh)}
+            roi_to_rh = {r: a for r, a in zip(all_rois, all_rh)}
+            roi_to_label = {r: a for r, a in zip(all_rois, all_labels)}
+            roi_to_cmap = {r: a for r, a in zip(all_rois, all_cmaps)}
+
+            missing = [r for r in IROI_ORDER if r not in roi_to_lh]
+            if missing:
+                raise ValueError(
+                    "Requested iROIs missing from loaded maps: "
+                    f"{missing}. Available: {sorted(list(roi_to_lh.keys()))}"
+                )
+
+            all_lh = [roi_to_lh[r] for r in IROI_ORDER]
+            all_rh = [roi_to_rh[r] for r in IROI_ORDER]
+            all_labels = [roi_to_label[r] for r in IROI_ORDER]
+            all_cmaps = [roi_to_cmap[r] for r in IROI_ORDER]
 
             # Combined plot: all iROIs in the same flatmap (L/R)
             combined_stats = [[lh, rh] for lh, rh in zip(all_lh, all_rh)]
@@ -1571,7 +1644,7 @@ if __name__ == '__main__':
                 contrast_tag=f"{lvl}_all-irois",
                 output_dir=irois_imgs_folder,
                 hemi=['L', 'R'],
-                colormaps=iroi_cmaps[:len(combined_stats)],
+                colormaps=all_cmaps[:len(combined_stats)],
                 labels=all_labels,
                 vmax=vmax,
                 cbar_ticks=np.linspace(vmin, vmax, 5),
@@ -1744,7 +1817,9 @@ if __name__ == '__main__':
             np.split(z_values1, 2, axis=0)[0], lh_medial_wall_mask_path)
         zR1 = mask_cortical_activation(
             np.split(z_values1, 2, axis=0)[1], rh_medial_wall_mask_path)
-        for zm, structure, hemi in zip([zL1, zR1], ['CortexLeft', 'CortexRight'],
+        for zm, structure, hemi in zip(
+            [zL1, zR1],
+            ['CortexLeft', 'CortexRight'],
                                        ['lh', 'rh']):
             gifti_img = nt.gifti.make_func_gifti(
                 zm, anatomical_struct=structure, column_names=[cname])
