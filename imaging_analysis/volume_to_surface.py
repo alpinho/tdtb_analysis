@@ -446,7 +446,6 @@ def plot_flatmap(stats,
                  cbar_title='Z-values',
                  cbar_ticks=None,
                  tick_decimals=1,
-                 multi_alpha=0.85
     ):
     """
     Plot one or two contrasts on a flat cortical map.
