@@ -970,7 +970,7 @@ def plot_flatmap(stats,
                 fontsize=8,
             )
 
-        fig.set_size_inches(7.2, 2.75)
+    fig.set_size_inches(7.2, 2.75)
     suffix = 'flat' if not two_rgb else 'flat_overlay'
     fname = (
         f'group_{task_name}_{contrast}_{suffix}_'
@@ -1531,8 +1531,9 @@ if __name__ == '__main__':
 
         # Start small for debugging parity between single and multi-iROI.
         # Expand this list once the multi-iROI color scaling is validated.
-        IROI_SELECTED = ['presma', 'occipital']
 
+        IROI_SELECTED = ['pmv', 'pmd', 'sma', 'presma', 'heschl', 'occipital']
+        # IROI_SELECTED = ['presma', 'occipital']
 
         # Create directory to save outputs if does not exist
         irois_imgs_folder = os.path.join(irois_parfolder, 
