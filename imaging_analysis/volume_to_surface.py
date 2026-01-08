@@ -1476,10 +1476,12 @@ if __name__ == '__main__':
         vmin = 1 / len(SUBJECTS)
         vmax = 1.0
 
-        iroi_cmaps = ['Blues_r', 'Oranges_r', 'Purples_r', 'Reds_r', 'YlGnBu_r', 'PuBu_r']
+        iroi_cmaps = ['Blues_r', 'Oranges_r', 'Purples_r', 'Reds_r',
+                      'PuBuGn_r', 'PuRd_r']
 
         # Create directory to save outputs if does not exist
-        irois_imgs_folder = os.path.join(irois_parfolder, 'surface_irois_images')
+        irois_imgs_folder = os.path.join(irois_parfolder, 
+                                         'surface_irois_images')
         os.makedirs(irois_imgs_folder, exist_ok=True)
 
         for lvl in IROI_LEVELS:
