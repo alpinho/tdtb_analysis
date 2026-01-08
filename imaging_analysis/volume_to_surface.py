@@ -677,7 +677,7 @@ def plot_flatmap(stats,
         )
         return
 
-# single-contrast branch
+    # single-contrast branch
     if not two_rgb:
         lh, rh = stats
         for ax, stat, h in zip(axs, (lh, rh), hemi):
