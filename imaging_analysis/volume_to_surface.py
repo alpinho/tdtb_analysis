@@ -435,20 +435,19 @@ def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
     return fdr_thresh, z_max
 
 
-def plot_flatmap(stats,
-                 threshold,
-                 task_key,
-                 contrast_tag,
-                 output_dir,
-                 hemi=['L', 'R'],
-                 colormap='viridis',
-                 colors=['Reds', 'Blues'],
-                 colormaps=None,
-                 labels=None,
-                 vmax=10,
-                 cbar_title='Z-values',
-                 cbar_ticks=None,
-                 tick_decimals=1,
+def plot_flatmap(
+        stats,
+        threshold,
+        task_key,
+        contrast_tag,
+        output_dir,
+        hemi=['L', 'R'],
+        colormap='viridis',
+        colors=['Reds', 'Blues'],
+        vmax=10,
+        cbar_title='Z-values',
+        n_ticks=4,
+        tick_decimals=1,
     ):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -521,234 +520,18 @@ def plot_flatmap(stats,
         for h in hemi
     }
 
-    # Multi-iROI categorical overlay (N >= 2): list of [lh, rh] pairs.
-    # This branch is selected explicitly by passing `colormaps`.
-    # It must also handle N == 2 (your current debugging case).
-    multi_overlay = (
-        isinstance(stats, (list, tuple))
-        and len(stats) >= 2
-        and isinstance(stats[0], (list, tuple))
-        and len(stats[0]) == 2
-        and colormaps is not None
-    )
-
-    # Two-contrast RGB overlay: list of exactly two [lh, rh] pairs.
-    # This branch is selected when `threshold` and `vmax` are 2-lists
-    # and `colormaps` is not provided.
     two_rgb = (
-        (not multi_overlay)
-        and isinstance(stats, (list, tuple))
+        isinstance(stats, (list, tuple))
         and len(stats) == 2
         and isinstance(stats[0], (list, tuple))
-        and isinstance(threshold, (list, tuple))
-        and len(threshold) == 2
-        and isinstance(vmax, (list, tuple))
-        and len(vmax) == 2
         and colors is not None
+        and isinstance(vmax, (list, tuple))
     )
 
     fig, axs = plt.subplots(
         1, len(hemi), figsize=(8, 4),
         gridspec_kw={'wspace': 0.05}
     )
-
-    
-    # multi-contrast overlay (N > 2): alpha-composited RGBA layers
-    if multi_overlay:
-        # stats is a list like: [[lh1, rh1], [lh2, rh2], ...]
-        # We alpha-composite per-ROI RGBA layers, each using its own colormap.
-        thr = float(threshold)
-        vhi = (
-            float(vmax)
-            if not isinstance(vmax, (list, tuple))
-            else float(vmax[0])
-        )
-
-        if labels is None:
-            labels = [f"map-{i+1}" for i in range(len(stats))]
-
-        if len(colormaps) != len(stats):
-            raise ValueError(
-                "When using multi_overlay, 'colormaps' must have the same "
-                "length as 'stats'."
-            )
-
-        # Plot hemispheres
-        for ax, h in zip(axs, hemi):
-            plt.sca(ax)
-
-            # Initialize composite RGBA
-            arr0 = stats[0][0] if h == 'L' else stats[0][1]
-            nvert = int(arr0.shape[0])
-
-            # Build a categorical RGB overlay: each vertex is assigned to
-            # the iROI with the maximum value (after thresholding). This
-            # avoids any alpha-compositing darkening when iROIs do not
-            # overlap (the intended use-case here).
-            vals = []
-            for (lh_i, rh_i) in stats:
-                arr = lh_i if h == 'L' else rh_i
-                arr = np.asarray(arr, float)
-                arr[arr < thr] = np.nan
-                vals.append(arr)
-
-            vals = np.vstack(vals)  # shape: (n_maps, nvert)
-            n_maps = int(vals.shape[0])
-            valid = np.any(np.isfinite(vals), axis=0)
-
-            # Winner-take-all index and winning value per vertex.
-            vals_fill = np.where(np.isfinite(vals), vals, -np.inf)
-            winner = np.argmax(vals_fill, axis=0)
-            win_val = np.max(vals_fill, axis=0)
-
-            data = np.full((nvert, 4), np.nan, float)
-
-            roi_vmax = []
-            for i in range(n_maps):
-                has_vals = np.any(np.isfinite(vals[i]))
-                vmax_i = np.nanmax(vals[i]) if has_vals else thr
-                if not np.isfinite(vmax_i) or vmax_i <= thr:
-                    vmax_i = thr
-                roi_vmax.append(float(vmax_i))
-
-            for i, cmap_i in enumerate(colormaps):
-                idx = valid & (winner == i)
-                if not np.any(idx):
-                    continue
-
-                denom_i = roi_vmax[i] - thr
-                if denom_i <= 0:
-                    denom_i = 1.0
-
-                norm = np.clip((win_val[idx] - thr) / denom_i, 0.0, 1.0)
-                cmap_obj = plt.get_cmap(cmap_i)
-                rgba = cmap_obj(norm)
-
-                data[idx, :3] = rgba[:, :3]
-                data[idx, 3] = 1.0
-
-            flatmap.plot(
-                data,
-                overlay_type='rgb',
-                surf=surfaces[h],
-                underlay=underlays[h],
-                undermap='gray',
-                underscale=[-1.5, 1],
-                borders=borders[h],
-                bordersize=1.5,
-                bordercolor='k',
-                new_figure=False,
-                frame=None
-            )
-
-        # 6 small colorbars (2x3) using the same normalization
-        cticks = (
-            cbar_ticks
-            if cbar_ticks is not None
-            else np.linspace(thr, vhi, 5)
-        )
-        dec = int(tick_decimals) if tick_decimals is not None else 2
-
-        fig = plt.gcf()
-
-        # Leave room on the right for a vertical stack of horizontal colorbars
-        plt.subplots_adjust(left=0.0, right=0.77, top=0.97, bottom=0.10)
-
-        n_maps = len(labels)
-        x0 = 0.78
-        w = 0.20
-
-        # Stack horizontal colorbars vertically without overlap.
-        # Define geometry in figure-relative coordinates.
-        top = 0.75
-        bottom = 0.10
-        gap = 0.025
-        avail = top - bottom
-
-        # Add a title above the colorbars
-        fig.text(
-            x0 + w / 2,
-            top + 0.035,
-            "Fraction of Participants",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-        )
-
-        # Compute a bar height that fits all maps. If needed, shrink the gap.
-        BAR_THICKNESS_SCALE = 0.40  # <--- new (0.45–0.65 are reasonable)
-        bar_h = (avail / n_maps) * BAR_THICKNESS_SCALE
-        if bar_h < 0.01:
-            gap = 0.005
-            bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
-        bar_h = max(bar_h, 0.01)
-
-        # Desired top-to-bottom order of colorbars
-        CBAR_ORDER = [
-            "PreSMA",
-            "SMA",
-            "PMD",
-            "PMV",
-            "Heschl Gyrus",
-            "Occipital Lobe",
-        ]
-
-        label_to_cmap = dict(zip(labels, colormaps))
-
-        labels = [lab for lab in CBAR_ORDER if lab in label_to_cmap]
-        colormaps = [label_to_cmap[lab] for lab in labels]
-
-        for i, (cmap_i, lab) in enumerate(zip(colormaps, labels)):
-            y = top - (i + 1) * bar_h - i * gap
-
-            rect = [x0, y, w, bar_h]
-            cax = fig.add_axes(rect)
-
-            sm = ScalarMappable(
-                norm=Normalize(vmin=thr, vmax=vhi),
-                cmap=cmap_i,
-            )
-            sm.set_array([])
-
-            cb = fig.colorbar(
-                sm,
-                cax=cax,
-                orientation='horizontal',
-                ticks=cticks,
-            )
-            if i < n_maps - 1:
-                cb.ax.set_xticklabels([])
-                cb.ax.tick_params(labelbottom=False, labelsize=7, length=2)
-            else:
-                cb.ax.set_xticklabels([f"{t:.{dec}f}" for t in cticks])
-                cb.ax.tick_params(labelsize=7, length=2)
-
-            # Put the ROI label on the right side of the bar
-            cax.text(
-                1.02,
-                0.5,
-                lab,
-                va='center',
-                ha='left',
-                transform=cax.transAxes,
-                fontsize=8,
-            )
-
-        fig.set_size_inches(7.2, 2.75)
-
-        suffix = 'flat_all_irois'
-        fname = (
-            f'group_{task_name}_{contrast}_{suffix}_fslr32k.png'
-            if len(hemi) == 2 else
-            f'group_{task_name}_{contrast}_{suffix}_fslr32k_{hemi[0]}.png'
-        )
-        fig.savefig(
-            os.path.join(output_dir, fname),
-            dpi=300,
-            bbox_inches='tight',
-            pad_inches=0
-        )
-        return
 
     # single-contrast branch
     if not two_rgb:
@@ -776,24 +559,17 @@ def plot_flatmap(stats,
         if show_cbar1:
             norm = plt.Normalize(vmin=threshold, vmax=vmax)
             sm = ScalarMappable(norm=norm, cmap=colormap)
-
             cbar = fig.colorbar(
-                sm,
-                ax=list(axs),
-                orientation='horizontal',
-                fraction=0.05,
-                pad=0.02,
+                sm, ax=list(axs), orientation='horizontal',
+                fraction=0.05, pad=0.02
             )
-
             cbar.set_label(cbar_title, fontsize=12, labelpad=8)
-
-            ticks = cbar_ticks \
-                if cbar_ticks is not None else np.linspace(threshold, vmax, 4)
+            ticks = np.linspace(threshold, vmax, n_ticks)
             cbar.set_ticks(ticks)
-
-            dec = int(tick_decimals) if tick_decimals is not None else 1
-            cbar.ax.set_xticklabels([f"{t:.{dec}f}" for t in ticks], 
-                                    fontsize=12)
+            dec = int(tick_decimals) if tick_decimals is not None else 2
+            cbar.ax.set_xticklabels(
+                [f'{t:.{dec}f}' for t in ticks], fontsize=12
+            )
 
     # two-contrast RGB overlay
     else:
@@ -858,7 +634,7 @@ def plot_flatmap(stats,
             )
 
         if show_cbar2:
-            # ################### LEGEND LABELS #######################
+            # ################### LEGEND LABELS ########################
 
             # Split off the two contrast parts at the last 
             # '_vs_' or '_and_'
@@ -939,66 +715,379 @@ def plot_flatmap(stats,
 
             # Do colorbars
             fig = plt.gcf()
+            for sm, rect, lo, m1, m2, hi, lbl in bars:
+                cax = fig.add_axes(rect)
+                cb = fig.colorbar(
+                    sm, cax=cax, orientation='horizontal',
+                    ticks=[lo, m1, m2, hi]
+                )
+                cb.set_label(lbl, fontsize=9, labelpad=5)
+                cb.ax.set_xticklabels([f"{lo:.2f}", f"{m1:.2f}", f"{m2:.2f}", 
+                                       f"{hi:.2f}"])
+                cb.ax.tick_params(labelsize=8)
 
-        # Leave room on the right for a vertical stack of horizontal colorbars
-        plt.subplots_adjust(left=0.0, right=0.77, top=0.97, bottom=0.10)
+    plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
+    fig.set_size_inches(6, 2.75)
+    suffix = 'flat' if not two_rgb else 'flat_overlay'
+    fname = (
+        f'group_{task_name}_{contrast}_{suffix}_'
+        f'fslr32k.png'
+        if len(hemi) == 2 else
+        f'group_{task_name}_{contrast}_{suffix}_'
+        f'fslr32k_{hemi[0]}.png'
+    )
+    fig.savefig(
+        os.path.join(output_dir, fname),
+        dpi=300,
+        bbox_inches='tight',
+        pad_inches=0
+    )
 
-        n_maps = len(labels)
-        x0 = 0.79
-        w = 0.20
 
-        # Stack horizontal colorbars vertically without overlap.
-        # Define geometry in figure-relative coordinates.
-        top = 0.95
-        bottom = 0.10
-        gap = 0.012
-        avail = top - bottom
+def plot_multirois_flatmap(
+        stats,
+        threshold,
+        task_key,
+        contrast_tag,
+        output_dir,
+        hemi=['L', 'R'],
+        colormaps=None,
+        labels=None,
+        vmax=10,
+        cbar_title='Fraction of Participants',
+        cbar_ticks=None,
+        tick_decimals=2,
+    ):
+    """
+    Plot one or two contrasts on a flat cortical map.
 
-        # Compute a bar height that fits all maps. If needed, shrink the gap.
+    Single-contrast:
+      stats: [lh_array, rh_array]
+      threshold: float
+      colormap: str
+      vmax: float
+
+    Two-contrast RGB overlay:
+      stats: [[lh1, rh1], [lh2, rh2]]
+      threshold: [thr1, thr2]
+      colors: [color1, color2]  # any matplotlib color
+      vmax: [v1, v2]
+
+    Note on magnitude of co-activation for the RGB overlay:
+    -------------------------------------------------------
+    The “Overlap” colorbar is a third gradient that tells you how
+    strongly both contrasts co-activate at each vertex. Concretely:
+
+    1. Range
+    --------
+    Minimum tick (vmin) = thr1/v1 + thr2/v2
+    (i.e. both maps just at their respective statistical thresholds)
+
+    Maximum tick (vmax) = 1.0
+    (i.e. at least one map at its peak, and the other possibly
+    contributing up to its peak)
+
+    2. Color gradient
+    -----------------
+    The start color is the sum of the two threshold-level colors
+
+    The end color is the sum of the two full-bright colors
+    (clipped to [0,1])
+
+    Intermediate hues reflect intermediate sums of the two normalized
+    intensities
+
+    3. Tick labels
+    --------------
+    Show four values:
+
+    Min sum-of-fractions (thr1/v1 + thr2/v2)
+
+    Two intermediate sums (one- and two-thirds along the range)
+
+    Max = 1.0
+    """
+
+    contrast = contrast_tag.lower()
+    task_name = task_key.replace('_', '-')
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    surf_dir = os.path.join(script_dir, 'fslr32k_meshes')
+
+    borders = {
+        h: os.path.join(
+            surf_dir, 'borders', f'fs_LR.32k.{h}.border')
+        for h in hemi
+    }
+    underlays = {
+        h: os.path.join(
+            surf_dir, 'flat', f'fs_LR.32k.{h}.shape.gii')
+        for h in hemi
+    }
+    surfaces = {
+        h: os.path.join(
+            surf_dir, 'flat', f'fs_LR.32k.{h}.flat.surf.gii')
+        for h in hemi
+    }
+
+    fig, axs = plt.subplots(
+        1, len(hemi), figsize=(8, 4),
+        gridspec_kw={'wspace': 0.05}
+    )
+    
+    # multi-iroi overlay (N > 2): alpha-composited RGBA layers
+    # stats is a list like: [[lh1, rh1], [lh2, rh2], ...]
+    # We alpha-composite per-ROI RGBA layers, each using its own colormap.
+    thr = float(threshold)
+    vhi = (
+        float(vmax)
+        if not isinstance(vmax, (list, tuple))
+        else float(vmax[0])
+    )
+
+    if labels is None:
+        labels = [f"map-{i+1}" for i in range(len(stats))]
+
+    if len(colormaps) != len(stats):
+        raise ValueError(
+            "When using multi_overlay, 'colormaps' must have the same "
+            "length as 'stats'."
+        )
+
+    # Plot hemispheres
+    for ax, h in zip(axs, hemi):
+        plt.sca(ax)
+
+        # Initialize composite RGBA
+        arr0 = stats[0][0] if h == 'L' else stats[0][1]
+        nvert = int(arr0.shape[0])
+
+        # Build a categorical RGB overlay: each vertex is assigned to
+        # the iROI with the maximum value (after thresholding). This
+        # avoids any alpha-compositing darkening when iROIs do not
+        # overlap (the intended use-case here).
+        vals = []
+        for (lh_i, rh_i) in stats:
+            arr = lh_i if h == 'L' else rh_i
+            arr = np.asarray(arr, float)
+            arr[arr < thr] = np.nan
+            vals.append(arr)
+
+        vals = np.vstack(vals)  # shape: (n_maps, nvert)
+        n_maps = int(vals.shape[0])
+        valid = np.any(np.isfinite(vals), axis=0)
+
+        # Winner-take-all index and winning value per vertex.
+        vals_fill = np.where(np.isfinite(vals), vals, -np.inf)
+        winner = np.argmax(vals_fill, axis=0)
+        win_val = np.max(vals_fill, axis=0)
+
+        data = np.full((nvert, 4), np.nan, float)
+
+        roi_vmax = []
+        for i in range(n_maps):
+            has_vals = np.any(np.isfinite(vals[i]))
+            vmax_i = np.nanmax(vals[i]) if has_vals else thr
+            if not np.isfinite(vmax_i) or vmax_i <= thr:
+                vmax_i = thr
+            roi_vmax.append(float(vmax_i))
+
+        for i, cmap_i in enumerate(colormaps):
+            idx = valid & (winner == i)
+            if not np.any(idx):
+                continue
+
+            denom_i = roi_vmax[i] - thr
+            if denom_i <= 0:
+                denom_i = 1.0
+
+            norm = np.clip((win_val[idx] - thr) / denom_i, 0.0, 1.0)
+            cmap_obj = plt.get_cmap(cmap_i)
+            rgba = cmap_obj(norm)
+
+            data[idx, :3] = rgba[:, :3]
+            data[idx, 3] = 1.0
+
+        flatmap.plot(
+            data,
+            overlay_type='rgb',
+            surf=surfaces[h],
+            underlay=underlays[h],
+            undermap='gray',
+            underscale=[-1.5, 1],
+            borders=borders[h],
+            bordersize=1.5,
+            bordercolor='k',
+            new_figure=False,
+            frame=None
+        )
+
+    # 6 small colorbars (2x3) using the same normalization
+    cticks = (
+        cbar_ticks
+        if cbar_ticks is not None
+        else np.linspace(thr, vhi, 5)
+    )
+    dec = int(tick_decimals) if tick_decimals is not None else 2
+
+    fig = plt.gcf()
+
+    # Leave room on the right for a vertical stack of horizontal colorbars
+    plt.subplots_adjust(left=0.0, right=0.77, top=0.97, bottom=0.10)
+
+    n_maps = len(labels)
+    x0 = 0.78
+    w = 0.20
+
+    # Stack horizontal colorbars vertically without overlap.
+    # Define geometry in figure-relative coordinates.
+    top = 0.75
+    bottom = 0.10
+    gap = 0.025
+    avail = top - bottom
+
+    # Add a title above the colorbars
+    fig.text(
+        x0 + w / 2,
+        top + 0.035,
+        cbar_title,
+        ha="center",
+        va="bottom",
+        fontsize=9,
+    )
+
+    # Compute a bar height that fits all maps. If needed, shrink the gap.
+    BAR_THICKNESS_SCALE = 0.40  # <--- new (0.45–0.65 are reasonable)
+    bar_h = (avail / n_maps) * BAR_THICKNESS_SCALE
+    if bar_h < 0.01:
+        gap = 0.005
         bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
-        if bar_h < 0.01:
-            gap = 0.005
-            bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
-        bar_h = max(bar_h, 0.01)
+    bar_h = max(bar_h, 0.01)
 
-        for i, (cmap_i, lab) in enumerate(zip(colormaps, labels)):
-            y = top - (i + 1) * bar_h - i * gap
+    # Desired top-to-bottom order of colorbars
+    CBAR_ORDER = [
+        "PreSMA",
+        "SMA",
+        "PMD",
+        "PMV",
+        "Heschl Gyrus",
+        "Occipital Lobe",
+    ]
 
-            rect = [x0, y, w, bar_h]
-            cax = fig.add_axes(rect)
+    label_to_cmap = dict(zip(labels, colormaps))
 
-            sm = ScalarMappable(
-                norm=Normalize(vmin=thr, vmax=vhi),
-                cmap=cmap_i,
-            )
-            sm.set_array([])
+    labels = [lab for lab in CBAR_ORDER if lab in label_to_cmap]
+    colormaps = [label_to_cmap[lab] for lab in labels]
 
-            cb = fig.colorbar(
-                sm,
-                cax=cax,
-                orientation='horizontal',
-                ticks=cticks,
-            )
-            if i < n_maps - 1:
-                cb.ax.set_xticklabels([])
-                cb.ax.tick_params(labelbottom=False, labelsize=7, length=2)
-            else:
-                cb.ax.set_xticklabels([f"{t:.{dec}f}" for t in cticks])
-                cb.ax.tick_params(labelsize=7, length=2)
+    for i, (cmap_i, lab) in enumerate(zip(colormaps, labels)):
+        y = top - (i + 1) * bar_h - i * gap
 
-            # Put the ROI label on the right side of the bar
-            cax.text(
-                1.02,
-                0.5,
-                lab,
-                va='center',
-                ha='left',
-                transform=cax.transAxes,
-                fontsize=8,
-            )
+        rect = [x0, y, w, bar_h]
+        cax = fig.add_axes(rect)
+
+        sm = ScalarMappable(
+            norm=Normalize(vmin=thr, vmax=vhi),
+            cmap=cmap_i,
+        )
+        sm.set_array([])
+
+        cb = fig.colorbar(
+            sm,
+            cax=cax,
+            orientation='horizontal',
+            ticks=cticks,
+        )
+        if i < n_maps - 1:
+            cb.ax.set_xticklabels([])
+            cb.ax.tick_params(labelbottom=False, labelsize=7, length=2)
+        else:
+            cb.ax.set_xticklabels([f"{t:.{dec}f}" for t in cticks])
+            cb.ax.tick_params(labelsize=7, length=2)
+
+        # Put the ROI label on the right side of the bar
+        cax.text(
+            1.02,
+            0.5,
+            lab,
+            va='center',
+            ha='left',
+            transform=cax.transAxes,
+            fontsize=8,
+        )
 
     fig.set_size_inches(7.2, 2.75)
-    suffix = 'flat' if not two_rgb else 'flat_overlay'
+
+    suffix = 'flat_all_irois'
+    fname = (
+        f'group_{task_name}_{contrast}_{suffix}_fslr32k.png'
+        if len(hemi) == 2 else
+        f'group_{task_name}_{contrast}_{suffix}_fslr32k_{hemi[0]}.png'
+    )
+    fig.savefig(
+        os.path.join(output_dir, fname),
+        dpi=300,
+        bbox_inches='tight',
+        pad_inches=0
+    )
+
+    # Leave room on the right for a vertical stack of horizontal colorbars
+    plt.subplots_adjust(left=0.0, right=0.77, top=0.97, bottom=0.10)
+
+    n_maps = len(labels)
+    x0 = 0.79
+    w = 0.20
+
+    # Stack horizontal colorbars vertically without overlap.
+    # Define geometry in figure-relative coordinates.
+    top = 0.95
+    bottom = 0.10
+    gap = 0.012
+    avail = top - bottom
+
+    # Compute a bar height that fits all maps. If needed, shrink the gap.
+    bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
+    if bar_h < 0.01:
+        gap = 0.005
+        bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
+    bar_h = max(bar_h, 0.01)
+
+    for i, (cmap_i, lab) in enumerate(zip(colormaps, labels)):
+        y = top - (i + 1) * bar_h - i * gap
+
+        rect = [x0, y, w, bar_h]
+        cax = fig.add_axes(rect)
+
+        sm = ScalarMappable(
+            norm=Normalize(vmin=thr, vmax=vhi),
+            cmap=cmap_i,
+        )
+        sm.set_array([])
+
+        cb = fig.colorbar(
+            sm,
+            cax=cax,
+            orientation='horizontal',
+            ticks=cticks,
+        )
+        if i < n_maps - 1:
+            cb.ax.set_xticklabels([])
+            cb.ax.tick_params(labelbottom=False, labelsize=7, length=2)
+        else:
+            cb.ax.set_xticklabels([f"{t:.{dec}f}" for t in cticks])
+            cb.ax.tick_params(labelsize=7, length=2)
+
+        # Put the ROI label on the right side of the bar
+        cax.text(
+            1.02,
+            0.5,
+            lab,
+            va='center',
+            ha='left',
+            transform=cax.transAxes,
+            fontsize=8,
+        )
+
+    fig.set_size_inches(7.2, 2.75)
+    suffix = 'flat'
     fname = (
         f'group_{task_name}_{contrast}_{suffix}_'
         f'fslr32k.png'
@@ -1340,7 +1429,9 @@ surfparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
     'surface')
 
-task_tag = 'All Tasks'  # Production/Perception/NTFD/NTFD Random/All Tasks
+# Production/Perception/NTFD/NTFD Random/All Tasks
+task_tag = 'All Tasks'
+ 
 # To run every contrast:
 # contrast_name = 'ALL' and contrast_name2 = None.
 # To run a subset sequentially:
@@ -1559,9 +1650,6 @@ if __name__ == '__main__':
         iroi_cmaps = ['Blues_r', 'Oranges_r', 'Purples_r', 'Reds_r',
                       'PuBuGn_r', 'PuRd_r']
 
-        # Start small for debugging parity between single and multi-iROI.
-        # Expand this list once the multi-iROI color scaling is validated.
-
         IROI_SELECTED = ['pmv', 'pmd', 'sma', 'presma', 'heschl', 'occipital']
 
         # Create directory to save outputs if does not exist
@@ -1640,8 +1728,8 @@ if __name__ == '__main__':
                     colormap=cmap_used,
                     vmax=vmax,
                     cbar_title='Fraction of Participants',
-                    cbar_ticks=cticks,
-                    tick_decimals=2
+                    n_ticks=5,
+                    tick_decimals=2,
                 )
                 all_rois.append(roi)
                 all_cmaps.append(cmap_used)
@@ -1667,7 +1755,7 @@ if __name__ == '__main__':
 
             # Combined plot: all iROIs in the same flatmap (L/R)
             combined_stats = [[lh, rh] for lh, rh in zip(all_lh, all_rh)]
-            plot_flatmap(
+            plot_multirois_flatmap(
                 stats=combined_stats,
                 threshold=vmin,
                 task_key=task_id,
@@ -1835,13 +1923,13 @@ if __name__ == '__main__':
         # ---- compute + group + mask for contrast 1 ------------------
         cdir1 = os.path.join(surf_folder, f"{contrast_id}_{cname.lower()}")
         os.makedirs(cdir1, exist_ok=True)
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
                         contrast_id, surf_folder, 
                         surfspace='fslr32k', save='gifti')
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
                         contrast_id, surf_folder, 
                         surfspace='fslr32k', save='cifti')
-        z_values1 = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, 
+        z_values1 = group_surf(surf_folder, SUBJECTS, task_id, contrast_id,
                                cname, surfspace='fslr32k')
         zL1 = mask_cortical_activation(
             np.split(z_values1, 2, axis=0)[0], lh_medial_wall_mask_path)
@@ -1850,7 +1938,7 @@ if __name__ == '__main__':
         for zm, structure, hemi in zip(
             [zL1, zR1],
             ['CortexLeft', 'CortexRight'],
-                                       ['lh', 'rh']):
+            ['lh', 'rh']):
             gifti_img = nt.gifti.make_func_gifti(
                 zm, anatomical_struct=structure, column_names=[cname])
             nib.save(
@@ -1884,7 +1972,7 @@ if __name__ == '__main__':
         zR2 = mask_cortical_activation(
             np.split(z_values2, 2, axis=0)[1], rh_medial_wall_mask_path)
         for zm, structure, hemi in zip([zL2, zR2], 
-                                       ['CortexLeft', 'CortexRight'], 
+                                       ['CortexLeft', 'CortexRight'],
                                        ['lh', 'rh']):
             gifti_img = nt.gifti.make_func_gifti(
                 zm, anatomical_struct=structure, column_names=[cname2])
