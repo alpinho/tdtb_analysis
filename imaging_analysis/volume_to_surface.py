@@ -662,6 +662,16 @@ def plot_flatmap(stats,
         gap = 0.025
         avail = top - bottom
 
+        # Add a title above the colorbars
+        fig.text(
+            x0 + w / 2,
+            top + 0.035,
+            "Fraction of Participants",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
+
         # Compute a bar height that fits all maps. If needed, shrink the gap.
         BAR_THICKNESS_SCALE = 0.40  # <--- new (0.45–0.65 are reasonable)
         bar_h = (avail / n_maps) * BAR_THICKNESS_SCALE
@@ -669,6 +679,21 @@ def plot_flatmap(stats,
             gap = 0.005
             bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
         bar_h = max(bar_h, 0.01)
+
+        # Desired top-to-bottom order of colorbars
+        CBAR_ORDER = [
+            "PreSMA",
+            "SMA",
+            "PMD",
+            "PMV",
+            "Heschl Gyrus",
+            "Occipital Lobe",
+        ]
+
+        label_to_cmap = dict(zip(labels, colormaps))
+
+        labels = [lab for lab in CBAR_ORDER if lab in label_to_cmap]
+        colormaps = [label_to_cmap[lab] for lab in labels]
 
         for i, (cmap_i, lab) in enumerate(zip(colormaps, labels)):
             y = top - (i + 1) * bar_h - i * gap
@@ -1532,7 +1557,6 @@ if __name__ == '__main__':
         # Expand this list once the multi-iROI color scaling is validated.
 
         IROI_SELECTED = ['pmv', 'pmd', 'sma', 'presma', 'heschl', 'occipital']
-        # IROI_SELECTED = ['presma', 'occipital']
 
         # Create directory to save outputs if does not exist
         irois_imgs_folder = os.path.join(irois_parfolder, 
