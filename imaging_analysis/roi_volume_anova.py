@@ -5,19 +5,18 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2024
-Last update: October 2025
+Last update: January 2026
 
 Compatibility: Python 3.10.14
 
-Modes via `folder_name`:
-  • 'main_tasks'
-  • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
-  • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
-
 Usage:
   python roi_anova_msdtb.py <n_rois> <encoding_type>
-  <n_rois> in {2, 4, 8, 10}
+  <n_rois> in {2, 6, 8, 10}
   <encoding_type> in {bothmod, auditory, visual}
+
+Note: The encoding type pertain to the modality used to define the 
+      ROIs. To define what tasks were used to define the ROIs, 
+      please edit the variable `task_roidef_id` in Input section below.
 """
 
 import os
@@ -35,7 +34,7 @@ from statsmodels.stats.multicomp import MultiComparison
 from matplotlib import pyplot as plt
 
 
-# ============================== HELPERS =============================== #
+# =========================== HELPERS =============================== #
 
 def dataframe(rdata, hemis, tasks, contrasts, n_subj, outpath):
     """
@@ -103,7 +102,7 @@ def pval_label_converter(pvalues):
     return out
 
 
-# ============================== ANOVAS ================================ #
+# =========================== ANOVAS ================================ #
 
 def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
     """3-way RM-ANOVA: Category × Modality × Task."""
@@ -375,7 +374,7 @@ def twoway_rmanova_timingroi(df, out_dir, prefix,
         )
 
 
-# ============================== PLOTTING ============================== #
+# =========================== PLOTTING ============================== #
 
 def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, etype,
                       prefix, hypothesis='greater'):
@@ -764,7 +763,7 @@ def posthoc_timingroi(df, out_dir, prefix, n_rois, order_list,
     plt.close(fig)
 
 
-# ============================== INPUTS ================================ #
+# =========================== INPUTS ================================ #
 
 SUBJECTS = [
     3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
@@ -773,11 +772,17 @@ SUBJECTS = [
 
 # Which task's encoding maps defined the ROIs used for extraction?
 # Valid options ONLY: 'allmain_tasks' or 'rand_ntfd'.
+# Note: the second sys argument when running the script from command 
+# line is used to set the sensory modality used to definied the ROIs.
 task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 
 # What task(s) used for the roi extraction and what ANOVA to do?
 # 'main_tasks' | 'rand_ntfd_pairs' | 'rand_ntfd_nonrandom'
-folder_name = 'rand_ntfd_nonrandom'
+# Modes via `folder_name`:
+#   • 'main_tasks'
+#   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
+#   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
+folder_name = 'main_tasks'
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a',
         'a4g', 'a3g', 'a2g', 'a1g', 'g'
@@ -804,7 +809,7 @@ roi_dir = os.path.join(
     '_puncorr_unsmoothed'
 )
 
-# -------------------- Full contrast dictionaries (kept) --------------- #
+# ----------------- Full contrast dictionaries (kept) --------------- #
 
 ALL_CONTRASTS_MAIN = {
     1: 'Encoding',
@@ -872,7 +877,7 @@ ALL_CONTRASTS_RAND = {
     42: 'Decision'
 }
 
-# ------------------- Tasks and selected_contrasts --------------------- #
+# ------------------ Tasks and selected_contrasts ------------------- #
 
 if folder_name == 'main_tasks':
     tasks = {
@@ -980,7 +985,7 @@ region_names2 = ['dorsal_striatum', 'cerebellum']
 roi_names2 = ['dstr', 'cereb']
 
 
-# ================================ RUN ================================= #
+# ============================= RUN ================================= #
 
 if __name__ == '__main__':
 
