@@ -15,6 +15,9 @@ Use flatmaps (default) or dynamic HTML maps (Plotly) by passing a flag:
         set contrast_name = 'ALL' and run with --dyn
          (Dynamic maps are not produced for the two-contrast overlay.)
 
+    - Single or Multiple IROIs (flatmaps): 
+        python volume_to_surface.py --irois
+
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
@@ -1343,8 +1346,11 @@ task_tag = 'All Tasks'  # Production/Perception/NTFD/NTFD Random/All Tasks
 # To run a subset sequentially:
 # contrast_name = ['Beat', 'Interval', 'Decision']
 # contrast_name2 = None.
+# To run overlays of pairs:
+# contrast_name = 'Beat'
+# contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'ALL' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name = 'Encoding' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
