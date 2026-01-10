@@ -1,13 +1,13 @@
 """
-This script performs several ANOVA analysis using ROIS extracted from 
-contrasts of the Music-SDTB Project, previously projected on fs_LR32k 
+This script performs several ANOVA analysis using ROIS extracted from
+contrasts of the Music-SDTB Project, previously projected on fs_LR32k
 surface. 
 
 Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 24th of September 2025
-Last update: September 2025
+Last update: January 2026, 2025
 
 Compatibility: Python 3.10.14
 
@@ -17,11 +17,11 @@ import os
 import numpy as np
 import pandas as pd
 
-from roi_anova_msdtb import (dataframe, threeway_rmanova, 
-                             twoway_rmanova_task, oneway_rmanova,
-                             twoway_rmanova_catroi, posthoc_catroi,
-                             twoway_rmanova_timingroi, posthoc_timingroi,
-                             threeway_rmanova_timing)
+from roi_volume_anova import (dataframe, threeway_rmanova, 
+                              twoway_rmanova_task, oneway_rmanova,
+                              twoway_rmanova_catroi, posthoc_catroi,
+                              twoway_rmanova_timingroi, posthoc_timingroi,
+                              threeway_rmanova_timing)
 
 
 # ############################ FUNCTIONS ################################
@@ -67,11 +67,11 @@ contype = 'psc'
 
 # ### Define number of ROIs of the analysis ###
 # All ROIs: 6 cortical ROIs
-region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area', 
-                'heschl_gyrus', 
+region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area',
+                'heschl_gyrus',
                 'occipital_lobe']
 atlas_names = ['hmat', 'hmat', 'hmat', 'hmat',
-               'hos', 
+               'hos',
                'hos']
 roi_names = ['pmd', 'pmv', 'sma', 'presma',
              'heschl',
@@ -86,8 +86,8 @@ working_dir = os.path.dirname(os.path.abspath(__file__))
 
 if folder_name == 'main_tasks':
     tasks = {
-        'prod': 'Production', 
-        'percep': 'Perception', 
+        'prod': 'Production',
+        'percep': 'Perception',
         'ntfd': 'NTFD',
         'allmain_tasks': 'All Tasks'
     }
@@ -97,7 +97,7 @@ if folder_name == 'main_tasks':
         14: 'Visual Beat',
         15: 'Visual Interval'
     }
-    task_roidef_id = 'allmain_tasks'   
+    task_roidef_id = 'allmain_tasks'  
 else:
     assert folder_name == 'rand_ntfd'
     tasks = {
@@ -127,8 +127,8 @@ if __name__ == '__main__':
             roi_folder = os.path.join(main_dir, region_name, atlas_name, 
                                       roi_name)
             roi_surf_folder = os.path.join(roi_folder, 'rois_surf_extraction')
-            roi_anovasurf_folder = os.path.join(roi_folder, 'anova_surf')        
-        
+            roi_anovasurf_folder = os.path.join(roi_folder, 'anova_surf')     
+       
             # Load both hemispheres (bh) ROI file
             roi_hems_fname = tag + '_' + roi_name + '_' + contype + '.npy'
             roi_bh_fname = tag + '_' + roi_name + '_bh_' + contype + '.npy'
@@ -143,7 +143,7 @@ if __name__ == '__main__':
             # (hemisphere, tasks, contrasts, subjects)
             # where hemispheres: lh, rh, bh
             roi_bh_reshaped = np.expand_dims(roi_bh, axis=0)
-            roi_hems_combined = np.concatenate([roi_hems, roi_bh_reshaped], 
+            roi_hems_combined = np.concatenate([roi_hems, roi_bh_reshaped],
                                                axis=0)
 
             # Create dataframe for ANOVAs
@@ -172,13 +172,13 @@ if __name__ == '__main__':
             # 2-way RM-ANOVA for modality and beat/interval
             twoway_anova_task_dir = os.path.join(roi_anovasurf_folder, 
                                                  '2way-anova_task')
-            twoway_rmanova_task(df_path, tasks, twoway_anova_task_dir, tag, 
+            twoway_rmanova_task(df_path, tasks, twoway_anova_task_dir, tag,
                                 roi_name)
 
             # 1-way RM-ANOVA for beat/interval
             oneway_anova_task_dir = os.path.join(
                 roi_anovasurf_folder, '1way-anova')
-            oneway_rmanova(df_path, tasks, oneway_anova_task_dir, tag, 
+            oneway_rmanova(df_path, tasks, oneway_anova_task_dir, tag,
                            roi_name)
             
         # Save dataframe with all ROIs
@@ -208,7 +208,7 @@ if __name__ == '__main__':
         twoway_rmanova_catroi(
             dfrois, tasks, twoway_anova_catroi_dir, tag, modality='auditory')
         posthoc_catroi(
-            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names, 
+            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names,
             modality='auditory')
         
         # ... for the visual modality
@@ -217,7 +217,7 @@ if __name__ == '__main__':
         twoway_rmanova_catroi(
             dfrois, tasks, twoway_anova_catroi_dir, tag, modality='visual')
         posthoc_catroi(
-            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names, 
+            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names,
             modality='visual')
 
         # ##### EXPLICIT/IMPLICIT TIMING ROI ANALYSES ######
@@ -236,7 +236,7 @@ if __name__ == '__main__':
         twoway_rmanova_timingroi(
             dfrois, twoway_anova_timingroi_dir, tag, modality='auditory')
         posthoc_timingroi(
-            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names, 
+            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names,
             modality='auditory')
         
         # ... for the visual modality
@@ -245,7 +245,7 @@ if __name__ == '__main__':
         twoway_rmanova_timingroi(
             dfrois, twoway_anova_timingroi_dir, tag, modality='visual')
         posthoc_timingroi(
-            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names, 
+            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names,
             modality='visual')
 
         # ####### 3-WAY ROI × TASK × MODALITY ANOVA #######
