@@ -149,6 +149,117 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
         )
 
 
+def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
+    """
+    3-way RM-ANOVA (ROI × Task × Modality) via statsmodels.AnovaRM,
+    then Holm-corrected paired t-tests:
+     • mains: ROI, Task, Modality
+     • ROI×Modality: only Aud vs Vis within each ROI
+     • ROI×Task:     only each Task-pair within each ROI
+     • Modality×Task: only each Task-pair within each Modality
+     • 3-way:        only each Task-pair within each (ROI,Modality) cell
+    All posthocs in one TSV per hemisphere, with the same columns
+    as your 2-way posthoc files.
+    """
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    # drop “All Tasks” and coerce
+    df = df.loc[df.Task != 'All Tasks'].copy()
+    df['PSC'] = pd.to_numeric(df['PSC'])
+
+    for hem in hems:
+        sub = df.loc[df.Hemisphere == hem]
+        agg = (
+            sub
+            .groupby(['Subject', 'ROI', 'Modality', 'Task'], as_index=False)
+            ['PSC']
+            .mean()
+        )
+
+        # 1) omnibus 3-way ANOVA
+        model = AnovaRM(agg, depvar='PSC', subject='Subject',
+                        within=['ROI', 'Modality', 'Task'])
+        res3 = model.fit()
+
+        os.makedirs(output_dir, exist_ok=True)
+        base = f"{prefix}_{hem}_3way"
+
+        # save ANOVA
+        res3.anova_table.to_csv(
+            os.path.join(output_dir, base + '_anova.tsv'),
+            sep='\t'
+        )
+
+        # 2) post-hocs
+        rows = []
+
+        # — mains —
+        for factor in ['ROI', 'Modality', 'Task']:
+            mc = MultiComparison(agg['PSC'], agg[factor])
+            ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+            df_ph = pd.DataFrame(ph)
+            df_ph.insert(0, 'Contrast', factor)
+            rows.append(df_ph)
+
+        # — ROI × Modality (Aud vs Vis within each ROI) —
+        for roi in agg['ROI'].unique():
+            sub_roi = agg.loc[agg.ROI == roi]
+            mc = MultiComparison(sub_roi['PSC'], sub_roi['Modality'])
+            ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+            df_ph = pd.DataFrame(ph)
+            df_ph.insert(0, 'Contrast', 'ROI:Modality')
+            df_ph.insert(1, 'ROI', roi)
+            rows.append(df_ph)
+
+        # — ROI × Task (all 3 Task pairs within each ROI) —
+        for roi in agg['ROI'].unique():
+            sub_roi = agg.loc[agg.ROI == roi]
+            mc = MultiComparison(sub_roi['PSC'], sub_roi['Task'])
+            ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+            df_ph = pd.DataFrame(ph)
+            df_ph.insert(0, 'Contrast', 'ROI:Task')
+            df_ph.insert(1, 'ROI', roi)
+            rows.append(df_ph)
+
+        # — Modality × Task (all 3 Task pairs within each Modality) —
+        for mod in agg['Modality'].unique():
+            sub_mod = agg.loc[agg.Modality == mod]
+            mc = MultiComparison(sub_mod['PSC'], sub_mod['Task'])
+            ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+            df_ph = pd.DataFrame(ph)
+            df_ph.insert(0, 'Contrast', 'Modality:Task')
+            df_ph.insert(1, 'Modality', mod)
+            rows.append(df_ph)
+
+        # — 3-way ROI × Modality × Task —
+        #    (only Task-pairs within each (ROI,Modality) cell)
+        for roi in agg['ROI'].unique():
+            for mod in agg['Modality'].unique():
+                sub_cell = agg[(agg.ROI == roi) & (agg.Modality == mod)]
+                mc = MultiComparison(sub_cell['PSC'], sub_cell['Task'])
+                ph = mc.allpairtest(ttest_rel, method='Holm')[0]
+                df_ph = pd.DataFrame(ph)
+                df_ph.insert(0, 'Contrast', 'ROI:Modality:Task')
+                df_ph.insert(1, 'ROI', roi)
+                df_ph.insert(2, 'Modality', mod)
+                rows.append(df_ph)
+
+        # concat & save
+        posthoc_all = pd.concat(rows, ignore_index=True, sort=False)
+
+        # **Reorder columns:** Contrast, ROI, Modality, then the rest
+        cols = list(posthoc_all.columns)
+        front = ['Contrast', 'ROI', 'Modality']
+        rest = [c for c in cols if c not in front]
+        posthoc_all = posthoc_all[front + rest]
+
+        posthoc_all.to_csv(
+            os.path.join(output_dir, base + '_posthoc.tsv'),
+            sep='\t', index=False
+        )
+
+
 def twoway_rmanova_task(df, tasks_dic, out_dir, prefix, roi,
                         alternative='two-sided',
                         hems=('lh', 'rh', 'bh')):
@@ -375,85 +486,6 @@ def twoway_rmanova_timingroi(df, out_dir, prefix,
 
 
 # =========================== PLOTTING ============================== #
-
-def plot_roi_vertical(arr_conmean, region, roi, atlas, ianalysis, etype,
-                      prefix, hypothesis='greater'):
-    """
-    Small figure helper used in your original script.
-
-    Input shape: (hemisphere, tasks, contrasts, subjects)
-    """
-    if isinstance(arr_conmean, str):
-        arr_conmean = np.load(arr_conmean).tolist()
-
-    tnames = list(tasks.values())
-    cnames = list(filtered_contrasts.values())
-
-    for h, hem in enumerate(['Left Hemisphere', 'Right Hemisphere']):
-        for t, tname in enumerate(tnames):
-            if h == 0 and t == 0:
-                plt.figure(figsize=(12, 12))
-            for c, cidx in enumerate(np.arange(len(cnames))[::2]):
-                ax = plt.axes([.07 + h*.49 + c*.11, .675 - t*.2, .1, .15])
-
-                con1 = arr_conmean[h][t][cidx]
-                con2 = arr_conmean[h][t][cidx+1]
-                data_list = np.append(con1, con2).tolist()
-
-                cname1 = cnames[cidx]
-                cname2 = cnames[cidx+1]
-                cname = np.append(
-                    np.repeat(cname1, len(con1)),
-                    np.repeat(cname2, len(con2))
-                ).tolist()
-
-                xlab = 'Contrasts Names'
-                ylab = 'Mean of %BOLD change'
-                dfp = pd.DataFrame({xlab: cname, ylab: data_list})
-
-                b = sns.barplot(
-                    ax=ax, x=xlab, y=ylab, data=dfp,
-                    palette=[sns.color_palette("colorblind")[2],
-                             sns.color_palette("colorblind")[8]],
-                    estimator=np.mean, ci=95, errcolor="black",
-                    errwidth=1.5, capsize=0.2, alpha=0.5
-                )
-
-                _, pvalue = ttest_rel(con1, con2, alternative=hypothesis)
-                pair = tuple([[(cname1), (cname2)]])
-                annot = Annotator(ax, pair, data=dfp, x=xlab, y=ylab)
-                annot.configure(test=None, text_format="star", fontsize=10.)
-                annot.set_pvalues([pvalue])
-                annot.annotate()
-
-                b.set(xlabel=None)
-                ax.set_xticklabels(
-                    ax.get_xticklabels(), rotation=20, ha='right', fontsize=8
-                )
-                ax.spines['right'].set_visible(False)
-                ax.spines['top'].set_visible(False)
-
-                if t != len(tnames)-1:
-                    plt.gca().set_xticklabels([])
-
-                if c > 0:
-                    ax.axes.get_yaxis().set_visible(False)
-                    ax.spines['left'].set_visible(False)
-                else:
-                    plt.title(tname, size=12, x=2., fontweight='bold')
-                    if (h == 0 and t != 2) or h > 0:
-                        b.set(ylabel=None)
-
-                plt.ylim([0., .8])
-
-        plt.suptitle(
-            roi.capitalize(), x=.5, y=.97, size=18, linespacing=.75,
-            fontweight='bold'
-        )
-        out_dir = os.path.join(msdtb_dir, region, atlas, ianalysis)
-        fname = f"{prefix}_{roi}_{etype}_{hypothesis}"
-        plt.savefig(os.path.join(out_dir, fname + '.pdf'))
-
 
 def posthoc_catroi(df, tasks_dic, out_dir, prefix, n_rois, order_list,
                    modality=None, hems=('lh', 'rh', 'bh')):
@@ -784,11 +816,14 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 folder_name = 'main_tasks'
 
-tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a',
-        'a4g', 'a3g', 'a2g', 'a1g', 'g'
+tags = [
+    'i', 'i9a', 'i8a', 'i7a', 'i6a',
+    'a',
+    'a4g', 'a3g', 'a2g', 'a1g', 'g'
 ]
 weights_list = [
-    (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
+    (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4),
+    (.5, .5),
     (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)
 ]
 
@@ -966,7 +1001,7 @@ region_names6 = [
     'heschl_gyrus', 'occipital_lobe'
 ]
 roi_names6 = [
-    'pmd', 'pmv', 'sma', 'presma', 
+    'pmd', 'pmv', 'sma', 'presma',
     'heschl', 'occipital'
 ]
 
@@ -1184,3 +1219,8 @@ if __name__ == '__main__':
                     dfrois, t_dir_v, tag, n_rois, roi_names,
                     modality='visual'
                 )
+
+                t_three_dir = os.path.join(
+                    msdtb_dir, f"3way-anova_vol_timing{n_rois}rois"
+                )
+                threeway_rmanova_timing(dfrois, t_three_dir, tag)
