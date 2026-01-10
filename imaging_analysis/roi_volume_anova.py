@@ -1085,6 +1085,8 @@ if __name__ == '__main__':
     for tag, wpair in zip(tags, weights_list):
         dfrois = pd.DataFrame()
 
+        # ##################### PER-ROI ANOVAS ###################### #
+
         for adir, aname, rname, rlab in zip(
             atlas_dirnames, atlas_names, region_names, roi_names
         ):
@@ -1149,6 +1151,7 @@ if __name__ == '__main__':
             sep='\t', index=False
         )
 
+        # #################### MULTI-ROI ANOVAS ##################### #
         # Multi-ROI analyses + posthoc plots
         if n_rois in (2, 4, 6, 8):
             # both modalities
