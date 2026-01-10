@@ -663,6 +663,7 @@ def posthoc_timingroi(
     modality=None,
     hems=("lh", "rh", "bh"),
     pvals_star_map=None,
+    ylim=None,
 ):
     """
     Posthoc barplots for ROI × Task.
@@ -711,9 +712,9 @@ def posthoc_timingroi(
 
     do_star_annot = (
         (prefix == "i")
-        and (modality is None)
         and (n_rois == 8)
         and (pvals_star_map is not None)
+        and (modality in (None, "auditory", "visual"))
     )
 
     if isinstance(hems, str):
@@ -739,22 +740,34 @@ def posthoc_timingroi(
     if dfp.empty:
         raise ValueError("posthoc_timingroi: empty dataframe after filtering.")
 
-    g = (
-        dfp.groupby(["ROI", "Task", "Hemisphere"])["PSC"]
-        .agg(["mean", "std", "count"])
-        .reset_index()
-    )
-    g["se"] = g["std"] / np.sqrt(g["count"].clip(lower=1))
-    y_upper = g["mean"] + 1.96 * g["se"]
-    y_lower = g["mean"] - 1.96 * g["se"]
+    if ylim is None:
+        g = (
+            dfp.groupby(["ROI", "Task", "Hemisphere"])["PSC"]
+            .agg(["mean", "std", "count"])
+            .reset_index()
+        )
+        g["se"] = g["std"] / np.sqrt(g["count"].clip(lower=1))
+        y_upper = g["mean"] + 1.96 * g["se"]
+        y_lower = g["mean"] - 1.96 * g["se"]
 
-    ylo = float(np.nanmin(y_lower.values)) if len(y_lower) else 0.0
-    yhi = float(np.nanmax(y_upper.values)) if len(y_upper) else 0.0
+        ylo = float(np.nanmin(y_lower.values)) if len(y_lower) else 0.0
+        yhi = float(np.nanmax(y_upper.values)) if len(y_upper) else 0.0
 
-    rng = max(yhi - ylo, 1e-6)
-    pad = 0.14 * rng
-    y_min = min(0.0, ylo - pad)
-    y_max = yhi + pad
+        rng = max(yhi - ylo, 1e-6)
+        pad = 0.14 * rng
+        y_min = min(0.0, ylo - pad)
+        y_max = yhi + pad
+    else:
+        if (
+            not isinstance(ylim, (tuple, list))
+            or len(ylim) != 2
+            or not np.isfinite(ylim[0])
+            or not np.isfinite(ylim[1])
+        ):
+            raise ValueError(
+                "ylim must be a tuple (ymin, ymax) with finite values."
+            )
+        y_min, y_max = float(ylim[0]), float(ylim[1])
 
     if n_rois <= 2:
         fig_w, left = 10, 0.12
@@ -1181,7 +1194,7 @@ roi_names2 = ['dstr', 'cereb']
 # ###### P-value to star map for posthoc annotations ######
 # Format: (Hemisphere, ROI, Task A, Task B) -> p-value
 
-# n_rois = 8, individualization = 'i'
+# n_rois = 8, individualization = 'i', both modalities
 pvals_star_map_in8 = {
     # hem, roi, task_pair -> p
     ('bh', 'cereb', 'NTFD', 'Perception'): 0.7468653080539,
@@ -1210,6 +1223,63 @@ pvals_star_map_in8 = {
     ('bh', 'sma', 'Perception', 'Production'): 0.0000130156708231288,
 }
 
+# n_rois = 8, individualization = 'i', auditory modality
+pvals_star_map_in8_auditory = {
+    # hem, roi, task_pair -> p
+    ('bh', 'cereb', 'NTFD', 'Perception'): 0.202357255679689,
+    ('bh', 'cereb', 'NTFD', 'Production'): 0.213218942659016,
+    ('bh', 'cereb', 'Perception', 'Production'): 1,
+    ('bh', 'dstr', 'NTFD', 'Perception'): 1,
+    ('bh', 'dstr', 'NTFD', 'Production'): 0.0000134800500526281,
+    ('bh', 'dstr', 'Perception', 'Production'): 0.0000223113707121616,
+    ('bh', 'heschl', 'NTFD', 'Perception'): 0.00000046329180419678,
+    ('bh', 'heschl', 'NTFD', 'Production'): 0.00000276179676296787,
+    ('bh', 'heschl', 'Perception', 'Production'): 1,
+    ('bh', 'occipital', 'NTFD', 'Perception'): 0.000256848410643215,
+    ('bh', 'occipital', 'NTFD', 'Production'): 1,
+    ('bh', 'occipital', 'Perception', 'Production'): 0.0114282939876558,
+    ('bh', 'pmd', 'NTFD', 'Perception'): 1,
+    ('bh', 'pmd', 'NTFD', 'Production'): 1,
+    ('bh', 'pmd', 'Perception', 'Production'): 1,
+    ('bh', 'pmv', 'NTFD', 'Perception'): 1,
+    ('bh', 'pmv', 'NTFD', 'Production'): 0.918166307865688,
+    ('bh', 'pmv', 'Perception', 'Production'): 1,
+    ('bh', 'presma', 'NTFD', 'Perception'): 0.268170216287431,
+    ('bh', 'presma', 'NTFD', 'Production'): 1,
+    ('bh', 'presma', 'Perception', 'Production'): 1,
+    ('bh', 'sma', 'NTFD', 'Perception'): 0.0415934416483814,
+    ('bh', 'sma', 'NTFD', 'Production'): 0.486320301649262,
+    ('bh', 'sma', 'Perception', 'Production'): 0.00103098679298,
+}
+
+# n_rois = 8, individualization = 'i', visual modality
+pvals_star_map_in8_visual = {
+    # hem, roi, task_pair -> p
+    ('bh', 'cereb', 'NTFD', 'Perception'): 0.58292406689646,
+    ('bh', 'cereb', 'NTFD', 'Production'): 0.0324187838480206,
+    ('bh', 'cereb', 'Perception', 'Production'): 0.302644122134062,
+    ('bh', 'dstr', 'NTFD', 'Perception'): 1,
+    ('bh', 'dstr', 'NTFD', 'Production'): 0.0000183394276401402,
+    ('bh', 'dstr', 'Perception', 'Production'): 0.0000000147957389590551,
+    ('bh', 'heschl', 'NTFD', 'Perception'): 0.0752871977609899,
+    ('bh', 'heschl', 'NTFD', 'Production'): 0.13010219918368,
+    ('bh', 'heschl', 'Perception', 'Production'): 1,
+    ('bh', 'occipital', 'NTFD', 'Perception'): 1,
+    ('bh', 'occipital', 'NTFD', 'Production'): 0.02078514755058,
+    ('bh', 'occipital', 'Perception', 'Production'): 0.0134946966485245,
+    ('bh', 'pmd', 'NTFD', 'Perception'): 1,
+    ('bh', 'pmd', 'NTFD', 'Production'): 1,
+    ('bh', 'pmd', 'Perception', 'Production'): 1,
+    ('bh', 'pmv', 'NTFD', 'Perception'): 1,
+    ('bh', 'pmv', 'NTFD', 'Production'): 0.964487706657107,
+    ('bh', 'pmv', 'Perception', 'Production'): 1,
+    ('bh', 'presma', 'NTFD', 'Perception'): 0.302644122134062,
+    ('bh', 'presma', 'NTFD', 'Production'): 1,
+    ('bh', 'presma', 'Perception', 'Production'): 1,
+    ('bh', 'sma', 'NTFD', 'Perception'): 0.0160228828086688,
+    ('bh', 'sma', 'NTFD', 'Production'): 0.308708595508286,
+    ('bh', 'sma', 'Perception', 'Production'): 0.0000271705639262566,
+}
 
 
 # ============================= RUN ================================= #
@@ -1397,33 +1467,39 @@ if __name__ == '__main__':
                 #     dfrois, t_dir, tag, modality=None
                 # )
                 posthoc_timingroi(
-                    dfrois, t_dir, tag, n_rois, roi_names, modality=None,
-                    pvals_star_map=pvals_star_map_in8
+                    dfrois, t_dir, tag, n_rois, roi_names, 
+                    modality=None,
+                    pvals_star_map=pvals_star_map_in8,
+                    ylim=(0., 1.)
                 )
 
-                # t_dir_a = os.path.join(
-                #     msdtb_dir,
-                #     f"2way-anova_vol_timing{n_rois}rois_auditory"
-                # )
+                t_dir_a = os.path.join(
+                    msdtb_dir,
+                    f"2way-anova_vol_timing{n_rois}rois_auditory"
+                )
                 # twoway_rmanova_timingroi(
                 #     dfrois, t_dir_a, tag, modality='auditory'
                 # )
-                # posthoc_timingroi(
-                #     dfrois, t_dir_a, tag, n_rois, roi_names,
-                #     modality='auditory'
-                # )
+                posthoc_timingroi(
+                    dfrois, t_dir_a, tag, n_rois, roi_names,
+                    modality='auditory',
+                    pvals_star_map=pvals_star_map_in8_auditory,
+                    ylim=(0., 1.)
+                )
 
-                # t_dir_v = os.path.join(
-                #     msdtb_dir,
-                #     f"2way-anova_vol_timing{n_rois}rois_visual"
-                # )
+                t_dir_v = os.path.join(
+                    msdtb_dir,
+                    f"2way-anova_vol_timing{n_rois}rois_visual"
+                )
                 # twoway_rmanova_timingroi(
                 #     dfrois, t_dir_v, tag, modality='visual'
                 # )
-                # posthoc_timingroi(
-                #     dfrois, t_dir_v, tag, n_rois, roi_names,
-                #     modality='visual'
-                # )
+                posthoc_timingroi(
+                    dfrois, t_dir_v, tag, n_rois, roi_names,
+                    modality='visual',
+                    pvals_star_map=pvals_star_map_in8_visual,
+                    ylim=(-0.25, 1.)
+                )
 
                 # t_three_dir = os.path.join(
                 #     msdtb_dir, f"3way-anova_vol_timing{n_rois}rois"
