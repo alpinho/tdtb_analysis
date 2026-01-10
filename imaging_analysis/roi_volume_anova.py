@@ -654,56 +654,103 @@ def posthoc_catroi(df, tasks_dic, out_dir, prefix, n_rois, order_list,
     plt.close(fig)
 
 
-def posthoc_timingroi(df, out_dir, prefix, n_rois, order_list,
-                      modality=None, hems=('lh', 'rh', 'bh')):
+def posthoc_timingroi(
+    df,
+    out_dir,
+    prefix,
+    n_rois,
+    order_list,
+    modality=None,
+    hems=("lh", "rh", "bh"),
+    pvals_star_map=None,
+):
     """
-    Posthoc barplots for ROI × Task with shared y-scale and tidy layout.
+    Posthoc barplots for ROI × Task.
+
+    Star annotations are attempted ONLY when:
+      - prefix == 'i'
+      - modality is None (both modalities)
+      - n_rois == 8
+      - pvals_star_map is provided
+
+    For each hemisphere axis, annotations are drawn only if ALL required
+    p-values for that hemisphere are available. Otherwise, that axis is
+    plotted without annotations.
+
+    When n_rois == 8, ROI x tick labels are NOT rotated.
+
+    pvals_star_map keys:
+        (hem, roi_code, task_a, task_b) -> pvalue
+    where (task_a, task_b) are looked up in sorted order.
     """
     if isinstance(df, str):
-        df = pd.read_csv(df, sep='\t')
-    if 'Contrast' in df.columns:
-        df = df.drop(columns=['Contrast'])
-    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
+        df = pd.read_csv(df, sep="\t")
 
-    if modality is None and 'Modality' in df.columns:
+    if "Contrast" in df.columns:
+        df = df.drop(columns=["Contrast"])
+
+    df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
+
+    if modality is None and "Modality" in df.columns:
         dfp = (
-            df.drop(columns=['Modality'])
+            df.drop(columns=["Modality"])
             .groupby(
-                ['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
-                as_index=False
-            ).mean()
+                ["Category", "Task", "Subject", "ROI", "Hemisphere"],
+                as_index=False,
+            )
+            .mean()
         )
-    elif modality == 'auditory':
-        dfp = df[df.Modality == 'Auditory'].drop(columns=['Modality'])
-    elif modality == 'visual':
-        dfp = df[df.Modality == 'Visual'].drop(columns=['Modality'])
+    elif modality == "auditory":
+        dfp = df[df.Modality == "Auditory"].drop(columns=["Modality"])
+    elif modality == "visual":
+        dfp = df[df.Modality == "Visual"].drop(columns=["Modality"])
     else:
         dfp = df.copy()
 
-    dfp = dfp[dfp.Task != 'All Tasks'].copy()
+    dfp = dfp[dfp.Task != "All Tasks"].copy()
+
+    do_star_annot = (
+        (prefix == "i")
+        and (modality is None)
+        and (n_rois == 8)
+        and (pvals_star_map is not None)
+    )
+
+    if isinstance(hems, str):
+        hems = (hems,)
 
     rep = {
-        'dstr': 'Dorsal Striatum', 'cereb': 'Cerebellum',
-        'pmd': 'PMD', 'pmv': 'PMV', 'presma': 'PreSMA',
-        'sma': 'SMA', 'heschl': 'Heschl', 'occipital': 'Occipital'
+        "dstr": "Dorsal Striatum",
+        "cereb": "Cerebellum",
+        "pmd": "PMD",
+        "pmv": "PMV",
+        "presma": "PreSMA",
+        "sma": "SMA",
+        "heschl": "Heschl Gyrus",
+        "occipital": "Occipital Lobe",
     }
+    inv_rep = {v: k for k, v in rep.items()}
+
     for k, v in rep.items():
-        dfp['ROI'] = dfp['ROI'].str.replace(k, v)
+        dfp["ROI"] = dfp["ROI"].str.replace(k, v)
+
     order_list = [rep.get(s, s) for s in order_list]
 
-    def _ci_extents(frame, by_cols):
-        if frame.empty:
-            return 0.0, 0.0
-        g = (
-            frame.groupby(by_cols)['PSC']
-            .agg(['mean', 'std', 'count']).reset_index()
-        )
-        g['se'] = g['std'] / np.sqrt(g['count'].clip(lower=1))
-        upper = g['mean'] + 1.96 * g['se']
-        lower = g['mean'] - 1.96 * g['se']
-        return float(np.nanmin(lower.values)), float(np.nanmax(upper.values))
+    if dfp.empty:
+        raise ValueError("posthoc_timingroi: empty dataframe after filtering.")
 
-    ylo, yhi = _ci_extents(dfp, ['ROI', 'Task', 'Hemisphere'])
+    g = (
+        dfp.groupby(["ROI", "Task", "Hemisphere"])["PSC"]
+        .agg(["mean", "std", "count"])
+        .reset_index()
+    )
+    g["se"] = g["std"] / np.sqrt(g["count"].clip(lower=1))
+    y_upper = g["mean"] + 1.96 * g["se"]
+    y_lower = g["mean"] - 1.96 * g["se"]
+
+    ylo = float(np.nanmin(y_lower.values)) if len(y_lower) else 0.0
+    yhi = float(np.nanmax(y_upper.values)) if len(y_upper) else 0.0
+
     rng = max(yhi - ylo, 1e-6)
     pad = 0.14 * rng
     y_min = min(0.0, ylo - pad)
@@ -717,6 +764,7 @@ def posthoc_timingroi(df, out_dir, prefix, n_rois, order_list,
         fig_w, left = 20, 0.09
     else:
         fig_w, left = 24, 0.09
+
     n_hems = len(hems)
     fig_h = 4.5 * n_hems
 
@@ -724,73 +772,184 @@ def posthoc_timingroi(df, out_dir, prefix, n_rois, order_list,
     if n_hems == 1:
         axes = [axes]
 
-    top_label = modality.capitalize() if modality else 'Both Mod.'
-    fig.text(0.01, 0.985, top_label, ha='left', va='top',
-             fontsize=12, fontweight='bold')
-    fig.text(0.01, 0.958, prefix, ha='left', va='top',
-             fontsize=12, fontweight='bold')
+    top_label = modality.capitalize() if modality else "Both Mod."
+    fig.text(
+        0.01,
+        0.985,
+        top_label,
+        ha="left",
+        va="top",
+        fontsize=12,
+        fontweight="bold",
+    )
+    fig.text(
+        0.01,
+        0.958,
+        prefix,
+        ha="left",
+        va="top",
+        fontsize=12,
+        fontweight="bold",
+    )
 
-    hue_order = ['Production', 'Perception', 'NTFD']
-    hue_order = [t for t in hue_order if t in dfp['Task'].unique()]
+    hue_order = ["Production", "Perception", "NTFD"]
+    hue_order = [t for t in hue_order if t in dfp["Task"].unique()]
+
+    task_pairs = []
+    for a in np.arange(len(hue_order)):
+        for b in np.arange(a + 1, len(hue_order)):
+            task_pairs.append((hue_order[int(a)], hue_order[int(b)]))
 
     for i, hem in enumerate(hems):
         ax = axes[i]
         db = dfp[dfp.Hemisphere == hem].copy()
 
+        order_this = [r for r in order_list if r in db["ROI"].unique()]
+
         s = sns.barplot(
-            ax=ax, x='ROI', y='PSC', hue='Task', data=db,
-            estimator=np.mean, ci=95, errcolor="darkgray",
-            errwidth=1.5, capsize=0.2, alpha=0.6,
-            order=order_list, hue_order=hue_order,
-            palette=['indigo', 'm', 'salmon'][:len(hue_order)]
+            ax=ax,
+            x="ROI",
+            y="PSC",
+            hue="Task",
+            data=db,
+            estimator=np.mean,
+            ci=95,
+            errcolor="darkgray",
+            errwidth=1.5,
+            capsize=0.2,
+            alpha=0.6,
+            order=order_this,
+            hue_order=hue_order,
+            palette=["indigo", "m", "salmon"][: len(hue_order)],
+        )
+
+        # Capture handles/labels from seaborn and place a per-axis legend
+        # (colored squares) under the hemisphere title.
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(
+            handles,
+            labels,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.02),
+            ncol=len(labels) if len(labels) > 0 else 1,
+            frameon=False,
+            handlelength=1.2,
+            columnspacing=1.4,
+            handletextpad=0.6,
+            borderaxespad=0.0,
         )
 
         lbl_fs = 7 if n_rois <= 6 else 6
         for cont in s.containers:
             ax.bar_label(
-                cont, fmt='%.3f', label_type='center',
-                fontsize=lbl_fs, color='black', clip_on=False
+                cont,
+                fmt="%.3f",
+                label_type="center",
+                fontsize=lbl_fs,
+                color="black",
+                clip_on=False,
             )
 
         ax.set_ylim(y_min, y_max)
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.set_ylabel('PSC (%)', fontsize=12, labelpad=12)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.set_ylabel("PSC (%)", fontsize=12, labelpad=12)
+
+        # Hemisphere label slightly higher.
         ax.set_title(
             f"Hemisphere: {hem.upper()}",
-            fontsize=13, fontweight='bold',
-            pad=(16 if n_rois >= 8 else 12)
+            fontsize=13,
+            fontweight="bold",
+            pad=24,
         )
 
-        if n_rois >= 8:
+        if n_rois == 8:
+            ax.set_xticklabels(ax.get_xticklabels(), fontsize=10)
+        elif n_rois > 8:
             ax.set_xticklabels(
-                ax.get_xticklabels(), rotation=45,
-                ha='right', fontsize=10
+                ax.get_xticklabels(),
+                rotation=45,
+                ha="right",
+                fontsize=10,
             )
         elif n_rois == 6:
             ax.set_xticklabels(
-                ax.get_xticklabels(), rotation=30,
-                ha='right', fontsize=11
+                ax.get_xticklabels(),
+                rotation=30,
+                ha="right",
+                fontsize=11,
             )
         else:
             ax.set_xticklabels(ax.get_xticklabels(), fontsize=11)
-        ax.set_xlabel('ROI', fontsize=12,
-                      labelpad=(4 if n_rois >= 8 else 10))
 
-        if i == 0:
-            ax.legend(frameon=False, loc='upper right', title=None)
-        else:
-            ax.legend([], [], frameon=False)
+        ax.set_xlabel(
+            "ROI",
+            fontsize=12,
+            labelpad=(4 if n_rois >= 8 else 10),
+        )
 
-    hspace = 0.9 if n_rois >= 8 else 0.6
-    plt.subplots_adjust(hspace=hspace, bottom=0.14, top=0.92, left=left)
+        if do_star_annot:
+            pairs = []
+            pvals = []
+            missing_keys = []
 
-    mod_sfx = modality if modality else 'both-modalities'
+            for roi_disp in order_this:
+                roi_code = inv_rep.get(roi_disp, roi_disp)
+
+                for t1, t2 in task_pairs:
+                    pairs.append(((roi_disp, t1), (roi_disp, t2)))
+
+                    ta, tb = sorted((str(t1), str(t2)))
+                    key = (hem, roi_code, ta, tb)
+
+                    if key not in pvals_star_map:
+                        missing_keys.append(key)
+                    else:
+                        pvals.append(float(pvals_star_map[key]))
+
+            if len(missing_keys) == 0 and len(pairs) > 0:
+                pairs_keep = []
+                pvals_keep = []
+                for pair, pv in zip(pairs, pvals):
+                    if float(pv) < 0.05:
+                        pairs_keep.append(pair)
+                        pvals_keep.append(float(pv))
+
+                if len(pairs_keep) > 0:
+                    annot = Annotator(
+                        ax=ax,
+                        pairs=pairs_keep,
+                        data=db,
+                        x="ROI",
+                        y="PSC",
+                        hue="Task",
+                        order=order_this,
+                        hue_order=hue_order,
+                    )
+                    annot.configure(
+                        test=None,
+                        text_format="star",
+                        loc="inside",
+                        verbose=0,
+                    )
+                    annot.set_pvalues(pvals_keep)
+                    annot.annotate()
+
+    hspace = 1.10 if n_rois >= 8 else 0.7
+    plt.subplots_adjust(
+        hspace=hspace,
+        bottom=0.14,
+        top=0.92,
+        left=left,
+    )
+
+    mod_sfx = modality if modality else "both-modalities"
     fname = f"{prefix}_{n_rois}-rois_2w_posthoc_{mod_sfx}"
     os.makedirs(out_dir, exist_ok=True)
     plt.savefig(
-        os.path.join(out_dir, fname + '.pdf'),
-        bbox_inches='tight', pad_inches=0.02
+        os.path.join(out_dir, fname + ".pdf"),
+        bbox_inches="tight",
+        pad_inches=0.02,
     )
     plt.close(fig)
 
@@ -1019,6 +1178,39 @@ atlas_names2 = ['hos', 'ntk_symmni128']
 region_names2 = ['dorsal_striatum', 'cerebellum']
 roi_names2 = ['dstr', 'cereb']
 
+# ###### P-value to star map for posthoc annotations ######
+# Format: (Hemisphere, ROI, Task A, Task B) -> p-value
+
+# n_rois = 8, individualization = 'i'
+pvals_star_map_in8 = {
+    # hem, roi, task_pair -> p
+    ('bh', 'cereb', 'NTFD', 'Perception'): 0.7468653080539,
+    ('bh', 'cereb', 'NTFD', 'Production'): 0.0038694053454941,
+    ('bh', 'cereb', 'Perception', 'Production'): 0.0531942628458939,
+    ('bh', 'dstr', 'NTFD', 'Perception'): 1,
+    ('bh', 'dstr', 'NTFD', 'Production'): 0.000000747501935034951,
+    ('bh', 'dstr', 'Perception', 'Production'): 0.000000183218571178129,
+    ('bh', 'heschl', 'NTFD', 'Perception'): 0.0000000543008044450249,
+    ('bh', 'heschl', 'NTFD', 'Production'): 0.0000000326951551140279,
+    ('bh', 'heschl', 'Perception', 'Production'): 1,
+    ('bh', 'occipital', 'NTFD', 'Perception'): 0.000534887309265732,
+    ('bh', 'occipital', 'NTFD', 'Production'): 0.7468653080539,
+    ('bh', 'occipital', 'Perception', 'Production'): 0.00227878598167779,
+    ('bh', 'pmd', 'NTFD', 'Perception'): 1,
+    ('bh', 'pmd', 'NTFD', 'Production'): 1,
+    ('bh', 'pmd', 'Perception', 'Production'): 1,
+    ('bh', 'pmv', 'NTFD', 'Perception'): 0.261617186969474,
+    ('bh', 'pmv', 'NTFD', 'Production'): 0.519887025765279,
+    ('bh', 'pmv', 'Perception', 'Production'): 1,
+    ('bh', 'presma', 'NTFD', 'Perception'): 0.028120293825793,
+    ('bh', 'presma', 'NTFD', 'Production'): 0.537626981776096,
+    ('bh', 'presma', 'Perception', 'Production'): 1,
+    ('bh', 'sma', 'NTFD', 'Perception'): 0.000385097337503319,
+    ('bh', 'sma', 'NTFD', 'Production'): 0.133469672145777,
+    ('bh', 'sma', 'Perception', 'Production'): 0.0000130156708231288,
+}
+
+
 
 # ============================= RUN ================================= #
 
@@ -1083,147 +1275,157 @@ if __name__ == '__main__':
         )
 
     for tag, wpair in zip(tags, weights_list):
-        dfrois = pd.DataFrame()
 
         # ##################### PER-ROI ANOVAS ###################### #
 
-        for adir, aname, rname, rlab in zip(
-            atlas_dirnames, atlas_names, region_names, roi_names
-        ):
-            if rname == 'dorsal_striatum':
-                outdir = os.path.join(msdtb_dir, rname, aname)
-            else:
-                outdir = os.path.join(msdtb_dir, rname, aname, rlab)
+        # dfrois = pd.DataFrame()
 
-            rois_path = os.path.join(
-                outdir, 'rois_extraction', f"{tag}_{rlab}_psc.npy"
-            )
-            anovas_dir = os.path.join(outdir, 'anovas')
-            df_path = os.path.join(anovas_dir, f"{tag}_{rlab}_df.tsv")
-            os.makedirs(anovas_dir, exist_ok=True)
+        # for adir, aname, rname, rlab in zip(
+        #     atlas_dirnames, atlas_names, region_names, roi_names
+        # ):
+        #     if rname == 'dorsal_striatum':
+        #         outdir = os.path.join(msdtb_dir, rname, aname)
+        #     else:
+        #         outdir = os.path.join(msdtb_dir, rname, aname, rlab)
 
-            dfroi = dataframe(
-                rois_path, ['lh', 'rh', 'bh'], list(tasks.values()),
-                list(filtered_contrasts.values()), SUBJECTS, df_path
-            )
-            dfroi['ROI'] = np.repeat(rlab, len(dfroi.index))
-            dfrois = pd.concat([dfrois, dfroi], ignore_index=True)
+        #     rois_path = os.path.join(
+        #         outdir, 'rois_extraction', f"{tag}_{rlab}_psc.npy"
+        #     )
+        #     anovas_dir = os.path.join(outdir, 'anovas')
+        #     df_path = os.path.join(anovas_dir, f"{tag}_{rlab}_df.tsv")
+        #     os.makedirs(anovas_dir, exist_ok=True)
 
-            # Per-ROI analyses (and posthocs written to TSVs)
-            if n_rois in [4, 6, 10]:
-                if encoding_type == 'bothmod':
+        #     dfroi = dataframe(
+        #         rois_path, ['lh', 'rh', 'bh'], list(tasks.values()),
+        #         list(filtered_contrasts.values()), SUBJECTS, df_path
+        #     )
+        #     dfroi['ROI'] = np.repeat(rlab, len(dfroi.index))
+        #     dfrois = pd.concat([dfrois, dfroi], ignore_index=True)
 
-                    if folder_name == 'main_tasks':
-                        three_dir = os.path.join(anovas_dir, '3way-anova')
-                        threeway_rmanova(df_path, three_dir, tag, rlab)
+        #     # Per-ROI analyses (and posthocs written to TSVs)
+        #     if n_rois in [4, 6, 10]:
+        #         if encoding_type == 'bothmod':
 
-                        gt_dir = os.path.join(
-                            anovas_dir, '2way-anova_grouped-tasks'
-                        )
-                        twoway_rmanova_gtasks(df_path, gt_dir, tag, rlab)
+        #             if folder_name == 'main_tasks':
+        #                 three_dir = os.path.join(anovas_dir, '3way-anova')
+        #                 threeway_rmanova(df_path, three_dir, tag, rlab)
 
-                    t2_dir = os.path.join(anovas_dir, '2way-anova_task')
-                    twoway_rmanova_task(
-                        df_path, tasks, t2_dir, tag, rlab
-                    )
+        #                 gt_dir = os.path.join(
+        #                     anovas_dir, '2way-anova_grouped-tasks'
+        #                 )
+        #                 twoway_rmanova_gtasks(df_path, gt_dir, tag, rlab)
 
-                    ow_dir = os.path.join(anovas_dir, '1way-anova')
-                    if encoding_type == 'bothmod':
-                        oneway_rmanova(
-                            df_path, tasks, ow_dir, tag, rlab
-                        )
-                    elif encoding_type == 'auditory':
-                        oneway_rmanova(
-                            df_path, tasks, ow_dir, tag, rlab,
-                            modalities=('Auditory',)
-                        )
-                    else:
-                        oneway_rmanova(
-                            df_path, tasks, ow_dir, tag, rlab,
-                            modalities=('Visual',)
-                        )
+        #             t2_dir = os.path.join(anovas_dir, '2way-anova_task')
+        #             twoway_rmanova_task(
+        #                 df_path, tasks, t2_dir, tag, rlab
+        #             )
+
+        #             ow_dir = os.path.join(anovas_dir, '1way-anova')
+        #             if encoding_type == 'bothmod':
+        #                 oneway_rmanova(
+        #                     df_path, tasks, ow_dir, tag, rlab
+        #                 )
+        #             elif encoding_type == 'auditory':
+        #                 oneway_rmanova(
+        #                     df_path, tasks, ow_dir, tag, rlab,
+        #                     modalities=('Auditory',)
+        #                 )
+        #             else:
+        #                 oneway_rmanova(
+        #                     df_path, tasks, ow_dir, tag, rlab,
+        #                     modalities=('Visual',)
+        #                 )
 
         # Save concatenated ROI dataframe
         df_dir = os.path.join(msdtb_dir, 'df_rois_volume')
-        os.makedirs(df_dir, exist_ok=True)
-        dfrois.to_csv(
+
+        # os.makedirs(df_dir, exist_ok=True)
+        # dfrois.to_csv(
+        #     os.path.join(df_dir, f"dfrois_{tag}_{n_rois}-rois.tsv"),
+        #     sep='\t', index=False
+        # )
+
+        # Open dfrois from saved TSV
+        dfrois = pd.read_csv(
             os.path.join(df_dir, f"dfrois_{tag}_{n_rois}-rois.tsv"),
-            sep='\t', index=False
+            sep='\t'
         )
 
         # #################### MULTI-ROI ANOVAS ##################### #
         # Multi-ROI analyses + posthoc plots
         if n_rois in (2, 4, 6, 8):
-            # both modalities
-            cat_dir = os.path.join(
-                msdtb_dir, f"2way-anova_vol_cat{n_rois}rois"
-            )
-            twoway_rmanova_catroi(dfrois, tasks, cat_dir, tag, modality=None)
-            posthoc_catroi(
-                dfrois, tasks, cat_dir, tag, n_rois, roi_names, modality=None
-            )
 
-            # auditory
-            cat_dir_a = os.path.join(
-                msdtb_dir, f"2way-anova_vol_cat{n_rois}rois_auditory"
-            )
-            twoway_rmanova_catroi(
-                dfrois, tasks, cat_dir_a, tag, modality='auditory'
-            )
-            posthoc_catroi(
-                dfrois, tasks, cat_dir_a, tag, n_rois, roi_names,
-                modality='auditory'
-            )
+            # # both modalities
+            # cat_dir = os.path.join(
+            #     msdtb_dir, f"2way-anova_vol_cat{n_rois}rois"
+            # )
+            # twoway_rmanova_catroi(dfrois, tasks, cat_dir, tag, modality=None)
+            # posthoc_catroi(
+            #     dfrois, tasks, cat_dir, tag, n_rois, roi_names, modality=None
+            # )
 
-            # visual
-            cat_dir_v = os.path.join(
-                msdtb_dir, f"2way-anova_vol_cat{n_rois}rois_visual"
-            )
-            twoway_rmanova_catroi(
-                dfrois, tasks, cat_dir_v, tag, modality='visual'
-            )
-            posthoc_catroi(
-                dfrois, tasks, cat_dir_v, tag, n_rois, roi_names,
-                modality='visual'
-            )
+            # # auditory
+            # cat_dir_a = os.path.join(
+            #     msdtb_dir, f"2way-anova_vol_cat{n_rois}rois_auditory"
+            # )
+            # twoway_rmanova_catroi(
+            #     dfrois, tasks, cat_dir_a, tag, modality='auditory'
+            # )
+            # posthoc_catroi(
+            #     dfrois, tasks, cat_dir_a, tag, n_rois, roi_names,
+            #     modality='auditory'
+            # )
+
+            # # visual
+            # cat_dir_v = os.path.join(
+            #     msdtb_dir, f"2way-anova_vol_cat{n_rois}rois_visual"
+            # )
+            # twoway_rmanova_catroi(
+            #     dfrois, tasks, cat_dir_v, tag, modality='visual'
+            # )
+            # posthoc_catroi(
+            #     dfrois, tasks, cat_dir_v, tag, n_rois, roi_names,
+            #     modality='visual'
+            # )
 
             # timing-ROI (main_tasks only) + posthoc plots
             if folder_name == 'main_tasks':
                 t_dir = os.path.join(
                     msdtb_dir, f"2way-anova_vol_timing{n_rois}rois"
                 )
-                twoway_rmanova_timingroi(
-                    dfrois, t_dir, tag, modality=None
-                )
+                # twoway_rmanova_timingroi(
+                #     dfrois, t_dir, tag, modality=None
+                # )
                 posthoc_timingroi(
-                    dfrois, t_dir, tag, n_rois, roi_names, modality=None
+                    dfrois, t_dir, tag, n_rois, roi_names, modality=None,
+                    pvals_star_map=pvals_star_map_in8
                 )
 
-                t_dir_a = os.path.join(
-                    msdtb_dir,
-                    f"2way-anova_vol_timing{n_rois}rois_auditory"
-                )
-                twoway_rmanova_timingroi(
-                    dfrois, t_dir_a, tag, modality='auditory'
-                )
-                posthoc_timingroi(
-                    dfrois, t_dir_a, tag, n_rois, roi_names,
-                    modality='auditory'
-                )
+                # t_dir_a = os.path.join(
+                #     msdtb_dir,
+                #     f"2way-anova_vol_timing{n_rois}rois_auditory"
+                # )
+                # twoway_rmanova_timingroi(
+                #     dfrois, t_dir_a, tag, modality='auditory'
+                # )
+                # posthoc_timingroi(
+                #     dfrois, t_dir_a, tag, n_rois, roi_names,
+                #     modality='auditory'
+                # )
 
-                t_dir_v = os.path.join(
-                    msdtb_dir,
-                    f"2way-anova_vol_timing{n_rois}rois_visual"
-                )
-                twoway_rmanova_timingroi(
-                    dfrois, t_dir_v, tag, modality='visual'
-                )
-                posthoc_timingroi(
-                    dfrois, t_dir_v, tag, n_rois, roi_names,
-                    modality='visual'
-                )
+                # t_dir_v = os.path.join(
+                #     msdtb_dir,
+                #     f"2way-anova_vol_timing{n_rois}rois_visual"
+                # )
+                # twoway_rmanova_timingroi(
+                #     dfrois, t_dir_v, tag, modality='visual'
+                # )
+                # posthoc_timingroi(
+                #     dfrois, t_dir_v, tag, n_rois, roi_names,
+                #     modality='visual'
+                # )
 
-                t_three_dir = os.path.join(
-                    msdtb_dir, f"3way-anova_vol_timing{n_rois}rois"
-                )
-                threeway_rmanova_timing(dfrois, t_three_dir, tag)
+                # t_three_dir = os.path.join(
+                #     msdtb_dir, f"3way-anova_vol_timing{n_rois}rois"
+                # )
+                # threeway_rmanova_timing(dfrois, t_three_dir, tag)
