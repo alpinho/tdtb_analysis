@@ -220,29 +220,28 @@ def plot_suitflat(stats,
             cb.ax.xaxis.set_ticks_position('bottom')
 
         elif show_cbar1 and not use_horizontal:
-            # SUITPy/Matplotlib-provided vertical colorbar (default path).
-            cbar = fig.axes[-1]
-            cbar.tick_params(labelsize=14)
-            cbar.set_position([.825, .2, .03, .6])
+            # SUITPy/Matplotlib-provided vertical colorbar axis
+            cax = fig.axes[-1]
+            cax.tick_params(labelsize=14)
+            cax.set_position([.825, .2, .03, .6])
 
             if tick_decimals is not None:
-                cbar.yaxis.set_major_formatter(
+                cax.yaxis.set_major_formatter(
                     ticker.FormatStrFormatter(f"%.{tick_decimals}f")
                 )
             elif sci_notation:
-                formatter = ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
-                cbar.yaxis.set_major_formatter(formatter)
+                cax.yaxis.set_major_formatter(
+                    ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
+                )
 
-            fig.text(
-                cmap_title_loc[0],
-                cmap_title_loc[1],
-                cmap_title,
+            # Two-line label ABOVE the vertical bar (axis-relative coords)
+            cax.text(
+                1., 1.1,
+                "Fraction of\nParticipants",
+                ha="center",
+                va="bottom",
                 fontsize=15,
-                color='black',
-                ha='center',
-                va='center',
-                multialignment='center',
-                linespacing=1.6
+                transform=cax.transAxes
             )
 
         fig.savefig(outpath, dpi=300)
@@ -613,7 +612,7 @@ if __name__ == '__main__':
             vmax=vmax,
             sci_notation=False,
             tick_decimals=2,
-            cbar_orientation='horizontal',
+            cbar_orientation='vertical',
             cbar_rect=[.2, .06, .6, .03],
             cmap_title='Fraction of Participants',
             cbar_ticks=ticks
