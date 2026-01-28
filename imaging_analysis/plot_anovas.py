@@ -70,6 +70,10 @@ def _paired_by_subject(
     return sub[CATEGORIES]
 
 
+from matplotlib.ticker import MaxNLocator
+import matplotlib.cbook as cbook
+
+
 def plot_psc_boxplots(
     df: pd.DataFrame,
     outpath: Path,
@@ -106,7 +110,6 @@ def plot_psc_boxplots(
 
     width_ratios = [1, 1, 1, 0.18, 1, 1, 1, 0.18, 1, 1, 1]
 
-    # Compute longest line among x-labels
     label_lines = []
     for mod, task in col_spec:
         if mod == "SPACER":
@@ -114,17 +117,16 @@ def plot_psc_boxplots(
         if mod == "Pooled":
             label_lines.append(task)
         else:
-            label_lines.append(mod)
-            label_lines.append(task)
+            label_lines.extend([mod, task])
 
     max_line_len = max((len(s) for s in label_lines), default=10)
-
-    # Slight decompression to avoid label overlap
     per_col = 0.70 + 0.020 * max(0, max_line_len - 8)
     per_col = min(max(per_col, 0.70), 0.88)
 
     fig_w = per_col * n_cols * figsize_scale
-    fig_h = 1.7 * max(n_rois, 1) * figsize_scale
+
+    # One more step up in per-row height.
+    fig_h = 4.2 * max(n_rois, 1) * figsize_scale
 
     fig, axes = plt.subplots(
         nrows=n_rois,
@@ -138,7 +140,6 @@ def plot_psc_boxplots(
 
     colors = {"Beat": "#E69F00", "Interval": "#009E73"}
 
-    # Tight within-pair geometry
     box_w = 0.055
     delta = 0.065
     pos0 = 1.00
@@ -148,19 +149,44 @@ def plot_psc_boxplots(
     x_min = pos[0] - x_pad
     x_max = pos[1] + x_pad
 
-    fig.subplots_adjust(left=0.055, right=0.995, top=0.90, bottom=0.12)
-    fig.subplots_adjust(wspace=0.10, hspace=0.55)
+    # Keep extra height in axes, not in whitespace.
+    fig.subplots_adjust(left=0.055, right=0.995, top=0.93, bottom=0.10)
+    fig.subplots_adjust(wspace=0.10, hspace=0.18)
 
     y_col = 0
+    whis = 1.5
+    ypad_frac = 0.02
+    nbins = 9
 
     for r, roi in enumerate(roi_order):
         roi_vals = df.loc[df["ROI"] == roi, "PSC"].dropna().to_numpy()
         if roi_vals.size == 0:
             continue
 
-        y_min = float(np.min(roi_vals))
-        y_max = float(np.max(roi_vals))
-        pad = 0.12 * (y_max - y_min) if y_max > y_min else 0.1
+        w_lows = []
+        w_highs = []
+
+        for mod, task in col_spec:
+            if mod == "SPACER":
+                continue
+            paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
+            for cat in CATEGORIES:
+                vals = paired[cat].dropna().to_numpy()
+                if vals.size < 3:
+                    continue
+                stats = cbook.boxplot_stats(vals, whis=whis)[0]
+                w_lows.append(float(stats["whislo"]))
+                w_highs.append(float(stats["whishi"]))
+
+        if w_lows and w_highs:
+            y_min = float(np.min(w_lows))
+            y_max = float(np.max(w_highs))
+        else:
+            y_min = float(np.min(roi_vals))
+            y_max = float(np.max(roi_vals))
+
+        yr = max(y_max - y_min, 0.1)
+        pad = ypad_frac * yr
         y_lim = (y_min - pad, y_max + pad)
 
         for c, (mod, task) in enumerate(col_spec):
@@ -185,6 +211,7 @@ def plot_psc_boxplots(
                 showfliers=False,
                 showmeans=True,
                 meanline=True,
+                whis=whis,
                 meanprops={
                     "linestyle": "--",
                     "linewidth": 1.2,
@@ -212,6 +239,7 @@ def plot_psc_boxplots(
             if c == y_col:
                 ax.spines["left"].set_visible(True)
                 ax.set_ylabel(f"{roi} PSC (%)")
+                ax.yaxis.set_major_locator(MaxNLocator(nbins=nbins))
                 ax.tick_params(axis="y", left=True, labelleft=True)
             else:
                 ax.spines["left"].set_visible(False)
@@ -240,7 +268,7 @@ def plot_psc_boxplots(
         loc="upper center",
         ncol=3,
         frameon=False,
-        bbox_to_anchor=(0.5, 0.98),
+        bbox_to_anchor=(0.5, 0.985),
     )
 
     fig.savefig(outpath, dpi=300, bbox_inches="tight")
