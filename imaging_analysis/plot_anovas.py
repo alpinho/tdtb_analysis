@@ -37,13 +37,50 @@ def _subset(
     return df.loc[mask, "PSC"].dropna().to_numpy()
 
 
+def _paired_by_subject(
+    df: pd.DataFrame,
+    roi: str,
+    modality: str,
+    task: str,
+) -> pd.DataFrame:
+    cols = ["Subject", "PSC", "ROI", "Task", "Category", "Modality"]
+    sub = df.loc[
+        (df["ROI"] == roi)
+        & (df["Task"] == task)
+        & (df["Category"].isin(CATEGORIES)),
+        cols,
+    ].copy()
+
+    if modality != "Pooled":
+        sub = sub[sub["Modality"] == modality]
+
+    # One value per subject per category (averaging duplicates if any).
+    sub = (
+        sub.groupby(["Subject", "Category"], sort=False)["PSC"]
+        .mean()
+        .unstack("Category")
+    )
+
+    # Keep only subjects with both Beat and Interval.
+    sub = sub.dropna(subset=CATEGORIES, how="any")
+
+    if sub.empty:
+        return pd.DataFrame(columns=CATEGORIES)
+
+    return sub[CATEGORIES]
+
+
 def plot_psc_boxplots(
     df: pd.DataFrame,
-    outpath: str,
+    outpath: Path,
     figsize_scale: float = 1.0,
 ) -> None:
-    df = df.copy()
+    outpath = Path(outpath)
+    if outpath.suffix == "":
+        raise ValueError("outpath must end with .png or .pdf")
+    outpath.parent.mkdir(parents=True, exist_ok=True)
 
+    df = df.copy()
     df = df[df["Hemisphere"] == "bh"]
     df = df[df["Task"].isin(TASKS)]
     df = df[df["Category"].isin(CATEGORIES)]
@@ -51,59 +88,161 @@ def plot_psc_boxplots(
 
     roi_order = list(pd.unique(df["ROI"]))
     n_rois = len(roi_order)
-    n_cols = len(MOD_BLOCKS) * len(TASKS)
 
-    fig_w = 3.0 * n_cols * figsize_scale
-    fig_h = 1.6 * max(n_rois, 1) * figsize_scale
+    col_spec = [
+        ("Pooled", "Production"),
+        ("Pooled", "Perception"),
+        ("Pooled", "NTFD"),
+        ("SPACER", "SPACER"),
+        ("Auditory", "Production"),
+        ("Auditory", "Perception"),
+        ("Auditory", "NTFD"),
+        ("SPACER", "SPACER"),
+        ("Visual", "Production"),
+        ("Visual", "Perception"),
+        ("Visual", "NTFD"),
+    ]
+    n_cols = len(col_spec)
+
+    width_ratios = [1, 1, 1, 0.18, 1, 1, 1, 0.18, 1, 1, 1]
+
+    # Compute longest line among x-labels
+    label_lines = []
+    for mod, task in col_spec:
+        if mod == "SPACER":
+            continue
+        if mod == "Pooled":
+            label_lines.append(task)
+        else:
+            label_lines.append(mod)
+            label_lines.append(task)
+
+    max_line_len = max((len(s) for s in label_lines), default=10)
+
+    # Slight decompression to avoid label overlap
+    per_col = 0.70 + 0.020 * max(0, max_line_len - 8)
+    per_col = min(max(per_col, 0.70), 0.88)
+
+    fig_w = per_col * n_cols * figsize_scale
+    fig_h = 1.7 * max(n_rois, 1) * figsize_scale
+
     fig, axes = plt.subplots(
         nrows=n_rois,
         ncols=n_cols,
         figsize=(fig_w, fig_h),
         sharey="row",
+        gridspec_kw={"width_ratios": width_ratios},
     )
     if n_rois == 1:
         axes = np.expand_dims(axes, axis=0)
 
-    # Okabe-Ito-like colors avoiding red/blue.
-    colors = {
-        "Beat": "#E69F00",      # orange
-        "Interval": "#009E73",  # green
-    }
+    colors = {"Beat": "#E69F00", "Interval": "#009E73"}
 
-    col_titles = []
-    for mod in MOD_BLOCKS:
-        for task in TASKS:
-            col_titles.append(f"{mod} | {task}")
+    # Tight within-pair geometry
+    box_w = 0.055
+    delta = 0.065
+    pos0 = 1.00
+    pos = [pos0, pos0 + delta]
+
+    x_pad = 0.040
+    x_min = pos[0] - x_pad
+    x_max = pos[1] + x_pad
+
+    fig.subplots_adjust(left=0.055, right=0.995, top=0.90, bottom=0.12)
+    fig.subplots_adjust(wspace=0.10, hspace=0.55)
+
+    y_col = 0
 
     for r, roi in enumerate(roi_order):
-        for c, (mod, task) in enumerate(
-            (pair for pair in [(m, t) for m in MOD_BLOCKS for t in TASKS])
-        ):
+        roi_vals = df.loc[df["ROI"] == roi, "PSC"].dropna().to_numpy()
+        if roi_vals.size == 0:
+            continue
+
+        y_min = float(np.min(roi_vals))
+        y_max = float(np.max(roi_vals))
+        pad = 0.12 * (y_max - y_min) if y_max > y_min else 0.1
+        y_lim = (y_min - pad, y_max + pad)
+
+        for c, (mod, task) in enumerate(col_spec):
             ax = axes[r, c]
 
-            beat = _subset(df, roi=roi, modality=mod, task=task, category="Beat")
-            interval = _subset(
-                df, roi=roi, modality=mod, task=task, category="Interval"
-            )
+            if mod == "SPACER":
+                ax.axis("off")
+                continue
 
-            data = [beat, interval]
+            paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
+            data = [
+                paired["Beat"].to_numpy(),
+                paired["Interval"].to_numpy(),
+            ]
+
             bp = ax.boxplot(
                 data,
-                labels=CATEGORIES,
+                positions=pos,
+                widths=box_w,
+                notch=True,
                 patch_artist=True,
                 showfliers=False,
+                showmeans=True,
+                meanline=True,
+                meanprops={
+                    "linestyle": "--",
+                    "linewidth": 1.2,
+                    "color": "k",
+                },
             )
 
             for patch, cat in zip(bp["boxes"], CATEGORIES):
                 patch.set_facecolor(colors[cat])
 
-            if r == 0:
-                ax.set_title(col_titles[c], fontsize=10)
-            if c == 0:
-                ax.set_ylabel(roi)
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(*y_lim)
+            ax.set_xticks([])
 
-    fig.suptitle("PSC by ROI, modality block, task, and category", y=1.01)
-    fig.tight_layout()
+            if mod == "Pooled":
+                ax.set_xlabel(task)
+            else:
+                ax.set_xlabel(f"{mod}\n{task}")
+            ax.xaxis.labelpad = 2
+
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.spines["bottom"].set_visible(True)
+
+            if c == y_col:
+                ax.spines["left"].set_visible(True)
+                ax.set_ylabel(f"{roi} PSC (%)")
+                ax.tick_params(axis="y", left=True, labelleft=True)
+            else:
+                ax.spines["left"].set_visible(False)
+                ax.set_ylabel("")
+                ax.tick_params(axis="y", left=False, labelleft=False)
+
+    fig.legend(
+        handles=[
+            plt.Line2D(
+                [0], [0], marker="s", linestyle="",
+                markerfacecolor=colors["Beat"],
+                markeredgecolor="none", markersize=10,
+                label="Beat",
+            ),
+            plt.Line2D(
+                [0], [0], marker="s", linestyle="",
+                markerfacecolor=colors["Interval"],
+                markeredgecolor="none", markersize=10,
+                label="Interval",
+            ),
+            plt.Line2D(
+                [0], [0], linestyle="--", linewidth=1.2,
+                color="k", label="Mean",
+            ),
+        ],
+        loc="upper center",
+        ncol=3,
+        frameon=False,
+        bbox_to_anchor=(0.5, 0.98),
+    )
+
     fig.savefig(outpath, dpi=300, bbox_inches="tight")
     plt.close(fig)
 
