@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """
-Plot PSC boxplots by ROI (rows) and modality/task blocks (columns).
+Plot PSC by ROI (rows) and modality/task blocks (columns).
 
-Input TSV is expected to have at least these columns:
-PSC, ROI, Hemisphere, Modality, Task, Category
+Author: Ana Luisa Pinho
+email: agrilopi@uwo.ca
 
-Rules implemented:
-- Plot only Hemisphere == "bh"
-- Use tasks: Production, Perception, NTFD (ignore "All Tasks")
-- For each ROI row, create 9 panels:
-  [Pooled modality] x [Production, Perception, NTFD],
-  [Auditory] x [Production, Perception, NTFD],
-  [Visual] x [Production, Perception, NTFD]
-- Each panel: two boxplots (Beat, Interval)
+Created: 28th of January, 2026
+Last update: January 2026
+
+Compatibility: Python 3.10.14
 """
 
 from __future__ import annotations
