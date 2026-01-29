@@ -129,6 +129,33 @@ def plot_psc_boxplots(
     rois_left = [_resolve_roi(r) for r in roi_grid_left]
     rois_right = [_resolve_roi(r) for r in roi_grid_right]
 
+    # ---- pretty ROI labels (NEW) ----
+    roi_pretty = {
+        "dstr": "Dorsal Striatum",
+        "cereb": "Cerebellum",
+        "presma": "PreSMA",
+        "sma": "SMA",
+        "pmd": "PMD",
+        "pmv": "PMV",
+        "heschl": "Heschl’s Gyrus",
+        "occipital": "Occipital Lobe",
+    }
+
+    def _pretty_roi_label(resolved_roi: str) -> str:
+        """
+        Map the resolved ROI string from the dataframe to a pretty label.
+        Falls back gracefully if naming differs slightly.
+        """
+        key = str(resolved_roi).strip().lower()
+
+        # direct matches / substrings
+        for short, pretty in roi_pretty.items():
+            if short in key:
+                return pretty
+
+        # fallback: use the original
+        return str(resolved_roi)
+
     # ---- original width heuristic ----
     label_lines = []
     for mod, task in col_spec_block:
@@ -184,7 +211,6 @@ def plot_psc_boxplots(
     legend_fs = axis_label_fs + 2
 
     # ---- tick normalization: force EXACT tick count everywhere ----
-    # MaxNLocator may return 4 ticks when nbins=5, so we explicitly set ticks.
     n_yticks = 5
     y_formatter = FormatStrFormatter("%.2f")
 
@@ -228,8 +254,11 @@ def plot_psc_boxplots(
             pad = ypad_frac * yr
             y_lim = (y_min - pad, y_max + pad)
 
-            # Precompute fixed ticks for this ROI panel (ensures exact tick count)
+            # Precompute fixed ticks for this ROI panel
             y_ticks = np.linspace(y_lim[0], y_lim[1], n_yticks)
+
+            # Pretty label for this ROI (same for left+right leaders)
+            roi_label = _pretty_roi_label(roi)
 
             for j, (mod, task) in enumerate(col_spec_block):
                 ax = axes[r, start + j]
@@ -276,12 +305,16 @@ def plot_psc_boxplots(
                 ax.spines["bottom"].set_visible(True)
 
                 if (start + j) == y_col:
-                    ax.set_ylabel(f"{roi} PSC (%)", fontsize=axis_label_fs)
+                    # y-label format: 
+                    # ROI on outer line, PSC on inner line
+                    ax.set_ylabel(
+                        f"{roi_label}\nPSC (%)",
+                        fontsize=axis_label_fs,
+                    )
+                    ax.yaxis.label.set_linespacing(1.75)
 
-                    # Force same number of ticks and same decimal formatting
                     ax.set_yticks(y_ticks)
                     ax.yaxis.set_major_formatter(y_formatter)
-
                     ax.tick_params(
                         axis="y",
                         left=True,
