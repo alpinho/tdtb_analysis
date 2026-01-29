@@ -19,7 +19,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.cbook as cbook
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, FormatStrFormatter
+from matplotlib.patches import Patch
 
 import numpy as np
 import pandas as pd
@@ -128,7 +129,7 @@ def plot_psc_boxplots(
     rois_left = [_resolve_roi(r) for r in roi_grid_left]
     rois_right = [_resolve_roi(r) for r in roi_grid_right]
 
-    # --- keep your original width heuristic (DO NOT TOUCH) ---
+    # ---- original width heuristic ----
     label_lines = []
     for mod, task in col_spec_block:
         if mod == "SPACER":
@@ -139,7 +140,6 @@ def plot_psc_boxplots(
             label_lines.extend([mod, task])
 
     max_line_len = max((len(s) for s in label_lines), default=10)
-
     per_col = 1.18 + 0.034 * max(0, max_line_len - 8)
     per_col = min(per_col, 1.55)
 
@@ -156,11 +156,10 @@ def plot_psc_boxplots(
 
     colors = {"Beat": "#E69F00", "Interval": "#009E73"}
 
-    # ---------------- within-pair geometry (KEEP) ---------------- #
+    # ---- box geometry ----
     box_w = 0.135
     delta = 0.155
     pos = [1.00, 1.00 + delta]
-
     x_pad = 0.135
     x_min = pos[0] - x_pad
     x_max = pos[1] + x_pad
@@ -176,16 +175,18 @@ def plot_psc_boxplots(
 
     whis = 1.5
     ypad_frac = 0.02
-    nbins = 9
 
-    # ---------------- typography ---------------- #
+    # ---- typography ----
     xlabel_fs = 14
     xlabel_pad = 4
     axis_label_fs = xlabel_fs
     ytick_fs = xlabel_fs
-
-    # legend typography (bigger than axes labels, per your request)
     legend_fs = axis_label_fs + 2
+
+    # ---- tick normalization: force EXACT tick count everywhere ----
+    # MaxNLocator may return 4 ticks when nbins=5, so we explicitly set ticks.
+    n_yticks = 5
+    y_formatter = FormatStrFormatter("%.2f")
 
     left_start = 0
     gap_col = n_cols_block
@@ -203,7 +204,7 @@ def plot_psc_boxplots(
                     axes[r, start + j].axis("off")
                 continue
 
-            # --- ROI-wise y-lims from whiskers (KEEP) ---
+            # ---- ROI-wise y-lims from whiskers ----
             w_lows, w_highs = [], []
             for mod, task in col_spec_block:
                 if mod == "SPACER":
@@ -218,8 +219,7 @@ def plot_psc_boxplots(
                     w_highs.append(float(stats["whishi"]))
 
             if w_lows:
-                y_min = float(min(w_lows))
-                y_max = float(max(w_highs))
+                y_min, y_max = min(w_lows), max(w_highs)
             else:
                 roi_vals = df.loc[df["ROI"] == roi, "PSC"].to_numpy()
                 y_min, y_max = float(roi_vals.min()), float(roi_vals.max())
@@ -227,6 +227,9 @@ def plot_psc_boxplots(
             yr = max(y_max - y_min, 0.1)
             pad = ypad_frac * yr
             y_lim = (y_min - pad, y_max + pad)
+
+            # Precompute fixed ticks for this ROI panel (ensures exact tick count)
+            y_ticks = np.linspace(y_lim[0], y_lim[1], n_yticks)
 
             for j, (mod, task) in enumerate(col_spec_block):
                 ax = axes[r, start + j]
@@ -253,7 +256,7 @@ def plot_psc_boxplots(
                     whis=whis,
                     meanprops=dict(
                         linestyle="--",
-                        linewidth=2.2,  # thicker mean in the PLOTS
+                        linewidth=2.2,
                         color="k",
                     ),
                 )
@@ -266,23 +269,19 @@ def plot_psc_boxplots(
                 ax.set_xticks([])
 
                 xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
-                ax.set_xlabel(
-                    xlabel,
-                    fontsize=xlabel_fs,
-                    labelpad=xlabel_pad,
-                )
+                ax.set_xlabel(xlabel, fontsize=xlabel_fs, labelpad=xlabel_pad)
 
                 ax.spines["top"].set_visible(False)
                 ax.spines["right"].set_visible(False)
                 ax.spines["bottom"].set_visible(True)
 
                 if (start + j) == y_col:
-                    ax.spines["left"].set_visible(True)
-                    ax.set_ylabel(
-                        f"{roi} PSC (%)",
-                        fontsize=axis_label_fs,
-                    )
-                    ax.yaxis.set_major_locator(MaxNLocator(nbins=nbins))
+                    ax.set_ylabel(f"{roi} PSC (%)", fontsize=axis_label_fs)
+
+                    # Force same number of ticks and same decimal formatting
+                    ax.set_yticks(y_ticks)
+                    ax.yaxis.set_major_formatter(y_formatter)
+
                     ax.tick_params(
                         axis="y",
                         left=True,
@@ -293,9 +292,6 @@ def plot_psc_boxplots(
                     ax.spines["left"].set_visible(False)
                     ax.tick_params(axis="y", left=False, labelleft=False)
 
-    # ---------------- legend (ONLY change requested) ---------------- #
-    from matplotlib.patches import Patch
-
     fig.legend(
         handles=[
             Patch(facecolor=colors["Beat"], edgecolor="none", label="Beat"),
@@ -303,7 +299,7 @@ def plot_psc_boxplots(
             plt.Line2D(
                 [0], [0],
                 linestyle="--",
-                linewidth=3.2,  # thicker mean in the LEGEND
+                linewidth=3.2,
                 color="k",
                 label="Mean",
             ),
@@ -313,8 +309,8 @@ def plot_psc_boxplots(
         frameon=False,
         bbox_to_anchor=(0.5, 0.985),
         fontsize=legend_fs,
-        handlelength=4.6,   # wider rectangles
-        handleheight=1.8,   # taller/thicker rectangles
+        handlelength=4.6,
+        handleheight=1.8,
         handletextpad=1.0,
         columnspacing=2.8,
         borderaxespad=0.2,
