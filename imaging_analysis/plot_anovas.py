@@ -129,7 +129,7 @@ def plot_psc_boxplots(
     rois_left = [_resolve_roi(r) for r in roi_grid_left]
     rois_right = [_resolve_roi(r) for r in roi_grid_right]
 
-    # ---- pretty ROI labels (NEW) ----
+    # ---- pretty ROI labels ----
     roi_pretty = {
         "dstr": "Dorsal Striatum",
         "cereb": "Cerebellum",
@@ -142,18 +142,10 @@ def plot_psc_boxplots(
     }
 
     def _pretty_roi_label(resolved_roi: str) -> str:
-        """
-        Map the resolved ROI string from the dataframe to a pretty label.
-        Falls back gracefully if naming differs slightly.
-        """
         key = str(resolved_roi).strip().lower()
-
-        # direct matches / substrings
         for short, pretty in roi_pretty.items():
             if short in key:
                 return pretty
-
-        # fallback: use the original
         return str(resolved_roi)
 
     # ---- original width heuristic ----
@@ -181,7 +173,20 @@ def plot_psc_boxplots(
         gridspec_kw={"width_ratios": width_ratios},
     )
 
-    colors = {"Beat": "tab:blue", "Interval": "tab:orange"}
+    # Use same colors as plot_single_dissociation.py
+    colors = {
+        "Beat": "tab:blue",
+        "Interval": "tab:orange",
+    }
+
+    # Transparency (boxes + legend)
+    BOX_ALPHA = 0.6
+
+    # Zero line style
+    ZERO_LINE_COLOR = "0.35"   # dark grey
+    ZERO_LINE_LS = "--"
+    ZERO_LINE_LW = 1.5
+    ZERO_LINE_ZORDER = 0
 
     # ---- box geometry ----
     box_w = 0.135
@@ -247,7 +252,7 @@ def plot_psc_boxplots(
             if w_lows:
                 y_min, y_max = min(w_lows), max(w_highs)
             else:
-                roi_vals = df.loc[df["ROI"] == roi, "PSC"].to_numpy()
+                roi_vals = df.loc[df["ROI"] == roi, "PSC"].dropna().to_numpy()
                 y_min, y_max = float(roi_vals.min()), float(roi_vals.max())
 
             yr = max(y_max - y_min, 0.1)
@@ -283,24 +288,35 @@ def plot_psc_boxplots(
                     showmeans=True,
                     meanline=True,
                     whis=whis,
+                    # remove median line
                     medianprops=dict(
                         linewidth=0,
                         color="none",
                     ),
                     meanprops=dict(
                         linestyle="--",
-                        linewidth=1.75,
+                        linewidth=2.2,
                         color="k",
                     ),
                 )
 
-                BOX_ALPHA = 0.65 # box transparency
+                # Color + transparency for boxes
                 for patch, cat in zip(bp["boxes"], CATEGORIES):
                     patch.set_facecolor(colors[cat])
                     patch.set_alpha(BOX_ALPHA)
 
                 ax.set_xlim(x_min, x_max)
                 ax.set_ylim(*y_lim)
+
+                # PSC=0 reference line in every subplot
+                ax.axhline(
+                    0,
+                    color=ZERO_LINE_COLOR,
+                    linestyle=ZERO_LINE_LS,
+                    linewidth=ZERO_LINE_LW,
+                    zorder=ZERO_LINE_ZORDER,
+                )
+
                 ax.set_xticks([])
 
                 xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
@@ -311,7 +327,8 @@ def plot_psc_boxplots(
                 ax.spines["bottom"].set_visible(True)
 
                 if (start + j) == y_col:
-                    # y-label format: 
+                    ax.spines["left"].set_visible(True)
+
                     # ROI on outer line, PSC on inner line
                     ax.set_ylabel(
                         f"{roi_label}\nPSC (%)",
