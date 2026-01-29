@@ -18,6 +18,9 @@ import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import matplotlib.cbook as cbook
+from matplotlib.ticker import MaxNLocator
+
 import numpy as np
 import pandas as pd
 
@@ -68,10 +71,6 @@ def _paired_by_subject(
         return pd.DataFrame(columns=CATEGORIES)
 
     return sub[CATEGORIES]
-
-
-from matplotlib.ticker import MaxNLocator
-import matplotlib.cbook as cbook
 
 
 def plot_psc_boxplots(
