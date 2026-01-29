@@ -181,7 +181,7 @@ def plot_psc_boxplots(
         gridspec_kw={"width_ratios": width_ratios},
     )
 
-    colors = {"Beat": "#E69F00", "Interval": "#009E73"}
+    colors = {"Beat": "tab:blue", "Interval": "tab:orange"}
 
     # ---- box geometry ----
     box_w = 0.135
@@ -294,8 +294,10 @@ def plot_psc_boxplots(
                     ),
                 )
 
+                BOX_ALPHA = 0.65 # box transparency
                 for patch, cat in zip(bp["boxes"], CATEGORIES):
                     patch.set_facecolor(colors[cat])
+                    patch.set_alpha(BOX_ALPHA)
 
                 ax.set_xlim(x_min, x_max)
                 ax.set_ylim(*y_lim)
@@ -331,8 +333,18 @@ def plot_psc_boxplots(
 
     fig.legend(
         handles=[
-            Patch(facecolor=colors["Beat"], edgecolor="none", label="Beat"),
-            Patch(facecolor=colors["Interval"], edgecolor="none", label="Interval"),
+            Patch(
+                facecolor=colors["Beat"],
+                edgecolor="none",
+                alpha=BOX_ALPHA,
+                label="Beat",
+            ),
+            Patch(
+                facecolor=colors["Interval"],
+                edgecolor="none",
+                alpha=BOX_ALPHA,
+                label="Interval",
+            ),
             plt.Line2D(
                 [0], [0],
                 linestyle="--",
