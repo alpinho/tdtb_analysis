@@ -248,7 +248,7 @@ def plot_psc_boxplots(
     per_col = min(per_col, 1.55)
 
     fig_w = per_col * float(sum(width_ratios)) * figsize_scale
-    fig_h = 4.2 * n_rows * figsize_scale
+    fig_h = 6. * n_rows * figsize_scale
 
     fig, axes = plt.subplots(
         nrows=n_rows,
@@ -289,7 +289,7 @@ def plot_psc_boxplots(
         top=0.91,
         bottom=0.14,
         wspace=0.16,
-        hspace=0.30,
+        hspace=0.52,
     )
 
     whis = 1.5
@@ -608,6 +608,48 @@ ANNOTATIONS = [
         modality="Pooled",
         task_pair=("Production", "NTFD"),
         pvalue=0.0038694053454941,
+    ),
+    dict(
+        roi="presma",
+        modality="Pooled",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.028120293825793,
+    ),
+    dict(
+        roi="sma",
+        modality="Pooled",
+        task_pair=("Production", "Perception"),
+        pvalue=0.0000130156708231288,
+    ),
+    dict(
+        roi="sma",
+        modality="Pooled",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.0003850973375033,
+    ),
+    dict(
+        roi="heschl",
+        modality="Pooled",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0000000326951551140279,
+    ),
+    dict(
+        roi="heschl",
+        modality="Pooled",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.0000000543008044450249,
+    ),
+    dict(
+        roi="occipital",
+        modality="Pooled",
+        task_pair=("Production", "Perception"),
+        pvalue=0.0022787859816777,
+    ),
+    dict(
+        roi="occipital",
+        modality="Pooled",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.0005348873092657,
     ),
 ]
 
