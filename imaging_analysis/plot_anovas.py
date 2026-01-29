@@ -19,14 +19,32 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.cbook as cbook
-from matplotlib.ticker import MaxNLocator, FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter
 from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 
 import numpy as np
 import pandas as pd
 
 
-# =========================== ANOVAS ================================ #
+# =========================== FUNCTIONS ============================= #
+
+def pval_label_converter(pvalues):
+    """Convert p-values to star labels."""
+    out = []
+    for p in pvalues:
+        if p <= 0.0001:
+            out.append("****")
+        elif p <= 0.001:
+            out.append("***")
+        elif p <= 0.01:
+            out.append("**")
+        elif p <= 0.05:
+            out.append("*")
+        else:
+            out.append("ns")
+    return out
+
 
 def _subset(
     df: pd.DataFrame,
@@ -35,7 +53,11 @@ def _subset(
     task: str,
     category: str,
 ) -> np.ndarray:
-    mask = (df["ROI"] == roi) & (df["Task"] == task) & (df["Category"] == category)
+    mask = (
+        (df["ROI"] == roi)
+        & (df["Task"] == task)
+        & (df["Category"] == category)
+    )
     if modality != "Pooled":
         mask &= df["Modality"] == modality
     return df.loc[mask, "PSC"].dropna().to_numpy()
@@ -129,7 +151,6 @@ def plot_psc_boxplots(
     rois_left = [_resolve_roi(r) for r in roi_grid_left]
     rois_right = [_resolve_roi(r) for r in roi_grid_right]
 
-    # ---- pretty ROI labels ----
     roi_pretty = {
         "dstr": "Dorsal Striatum",
         "cereb": "Cerebellum",
@@ -147,6 +168,70 @@ def plot_psc_boxplots(
             if short in key:
                 return pretty
         return str(resolved_roi)
+
+    def _matches_roi(resolved_roi: str, roi_key: str) -> bool:
+        return roi_key.lower() in str(resolved_roi).lower()
+
+    def add_span_annotation_figcoords(
+        fig,
+        ax_left,
+        ax_right,
+        text: str,
+        y_pad: float = 0.010,
+        h: float = 0.006,
+        lw: float = 1.4,
+        fs: float = 14,
+    ) -> None:
+        """
+        Draw a bracket spanning ax_left -> ax_right above the axes.
+
+        Uses figure coordinates, allowing the bracket to span multiple axes
+        without changing y-limits.
+        """
+        b1 = ax_left.get_position()
+        b2 = ax_right.get_position()
+
+        x1 = b1.x0 + 0.5 * b1.width
+        x2 = b2.x0 + 0.5 * b2.width
+        y = max(b1.y1, b2.y1) + y_pad
+
+        fig.add_artist(
+            Line2D(
+                [x1, x1],
+                [y, y + h],
+                transform=fig.transFigure,
+                lw=lw,
+                color="k",
+            )
+        )
+        fig.add_artist(
+            Line2D(
+                [x1, x2],
+                [y + h, y + h],
+                transform=fig.transFigure,
+                lw=lw,
+                color="k",
+            )
+        )
+        fig.add_artist(
+            Line2D(
+                [x2, x2],
+                [y + h, y],
+                transform=fig.transFigure,
+                lw=lw,
+                color="k",
+            )
+        )
+
+        fig.text(
+            (x1 + x2) / 2,
+            y + h,
+            text,
+            ha="center",
+            va="bottom",
+            fontsize=fs,
+            color="k",
+        )
 
     # ---- original width heuristic ----
     label_lines = []
@@ -173,20 +258,22 @@ def plot_psc_boxplots(
         gridspec_kw={"width_ratios": width_ratios},
     )
 
-    # Use same colors as plot_single_dissociation.py
     colors = {
         "Beat": "tab:blue",
         "Interval": "tab:orange",
     }
 
-    # Transparency (boxes + legend)
     BOX_ALPHA = 0.6
 
-    # Zero line style
-    ZERO_LINE_COLOR = "0.35"   # dark grey
+    ZERO_LINE_COLOR = "0.35"
     ZERO_LINE_LS = "--"
     ZERO_LINE_LW = 1.5
     ZERO_LINE_ZORDER = 0
+
+    # ---- annotation stacking (figure coords) ----
+    annot_y_pad_base = 0.012
+    annot_y_pad_step = 0.015
+    annot_h = 0.006
 
     # ---- box geometry ----
     box_w = 0.135
@@ -199,23 +286,21 @@ def plot_psc_boxplots(
     fig.subplots_adjust(
         left=0.055,
         right=0.995,
-        top=0.93,
+        top=0.91,
         bottom=0.14,
         wspace=0.16,
-        hspace=0.18,
+        hspace=0.30,
     )
 
     whis = 1.5
     ypad_frac = 0.02
 
-    # ---- typography ----
     xlabel_fs = 14
     xlabel_pad = 4
     axis_label_fs = xlabel_fs
     ytick_fs = xlabel_fs
     legend_fs = axis_label_fs + 2
 
-    # ---- tick normalization: force EXACT tick count everywhere ----
     n_yticks = 5
     y_formatter = FormatStrFormatter("%.2f")
 
@@ -235,7 +320,6 @@ def plot_psc_boxplots(
                     axes[r, start + j].axis("off")
                 continue
 
-            # ---- ROI-wise y-lims from whiskers ----
             w_lows, w_highs = [], []
             for mod, task in col_spec_block:
                 if mod == "SPACER":
@@ -259,10 +343,7 @@ def plot_psc_boxplots(
             pad = ypad_frac * yr
             y_lim = (y_min - pad, y_max + pad)
 
-            # Precompute fixed ticks for this ROI panel
             y_ticks = np.linspace(y_lim[0], y_lim[1], n_yticks)
-
-            # Pretty label for this ROI (same for left+right leaders)
             roi_label = _pretty_roi_label(roi)
 
             for j, (mod, task) in enumerate(col_spec_block):
@@ -288,19 +369,17 @@ def plot_psc_boxplots(
                     showmeans=True,
                     meanline=True,
                     whis=whis,
-                    # remove median line
-                    medianprops=dict(
-                        linewidth=0,
-                        color="none",
-                    ),
-                    meanprops=dict(
-                        linestyle="--",
-                        linewidth=2.2,
-                        color="k",
-                    ),
+                    medianprops={
+                        "linewidth": 0,
+                        "color": "none",
+                    },
+                    meanprops={
+                        "linestyle": "--",
+                        "linewidth": 2.2,
+                        "color": "k",
+                    },
                 )
 
-                # Color + transparency for boxes
                 for patch, cat in zip(bp["boxes"], CATEGORIES):
                     patch.set_facecolor(colors[cat])
                     patch.set_alpha(BOX_ALPHA)
@@ -308,7 +387,6 @@ def plot_psc_boxplots(
                 ax.set_xlim(x_min, x_max)
                 ax.set_ylim(*y_lim)
 
-                # PSC=0 reference line in every subplot
                 ax.axhline(
                     0,
                     color=ZERO_LINE_COLOR,
@@ -329,7 +407,6 @@ def plot_psc_boxplots(
                 if (start + j) == y_col:
                     ax.spines["left"].set_visible(True)
 
-                    # ROI on outer line, PSC on inner line
                     ax.set_ylabel(
                         f"{roi_label}\nPSC (%)",
                         fontsize=axis_label_fs,
@@ -348,6 +425,59 @@ def plot_psc_boxplots(
                     ax.spines["left"].set_visible(False)
                     ax.tick_params(axis="y", left=False, labelleft=False)
 
+            # ---- Add annotations for this ROI side (after axes exist) ----
+            ax_lookup = {}
+            for j2, (m2, t2) in enumerate(col_spec_block):
+                if m2 == "SPACER":
+                    continue
+                ax_lookup[(m2, t2)] = axes[r, start + j2]
+
+            eligible = []
+            for ann in ANNOTATIONS:
+                if not _matches_roi(roi, ann["roi"]):
+                    continue
+
+                m = ann["modality"]
+                t_left, t_right = ann["task_pair"]
+
+                if (m, t_left) not in ax_lookup:
+                    continue
+                if (m, t_right) not in ax_lookup:
+                    continue
+
+                eligible.append(ann)
+
+            task_order = {"Production": 0, "Perception": 1, "NTFD": 2}
+
+            def _ann_sort_key(ann):
+                t1, t2 = ann["task_pair"]
+                i1 = task_order[t1]
+                i2 = task_order[t2]
+                span = abs(i2 - i1)
+                return (ann["modality"], span, min(i1, i2), max(i1, i2))
+
+            eligible.sort(key=_ann_sort_key)
+
+            for k, ann in enumerate(eligible):
+                m = ann["modality"]
+                t_left, t_right = ann["task_pair"]
+
+                label = pval_label_converter([ann["pvalue"]])[0]
+                ax_l = ax_lookup[(m, t_left)]
+                ax_r = ax_lookup[(m, t_right)]
+
+                y_pad = annot_y_pad_base + (k * annot_y_pad_step)
+                add_span_annotation_figcoords(
+                    fig,
+                    ax_l,
+                    ax_r,
+                    label,
+                    y_pad=y_pad,
+                    h=annot_h,
+                    lw=1.4,
+                    fs=14,
+                )
+
     fig.legend(
         handles=[
             Patch(
@@ -362,8 +492,9 @@ def plot_psc_boxplots(
                 alpha=BOX_ALPHA,
                 label="Interval",
             ),
-            plt.Line2D(
-                [0], [0],
+            Line2D(
+                [0],
+                [0],
                 linestyle="--",
                 linewidth=3.2,
                 color="k",
@@ -373,7 +504,7 @@ def plot_psc_boxplots(
         loc="upper center",
         ncol=3,
         frameon=False,
-        bbox_to_anchor=(0.5, 0.985),
+        bbox_to_anchor=(0.5, 1.015),
         fontsize=legend_fs,
         handlelength=4.6,
         handleheight=1.8,
@@ -417,9 +548,9 @@ MOD_BLOCKS = ["Pooled", "Auditory", "Visual"]
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 
-model = 'rwls'
-masking = 'wb'
-hrf_cutoff = 'hrf128'
+model = "rwls"
+masking = "wb"
+hrf_cutoff = "hrf128"
 
 # Individualization level of input data
 # INDIV_LEVELS = [
@@ -427,29 +558,62 @@ hrf_cutoff = 'hrf128'
 #     'a',
 #     'a4g', 'a3g', 'a2g', 'a1g', 'g'
 # ]
-INDIVID_LEVEL = 'i'
+INDIVID_LEVEL = "i"
 N_ROIS = 8
 
 roi_dir = os.path.join(
     working_dir,
-    'roi_analyses_' + model + '_' + hrf_cutoff + '_' + masking +
-    '_puncorr_unsmoothed',
-    'bothmod_allmain_tasks',
-    'main_tasks')
+    "roi_analyses_" + model + "_" + hrf_cutoff + "_" + masking
+    + "_puncorr_unsmoothed",
+    "bothmod_allmain_tasks",
+    "main_tasks",
+)
 
 data_path = os.path.join(
     roi_dir,
-    'df_rois_volume',
-    'dfrois_' + INDIVID_LEVEL + '_' + str(N_ROIS) + '-rois.tsv'
+    "df_rois_volume",
+    "dfrois_" + INDIVID_LEVEL + "_" + str(N_ROIS) + "-rois.tsv",
 )
 
-output_path = os.path.join(working_dir, 'results', 'fig4', 
-                           'psc_boxplots_by_roi.png')
+output_path = os.path.join(
+    working_dir,
+    "results",
+    "fig4",
+    "psc_boxplots_by_roi.png",
+)
+
+# ======================== ANNOTATIONS =========================== #
+# Each entry defines ONE bracket spanning two task-panels within ONE modality
+# block. "Pooled" refers to the left-most block (both modalities pooled).
+#
+# roi: short key ("dstr", "sma", "pmv", ...)
+# modality: "Pooled" | "Auditory" | "Visual"
+# task_pair: ("Production", "NTFD"), etc.
+# pvalue: numeric p-value
+ANNOTATIONS = [
+    dict(
+        roi="dstr",
+        modality="Pooled",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.000000747501935034951,
+    ),
+    dict(
+        roi="dstr",
+        modality="Pooled",
+        task_pair=("Production", "Perception"),
+        pvalue=0.000000183218571178129,
+    ),
+    dict(
+        roi="cereb",
+        modality="Pooled",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0038694053454941,
+    ),
+]
 
 # ============================= RUN ================================= #
 
 if __name__ == "__main__":
-
     args = parse_args()
     df = pd.read_csv(data_path, sep="\t")
     plot_psc_boxplots(df=df, outpath=output_path, figsize_scale=args.figscale)
