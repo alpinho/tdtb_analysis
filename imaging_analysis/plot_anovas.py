@@ -128,6 +128,7 @@ def plot_psc_boxplots(
     rois_left = [_resolve_roi(r) for r in roi_grid_left]
     rois_right = [_resolve_roi(r) for r in roi_grid_right]
 
+    # --- keep your original width heuristic (DO NOT TOUCH) ---
     label_lines = []
     for mod, task in col_spec_block:
         if mod == "SPACER":
@@ -155,7 +156,7 @@ def plot_psc_boxplots(
 
     colors = {"Beat": "#E69F00", "Interval": "#009E73"}
 
-    # ---------------- within-pair geometry ---------------- #
+    # ---------------- within-pair geometry (KEEP) ---------------- #
     box_w = 0.135
     delta = 0.155
     pos = [1.00, 1.00 + delta]
@@ -177,8 +178,14 @@ def plot_psc_boxplots(
     ypad_frac = 0.02
     nbins = 9
 
+    # ---------------- typography ---------------- #
     xlabel_fs = 14
     xlabel_pad = 4
+    axis_label_fs = xlabel_fs
+    ytick_fs = xlabel_fs
+
+    # legend typography (bigger than axes labels, per your request)
+    legend_fs = axis_label_fs + 2
 
     left_start = 0
     gap_col = n_cols_block
@@ -196,13 +203,12 @@ def plot_psc_boxplots(
                     axes[r, start + j].axis("off")
                 continue
 
+            # --- ROI-wise y-lims from whiskers (KEEP) ---
             w_lows, w_highs = [], []
             for mod, task in col_spec_block:
                 if mod == "SPACER":
                     continue
-                paired = _paired_by_subject(
-                    df, roi=roi, modality=mod, task=task
-                )
+                paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
                 for cat in CATEGORIES:
                     vals = paired[cat].dropna().to_numpy()
                     if vals.size < 3:
@@ -229,9 +235,7 @@ def plot_psc_boxplots(
                     ax.axis("off")
                     continue
 
-                paired = _paired_by_subject(
-                    df, roi=roi, modality=mod, task=task
-                )
+                paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
                 data = [
                     paired["Beat"].to_numpy(),
                     paired["Interval"].to_numpy(),
@@ -249,7 +253,7 @@ def plot_psc_boxplots(
                     whis=whis,
                     meanprops=dict(
                         linestyle="--",
-                        linewidth=1.2,
+                        linewidth=2.2,  # thicker mean in the PLOTS
                         color="k",
                     ),
                 )
@@ -263,7 +267,9 @@ def plot_psc_boxplots(
 
                 xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
                 ax.set_xlabel(
-                    xlabel, fontsize=xlabel_fs, labelpad=xlabel_pad
+                    xlabel,
+                    fontsize=xlabel_fs,
+                    labelpad=xlabel_pad,
                 )
 
                 ax.spines["top"].set_visible(False)
@@ -272,36 +278,46 @@ def plot_psc_boxplots(
 
                 if (start + j) == y_col:
                     ax.spines["left"].set_visible(True)
-                    ax.set_ylabel(f"{roi} PSC (%)")
+                    ax.set_ylabel(
+                        f"{roi} PSC (%)",
+                        fontsize=axis_label_fs,
+                    )
                     ax.yaxis.set_major_locator(MaxNLocator(nbins=nbins))
-                    ax.tick_params(axis="y", left=True, labelleft=True)
+                    ax.tick_params(
+                        axis="y",
+                        left=True,
+                        labelleft=True,
+                        labelsize=ytick_fs,
+                    )
                 else:
                     ax.spines["left"].set_visible(False)
                     ax.tick_params(axis="y", left=False, labelleft=False)
 
+    # ---------------- legend (ONLY change requested) ---------------- #
+    from matplotlib.patches import Patch
+
     fig.legend(
         handles=[
+            Patch(facecolor=colors["Beat"], edgecolor="none", label="Beat"),
+            Patch(facecolor=colors["Interval"], edgecolor="none", label="Interval"),
             plt.Line2D(
-                [0], [0], marker="s", linestyle="",
-                markerfacecolor=colors["Beat"],
-                markeredgecolor="none", markersize=10,
-                label="Beat",
-            ),
-            plt.Line2D(
-                [0], [0], marker="s", linestyle="",
-                markerfacecolor=colors["Interval"],
-                markeredgecolor="none", markersize=10,
-                label="Interval",
-            ),
-            plt.Line2D(
-                [0], [0], linestyle="--",
-                linewidth=1.2, color="k", label="Mean",
+                [0], [0],
+                linestyle="--",
+                linewidth=3.2,  # thicker mean in the LEGEND
+                color="k",
+                label="Mean",
             ),
         ],
         loc="upper center",
         ncol=3,
         frameon=False,
         bbox_to_anchor=(0.5, 0.985),
+        fontsize=legend_fs,
+        handlelength=4.6,   # wider rectangles
+        handleheight=1.8,   # taller/thicker rectangles
+        handletextpad=1.0,
+        columnspacing=2.8,
+        borderaxespad=0.2,
     )
 
     fig.savefig(outpath, dpi=300, bbox_inches="tight")
