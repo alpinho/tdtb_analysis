@@ -107,7 +107,7 @@ def plot_psc_boxplots(
     width_ratios_block = [1, 1, 1, 0.20, 1, 1, 1, 0.20, 1, 1, 1]
     n_cols_block = len(col_spec_block)
 
-    panel_sep = 2.25
+    panel_sep = 1.6
     col_spec = col_spec_block + [("ROI_GAP", "ROI_GAP")] + col_spec_block
     width_ratios = width_ratios_block + [panel_sep] + width_ratios_block
 
