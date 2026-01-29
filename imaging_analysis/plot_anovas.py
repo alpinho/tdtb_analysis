@@ -90,10 +90,7 @@ def plot_psc_boxplots(
     df = df[df["Category"].isin(CATEGORIES)]
     df = df[df["Modality"].isin(["Auditory", "Visual"])]
 
-    roi_order = list(pd.unique(df["ROI"]))
-    n_rois = len(roi_order)
-
-    col_spec = [
+    col_spec_block = [
         ("Pooled", "Production"),
         ("Pooled", "Perception"),
         ("Pooled", "NTFD"),
@@ -106,12 +103,34 @@ def plot_psc_boxplots(
         ("Visual", "Perception"),
         ("Visual", "NTFD"),
     ]
-    n_cols = len(col_spec)
 
-    width_ratios = [1, 1, 1, 0.18, 1, 1, 1, 0.18, 1, 1, 1]
+    width_ratios_block = [1, 1, 1, 0.20, 1, 1, 1, 0.20, 1, 1, 1]
+    n_cols_block = len(col_spec_block)
+
+    panel_sep = 2.25
+    col_spec = col_spec_block + [("ROI_GAP", "ROI_GAP")] + col_spec_block
+    width_ratios = width_ratios_block + [panel_sep] + width_ratios_block
+
+    roi_grid_left = ["dstr", "presma", "pmd", "Heschl"]
+    roi_grid_right = ["cereb", "sma", "pmv", "Occipital"]
+    n_rows = 4
+
+    roi_map = {str(r).lower(): r for r in pd.unique(df["ROI"])}
+
+    def _resolve_roi(name: str) -> str | None:
+        key = name.lower()
+        if key in roi_map:
+            return roi_map[key]
+        for k, v in roi_map.items():
+            if key in k:
+                return v
+        return None
+
+    rois_left = [_resolve_roi(r) for r in roi_grid_left]
+    rois_right = [_resolve_roi(r) for r in roi_grid_right]
 
     label_lines = []
-    for mod, task in col_spec:
+    for mod, task in col_spec_block:
         if mod == "SPACER":
             continue
         if mod == "Pooled":
@@ -120,131 +139,146 @@ def plot_psc_boxplots(
             label_lines.extend([mod, task])
 
     max_line_len = max((len(s) for s in label_lines), default=10)
-    per_col = 0.70 + 0.020 * max(0, max_line_len - 8)
-    per_col = min(max(per_col, 0.70), 0.88)
 
-    fig_w = per_col * n_cols * figsize_scale
+    per_col = 1.18 + 0.034 * max(0, max_line_len - 8)
+    per_col = min(per_col, 1.55)
 
-    # One more step up in per-row height.
-    fig_h = 4.2 * max(n_rois, 1) * figsize_scale
+    fig_w = per_col * float(sum(width_ratios)) * figsize_scale
+    fig_h = 4.2 * n_rows * figsize_scale
 
     fig, axes = plt.subplots(
-        nrows=n_rois,
-        ncols=n_cols,
+        nrows=n_rows,
+        ncols=len(col_spec),
         figsize=(fig_w, fig_h),
-        sharey="row",
+        sharey=False,
         gridspec_kw={"width_ratios": width_ratios},
     )
-    if n_rois == 1:
-        axes = np.expand_dims(axes, axis=0)
 
     colors = {"Beat": "#E69F00", "Interval": "#009E73"}
 
-    box_w = 0.055
-    delta = 0.065
-    pos0 = 1.00
-    pos = [pos0, pos0 + delta]
+    # ---------------- within-pair geometry ---------------- #
+    box_w = 0.135
+    delta = 0.155
+    pos = [1.00, 1.00 + delta]
 
-    x_pad = 0.040
+    x_pad = 0.135
     x_min = pos[0] - x_pad
     x_max = pos[1] + x_pad
 
-    # Keep extra height in axes, not in whitespace.
-    fig.subplots_adjust(left=0.055, right=0.995, top=0.93, bottom=0.10)
-    fig.subplots_adjust(wspace=0.10, hspace=0.18)
+    fig.subplots_adjust(
+        left=0.055,
+        right=0.995,
+        top=0.93,
+        bottom=0.14,
+        wspace=0.16,
+        hspace=0.18,
+    )
 
-    y_col = 0
     whis = 1.5
     ypad_frac = 0.02
     nbins = 9
 
-    for r, roi in enumerate(roi_order):
-        roi_vals = df.loc[df["ROI"] == roi, "PSC"].dropna().to_numpy()
-        if roi_vals.size == 0:
-            continue
+    xlabel_fs = 14
+    xlabel_pad = 4
 
-        w_lows = []
-        w_highs = []
+    left_start = 0
+    gap_col = n_cols_block
+    right_start = n_cols_block + 1
 
-        for mod, task in col_spec:
-            if mod == "SPACER":
+    for r in range(n_rows):
+        axes[r, gap_col].axis("off")
+
+        for block_i, roi in enumerate([rois_left[r], rois_right[r]]):
+            start = left_start if block_i == 0 else right_start
+            y_col = start
+
+            if roi is None:
+                for j in range(n_cols_block):
+                    axes[r, start + j].axis("off")
                 continue
-            paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
-            for cat in CATEGORIES:
-                vals = paired[cat].dropna().to_numpy()
-                if vals.size < 3:
+
+            w_lows, w_highs = [], []
+            for mod, task in col_spec_block:
+                if mod == "SPACER":
                     continue
-                stats = cbook.boxplot_stats(vals, whis=whis)[0]
-                w_lows.append(float(stats["whislo"]))
-                w_highs.append(float(stats["whishi"]))
+                paired = _paired_by_subject(
+                    df, roi=roi, modality=mod, task=task
+                )
+                for cat in CATEGORIES:
+                    vals = paired[cat].dropna().to_numpy()
+                    if vals.size < 3:
+                        continue
+                    stats = cbook.boxplot_stats(vals, whis=whis)[0]
+                    w_lows.append(float(stats["whislo"]))
+                    w_highs.append(float(stats["whishi"]))
 
-        if w_lows and w_highs:
-            y_min = float(np.min(w_lows))
-            y_max = float(np.max(w_highs))
-        else:
-            y_min = float(np.min(roi_vals))
-            y_max = float(np.max(roi_vals))
-
-        yr = max(y_max - y_min, 0.1)
-        pad = ypad_frac * yr
-        y_lim = (y_min - pad, y_max + pad)
-
-        for c, (mod, task) in enumerate(col_spec):
-            ax = axes[r, c]
-
-            if mod == "SPACER":
-                ax.axis("off")
-                continue
-
-            paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
-            data = [
-                paired["Beat"].to_numpy(),
-                paired["Interval"].to_numpy(),
-            ]
-
-            bp = ax.boxplot(
-                data,
-                positions=pos,
-                widths=box_w,
-                notch=True,
-                patch_artist=True,
-                showfliers=False,
-                showmeans=True,
-                meanline=True,
-                whis=whis,
-                meanprops={
-                    "linestyle": "--",
-                    "linewidth": 1.2,
-                    "color": "k",
-                },
-            )
-
-            for patch, cat in zip(bp["boxes"], CATEGORIES):
-                patch.set_facecolor(colors[cat])
-
-            ax.set_xlim(x_min, x_max)
-            ax.set_ylim(*y_lim)
-            ax.set_xticks([])
-
-            if mod == "Pooled":
-                ax.set_xlabel(task)
+            if w_lows:
+                y_min = float(min(w_lows))
+                y_max = float(max(w_highs))
             else:
-                ax.set_xlabel(f"{mod}\n{task}")
-            ax.xaxis.labelpad = 2
+                roi_vals = df.loc[df["ROI"] == roi, "PSC"].to_numpy()
+                y_min, y_max = float(roi_vals.min()), float(roi_vals.max())
 
-            ax.spines["top"].set_visible(False)
-            ax.spines["right"].set_visible(False)
-            ax.spines["bottom"].set_visible(True)
+            yr = max(y_max - y_min, 0.1)
+            pad = ypad_frac * yr
+            y_lim = (y_min - pad, y_max + pad)
 
-            if c == y_col:
-                ax.spines["left"].set_visible(True)
-                ax.set_ylabel(f"{roi} PSC (%)")
-                ax.yaxis.set_major_locator(MaxNLocator(nbins=nbins))
-                ax.tick_params(axis="y", left=True, labelleft=True)
-            else:
-                ax.spines["left"].set_visible(False)
-                ax.set_ylabel("")
-                ax.tick_params(axis="y", left=False, labelleft=False)
+            for j, (mod, task) in enumerate(col_spec_block):
+                ax = axes[r, start + j]
+
+                if mod == "SPACER":
+                    ax.axis("off")
+                    continue
+
+                paired = _paired_by_subject(
+                    df, roi=roi, modality=mod, task=task
+                )
+                data = [
+                    paired["Beat"].to_numpy(),
+                    paired["Interval"].to_numpy(),
+                ]
+
+                bp = ax.boxplot(
+                    data,
+                    positions=pos,
+                    widths=box_w,
+                    notch=True,
+                    patch_artist=True,
+                    showfliers=False,
+                    showmeans=True,
+                    meanline=True,
+                    whis=whis,
+                    meanprops=dict(
+                        linestyle="--",
+                        linewidth=1.2,
+                        color="k",
+                    ),
+                )
+
+                for patch, cat in zip(bp["boxes"], CATEGORIES):
+                    patch.set_facecolor(colors[cat])
+
+                ax.set_xlim(x_min, x_max)
+                ax.set_ylim(*y_lim)
+                ax.set_xticks([])
+
+                xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
+                ax.set_xlabel(
+                    xlabel, fontsize=xlabel_fs, labelpad=xlabel_pad
+                )
+
+                ax.spines["top"].set_visible(False)
+                ax.spines["right"].set_visible(False)
+                ax.spines["bottom"].set_visible(True)
+
+                if (start + j) == y_col:
+                    ax.spines["left"].set_visible(True)
+                    ax.set_ylabel(f"{roi} PSC (%)")
+                    ax.yaxis.set_major_locator(MaxNLocator(nbins=nbins))
+                    ax.tick_params(axis="y", left=True, labelleft=True)
+                else:
+                    ax.spines["left"].set_visible(False)
+                    ax.tick_params(axis="y", left=False, labelleft=False)
 
     fig.legend(
         handles=[
@@ -261,8 +295,8 @@ def plot_psc_boxplots(
                 label="Interval",
             ),
             plt.Line2D(
-                [0], [0], linestyle="--", linewidth=1.2,
-                color="k", label="Mean",
+                [0], [0], linestyle="--",
+                linewidth=1.2, color="k", label="Mean",
             ),
         ],
         loc="upper center",
