@@ -283,9 +283,13 @@ def plot_psc_boxplots(
                     showmeans=True,
                     meanline=True,
                     whis=whis,
+                    medianprops=dict(
+                        linewidth=0,
+                        color="none",
+                    ),
                     meanprops=dict(
                         linestyle="--",
-                        linewidth=2.2,
+                        linewidth=1.75,
                         color="k",
                     ),
                 )
