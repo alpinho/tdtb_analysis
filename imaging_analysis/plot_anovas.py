@@ -284,6 +284,20 @@ def plot_psc_boxplots(
     annot_h_frac = 0.03
     annot_headroom_frac = 0.01
 
+    # ROI-specific overrides to control vertical whitespace around annotations.
+    # Keys refer to canonical ROI keys returned by _roi_key().
+    roi_annot_overrides = {
+        # Tighten the headroom above the TOP annotation.
+        "dstr": {"headroom_frac": 0.002},
+        "cereb": {"headroom_frac": 0.002},
+        "presma": {"headroom_frac": 0.002},
+        "sma": {"headroom_frac": 0.002},
+        # Heschl: tighten both headroom and the gap between whisker and lower annotation.
+        "heschl": {"pad_frac": 0.022, "base_frac": 0.022, "headroom_frac": 0.003},
+        # Occipital: tighten the gap between whisker and lower annotation.
+        "occipital": {"base_frac": 0.020},
+    }
+
     ZERO_LINE_COLOR = "0.25"
     ZERO_LINE_LS = "--"
     ZERO_LINE_LW = 1.2
@@ -357,14 +371,22 @@ def plot_psc_boxplots(
             y_min, y_max = float(roi_vals.min()), float(roi_vals.max())
 
         yr = max(y_max - y_min, 0.1)
-        pad_frac_local = 0.045 if _roi_key(roi) == 'heschl' else ypad_frac
+
+        rkey = _roi_key(roi)
+        ov = roi_annot_overrides.get(rkey or "", {})
+
+        pad_frac_local = float(ov.get("pad_frac", (0.045 if rkey == "heschl" else ypad_frac)))
         pad = pad_frac_local * yr
 
         max_stack = max((len(v) for v in eligible_by_mod.values()), default=0)
-        headroom_frac_local = 0.006 if _roi_key(roi) == 'heschl' else annot_headroom_frac
+        headroom_frac_local = float(ov.get(
+            "headroom_frac",
+            (0.006 if rkey == "heschl" else annot_headroom_frac),
+        ))
+        base_frac_local = float(ov.get("base_frac", annot_y_frac_base))
         if max_stack > 0:
             top_needed = (
-                annot_y_frac_base
+                base_frac_local
                 + (max_stack - 1) * annot_y_frac_step
                 + annot_h_frac
                 + headroom_frac_local
@@ -378,6 +400,13 @@ def plot_psc_boxplots(
         eps = 1e-9
         y0 = float(np.floor((y_lim_raw[0] + eps) / ytick_step) * ytick_step)
         y1 = float(np.ceil((y_lim_raw[1] - eps) / ytick_step) * ytick_step)
+
+        # Avoid an extra full tick-step of empty headroom caused by ceil() when the
+        # required upper bound is very close to the next tick.
+        if (y1 - y_lim_raw[1]) < (0.22 * ytick_step):
+            y1_candidate = y1 - ytick_step
+            if y1_candidate >= (y_lim_raw[1] - 1e-12):
+                y1 = y1_candidate
 
         y0 = min(y0, 0.0)
         y1 = max(y1, 0.0)
@@ -398,6 +427,9 @@ def plot_psc_boxplots(
             "pad": pad,
             "y_lim": (y0, y1),
             "y_ticks": y_ticks,
+            "ann_base_frac": base_frac_local,
+            "ann_step_frac": annot_y_frac_step,
+            "ann_h_frac": annot_h_frac,
             "eligible_by_mod": eligible_by_mod,
             "row_h": row_h,
         })
@@ -535,7 +567,8 @@ def plot_psc_boxplots(
                     continue
 
                 y_data = (spec["y_max"] + spec["pad"]) + (
-                    annot_y_frac_base + level * annot_y_frac_step
+                    spec.get("ann_base_frac", annot_y_frac_base)
+                    + level * spec.get("ann_step_frac", annot_y_frac_step)
                 ) * spec["yr"]
                 h_data = annot_h_frac * spec["yr"]
 
