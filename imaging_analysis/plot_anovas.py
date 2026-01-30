@@ -672,13 +672,13 @@ ANNOTATIONS = [
         roi="occipital",
         modality="Auditory",
         task_pair=("Production", "Perception"),
-        pvalue=0.0022787859816777,
+        pvalue=0.0114282939876557,
     ),
     dict(
         roi="occipital",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0005348873092657,
+        pvalue=0.0002568484106432,
     ),
     dict(
         roi="dstr",
