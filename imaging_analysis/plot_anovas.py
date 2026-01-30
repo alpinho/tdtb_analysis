@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 import matplotlib.cbook as cbook
 import matplotlib.pyplot as plt
@@ -73,7 +74,7 @@ def _paired_by_subject(
 
 def plot_psc_boxplots(
     df: pd.DataFrame,
-    outpath: Path,
+    outpath: str | Path,
     figsize_scale: float = 1.0,
 ) -> None:
     outpath = Path(outpath)
@@ -159,12 +160,10 @@ def plot_psc_boxplots(
 
     # ---- annotation drawing in FIGURE coords, but y anchored to DATA ----
     def _ydata_to_yfig(fig, ax, y_data: float) -> float:
-        """
-        Convert a y-value in ax DATA coords to FIGURE fraction coords.
-        """
+        """Convert y in ax data coords to figure fraction coords."""
         x0 = float(np.mean(ax.get_xlim()))
         x_disp, y_disp = ax.transData.transform((x0, y_data))
-        x_fig, y_fig = fig.transFigure.inverted().transform((x_disp, y_disp))
+        _, y_fig = fig.transFigure.inverted().transform((x_disp, y_disp))
         return float(y_fig)
 
     def add_span_annotation_datay_figspan(
@@ -196,31 +195,13 @@ def plot_psc_boxplots(
         y1 = _ydata_to_yfig(fig, ax_left, y_data + h_data)
 
         fig.add_artist(
-            Line2D(
-                [x1, x1],
-                [y0, y1],
-                transform=fig.transFigure,
-                lw=lw,
-                color="k",
-            )
+            Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
         )
         fig.add_artist(
-            Line2D(
-                [x1, x2],
-                [y1, y1],
-                transform=fig.transFigure,
-                lw=lw,
-                color="k",
-            )
+            Line2D([x1, x2], [y1, y1], transform=fig.transFigure, lw=lw, c="k")
         )
         fig.add_artist(
-            Line2D(
-                [x2, x2],
-                [y1, y0],
-                transform=fig.transFigure,
-                lw=lw,
-                color="k",
-            )
+            Line2D([x2, x2], [y1, y0], transform=fig.transFigure, lw=lw, c="k")
         )
 
         fig.text(
@@ -258,11 +239,7 @@ def plot_psc_boxplots(
         gridspec_kw={"width_ratios": width_ratios},
     )
 
-    colors = {
-        "Beat": "tab:blue",
-        "Interval": "tab:orange",
-    }
-
+    colors = {"Beat": "tab:blue", "Interval": "tab:orange"}
     BOX_ALPHA = 0.6
 
     ZERO_LINE_COLOR = "0.35"
@@ -271,7 +248,6 @@ def plot_psc_boxplots(
     ZERO_LINE_ZORDER = 0
 
     # ---- annotation stacking (DATA fractions of ROI y-range) ----
-    # These control how "tight" annotations sit above each ROI row.
     annot_y_frac_base = 0.04
     annot_y_frac_step = 0.2
     annot_h_frac = 0.015
@@ -317,7 +293,7 @@ def plot_psc_boxplots(
         i1 = task_order[t1]
         i2 = task_order[t2]
         span = abs(i2 - i1)
-        return (ann["modality"], span, min(i1, i2), max(i1, i2))
+        return (span, min(i1, i2), max(i1, i2))
 
     for r in range(n_rows):
         axes[r, gap_col].axis("off")
@@ -331,14 +307,19 @@ def plot_psc_boxplots(
                     axes[r, start + j].axis("off")
                 continue
 
-            # Lookup (modality, task) -> axis for this ROI side
-            ax_lookup = {}
+            ax_lookup: Dict[Tuple[str, str], plt.Axes] = {}
             for j2, (m2, t2) in enumerate(col_spec_block):
                 if m2 == "SPACER":
                     continue
                 ax_lookup[(m2, t2)] = axes[r, start + j2]
 
-            eligible = []
+            # Group annotations by modality so levels reset per block.
+            eligible_by_mod: Dict[str, List[dict]] = {
+                "Pooled": [],
+                "Auditory": [],
+                "Visual": [],
+            }
+
             for ann in ANNOTATIONS:
                 if not _matches_roi(roi, ann["roi"]):
                     continue
@@ -348,9 +329,11 @@ def plot_psc_boxplots(
                     continue
                 if (m, t_right) not in ax_lookup:
                     continue
-                eligible.append(ann)
+                if m in eligible_by_mod:
+                    eligible_by_mod[m].append(ann)
 
-            eligible.sort(key=_ann_sort_key)
+            for m in eligible_by_mod:
+                eligible_by_mod[m].sort(key=_ann_sort_key)
 
             # ---- ROI-wise y-lims from whiskers (as before) ----
             w_lows, w_highs = [], []
@@ -375,11 +358,12 @@ def plot_psc_boxplots(
             yr = max(y_max - y_min, 0.1)
             pad = ypad_frac * yr
 
-            # Add minimal headroom in y-lims so annotations are near the axes.
-            if eligible:
+            # Headroom should reflect the maximum stack depth of ANY modality.
+            max_stack = max((len(v) for v in eligible_by_mod.values()), default=0)
+            if max_stack > 0:
                 top_needed = (
                     annot_y_frac_base
-                    + (len(eligible) - 1) * annot_y_frac_step
+                    + (max_stack - 1) * annot_y_frac_step
                     + annot_h_frac
                     + annot_headroom_frac
                 )
@@ -412,11 +396,7 @@ def plot_psc_boxplots(
                     meanline=True,
                     whis=whis,
                     medianprops={"linewidth": 0, "color": "none"},
-                    meanprops={
-                        "linestyle": "--",
-                        "linewidth": 2.2,
-                        "color": "k",
-                    },
+                    meanprops={"linestyle": "--", "linewidth": 2.2, "color": "k"},
                 )
 
                 for patch, cat in zip(bp["boxes"], CATEGORIES):
@@ -437,11 +417,7 @@ def plot_psc_boxplots(
                 ax.set_xticks([])
 
                 xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
-                ax.set_xlabel(
-                    xlabel,
-                    fontsize=xlabel_fs,
-                    labelpad=xlabel_pad,
-                )
+                ax.set_xlabel(xlabel, fontsize=xlabel_fs, labelpad=xlabel_pad)
 
                 ax.spines["top"].set_visible(False)
                 ax.spines["right"].set_visible(False)
@@ -449,10 +425,7 @@ def plot_psc_boxplots(
 
                 if (start + j) == y_col:
                     ax.spines["left"].set_visible(True)
-                    ax.set_ylabel(
-                        f"{roi_label}\nPSC (%)",
-                        fontsize=axis_label_fs,
-                    )
+                    ax.set_ylabel(f"{roi_label}\nPSC (%)", fontsize=axis_label_fs)
                     ax.yaxis.label.set_linespacing(1.75)
                     ax.set_yticks(y_ticks)
                     ax.yaxis.set_major_formatter(y_formatter)
@@ -466,28 +439,31 @@ def plot_psc_boxplots(
                     ax.spines["left"].set_visible(False)
                     ax.tick_params(axis="y", left=False, labelleft=False)
 
-            # ---- Draw annotations: span in figure-x, data-anchored y ----
-            for k, ann in enumerate(eligible):
-                m = ann["modality"]
-                t_left, t_right = ann["task_pair"]
+            # ---- Draw annotations with per-modality stacking levels ----
+            for m, ann_list in eligible_by_mod.items():
+                for k, ann in enumerate(ann_list):
+                    t_left, t_right = ann["task_pair"]
+                    label = pval_label_converter([ann["pvalue"]])[0]
 
-                label = pval_label_converter([ann["pvalue"]])[0]
-                ax_l = ax_lookup[(m, t_left)]
-                ax_r = ax_lookup[(m, t_right)]
+                    ax_l = ax_lookup[(m, t_left)]
+                    ax_r = ax_lookup[(m, t_right)]
 
-                y_data = y_max + (annot_y_frac_base + k * annot_y_frac_step) * yr
-                h_data = annot_h_frac * yr
+                    y_data = (
+                        y_max
+                        + (annot_y_frac_base + k * annot_y_frac_step) * yr
+                    )
+                    h_data = annot_h_frac * yr
 
-                add_span_annotation_datay_figspan(
-                    fig,
-                    ax_l,
-                    ax_r,
-                    label,
-                    y_data=y_data,
-                    h_data=h_data,
-                    lw=1.4,
-                    fs=14,
-                )
+                    add_span_annotation_datay_figspan(
+                        fig,
+                        ax_l,
+                        ax_r,
+                        label,
+                        y_data=y_data,
+                        h_data=h_data,
+                        lw=1.4,
+                        fs=14,
+                    )
 
     fig.legend(
         handles=[
@@ -745,7 +721,7 @@ ANNOTATIONS = [
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.02078514755058,
-    )
+    ),
 ]
 
 # ============================= RUN ================================= #
@@ -753,4 +729,5 @@ ANNOTATIONS = [
 if __name__ == "__main__":
     args = parse_args()
     df_in = pd.read_csv(data_path, sep="\t")
-    plot_psc_boxplots(df=df_in, outpath=output_path, figsize_scale=args.figscale)
+    plot_psc_boxplots(df=df_in, outpath=output_path,
+                      figsize_scale=args.figscale)
