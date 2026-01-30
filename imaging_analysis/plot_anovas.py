@@ -273,7 +273,7 @@ def plot_psc_boxplots(
     # ---- annotation stacking (DATA fractions of ROI y-range) ----
     # These control how "tight" annotations sit above each ROI row.
     annot_y_frac_base = 0.04
-    annot_y_frac_step = 0.125
+    annot_y_frac_step = 0.2
     annot_h_frac = 0.015
     annot_headroom_frac = 0.03
 
@@ -588,7 +588,13 @@ output_path = os.path.join(
 )
 
 # ======================== ANNOTATIONS =========================== #
-# IMPORTANT: p-values here are NOT to be changed.
+# Each entry defines ONE bracket spanning two task-panels within ONE modality
+# block. "Pooled" refers to the left-most block (both modalities pooled).
+#
+# roi: short key ("dstr", "sma", "pmv", ...)
+# modality: "Pooled" | "Auditory" | "Visual"
+# task_pair: ("Production", "Perception", "NTFD")
+# pvalue: numeric p-value
 ANNOTATIONS = [
     dict(
         roi="dstr",
@@ -650,6 +656,96 @@ ANNOTATIONS = [
         task_pair=("Perception", "NTFD"),
         pvalue=0.0005348873092657,
     ),
+    dict(
+        roi="dstr",
+        modality="Auditory",
+        task_pair=("Production", "Perception"),
+        pvalue=0.0000223113707121616,
+    ),
+    dict(
+        roi="dstr",
+        modality="Auditory",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0000134800500526281,
+    ),
+    dict(
+        roi="sma",
+        modality="Auditory",
+        task_pair=("Production", "Perception"),
+        pvalue=0.0010309867929799,
+    ),
+    dict(
+        roi="sma",
+        modality="Auditory",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.0415934416483813,
+    ),
+    dict(
+        roi="heschl",
+        modality="Auditory",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.00000276179676296787,
+    ),
+    dict(
+        roi="heschl",
+        modality="Auditory",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.00000046329180419678,
+    ),
+    dict(
+        roi="occipital",
+        modality="Auditory",
+        task_pair=("Production", "Perception"),
+        pvalue=0.0022787859816777,
+    ),
+    dict(
+        roi="occipital",
+        modality="Auditory",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.0005348873092657,
+    ),
+    dict(
+        roi="dstr",
+        modality="Visual",
+        task_pair=("Production", "Perception"),
+        pvalue=0.0000000147957389590551,
+    ),
+    dict(
+        roi="dstr",
+        modality="Visual",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0000183394276401402,
+    ),
+    dict(
+        roi="cereb",
+        modality="Visual",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0324187838480206,
+    ),
+    dict(
+        roi="sma",
+        modality="Visual",
+        task_pair=("Production", "Perception"),
+        pvalue=0.0000271705639262566,
+    ),
+    dict(
+        roi="sma",
+        modality="Visual",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.0160228828086688,
+    ),
+    dict(
+        roi="occipital",
+        modality="Visual",
+        task_pair=("Production", "Perception"),
+        pvalue=0.0134946966485245,
+    ),
+    dict(
+        roi="occipital",
+        modality="Visual",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.02078514755058,
+    )
 ]
 
 # ============================= RUN ================================= #
