@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 """
-Plot PSC by ROI (rows) and modality/task blocks (columns).
+Author: Ana Luisa Pinho
+email: agrilopi@uwo.ca
 
-Compatibility: Python 3.10+
+Created: 28th of January, 2026
+Last update: January 2026
+
+Compatibility: Python 3.10.14
+
+PSC boxplots by ROI (single ROI column) and modality/task blocks (columns).
+
+- ROI rows are ordered: dstr, cereb, presma, sma, pmd, pmv, heschl, occipital.
+- Y-axis uses a fixed tick step (PSC percentage points) across all panels.
+- Row heights scale with the number of y-steps so that pixels-per-step are constant.
 """
+
 
 from __future__ import annotations
 
@@ -77,6 +88,14 @@ def plot_psc_boxplots(
     outpath: str | Path,
     figsize_scale: float = 1.0,
 ) -> None:
+    """Plot PSC by ROI (single column) with constant y-step and constant pixels per step.
+
+    Requested changes:
+      1) Single ROI column ordered: dstr, cerebellum, presma, sma, pmd, pmv, heschl, occipital.
+      2) Same y tick step size across plots AND same pixel distance per step across plots
+         by scaling each row's height proportional to its y-range (after padding/headroom).
+      3) Generous pixel spacing per step for readability.
+    """
     outpath = Path(outpath)
     if outpath.suffix == "":
         raise ValueError("outpath must end with .png or .pdf")
@@ -88,6 +107,7 @@ def plot_psc_boxplots(
     df = df[df["Category"].isin(CATEGORIES)]
     df = df[df["Modality"].isin(["Auditory", "Visual"])]
 
+    # --- column spec (one block) ---
     col_spec_block = [
         ("Pooled", "Production"),
         ("Pooled", "Perception"),
@@ -101,18 +121,11 @@ def plot_psc_boxplots(
         ("Visual", "Perception"),
         ("Visual", "NTFD"),
     ]
+    width_ratios = [1, 1, 1, 0.20, 1, 1, 1, 0.20, 1, 1, 1]
+    n_cols = len(col_spec_block)
 
-    width_ratios_block = [1, 1, 1, 0.20, 1, 1, 1, 0.20, 1, 1, 1]
-    n_cols_block = len(col_spec_block)
-
-    panel_sep = 1.6
-    col_spec = col_spec_block + [("ROI_GAP", "ROI_GAP")] + col_spec_block
-    width_ratios = width_ratios_block + [panel_sep] + width_ratios_block
-
-    roi_grid_left = ["dstr", "presma", "pmd", "Heschl"]
-    roi_grid_right = ["cereb", "sma", "pmv", "Occipital"]
-    n_rows = 4
-
+    # --- ROI order (single column) ---
+    roi_order_user = ["dstr", "cereb", "presma", "sma", "pmd", "pmv", "heschl", "occipital"]
     roi_map = {str(r).lower(): r for r in pd.unique(df["ROI"])}
 
     def _resolve_roi(name: str) -> str | None:
@@ -124,8 +137,8 @@ def plot_psc_boxplots(
                 return v
         return None
 
-    rois_left = [_resolve_roi(r) for r in roi_grid_left]
-    rois_right = [_resolve_roi(r) for r in roi_grid_right]
+    rois = [_resolve_roi(r) for r in roi_order_user]
+    n_rows = len(rois)
 
     roi_pretty = {
         "dstr": "Dorsal Striatum",
@@ -145,8 +158,9 @@ def plot_psc_boxplots(
                 return pretty
         return str(resolved_roi)
 
+    
     def _roi_token(name: str) -> str:
-        """Return a normalized ROI token for exact matching."""
+        """Normalize ROI strings for matching."""
         s = str(name).strip().lower()
         s = s.replace("’", "'")
         s = s.replace(" ", "")
@@ -154,11 +168,41 @@ def plot_psc_boxplots(
         s = s.replace("-", "")
         return s
 
-    def _matches_roi(resolved_roi: str, roi_key: str) -> bool:
-        """Match ROI keys exactly (avoid 'sma' matching 'presma')."""
-        return _roi_token(resolved_roi) == _roi_token(roi_key)
+    def _roi_key(name: str) -> str | None:
+        """
+        Canonical ROI key for robust matching.
 
-    # ---- annotation drawing in FIGURE coords, but y anchored to DATA ----
+        IMPORTANT: 'presma' must NOT be matched by 'sma' (substring issue),
+        so we check 'presma' before 'sma'.
+        """
+        tok = _roi_token(name)
+
+        # Order matters (avoid substring collisions)
+        if "presma" in tok or "presupplementary" in tok or "pre-sma" in tok:
+            return "presma"
+        if tok == "sma" or "supplementarymotor" in tok or tok.endswith("sma"):
+            return "sma"
+        if "dstr" in tok or "dorsalstriatum" in tok:
+            return "dstr"
+        if "cereb" in tok or "cerebell" in tok:
+            return "cereb"
+        if "pmd" in tok:
+            return "pmd"
+        if "pmv" in tok:
+            return "pmv"
+        if "heschl" in tok:
+            return "heschl"
+        if "occip" in tok:
+            return "occipital"
+
+        return None
+
+    def _matches_roi(resolved_roi: str, ann_roi: str) -> bool:
+        """Match annotation ROI to resolved ROI using canonical keys."""
+        k1 = _roi_key(resolved_roi)
+        k2 = _roi_key(ann_roi)
+        return (k1 is not None) and (k1 == k2)
+
     def _ydata_to_yfig(fig, ax, y_data: float) -> float:
         """Convert y in ax data coords to figure fraction coords."""
         x0 = float(np.mean(ax.get_xlim()))
@@ -166,7 +210,7 @@ def plot_psc_boxplots(
         _, y_fig = fig.transFigure.inverted().transform((x_disp, y_disp))
         return float(y_fig)
 
-    def add_span_annotation_datay_figspan(
+    def span_annotation_datay_figspan(
         fig,
         ax_left,
         ax_right,
@@ -175,7 +219,7 @@ def plot_psc_boxplots(
         h_data: float,
         lw: float = 1.4,
         fs: float = 14,
-    ) -> None:
+        ) -> None:
         """
         Draw a bracket spanning ax_left -> ax_right.
 
@@ -214,77 +258,41 @@ def plot_psc_boxplots(
             color="k",
         )
 
-    # ---- original width heuristic ----
-    label_lines = []
-    for mod, task in col_spec_block:
-        if mod == "SPACER":
-            continue
-        if mod == "Pooled":
-            label_lines.append(task)
-        else:
-            label_lines.extend([mod, task])
+    # --- plotting params ---
+    colors = {
+        "Beat": "#6baed6",
+        "Interval": "#fdae6b",
+    }
+    BOX_ALPHA = 0.72
 
-    max_line_len = max((len(s) for s in label_lines), default=10)
-    per_col = 1.18 + 0.034 * max(0, max_line_len - 8)
-    per_col = min(per_col, 1.55)
-
-    fig_w = per_col * float(sum(width_ratios)) * figsize_scale
-    fig_h = 5.0 * n_rows * figsize_scale
-
-    fig, axes = plt.subplots(
-        nrows=n_rows,
-        ncols=len(col_spec),
-        figsize=(fig_w, fig_h),
-        sharey=False,
-        gridspec_kw={"width_ratios": width_ratios},
-    )
-
-    colors = {"Beat": "tab:blue", "Interval": "tab:orange"}
-    BOX_ALPHA = 0.6
-
-    ZERO_LINE_COLOR = "0.35"
-    ZERO_LINE_LS = "--"
-    ZERO_LINE_LW = 1.5
-    ZERO_LINE_ZORDER = 0
-
-    # ---- annotation stacking (DATA fractions of ROI y-range) ----
-    annot_y_frac_base = 0.04
-    annot_y_frac_step = 0.2
-    annot_h_frac = 0.015
-    annot_headroom_frac = 0.03
-
-    # ---- box geometry ----
-    box_w = 0.135
-    delta = 0.155
-    pos = [1.00, 1.00 + delta]
-    x_pad = 0.135
-    x_min = pos[0] - x_pad
-    x_max = pos[1] + x_pad
-
-    fig.subplots_adjust(
-        left=0.055,
-        right=0.995,
-        top=0.91,
-        bottom=0.14,
-        wspace=0.16,
-        hspace=0.46,
-    )
-
+    pos = [1.0, 1.9]
+    x_min, x_max = 0.55, 2.35
+    box_w = 0.65
     whis = 1.5
-    ypad_frac = 0.02
 
-    xlabel_fs = 14
+    xlabel_fs = 12
     xlabel_pad = 4
     axis_label_fs = xlabel_fs
     ytick_fs = xlabel_fs
     legend_fs = axis_label_fs + 2
 
-    n_yticks = 5
     y_formatter = FormatStrFormatter("%.2f")
 
-    left_start = 0
-    gap_col = n_cols_block
-    right_start = n_cols_block + 1
+    ypad_frac = 0.06
+    annot_y_frac_base = 0.04
+    annot_y_frac_step = 0.09
+    annot_h_frac = 0.03
+    annot_headroom_frac = 0.01
+
+    ZERO_LINE_COLOR = "0.25"
+    ZERO_LINE_LS = "--"
+    ZERO_LINE_LW = 1.2
+    ZERO_LINE_ZORDER = 1
+
+    # ---------- GLOBAL Y SCALE CONTROL ----------
+    ytick_step = 0.20
+    inches_per_step = 0.68
+    min_row_height = 2.0
 
     task_order = {"Production": 0, "Perception": 1, "NTFD": 2}
 
@@ -295,215 +303,255 @@ def plot_psc_boxplots(
         span = abs(i2 - i1)
         return (span, min(i1, i2), max(i1, i2))
 
-    for r in range(n_rows):
-        axes[r, gap_col].axis("off")
+    # ---------- PASS 1: compute per-ROI y-lims + ticks + row heights ----------
+    roi_specs: List[dict] = []
 
-        for block_i, roi in enumerate([rois_left[r], rois_right[r]]):
-            start = left_start if block_i == 0 else right_start
-            y_col = start
+    for roi in rois:
+        if roi is None:
+            roi_specs.append({
+                "roi": None,
+                "roi_label": "",
+                "y_min": 0.0,
+                "y_max": 1.0,
+                "yr": 1.0,
+                "y_lim": (0.0, 1.0),
+                "y_ticks": np.array([0.0, 1.0]),
+                "eligible_by_mod": {"Pooled": [], "Auditory": [], "Visual": []},
+                "row_h": min_row_height,
+            })
+            continue
 
-            if roi is None:
-                for j in range(n_cols_block):
-                    axes[r, start + j].axis("off")
+        ax_keys = [(m, t) for (m, t) in col_spec_block if m != "SPACER"]
+
+        eligible_by_mod: Dict[str, List[dict]] = {"Pooled": [], "Auditory": [], "Visual": []}
+        for ann in ANNOTATIONS:
+            if not _matches_roi(roi, ann["roi"]):
                 continue
+            m = ann["modality"]
+            t_left, t_right = ann["task_pair"]
+            if (m, t_left) not in ax_keys or (m, t_right) not in ax_keys:
+                continue
+            if m in eligible_by_mod:
+                eligible_by_mod[m].append(ann)
 
-            ax_lookup: Dict[Tuple[str, str], plt.Axes] = {}
-            for j2, (m2, t2) in enumerate(col_spec_block):
-                if m2 == "SPACER":
+        for m in eligible_by_mod:
+            eligible_by_mod[m].sort(key=_ann_sort_key)
+
+        w_lows, w_highs = [], []
+        for mod, task in col_spec_block:
+            if mod == "SPACER":
+                continue
+            paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
+            for cat in CATEGORIES:
+                vals = paired[cat].dropna().to_numpy()
+                if vals.size < 3:
                     continue
-                ax_lookup[(m2, t2)] = axes[r, start + j2]
+                stats = cbook.boxplot_stats(vals, whis=whis)[0]
+                w_lows.append(float(stats["whislo"]))
+                w_highs.append(float(stats["whishi"]))
 
-            # Group annotations by modality so levels reset per block.
-            eligible_by_mod: Dict[str, List[dict]] = {
-                "Pooled": [],
-                "Auditory": [],
-                "Visual": [],
-            }
+        if w_lows:
+            y_min, y_max = min(w_lows), max(w_highs)
+        else:
+            roi_vals = df.loc[df["ROI"] == roi, "PSC"].dropna().to_numpy()
+            y_min, y_max = float(roi_vals.min()), float(roi_vals.max())
 
-            for ann in ANNOTATIONS:
-                if not _matches_roi(roi, ann["roi"]):
-                    continue
-                m = ann["modality"]
-                t_left, t_right = ann["task_pair"]
-                if (m, t_left) not in ax_lookup:
-                    continue
-                if (m, t_right) not in ax_lookup:
-                    continue
-                if m in eligible_by_mod:
-                    eligible_by_mod[m].append(ann)
+        yr = max(y_max - y_min, 0.1)
+        pad_frac_local = 0.045 if _roi_key(roi) == 'heschl' else ypad_frac
+        pad = pad_frac_local * yr
 
-            for m in eligible_by_mod:
-                eligible_by_mod[m].sort(key=_ann_sort_key)
+        max_stack = max((len(v) for v in eligible_by_mod.values()), default=0)
+        headroom_frac_local = 0.006 if _roi_key(roi) == 'heschl' else annot_headroom_frac
+        if max_stack > 0:
+            top_needed = (
+                annot_y_frac_base
+                + (max_stack - 1) * annot_y_frac_step
+                + annot_h_frac
+                + headroom_frac_local
+            )
+            top_extra = top_needed * yr
+        else:
+            top_extra = 0.0
 
-            # ---- ROI-wise y-lims from whiskers (as before) ----
-            w_lows, w_highs = [], []
-            for mod, task in col_spec_block:
-                if mod == "SPACER":
-                    continue
-                paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
-                for cat in CATEGORIES:
-                    vals = paired[cat].dropna().to_numpy()
-                    if vals.size < 3:
-                        continue
-                    stats = cbook.boxplot_stats(vals, whis=whis)[0]
-                    w_lows.append(float(stats["whislo"]))
-                    w_highs.append(float(stats["whishi"]))
+        y_lim_raw = (y_min - pad, y_max + pad + top_extra)
 
-            if w_lows:
-                y_min, y_max = min(w_lows), max(w_highs)
-            else:
-                roi_vals = df.loc[df["ROI"] == roi, "PSC"].dropna().to_numpy()
-                y_min, y_max = float(roi_vals.min()), float(roi_vals.max())
+        eps = 1e-9
+        y0 = float(np.floor((y_lim_raw[0] + eps) / ytick_step) * ytick_step)
+        y1 = float(np.ceil((y_lim_raw[1] - eps) / ytick_step) * ytick_step)
 
-            yr = max(y_max - y_min, 0.1)
-            pad = ypad_frac * yr
+        y0 = min(y0, 0.0)
+        y1 = max(y1, 0.0)
 
-            # Headroom should reflect the maximum stack depth of ANY modality.
-            max_stack = max((len(v) for v in eligible_by_mod.values()), default=0)
-            if max_stack > 0:
-                top_needed = (
-                    annot_y_frac_base
-                    + (max_stack - 1) * annot_y_frac_step
-                    + annot_h_frac
-                    + annot_headroom_frac
-                )
-                top_extra = top_needed * yr
-            else:
-                top_extra = 0.0
+        y_ticks = np.arange(y0, y1 + 0.5 * ytick_step, ytick_step)
+        if y_ticks.size < 2:
+            y_ticks = np.array([y0, y1])
 
-            y_lim = (y_min - pad, y_max + pad + top_extra)
-            y_ticks = np.linspace(y_lim[0], y_lim[1], n_yticks)
-            roi_label = _pretty_roi_label(roi)
+        n_steps = max(int(y_ticks.size - 1), 1)
+        row_h = max(min_row_height, n_steps * inches_per_step)
 
-            for j, (mod, task) in enumerate(col_spec_block):
-                ax = axes[r, start + j]
+        roi_specs.append({
+            "roi": roi,
+            "roi_label": _pretty_roi_label(roi),
+            "y_min": y_min,
+            "y_max": y_max,
+            "yr": yr,
+            "pad": pad,
+            "y_lim": (y0, y1),
+            "y_ticks": y_ticks,
+            "eligible_by_mod": eligible_by_mod,
+            "row_h": row_h,
+        })
 
-                if mod == "SPACER":
-                    ax.axis("off")
-                    continue
+    height_ratios = [d["row_h"] for d in roi_specs]
 
-                paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
-                data = [paired["Beat"].to_numpy(), paired["Interval"].to_numpy()]
+    # ---------- figure size ----------
+    label_lines = []
+    for mod, task in col_spec_block:
+        if mod == "SPACER":
+            continue
+        label_lines.append(task if mod == "Pooled" else f"{mod}\n{task}")
+    max_line_len = max((max(len(s.split("\n")[0]), len(s.split("\n")[-1])) for s in label_lines), default=8)
+    per_col = 1.18 + 0.034 * max(0, max_line_len - 8)
+    per_col = min(per_col, 1.55)
 
-                bp = ax.boxplot(
-                    data,
-                    positions=pos,
-                    widths=box_w,
-                    notch=True,
-                    patch_artist=True,
-                    showfliers=False,
-                    showmeans=True,
-                    meanline=True,
-                    whis=whis,
-                    medianprops={"linewidth": 0, "color": "none"},
-                    meanprops={"linestyle": "--", "linewidth": 2.2, "color": "k"},
-                )
+    fig_w = per_col * float(sum(width_ratios)) * figsize_scale
+    fig_h = float(sum(height_ratios)) * figsize_scale
 
-                for patch, cat in zip(bp["boxes"], CATEGORIES):
-                    patch.set_facecolor(colors[cat])
-                    patch.set_alpha(BOX_ALPHA)
+    fig, axes = plt.subplots(
+        nrows=n_rows,
+        ncols=n_cols,
+        figsize=(fig_w, fig_h),
+        sharey=False,
+        gridspec_kw={"width_ratios": width_ratios, "height_ratios": height_ratios},
+    )
+    if n_rows == 1:
+        axes = np.expand_dims(axes, axis=0)
 
-                ax.set_xlim(x_min, x_max)
-                ax.set_ylim(*y_lim)
-
-                ax.axhline(
-                    0,
-                    color=ZERO_LINE_COLOR,
-                    linestyle=ZERO_LINE_LS,
-                    linewidth=ZERO_LINE_LW,
-                    zorder=ZERO_LINE_ZORDER,
-                )
-
-                ax.set_xticks([])
-
-                xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
-                ax.set_xlabel(xlabel, fontsize=xlabel_fs, labelpad=xlabel_pad)
-
-                ax.spines["top"].set_visible(False)
-                ax.spines["right"].set_visible(False)
-                ax.spines["bottom"].set_visible(True)
-
-                if (start + j) == y_col:
-                    ax.spines["left"].set_visible(True)
-                    ax.set_ylabel(f"{roi_label}\nPSC (%)", fontsize=axis_label_fs)
-                    ax.yaxis.label.set_linespacing(1.75)
-                    ax.set_yticks(y_ticks)
-                    ax.yaxis.set_major_formatter(y_formatter)
-                    ax.tick_params(
-                        axis="y",
-                        left=True,
-                        labelleft=True,
-                        labelsize=ytick_fs,
-                    )
-                else:
-                    ax.spines["left"].set_visible(False)
-                    ax.tick_params(axis="y", left=False, labelleft=False)
-
-            # ---- Draw annotations with per-modality stacking levels ----
-            for m, ann_list in eligible_by_mod.items():
-                for k, ann in enumerate(ann_list):
-                    t_left, t_right = ann["task_pair"]
-                    label = pval_label_converter([ann["pvalue"]])[0]
-
-                    ax_l = ax_lookup[(m, t_left)]
-                    ax_r = ax_lookup[(m, t_right)]
-
-                    y_data = (
-                        y_max
-                        + (annot_y_frac_base + k * annot_y_frac_step) * yr
-                    )
-                    h_data = annot_h_frac * yr
-
-                    add_span_annotation_datay_figspan(
-                        fig,
-                        ax_l,
-                        ax_r,
-                        label,
-                        y_data=y_data,
-                        h_data=h_data,
-                        lw=1.4,
-                        fs=14,
-                    )
-
+    handles = [
+        Patch(facecolor=colors["Beat"], edgecolor="none", alpha=BOX_ALPHA, label="Beat"),
+        Patch(facecolor=colors["Interval"], edgecolor="none", alpha=BOX_ALPHA, label="Interval"),
+        Line2D([0], [0], color="k", linestyle="--", linewidth=2.2, label="Mean"),
+    ]
     fig.legend(
-        handles=[
-            Patch(
-                facecolor=colors["Beat"],
-                edgecolor="none",
-                alpha=BOX_ALPHA,
-                label="Beat",
-            ),
-            Patch(
-                facecolor=colors["Interval"],
-                edgecolor="none",
-                alpha=BOX_ALPHA,
-                label="Interval",
-            ),
-            Line2D(
-                [0],
-                [0],
-                linestyle="--",
-                linewidth=3.2,
-                color="k",
-                label="Mean",
-            ),
-        ],
+        handles=handles,
         loc="upper center",
         ncol=3,
         frameon=False,
-        bbox_to_anchor=(0.5, 1.015),
+        bbox_to_anchor=(0.5, 0.995),
         fontsize=legend_fs,
-        handlelength=4.6,
-        handleheight=1.8,
-        handletextpad=1.0,
-        columnspacing=2.8,
-        borderaxespad=0.2,
+        handlelength=3.0,
+        columnspacing=2.0,
     )
+    # Row heights vary; keep a small but non-zero hspace to prevent overlap.
+    # (0.10–0.15 is typically safe with the generous inches_per_step setting.)
+    fig.subplots_adjust(top=0.975, hspace=0.25, wspace=0.25)
 
-    fig.savefig(outpath, dpi=300, bbox_inches="tight")
+    # ---------- PASS 2: draw ----------
+    for r, spec in enumerate(roi_specs):
+        roi = spec["roi"]
+
+        ax_lookup: Dict[Tuple[str, str], plt.Axes] = {}
+        for j2, (m2, t2) in enumerate(col_spec_block):
+            if m2 == "SPACER":
+                continue
+            ax_lookup[(m2, t2)] = axes[r, j2]
+
+        for j, (mod, task) in enumerate(col_spec_block):
+            ax = axes[r, j]
+
+            if mod == "SPACER":
+                ax.axis("off")
+                continue
+
+            if roi is None:
+                ax.axis("off")
+                continue
+
+            paired = _paired_by_subject(df, roi=roi, modality=mod, task=task)
+            data = [paired["Beat"].to_numpy(), paired["Interval"].to_numpy()]
+
+            bp = ax.boxplot(
+                data,
+                positions=pos,
+                widths=box_w,
+                notch=True,
+                patch_artist=True,
+                showfliers=False,
+                showmeans=True,
+                meanline=True,
+                whis=whis,
+                medianprops={"linewidth": 0, "color": "none"},
+                meanprops={"linestyle": "--", "linewidth": 2.2, "color": "k"},
+            )
+
+            for patch, cat in zip(bp["boxes"], CATEGORIES):
+                patch.set_facecolor(colors[cat])
+                patch.set_alpha(BOX_ALPHA)
+
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(*spec["y_lim"])
+            ax.set_yticks(spec["y_ticks"])
+            ax.yaxis.set_major_formatter(y_formatter)
+
+            ax.axhline(
+                0,
+                color=ZERO_LINE_COLOR,
+                linestyle=ZERO_LINE_LS,
+                linewidth=ZERO_LINE_LW,
+                zorder=ZERO_LINE_ZORDER,
+            )
+
+            ax.set_xticks([])
+            xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
+            ax.set_xlabel(xlabel, fontsize=xlabel_fs, labelpad=xlabel_pad)
+
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+
+            if j == 0:
+                ax.set_ylabel(f"{spec['roi_label']}\nPSC (%)", fontsize=axis_label_fs)
+                ax.tick_params(axis="y", labelsize=ytick_fs)
+                ax.spines['left'].set_visible(True)
+            else:
+                ax.set_yticklabels([])
+                ax.tick_params(axis='y', left=False, length=0)
+                ax.spines['left'].set_visible(False)
+
+        if roi is None:
+            continue
+
+        for m, anns in spec["eligible_by_mod"].items():
+            if not anns:
+                continue
+
+            for level, ann in enumerate(anns):
+                t_left, t_right = ann["task_pair"]
+                p = ann["pvalue"]
+                text = pval_label_converter([p])[0]
+
+                ax_left = ax_lookup.get((m, t_left))
+                ax_right = ax_lookup.get((m, t_right))
+                if ax_left is None or ax_right is None:
+                    continue
+
+                y_data = (spec["y_max"] + spec["pad"]) + (
+                    annot_y_frac_base + level * annot_y_frac_step
+                ) * spec["yr"]
+                h_data = annot_h_frac * spec["yr"]
+
+                span_annotation_datay_figspan(
+                    fig,
+                    ax_left,
+                    ax_right,
+                    text=text,
+                    y_data=y_data,
+                    h_data=h_data,
+                    lw=1.2,
+                    fs=14,
+                )
+
+    fig.savefig(outpath, dpi=200, bbox_inches="tight")
     plt.close(fig)
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
