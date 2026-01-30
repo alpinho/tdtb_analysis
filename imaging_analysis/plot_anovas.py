@@ -634,11 +634,20 @@ data_path = os.path.join(
     "dfrois_" + INDIVID_LEVEL + "_" + str(N_ROIS) + "-rois.tsv",
 )
 
+# output_path = os.path.join(
+#     working_dir,
+#     "results",
+#     "fig4",
+#     "psc_boxplots_by_roi.png",
+# )
+
 output_path = os.path.join(
     working_dir,
-    "results",
-    "fig4",
-    "psc_boxplots_by_roi.png",
+    "roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed",
+    "bothmod_allmain_tasks",
+    "main_tasks",
+    "anova_plots",
+    "psc_boxplots_by_roi.png"
 )
 
 # ======================== ANNOTATIONS =========================== #
