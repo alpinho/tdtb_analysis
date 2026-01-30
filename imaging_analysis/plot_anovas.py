@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+PSC boxplots by ROI (single ROI column) and 
+modality/task blocks (columns).
+
 Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
@@ -7,12 +10,6 @@ Created: 28th of January, 2026
 Last update: January 2026
 
 Compatibility: Python 3.10.14
-
-PSC boxplots by ROI (single ROI column) and modality/task blocks (columns).
-
-- ROI rows are ordered: dstr, cereb, presma, sma, pmd, pmv, heschl, occipital.
-- Y-axis uses a fixed tick step (PSC percentage points) across all panels.
-- Row heights scale with the number of y-steps so that pixels-per-step are constant.
 """
 
 
