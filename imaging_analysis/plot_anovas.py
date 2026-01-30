@@ -84,6 +84,7 @@ def plot_psc_boxplots(
     df: pd.DataFrame,
     outpath: str | Path,
     figsize_scale: float = 1.0,
+    audivisual_only: bool = False,
 ) -> None:
     """Plot PSC by ROI (single column) with constant y-step and constant pixels per step.
 
@@ -102,23 +103,39 @@ def plot_psc_boxplots(
     df = df[df["Hemisphere"] == "bh"]
     df = df[df["Task"].isin(TASKS)]
     df = df[df["Category"].isin(CATEGORIES)]
-    df = df[df["Modality"].isin(["Auditory", "Visual"])]
-
-    # --- column spec (one block) ---
-    col_spec_block = [
-        ("Pooled", "Production"),
-        ("Pooled", "Perception"),
-        ("Pooled", "NTFD"),
-        ("SPACER", "SPACER"),
-        ("Auditory", "Production"),
-        ("Auditory", "Perception"),
-        ("Auditory", "NTFD"),
-        ("SPACER", "SPACER"),
-        ("Visual", "Production"),
-        ("Visual", "Perception"),
-        ("Visual", "NTFD"),
-    ]
-    width_ratios = [1, 1, 1, 0.20, 1, 1, 1, 0.20, 1, 1, 1]
+    # If requested, restrict to Auditory+Visual only (no pooled panels).
+    # Note: "Pooled" panels are conceptual (they aggregate across modalities)
+    # and do not rely on a "Pooled" value in df["Modality"].
+    if audivisual_only:
+        df = df[df["Modality"].isin(["Auditory", "Visual"])]    # --- column spec ---
+    # By default we plot: Pooled + Auditory + Visual.
+    # If audivisual_only=True, we plot: Auditory + Visual only.
+    if audivisual_only:
+        col_spec_block = [
+            ("Auditory", "Production"),
+            ("Auditory", "Perception"),
+            ("Auditory", "NTFD"),
+            ("SPACER", "SPACER"),
+            ("Visual", "Production"),
+            ("Visual", "Perception"),
+            ("Visual", "NTFD"),
+        ]
+        width_ratios = [1, 1, 1, 0.20, 1, 1, 1]
+    else:
+        col_spec_block = [
+            ("Pooled", "Production"),
+            ("Pooled", "Perception"),
+            ("Pooled", "NTFD"),
+            ("SPACER", "SPACER"),
+            ("Auditory", "Production"),
+            ("Auditory", "Perception"),
+            ("Auditory", "NTFD"),
+            ("SPACER", "SPACER"),
+            ("Visual", "Production"),
+            ("Visual", "Perception"),
+            ("Visual", "NTFD"),
+        ]
+        width_ratios = [1, 1, 1, 0.20, 1, 1, 1, 0.20, 1, 1, 1]
     n_cols = len(col_spec_block)
 
     # --- ROI order (single column) ---
@@ -327,14 +344,18 @@ def plot_psc_boxplots(
                 "yr": 1.0,
                 "y_lim": (0.0, 1.0),
                 "y_ticks": np.array([0.0, 1.0]),
-                "eligible_by_mod": {"Pooled": [], "Auditory": [], "Visual": []},
+                "eligible_by_mod": ({"Auditory": [], "Visual": []} if audivisual_only else {"Pooled": [], "Auditory": [], "Visual": []}),
                 "row_h": min_row_height,
             })
             continue
 
         ax_keys = [(m, t) for (m, t) in col_spec_block if m != "SPACER"]
 
-        eligible_by_mod: Dict[str, List[dict]] = {"Pooled": [], "Auditory": [], "Visual": []}
+        eligible_by_mod: Dict[str, List[dict]] = (
+            {"Auditory": [], "Visual": []}
+            if audivisual_only
+            else {"Pooled": [], "Auditory": [], "Visual": []}
+        )
         for ann in ANNOTATIONS:
             if not _matches_roi(roi, ann["roi"]):
                 continue
@@ -816,5 +837,20 @@ ANNOTATIONS = [
 if __name__ == "__main__":
     args = parse_args()
     df_in = pd.read_csv(data_path, sep="\t")
-    plot_psc_boxplots(df=df_in, outpath=output_path,
-                      figsize_scale=args.figscale)
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=output_path,
+        figsize_scale=args.figscale,
+        audivisual_only=False,
+    )
+
+    # Also export an Auditory+Visual-only version (no pooled panels).
+    outpath2 = Path(output_path)
+    outpath2 = outpath2.with_name(
+        outpath2.stem + "_audivisual_only" + outpath2.suffix)
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=outpath2,
+        figsize_scale=args.figscale,
+        audivisual_only=True,
+    )
