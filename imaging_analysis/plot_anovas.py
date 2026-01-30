@@ -59,6 +59,11 @@ ROI_PRETTY = {
     "occipital": "Occipital Lobe",
 }
 
+# Geometry: make the 3-boxplot NTFD Random panels wider.
+W_RATIO_STD = 1.0
+W_RATIO_NTFD_RANDOM = 1.45
+W_RATIO_SPACER = 0.20
+
 
 # ============================ UTILITIES ============================ #
 
@@ -260,11 +265,9 @@ def plot_psc_boxplots(
     df = df.copy()
     df = df[df["Hemisphere"] == "bh"].copy()
 
-    # Restrict to modalities when exporting the auditory+visual-only figure.
     if audivisual_only:
         df = df[df["Modality"].isin(MODALITIES)].copy()
 
-    # We keep both main tasks and the NTFD Random task.
     keep_tasks = set(TASKS_MAIN + [TASK_NTFD_RANDOM])
     df = df[df["Task"].isin(keep_tasks)].copy()
 
@@ -293,9 +296,16 @@ def plot_psc_boxplots(
 
     col_spec_block = _with_spacer(blocks)
 
+    # ------------------ width ratios (task-dependent) --------------------
     width_ratios: List[float] = []
-    for mod, _t in col_spec_block:
-        width_ratios.append(0.20 if mod == "SPACER" else 1.0)
+    for mod, task in col_spec_block:
+        if mod == "SPACER":
+            width_ratios.append(W_RATIO_SPACER)
+        elif task == TASK_NTFD_RANDOM:
+            width_ratios.append(W_RATIO_NTFD_RANDOM)
+        else:
+            width_ratios.append(W_RATIO_STD)
+
     n_cols = len(col_spec_block)
 
     # ------------------------ ROI ordering -------------------------
@@ -312,7 +322,6 @@ def plot_psc_boxplots(
     box_alpha = 0.72
     whis = 1.5
 
-    # x positions differ by task (2 vs 3 boxplots)
     pos_2 = [1.0, 1.9]
     pos_3 = [1.0, 1.9, 2.8]
 
@@ -329,14 +338,12 @@ def plot_psc_boxplots(
 
     y_formatter = FormatStrFormatter("%.2f")
 
-    # y-lim padding and annotation stacking
     ypad_frac = 0.06
     annot_y_frac_base = 0.04
     annot_y_frac_step = 0.09
     annot_h_frac = 0.03
     annot_headroom_frac = 0.01
 
-    # ROI-specific overrides to control whitespace around annotations.
     roi_annot_overrides = {
         "dstr": {"headroom_frac": 0.002},
         "cereb": {"headroom_frac": 0.002},
@@ -355,7 +362,6 @@ def plot_psc_boxplots(
     zero_line_lw = 1.2
     zero_line_zorder = 1
 
-    # Global y scale: constant tick step and constant pixels per step.
     ytick_step = 0.20
     inches_per_step = 0.68
     min_row_height = 2.0
@@ -482,7 +488,6 @@ def plot_psc_boxplots(
         y0 = float(np.floor((y_lim_raw[0] + eps) / ytick_step) * ytick_step)
         y1 = float(np.ceil((y_lim_raw[1] - eps) / ytick_step) * ytick_step)
 
-        # Drop one step if ceil added a near-empty step.
         if (y1 - y_lim_raw[1]) < (0.22 * ytick_step):
             y1_candidate = y1 - ytick_step
             if y1_candidate >= (y_lim_raw[1] - 1e-12):
@@ -550,8 +555,6 @@ def plot_psc_boxplots(
     if n_rows == 1:
         axes = np.expand_dims(axes, axis=0)
 
-    # Legend: Beat, Interval, Random, Mean (requested order).
-    # NOTE: 'handles' must be defined regardless of include_ntfd_random.
     handles = [
         Patch(
             facecolor=colors["Beat"],
@@ -622,7 +625,11 @@ def plot_psc_boxplots(
 
             cats = _task_categories(task)
             paired = _paired_by_subject(
-                df, roi=roi, modality=mod, task=task, categories=cats
+                df,
+                roi=roi,
+                modality=mod,
+                task=task,
+                categories=cats,
             )
 
             data = [paired[c].to_numpy() for c in cats]
@@ -645,8 +652,11 @@ def plot_psc_boxplots(
                 meanline=True,
                 whis=whis,
                 medianprops={"linewidth": 0, "color": "none"},
-                meanprops={"linestyle": "--", "linewidth": 2.2,
-                           "color": "k"},
+                meanprops={
+                    "linestyle": "--",
+                    "linewidth": 2.2,
+                    "color": "k",
+                },
             )
 
             for patch, cat in zip(bp["boxes"], cats):
@@ -687,7 +697,6 @@ def plot_psc_boxplots(
         if roi is None:
             continue
 
-        # Draw significance brackets (only those defined in ANNOTATIONS).
         for m, anns in spec["eligible_by_mod"].items():
             if not anns:
                 continue
@@ -945,8 +954,6 @@ if __name__ == "__main__":
     df_main = pd.read_csv(DATA_PATH_MAIN, sep="\t")
     df_rand = pd.read_csv(DATA_PATH_RAND, sep="\t")
 
-    # Ensure the NTFD Random task label matches what we plot.
-    # If df_rand already uses this task name, this is a no-op.
     if "Task" in df_rand.columns:
         df_rand = df_rand.copy()
         df_rand["Task"] = df_rand["Task"].replace(
@@ -955,7 +962,6 @@ if __name__ == "__main__":
 
     df_in = pd.concat([df_main, df_rand], ignore_index=True, axis=0)
 
-    # ------------------------ plotting ------------------------
     # 1) Original figures (no NTFD Random panels)
     plot_psc_boxplots(
         df=df_in,
