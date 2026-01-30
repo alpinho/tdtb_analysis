@@ -250,12 +250,14 @@ def plot_psc_boxplots(
     outpath: str | Path,
     figsize_scale: float = 1.0,
     audivisual_only: bool = False,
+    pooled_only: bool = False,
     include_ntfd_random: bool = False,
 ) -> None:
     """Plot PSC boxplots by ROI and modality/task blocks.
 
     Adds support for an extra task (NTFD Random) shown as a fourth
     panel per modality block with 3 categories (Beat/Interval/Random).
+    If pooled_only is True, only the pooled modality block is plotted.
     """
     outpath = Path(outpath)
     if outpath.suffix == "":
@@ -264,6 +266,11 @@ def plot_psc_boxplots(
 
     df = df.copy()
     df = df[df["Hemisphere"] == "bh"].copy()
+
+    if audivisual_only and pooled_only:
+        raise ValueError(
+            "audivisual_only and pooled_only are mutually exclusive"
+        )
 
     if audivisual_only:
         df = df[df["Modality"].isin(MODALITIES)].copy()
@@ -289,7 +296,9 @@ def plot_psc_boxplots(
             out.extend(p)
         return out
 
-    if audivisual_only:
+    if pooled_only:
+        blocks = [_block("Pooled")]
+    elif audivisual_only:
         blocks = [_block("Auditory"), _block("Visual")]
     else:
         blocks = [_block("Pooled"), _block("Auditory"), _block("Visual")]
@@ -383,11 +392,12 @@ def plot_psc_boxplots(
     # ---------------- PASS 1: per-ROI y-lims and row heights --------
     roi_specs: List[dict] = []
 
-    eligible_template = (
-        {"Auditory": [], "Visual": []}
-        if audivisual_only
-        else {"Pooled": [], "Auditory": [], "Visual": []}
-    )
+    if pooled_only:
+        eligible_template = {"Pooled": []}
+    elif audivisual_only:
+        eligible_template = {"Auditory": [], "Visual": []}
+    else:
+        eligible_template = {"Pooled": [], "Auditory": [], "Visual": []}
 
     ax_keys = [(m, t) for (m, t) in col_spec_block if m != "SPACER"]
 
@@ -983,6 +993,19 @@ if __name__ == "__main__":
         include_ntfd_random=False,
     )
 
+    # 1b) Pooled-only figure (pooled modality block only)
+    outpath_pooled = Path(OUTPUT_PATH)
+    outpath_pooled = outpath_pooled.with_name(
+        outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
+    )
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=outpath_pooled,
+        figsize_scale=args.figscale,
+        pooled_only=True,
+        include_ntfd_random=False,
+    )
+
     # 2) Extended figures (with NTFD Random panels)
     outpath_rand = Path(OUTPUT_PATH)
     outpath_rand = outpath_rand.with_name(
@@ -1006,5 +1029,19 @@ if __name__ == "__main__":
         outpath=outpath_rand_av,
         figsize_scale=args.figscale,
         audivisual_only=True,
+        include_ntfd_random=True,
+    )
+
+    # 2b) Pooled-only figure with NTFD Random panels
+    outpath_pooled_rand = Path(OUTPUT_PATH)
+    outpath_pooled_rand = outpath_pooled_rand.with_name(
+        outpath_pooled_rand.stem + "_pooled_only_ntfd_random"
+        + outpath_pooled_rand.suffix
+    )
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=outpath_pooled_rand,
+        figsize_scale=args.figscale,
+        pooled_only=True,
         include_ntfd_random=True,
     )
