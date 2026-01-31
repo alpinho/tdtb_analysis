@@ -789,7 +789,6 @@ OUTPUT_PATH = os.path.join(
     WORKING_DIR,
     "roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed",
     "bothmod_allmain_tasks",
-    "main_tasks",
     "anova_plots",
     "psc_boxplots_by_roi.png",
 )
