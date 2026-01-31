@@ -524,8 +524,10 @@ def plot_matrix(
     # ax.set_title(title)
 
     # --- colorbar: keep compact and avoid huge right whitespace
-    cbar = fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
-    cbar.set_label('Repeated-measures correlation ($r_{rm}$)', labelpad=10)
+    # cbar = fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
+    # cbar.set_label('Repeated-measures correlation ($r_{rm}$)', labelpad=10)
+    fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
+    ax.set_title('Repeated-measures correlation ($r_{rm}$)', pad=10)
 
     # --- stars
     if p_mat is not None:
@@ -558,10 +560,11 @@ N_ROIS: int = 8
 ADD_REST: bool = True
 USE_RAND: bool = True
 
-INDIVID_LEVELS: List[str] = [
-    'i', 'i9a', 'i8a', 'i7a', 'i6a',
-    'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
-]
+# INDIVID_LEVELS: List[str] = [
+#     'i', 'i9a', 'i8a', 'i7a', 'i6a',
+#     'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
+# ]
+INDIVID_LEVELS: List[str] = ['i']
 
 HEMIS: List[str] = ['bh', 'lh', 'rh']
 
