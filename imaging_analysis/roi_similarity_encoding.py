@@ -491,7 +491,7 @@ def plot_matrix(
     ticks = np.arange(n)
 
     fig, ax = plt.subplots(figsize=(6.2, 5.4))
-    im = ax.imshow(mat.values, vmin=-1.0, vmax=1.0, cmap='coolwarm')
+    im = ax.imshow(mat.values, vmin=-1.0, vmax=1.0, cmap='PRGn')
 
     # --- ticks/labels: force classic layout (bottom x-labels, left y-labels)
     ax.set_xticks(ticks)
@@ -543,9 +543,13 @@ N_ROIS: int = 8
 ADD_REST: bool = True
 USE_RAND: bool = True
 
+# INDIVID_LEVELS: List[str] = [
+#     'i', 'i9a', 'i8a', 'i7a', 'i6a',
+#     'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
+# ]
+
 INDIVID_LEVELS: List[str] = [
-    'i', 'i9a', 'i8a', 'i7a', 'i6a',
-    'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
+    'i'
 ]
 
 HEMIS: List[str] = ['bh', 'lh', 'rh']
@@ -581,15 +585,15 @@ else:
     FILETAG = 'norand'
 
 ROI_LABELS: Dict[str, str] = {
-    'dstr': 'Dorsal Striatum',
-    'cereb': 'Cerebellum',
-    'pmv': 'PMV',
-    'pmd': 'PMD',
-    'presma': 'preSMA',
-    'sma': 'SMA',
-    'heschl': 'Heschl Gyrus',
-    'occipital': 'Occipital Lobe',
-    'occipital_lobe': 'Occipital Lobe',
+    "dstr": "Dorsal Striatum",
+    "cereb": "Cerebellum",
+    "pmv": "PMV",
+    "pmd": "PMD",
+    "presma": "PreSMA",
+    "sma": "SMA",
+    "heschl": "Heschl's Gyrus",   # ← fix here
+    "occipital": "Occipital Lobe",
+    "occipital_lobe": "Occipital Lobe",
 }
 
 LEG_LOC: str = 'upper right'
