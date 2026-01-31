@@ -431,15 +431,25 @@ def roi_matrix_stats(
     """
     Build ROI X ROI matrices for r, p and significance (p < alpha).
 
+    Notes
+    -----
+    The ROI order is preserved exactly as provided in `rois`. This is
+    important so that ROI ordering is consistent across TSV outputs and
+    figures. No alphabetical sorting is performed.
+
     Raises
     ------
     ValueError if any ROI pair cannot build a valid wide table.
     """
-    rois_sorted = sorted(rois)
-    if len(rois_sorted) < 2:
+    rois_order = list(rois)
+
+    if len(rois_order) < 2:
         raise ValueError("[ERROR] fewer than two ROIs available.")
 
-    n = len(rois_sorted)
+    if len(rois_order) != len(set(rois_order)):
+        raise ValueError("[ERROR] duplicate ROI keys in requested order.")
+
+    n = len(rois_order)
     R = np.full((n, n), np.nan, dtype=float)
     P = np.full((n, n), np.nan, dtype=float)
 
@@ -447,10 +457,14 @@ def roi_matrix_stats(
         R[i, i] = 1.0
         P[i, i] = 0.0
         for j in range(i + 1, n):
-            r1, r2 = rois_sorted[i], rois_sorted[j]
+            r1, r2 = rois_order[i], rois_order[j]
             wide = wide_for_rmcorr(
-                df, hemi=hemi, modality=modality,
-                roi1=r1, roi2=r2, add_rest=add_rest
+                df,
+                hemi=hemi,
+                modality=modality,
+                roi1=r1,
+                roi2=r2,
+                add_rest=add_rest,
             )
             res = pg.rm_corr(data=wide, x=r1, y=r2, subject='Subject')
             r_val = float(res['r'].iloc[0])
@@ -459,8 +473,8 @@ def roi_matrix_stats(
             R[i, j] = R[j, i] = r_val
             P[i, j] = P[j, i] = p_val
 
-    r_mat = pd.DataFrame(R, index=rois_sorted, columns=rois_sorted)
-    p_mat = pd.DataFrame(P, index=rois_sorted, columns=rois_sorted)
+    r_mat = pd.DataFrame(R, index=rois_order, columns=rois_order)
+    p_mat = pd.DataFrame(P, index=rois_order, columns=rois_order)
     sig_mat = (p_mat < alpha).astype(int)
 
     if r_mat.isna().any(axis=None) or p_mat.isna().any(axis=None):
@@ -472,12 +486,12 @@ def roi_matrix_stats(
 
 
 def plot_matrix(
-        mat: pd.DataFrame,
-        title: str,
-        out_png: Path,
-        p_mat: pd.DataFrame | None = None,
-        alpha_thr: float = 0.05,
-    ) -> None:
+    mat: pd.DataFrame,
+    title: str,
+    out_png: Path,
+    p_mat: pd.DataFrame | None = None,
+    alpha_thr: float = 0.05,
+) -> None:
     """
     Plot r-matrix heatmap with stars on significant cells.
     Keeps formatting stable while using ROI_LABELS for tick labels.
@@ -493,7 +507,8 @@ def plot_matrix(
     fig, ax = plt.subplots(figsize=(6.2, 5.4))
     im = ax.imshow(mat.values, vmin=-1.0, vmax=1.0, cmap='PRGn')
 
-    # --- ticks/labels: force classic layout (bottom x-labels, left y-labels)
+    # --- ticks/labels: force classic layout
+    #     bottom x-labels, left y-labels
     ax.set_xticks(ticks)
     ax.set_yticks(ticks)
     ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=9)
@@ -535,7 +550,7 @@ def plot_matrix(
     print(f"[SAVED] {out_png}")
 
 
-# ============================ USER INPUTS ============================ #
+# =========================== USER INPUTS =========================== #
 
 ALPHA: float = 0.05
 N_ROIS: int = 8
@@ -543,13 +558,9 @@ N_ROIS: int = 8
 ADD_REST: bool = True
 USE_RAND: bool = True
 
-# INDIVID_LEVELS: List[str] = [
-#     'i', 'i9a', 'i8a', 'i7a', 'i6a',
-#     'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
-# ]
-
 INDIVID_LEVELS: List[str] = [
-    'i'
+    'i', 'i9a', 'i8a', 'i7a', 'i6a',
+    'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g',
 ]
 
 HEMIS: List[str] = ['bh', 'lh', 'rh']
@@ -585,17 +596,97 @@ else:
     FILETAG = 'norand'
 
 ROI_LABELS: Dict[str, str] = {
-    "dstr": "Dorsal Striatum",
-    "cereb": "Cerebellum",
-    "pmv": "PMV",
-    "pmd": "PMD",
-    "presma": "PreSMA",
-    "sma": "SMA",
-    "heschl": "Heschl's Gyrus",   # ← fix here
-    "occipital": "Occipital Lobe",
-    "occipital_lobe": "Occipital Lobe",
+    'dstr': 'Dorsal Striatum',
+    'cereb': 'Cerebellum',
+    'pmv': 'PMV',
+    'pmd': 'PMD',
+    'presma': 'preSMA',
+    'sma': 'SMA',
+    'heschl': "Heschl's Gyrus",
+    'occipital': 'Occipital Lobe',
+    'occipital_lobe': 'Occipital Lobe',
 }
 
+ROI_ORDER_GROUPS: List[List[str]] = [
+    ['dstr'],
+    ['cereb'],
+    ['presma'],
+    ['sma'],
+    ['pmd'],
+    ['pmv'],
+    ['heschl'],
+    ['occipital_lobe', 'occipital'],
+]
+
+
+def ordered_rois_in_df(df: pd.DataFrame) -> List[str]:
+    """
+    Return ROIs in the canonical paper order.
+
+    This function is the single source of truth for ROI ordering. It is
+    applied after loading/merging TSV sources, so the order is enforced
+    consistently for:
+    - rm-corr pair iteration,
+    - matrix TSV outputs, and
+    - matrix PNG tick order.
+
+    Raises
+    ------
+    ValueError if any expected ROI is missing.
+    """
+    if 'ROI' not in df.columns:
+        raise ValueError("[ERROR] missing 'ROI' column in dataframe.")
+
+    present = set(df['ROI'].astype(str).str.strip().unique().tolist())
+
+    ordered: List[str] = []
+    missing: List[str] = []
+    for group in ROI_ORDER_GROUPS:
+        picked = next((k for k in group if k in present), None)
+        if picked is None:
+            missing.append('/'.join(group))
+        else:
+            ordered.append(picked)
+
+    if missing:
+        raise ValueError(
+            "[ERROR] missing expected ROIs for ordering: "
+            f"{missing}"
+        )
+
+    if len(ordered) != len(set(ordered)):
+        raise ValueError(
+            "[ERROR] ROI ordering produced duplicate keys: "
+            f"{ordered}"
+        )
+
+    if N_ROIS is not None and len(ordered) != int(N_ROIS):
+        raise ValueError(
+            "[ERROR] ROI ordering length does not match N_ROIS: "
+            f"len(order)={len(ordered)} vs N_ROIS={N_ROIS}"
+        )
+
+    return ordered
+
+
+def ordered_pair(
+    roi_a: str,
+    roi_b: str,
+    roi_rank: Dict[str, int],
+) -> tuple[str, str]:
+    """
+    Return (roi1, roi2) following the canonical ROI order.
+
+    This prevents accidental alphabetical sorting, keeping pair naming,
+    plot legends, and filenames aligned with the requested ROI order.
+
+    Raises
+    ------
+    KeyError if an ROI is missing from roi_rank.
+    """
+    if roi_rank[roi_a] <= roi_rank[roi_b]:
+        return roi_a, roi_b
+    return roi_b, roi_a
 LEG_LOC: str = 'upper right'
 ANNO_X, ANNO_Y = 0.05, 0.10
 
@@ -627,7 +718,8 @@ if __name__ == "__main__":
     for indiv in INDIVID_LEVELS:
         df_all = load_df(indiv)
 
-        present = sorted(set(df_all['ROI'].unique()) & set(ROI_LABELS))
+        present = ordered_rois_in_df(df_all)
+        roi_rank = {roi: i for i, roi in enumerate(present)}
         if len(present) < 2:
             raise ValueError(
                 f"[ERROR] fewer than two labeled ROIs for '{indiv}'."
@@ -645,7 +737,7 @@ if __name__ == "__main__":
                 summary_rows: List[Dict[str, object]] = []
 
                 for roi_a, roi_b in combinations(present, 2):
-                    roi1, roi2 = sorted([roi_a, roi_b])
+                    roi1, roi2 = ordered_pair(roi_a, roi_b, roi_rank)
 
                     wide = wide_for_rmcorr(
                         df_all, hemi=hemi, modality=modality,
