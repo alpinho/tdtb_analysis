@@ -17,6 +17,14 @@ Rules
   n_rows (# significant posthoc rows), n_files (# unique posthoc files).
 - If a folder has no posthoc-significant rows, no log is written.
 - If a log exists, delete it before writing new.
+
+Author: Ana Luisa Pinho
+email: agrilopi@uwo.ca
+
+Created: 25th of September 2025
+Last Update: January 2026
+
+Compatibility: Python 3.10.16
 """
 
 import argparse
