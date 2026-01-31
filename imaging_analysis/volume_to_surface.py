@@ -969,7 +969,7 @@ def plot_multirois_flatmap(
         "SMA",
         "PMD",
         "PMV",
-        "Heschl Gyrus",
+        "Heschl's Gyrus",
         "Occipital Lobe",
     ]
 
@@ -1497,7 +1497,7 @@ ROI_LABELS = {
     "pmd": "PMD",
     "presma": "PreSMA",
     "sma": "SMA",
-    "heschl": "Heschl Gyrus",
+    "heschl": "Heschl's Gyrus",
     "occipital": "Occipital Lobe",
 }
 
