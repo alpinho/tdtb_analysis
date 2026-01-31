@@ -340,7 +340,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         ha = "left"
         va = "center"
 
-        if name == "Heschl Gyrus":
+        if name == "Heschl's Gyrus":
             ox = -1.6 * dx
             oy = 3.0 * dy
             oz = 0.4 * dz
@@ -578,7 +578,7 @@ ROI_LABELS = {
     "pmd": "PMD",
     "presma": "PreSMA",
     "sma": "SMA",
-    "heschl": "Heschl Gyrus",
+    "heschl": "Heschl's Gyrus",
     "occipital": "Occipital\nLobe",
     "occipital_lobe": "Occipital Lobe",
 }
