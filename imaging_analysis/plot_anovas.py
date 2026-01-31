@@ -366,6 +366,16 @@ def plot_psc_boxplots(
         "occipital": {"base_frac": 0.020},
     }
 
+    
+    # Slightly increase annotation stacking distance for pooled-only
+    # figures to avoid rare bracket overlaps (e.g., Heschl's Gyrus).
+    if pooled_only:
+        annot_y_frac_step = 0.11
+        roi_annot_overrides = dict(roi_annot_overrides)
+        h_ov = dict(roi_annot_overrides.get("heschl", {}))
+        h_ov["step_frac"] = 0.13
+        roi_annot_overrides["heschl"] = h_ov
+
     zero_line_color = "0.25"
     zero_line_ls = "--"
     zero_line_lw = 1.2
@@ -480,11 +490,12 @@ def plot_psc_boxplots(
             )
         )
         base_frac_local = float(ov.get("base_frac", annot_y_frac_base))
+        step_frac_local = float(ov.get("step_frac", annot_y_frac_step))
 
         if max_stack > 0:
             top_needed = (
                 base_frac_local
-                + (max_stack - 1) * annot_y_frac_step
+                + (max_stack - 1) * step_frac_local
                 + annot_h_frac
                 + headroom_frac_local
             )
@@ -524,7 +535,7 @@ def plot_psc_boxplots(
                 "y_lim": (y0, y1),
                 "y_ticks": y_ticks,
                 "ann_base_frac": base_frac_local,
-                "ann_step_frac": annot_y_frac_step,
+                "ann_step_frac": step_frac_local,
                 "ann_h_frac": annot_h_frac,
                 "eligible_by_mod": eligible_by_mod,
                 "row_h": row_h,
