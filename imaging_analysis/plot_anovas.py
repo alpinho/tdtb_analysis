@@ -241,6 +241,49 @@ def span_annotation_datay_figspan(
         color="k",
     )
 
+def within_axis_annotation(
+    ax: plt.Axes,
+    x1: float,
+    x2: float,
+    text: str,
+    y_data: float,
+    h_data: float,
+    lw: float = 1.2,
+    fs: float = 14.0,
+) -> None:
+    """Draw a bracket within a single axis (data coords).
+
+    Parameters
+    ----------
+    ax
+        Target axis.
+    x1, x2
+        X positions in data coordinates (e.g., Beat vs Interval).
+    text
+        Annotation text (typically star label).
+    y_data
+        Baseline Y position in data coordinates.
+    h_data
+        Bracket height in data coordinates.
+    """
+    y0 = y_data
+    y1 = y_data + h_data
+
+    ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=False)
+    ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=False)
+    ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=False)
+    ax.text(
+        (x1 + x2) / 2.0,
+        y1,
+        text,
+        ha="center",
+        va="bottom",
+        fontsize=fs,
+        color="k",
+        clip_on=False,
+    )
+
+
 
 # ============================ PLOTTING ============================= #
 
@@ -352,6 +395,12 @@ def plot_psc_boxplots(
     annot_y_frac_step = 0.09
     annot_h_frac = 0.03
     annot_headroom_frac = 0.01
+    within_annot_y_frac_base = 0.02
+    within_annot_y_frac_step = 0.07
+    within_annot_h_frac = 0.02
+    within_annot_headroom_frac = 0.006
+
+    within_to_span_gap_frac = 0.09
 
     roi_annot_overrides = {
         "dstr": {"headroom_frac": 0.002},
@@ -432,6 +481,12 @@ def plot_psc_boxplots(
             k: [] for k in eligible_template
         }
 
+        eligible_within_by_ax: Dict[Tuple[str, str], List[dict]] = {
+            (m, t): []
+            for (m, t) in ax_keys
+            if (m in eligible_template) and (t != "SPACER")
+        }
+        
         for ann in ANNOTATIONS:
             if not _matches_roi(roi, ann["roi"]):
                 continue
@@ -442,8 +497,48 @@ def plot_psc_boxplots(
             if m in eligible_by_mod:
                 eligible_by_mod[m].append(ann)
 
+        for ann in WITHIN_ANNOTATIONS:
+            if not _matches_roi(roi, ann.get("roi", "")):
+                continue
+            m = str(ann.get("modality", ""))
+            if m not in eligible_template:
+                continue
+
+            task_val = ann.get("task", None)
+            if task_val is None:
+                tasks = list(tasks_per_block)
+            else:
+                tasks = [str(task_val)]
+
+            for t in tasks:
+                key = (m, t)
+                if key in eligible_within_by_ax:
+                    eligible_within_by_ax[key].append(ann)
+
+        for k in eligible_within_by_ax:
+            eligible_within_by_ax[k].sort(key=lambda a: float(a["pvalue"]))
+
         for m in eligible_by_mod:
             eligible_by_mod[m].sort(key=_ann_sort_key)
+
+        within_stack_top_by_mod: Dict[str, float] = {
+            k: 0.0 for k in eligible_template
+        }
+        for mm in within_stack_top_by_mod:
+            n_within = max(
+                (
+                    len(v)
+                    for (m_ax, _t_ax), v in eligible_within_by_ax.items()
+                    if m_ax == mm
+                ),
+                default=0,
+            )
+            if n_within > 0:
+                within_stack_top_by_mod[mm] = (
+                    within_annot_y_frac_base
+                    + (n_within - 1) * within_annot_y_frac_step
+                    + within_annot_h_frac
+                )
 
         w_lows: List[float] = []
         w_highs: List[float] = []
@@ -482,7 +577,14 @@ def plot_psc_boxplots(
         )
         pad = pad_frac_local * yr
 
-        max_stack = max((len(v) for v in eligible_by_mod.values()), default=0)
+        max_stack_span = max(
+            (len(v) for v in eligible_by_mod.values()),
+            default=0,
+        )
+        max_stack_within = max(
+            (len(v) for v in eligible_within_by_ax.values()),
+            default=0,
+        )
         headroom_frac_local = float(
             ov.get(
                 "headroom_frac",
@@ -491,17 +593,34 @@ def plot_psc_boxplots(
         )
         base_frac_local = float(ov.get("base_frac", annot_y_frac_base))
         step_frac_local = float(ov.get("step_frac", annot_y_frac_step))
-
-        if max_stack > 0:
-            top_needed = (
-                base_frac_local
-                + (max_stack - 1) * step_frac_local
+        top_needed_span = 0.0
+        span_offset_max = max(
+            (
+                v
+                + (within_to_span_gap_frac if v > 0.0 else 0.0)
+                for v in within_stack_top_by_mod.values()
+            ),
+            default=0.0,
+        )
+        if max_stack_span > 0:
+            top_needed_span = (
+                span_offset_max
+                + base_frac_local
+                + (max_stack_span - 1) * step_frac_local
                 + annot_h_frac
                 + headroom_frac_local
             )
-            top_extra = top_needed * yr
-        else:
-            top_extra = 0.0
+
+        top_needed_within = 0.0
+        if max_stack_within > 0:
+            top_needed_within = (
+                within_annot_y_frac_base
+                + (max_stack_within - 1) * within_annot_y_frac_step
+                + within_annot_h_frac
+                + within_annot_headroom_frac
+            )
+
+        top_extra = max(top_needed_span, top_needed_within) * yr
 
         y_lim_raw = (y_min - pad, y_max + pad + top_extra)
 
@@ -538,6 +657,11 @@ def plot_psc_boxplots(
                 "ann_step_frac": step_frac_local,
                 "ann_h_frac": annot_h_frac,
                 "eligible_by_mod": eligible_by_mod,
+                "eligible_within_by_ax": eligible_within_by_ax,
+                "within_base_frac": within_annot_y_frac_base,
+                "within_step_frac": within_annot_y_frac_step,
+                "within_h_frac": within_annot_h_frac,
+                "within_stack_top_by_mod": within_stack_top_by_mod,
                 "row_h": row_h,
             }
         )
@@ -714,6 +838,45 @@ def plot_psc_boxplots(
                 ax.set_yticklabels([])
                 ax.tick_params(axis="y", left=False, length=0)
                 ax.spines["left"].set_visible(False)
+            within_anns = spec.get("eligible_within_by_ax", {}).get(
+                (mod, task),
+                [],
+            )
+            if within_anns and ("Beat" in cats) and ("Interval" in cats):
+                x1 = float(positions[0])
+                x2 = float(positions[1])
+                for level, ann in enumerate(within_anns):
+                    p = float(ann["pvalue"])
+                    text = pval_label_converter([p])[0]
+                    y_data = (
+                        spec["y_max"]
+                        + spec["pad"]
+                        + (
+                            spec.get(
+                                "within_base_frac",
+                                within_annot_y_frac_base,
+                            )
+                            + level
+                            * spec.get(
+                                "within_step_frac",
+                                within_annot_y_frac_step,
+                            )
+                        )
+                        * spec["yr"]
+                    )
+                    h_data = (
+                        spec.get("within_h_frac", within_annot_h_frac)
+                        * spec["yr"]
+                    )
+                    within_axis_annotation(
+                        ax=ax,
+                        x1=x1,
+                        x2=x2,
+                        text=text,
+                        y_data=y_data,
+                        h_data=h_data,
+                    )
+
 
         if roi is None:
             continue
@@ -731,10 +894,18 @@ def plot_psc_boxplots(
                 if ax_left is None or ax_right is None:
                     continue
 
+                within_top = float(
+                    spec.get("within_stack_top_by_mod", {}).get(m, 0.0)
+                )
+                gap_frac = within_to_span_gap_frac if within_top > 0.0 else 0.0
+
                 y_data = (spec["y_max"] + spec["pad"]) + (
-                    spec.get("ann_base_frac", annot_y_frac_base)
+                    within_top
+                    + gap_frac
+                    + spec.get("ann_base_frac", annot_y_frac_base)
                     + level * spec.get("ann_step_frac", annot_y_frac_step)
                 ) * spec["yr"]
+
                 h_data = annot_h_frac * spec["yr"]
 
                 span_annotation_datay_figspan(
@@ -803,6 +974,23 @@ OUTPUT_PATH = os.path.join(
     "anova_plots",
     "psc_boxplots_by_roi.png",
 )
+
+# ===================== WITHIN-SUBPLOT ANNOTATIONS ===================== #
+# Each entry defines ONE bracket between Beat and Interval WITHIN a single
+# task panel (i.e., within a subplot).
+#
+# roi: short key ("dstr", "sma", "pmv", ...)
+# modality: "Pooled" | "Auditory" | "Visual"
+# task: optional; if omitted, applies to all tasks in that block
+# pvalue: numeric p-value
+WITHIN_ANNOTATIONS: List[dict] = [
+#     dict(
+#         roi="dstr",
+#         modality="Pooled",
+#         task="Production", # toy example
+#         pvalue=0.0465950036732798,
+#     ),
+]
 
 # ============================ ANNOTATIONS =========================== #
 # Each entry defines ONE bracket spanning two task-panels within ONE modality
