@@ -241,6 +241,7 @@ def span_annotation_datay_figspan(
         color="k",
     )
 
+
 def within_axis_annotation(
     ax: plt.Axes,
     x1: float,
@@ -486,6 +487,8 @@ def plot_psc_boxplots(
             for (m, t) in ax_keys
             if (m in eligible_template) and (t != "SPACER")
         }
+
+        eligible_cross: List[dict] = []
         
         for ann in ANNOTATIONS:
             if not _matches_roi(roi, ann["roi"]):
@@ -517,6 +520,45 @@ def plot_psc_boxplots(
 
         for k in eligible_within_by_ax:
             eligible_within_by_ax[k].sort(key=lambda a: float(a["pvalue"]))
+
+        # Cross-modality (Auditory ↔ Visual) annotations can specify a
+        # single task ("task"), a task list ("tasks"), or omit tasks
+        # to indicate all tasks in the current figure.
+        if ("Auditory" in eligible_template) and ("Visual" in eligible_template):
+            for ann in CROSS_AV_ANNOTATIONS:
+                if not _matches_roi(roi, ann.get("roi", "")):
+                    continue
+
+                tasks_val = ann.get("tasks", None)
+                if tasks_val is None:
+                    task_single = ann.get("task", None)
+                    if task_single is None:
+                        tasks = list(tasks_per_block)
+                    else:
+                        tasks = [str(task_single)]
+                else:
+                    tasks = [str(t) for t in tasks_val]
+
+                tasks = [t for t in tasks if t in tasks_per_block]
+                if not tasks:
+                    continue
+
+                if not all(
+                    (("Auditory", t) in ax_keys) and (("Visual", t) in ax_keys)
+                    for t in tasks
+                ):
+                    continue
+
+                ann2 = dict(ann)
+                ann2["tasks_resolved"] = tasks
+                eligible_cross.append(ann2)
+
+            def _cross_sort_key(a: dict) -> Tuple[int, float]:
+                idx = [task_order.get(t, 99) for t in a["tasks_resolved"]]
+                span = (max(idx) - min(idx)) if idx else 0
+                return (-span, float(a["pvalue"]))
+
+            eligible_cross.sort(key=_cross_sort_key)
 
         for m in eligible_by_mod:
             eligible_by_mod[m].sort(key=_ann_sort_key)
@@ -611,6 +653,33 @@ def plot_psc_boxplots(
                 + headroom_frac_local
             )
 
+        # Reserve extra vertical room for cross-modality annotations
+        # (Auditory ↔ Visual) drawn between the Auditory and Visual
+        # blocks. These p-values typically correspond to ROI × Modality
+        # pairwise tests (collapsed over Task).
+        max_stack_cross = len(eligible_cross)
+        cross_gap_frac = 0.12
+        cross_start_frac = 0.0
+        if max_stack_cross > 0:
+            span_stack_top = span_offset_max
+            if max_stack_span > 0:
+                span_stack_top = (
+                    span_offset_max
+                    + base_frac_local
+                    + (max_stack_span - 1) * step_frac_local
+                    + annot_h_frac
+                    + headroom_frac_local
+                )
+            cross_start_frac = span_stack_top + cross_gap_frac
+            top_needed_cross = (
+                cross_start_frac
+                + base_frac_local
+                + (max_stack_cross - 1) * step_frac_local
+                + annot_h_frac
+                + headroom_frac_local
+            )
+            top_needed_span = max(top_needed_span, top_needed_cross)
+
         top_needed_within = 0.0
         if max_stack_within > 0:
             top_needed_within = (
@@ -658,6 +727,8 @@ def plot_psc_boxplots(
                 "ann_h_frac": annot_h_frac,
                 "eligible_by_mod": eligible_by_mod,
                 "eligible_within_by_ax": eligible_within_by_ax,
+                "eligible_cross": eligible_cross,
+                "cross_start_frac": cross_start_frac,
                 "within_base_frac": within_annot_y_frac_base,
                 "within_step_frac": within_annot_y_frac_step,
                 "within_h_frac": within_annot_h_frac,
@@ -917,6 +988,47 @@ def plot_psc_boxplots(
                     h_data=h_data,
                 )
 
+        # Cross-modality (Auditory ↔ Visual) annotations. Each entry in
+        # CROSS_AV_ANNOTATIONS can specify a task group via "tasks", a
+        # single task via "task", or omit tasks to span all tasks in the
+        # current figure.
+        eligible_cross = spec.get("eligible_cross", [])
+        cross_start_frac = float(spec.get("cross_start_frac", 0.0))
+        if eligible_cross and cross_start_frac > 0.0:
+            for level, ann in enumerate(eligible_cross):
+                tasks = list(ann.get("tasks_resolved", []))
+                if not tasks:
+                    continue
+
+                tasks = sorted(tasks, key=lambda t: task_order.get(t, 99))
+                t_left = tasks[0]
+                t_right = tasks[-1]
+
+                ax_aud = ax_lookup.get(("Auditory", t_left))
+                ax_vis = ax_lookup.get(("Visual", t_right))
+                if ax_aud is None or ax_vis is None:
+                    continue
+
+                p = float(ann["pvalue"])
+                text = pval_label_converter([p])[0]
+
+                y_data = (spec["y_max"] + spec["pad"]) + (
+                    cross_start_frac
+                    + spec.get("ann_base_frac", annot_y_frac_base)
+                    + level * spec.get("ann_step_frac", annot_y_frac_step)
+                ) * spec["yr"]
+
+                h_data = annot_h_frac * spec["yr"]
+
+                span_annotation_datay_figspan(
+                    fig,
+                    ax_left=ax_aud,
+                    ax_right=ax_vis,
+                    text=text,
+                    y_data=y_data,
+                    h_data=h_data,
+                )
+
     fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.22)
     plt.close(fig)
 
@@ -990,6 +1102,34 @@ WITHIN_ANNOTATIONS: List[dict] = [
 #         task="Production", # toy example
 #         pvalue=0.0465950036732798,
 #     ),
+]
+
+# =================== CROSS-MODALITY (AUDIO ↔ VISUAL) ================ #
+# Each entry defines ONE bracket spanning Auditory and Visual panels
+# for a given ROI. This is typically used for ROI × Modality pairwise
+# tests from a 3-way RM ANOVA (collapsed over Task).
+#
+# roi: short key ("dstr", "sma", "pmv", ...)
+# task: optional single task name
+# tasks: optional list of tasks to span (group). If both task and
+# tasks are omitted, the bracket spans all tasks in the current figure.
+# pvalue: numeric p-value
+CROSS_AV_ANNOTATIONS: List[dict] = [
+    dict(
+        roi="pmd",
+        tasks=["Production", "Perception", "NTFD"],
+        pvalue=0.00382583338647626,
+    ),
+    dict(
+        roi="heschl",
+        tasks=["Production", "Perception", "NTFD"],
+        pvalue=0.000000000000019175900003915,
+    ),
+    dict(
+        roi="occipital",
+        tasks=["Production", "Perception", "NTFD"],
+        pvalue=0.00000000290970950214818,
+    ),
 ]
 
 # ============================ ANNOTATIONS =========================== #

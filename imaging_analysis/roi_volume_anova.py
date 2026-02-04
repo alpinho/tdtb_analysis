@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 from scipy.stats import ttest_rel
+from scipy.stats import f as f_dist
 
 import seaborn as sns
 import pingouin as pg
@@ -140,6 +141,47 @@ def _assert_complete_within(df, subject, within_cols, where=''):
     )
 
 
+def _gg_epsilon_from_cov(cov: np.ndarray) -> float:
+    """Compute Greenhouse--Geisser epsilon from a covariance matrix."""
+    cov = np.asarray(cov, dtype=float)
+    k = cov.shape[0]
+    if k < 3:
+        return 1.0
+
+    tr_s = float(np.trace(cov))
+    tr_s2 = float(np.trace(cov @ cov))
+    if (tr_s2 <= 0.0) or (not np.isfinite(tr_s)) or (not np.isfinite(tr_s2)):
+        return 1.0
+
+    eps = (tr_s ** 2.0) / ((k - 1.0) * tr_s2)
+    lb = 1.0 / (k - 1.0)
+    return float(np.clip(eps, lb, 1.0))
+
+
+def _wide_cells(
+    df: pd.DataFrame,
+    subject_col: str,
+    within_cols: list,
+    dv_col: str,
+    average_over: list | None = None,
+) -> pd.DataFrame:
+    """Build subject × cell matrix for GG epsilon computation."""
+    tmp = df.copy()
+    if average_over:
+        tmp = (
+            tmp.groupby([subject_col] + within_cols, as_index=False)[dv_col]
+            .mean()
+        )
+
+    wide = tmp.pivot_table(
+        index=subject_col,
+        columns=within_cols,
+        values=dv_col,
+        aggfunc='mean',
+    )
+    return wide.dropna(axis=0, how='any')
+
+
 # =========================== ANOVAS ================================ #
 
 
@@ -171,6 +213,52 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
         )
         res = model.fit()
 
+        aov = res.anova_table.copy()
+
+        effects = {
+            'Category': (['Category'], ['Modality', 'Task']),
+            'Modality': (['Modality'], ['Category', 'Task']),
+            'Task': (['Task'], ['Category', 'Modality']),
+            'Category:Modality': (['Category', 'Modality'], ['Task']),
+            'Category:Task': (['Category', 'Task'], ['Modality']),
+            'Modality:Task': (['Modality', 'Task'], ['Category']),
+            'Category:Modality:Task': (
+                ['Category', 'Modality', 'Task'], None
+            ),
+        }
+
+        eps_vals = []
+        pgg_vals = []
+
+        for eff in aov.index:
+            eff_name = str(eff)
+            if eff_name not in effects:
+                eps_vals.append(np.nan)
+                pgg_vals.append(np.nan)
+                continue
+
+            within_cols, avg_over = effects[eff_name]
+            wide = _wide_cells(
+                db,
+                subject_col='Subject',
+                within_cols=within_cols,
+                dv_col='PSC',
+                average_over=avg_over,
+            )
+            cov = np.cov(wide.values, rowvar=False, ddof=1)
+            eps = _gg_epsilon_from_cov(cov)
+
+            f_val = float(aov.loc[eff, 'F Value'])
+            df1 = float(aov.loc[eff, 'Num DF'])
+            df2 = float(aov.loc[eff, 'Den DF'])
+            p_gg = float(f_dist.sf(f_val, eps * df1, eps * df2))
+
+            eps_vals.append(eps)
+            pgg_vals.append(p_gg)
+
+        aov['eps_GG'] = eps_vals
+        aov['p_GG'] = pgg_vals
+
         ph_cat = pg.pairwise_tests(
             data=db, dv='PSC', within='Category', subject='Subject',
             padjust='holm', effsize='cohen', return_desc=True
@@ -185,7 +273,7 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
         )
 
         base = f"{prefix}_{roi}_{hem}_3w_"
-        res.anova_table.to_csv(
+        aov.to_csv(
             os.path.join(out_dir, base + 'anova.tsv'), sep='\t'
         )
         ph_cat.to_csv(
@@ -200,7 +288,6 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
             os.path.join(out_dir, base + 'posthoc_task.tsv'),
             index=False, header=False, sep='\t'
         )
-
 
 
 def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
@@ -248,11 +335,55 @@ def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
         )
         res3 = model.fit()
 
+        aov = res3.anova_table.copy()
+
+        effects = {
+            'ROI': (['ROI'], ['Modality', 'Task']),
+            'Modality': (['Modality'], ['ROI', 'Task']),
+            'Task': (['Task'], ['ROI', 'Modality']),
+            'ROI:Modality': (['ROI', 'Modality'], ['Task']),
+            'ROI:Task': (['ROI', 'Task'], ['Modality']),
+            'Modality:Task': (['Modality', 'Task'], ['ROI']),
+            'ROI:Modality:Task': (['ROI', 'Modality', 'Task'], None),
+        }
+
+        eps_vals = []
+        pgg_vals = []
+
+        for eff in aov.index:
+            eff_name = str(eff)
+            if eff_name not in effects:
+                eps_vals.append(np.nan)
+                pgg_vals.append(np.nan)
+                continue
+
+            within_cols, avg_over = effects[eff_name]
+            wide = _wide_cells(
+                agg,
+                subject_col='Subject',
+                within_cols=within_cols,
+                dv_col='PSC',
+                average_over=avg_over,
+            )
+            cov = np.cov(wide.values, rowvar=False, ddof=1)
+            eps = _gg_epsilon_from_cov(cov)
+
+            f_val = float(aov.loc[eff, 'F Value'])
+            df1 = float(aov.loc[eff, 'Num DF'])
+            df2 = float(aov.loc[eff, 'Den DF'])
+            p_gg = float(f_dist.sf(f_val, eps * df1, eps * df2))
+
+            eps_vals.append(eps)
+            pgg_vals.append(p_gg)
+
+        aov['eps_GG'] = eps_vals
+        aov['p_GG'] = pgg_vals
+
         os.makedirs(output_dir, exist_ok=True)
         base = f"{prefix}_{hem}_3way"
 
         # save ANOVA
-        res3.anova_table.to_csv(
+        aov.to_csv(
             os.path.join(output_dir, base + '_anova.tsv'),
             sep='\t'
         )
@@ -330,7 +461,7 @@ def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
                 if 'Contrast' in ph.columns:
                     ph['Contrast'] = 'ROI:Modality:Task'
                 else:
-                    ph.insert(0, 'Contrast', 'ROI:Modality:Task')               
+                    ph.insert(0, 'Contrast', 'ROI:Modality:Task')
                 ph.insert(1, 'ROI', roi)
                 ph.insert(2, 'Modality', mod)
                 rows.append(ph)
@@ -395,7 +526,6 @@ def twoway_rmanova_task(df, tasks_dic, out_dir, prefix, roi,
                 os.path.join(out_dir, base + 'posthoc.tsv'),
                 sep='\t', index=False
             )
-
 
 
 def twoway_rmanova_gtasks(df, out_dir, prefix, roi,
