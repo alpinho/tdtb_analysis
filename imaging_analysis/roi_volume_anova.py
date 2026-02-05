@@ -141,8 +141,20 @@ def _assert_complete_within(df, subject, within_cols, where=''):
     )
 
 
+
 def _gg_epsilon_from_cov(cov: np.ndarray) -> float:
-    """Compute Greenhouse--Geisser epsilon from a covariance matrix."""
+    """Compute Greenhouse-Geisser epsilon from a covariance matrix.
+
+    Parameters
+    ----------
+    cov : np.ndarray
+        k x k covariance matrix of repeated-measures cells.
+
+    Returns
+    -------
+    float
+        Epsilon in [1/(k-1), 1]. For k < 3, returns 1.0.
+    """
     cov = np.asarray(cov, dtype=float)
     k = cov.shape[0]
     if k < 3:
@@ -153,19 +165,21 @@ def _gg_epsilon_from_cov(cov: np.ndarray) -> float:
     if (tr_s2 <= 0.0) or (not np.isfinite(tr_s)) or (not np.isfinite(tr_s2)):
         return 1.0
 
-    eps = (tr_s ** 2.0) / ((k - 1.0) * tr_s2)
-    lb = 1.0 / (k - 1.0)
+    eps = (tr_s ** 2) / ((k - 1) * tr_s2)
+    lb = 1.0 / (k - 1)
     return float(np.clip(eps, lb, 1.0))
 
 
-def _wide_cells(
-    df: pd.DataFrame,
-    subject_col: str,
-    within_cols: list,
-    dv_col: str,
-    average_over: list | None = None,
-) -> pd.DataFrame:
-    """Build subject × cell matrix for GG epsilon computation."""
+def _wide_cells(df: pd.DataFrame, subject_col: str, within_cols: list,
+                dv_col: str, average_over: list | None = None) -> pd.DataFrame:
+    """Build a subject x cell wide matrix for GG epsilon.
+
+    If `average_over` is not None, the dependent variable is averaged
+    over the remaining within-factors before pivoting.
+
+    Rows (subjects) with any missing cells are dropped, since GG
+    epsilon requires complete within-subject observations.
+    """
     tmp = df.copy()
     if average_over:
         tmp = (
@@ -177,9 +191,171 @@ def _wide_cells(
         index=subject_col,
         columns=within_cols,
         values=dv_col,
-        aggfunc='mean',
+        aggfunc='mean'
     )
     return wide.dropna(axis=0, how='any')
+
+
+def _ng2_threeway_within(df: pd.DataFrame,
+                         factors: list[str],
+                         subject: str = 'Subject',
+                         dv: str = 'PSC') -> dict[str, float]:
+    """Compute generalized eta-squared (ng2) for 3-way within-subjects.
+
+    Generalized eta-squared for an effect E is:
+      ng2 = SS_E / (SS_E + SS_S + SS_{S×E})
+
+    where SS_S is the subject (between-subject) sum of squares and
+    SS_{S×E} is the subject-by-effect interaction sum of squares.
+    This implementation assumes a complete, balanced within-subjects
+    design with one observation per subject × cell (or averaged first).
+    """
+    if len(factors) != 3:
+        raise ValueError('Expected exactly 3 within-subject factors.')
+
+    wide = df.pivot_table(
+        index=subject,
+        columns=factors,
+        values=dv,
+        aggfunc='mean'
+    ).dropna(axis=0, how='any')
+
+    # Ensure deterministic ordering for reshape.
+    wide = wide.sort_index(axis=1)
+
+    levs = [list(wide.columns.levels[i]) for i in range(3)]
+    la, lb, lc = [len(x) for x in levs]
+    s = wide.shape[0]
+
+    y = wide.to_numpy().reshape(s, la, lb, lc)
+
+    gm = float(np.mean(y))
+
+    # Subject mean (across all cells).
+    ms = np.mean(y, axis=(1, 2, 3))  # (S,)
+    ss_s = la * lb * lc * np.sum((ms - gm) ** 2)
+
+    # Grand-averaged means (across subjects).
+    m_abc = np.mean(y, axis=0)  # (A,B,C)
+    m_a = np.mean(m_abc, axis=(1, 2))  # (A,)
+    m_b = np.mean(m_abc, axis=(0, 2))  # (B,)
+    m_c = np.mean(m_abc, axis=(0, 1))  # (C,)
+
+    m_ab = np.mean(m_abc, axis=2)  # (A,B)
+    m_ac = np.mean(m_abc, axis=1)  # (A,C)
+    m_bc = np.mean(m_abc, axis=0)  # (B,C)
+
+    # Effect SS (within-subjects).
+    ss_a = s * lb * lc * np.sum((m_a - gm) ** 2)
+    ss_b = s * la * lc * np.sum((m_b - gm) ** 2)
+    ss_c = s * la * lb * np.sum((m_c - gm) ** 2)
+
+    ab = m_ab - m_a[:, None] - m_b[None, :] + gm
+    ac = m_ac - m_a[:, None] - m_c[None, :] + gm
+    bc = m_bc - m_b[:, None] - m_c[None, :] + gm
+
+    ss_ab = s * lc * np.sum(ab ** 2)
+    ss_ac = s * lb * np.sum(ac ** 2)
+    ss_bc = s * la * np.sum(bc ** 2)
+
+    abc = (
+        m_abc
+        - m_ab[:, :, None]
+        - m_ac[:, None, :]
+        - m_bc[None, :, :]
+        + m_a[:, None, None]
+        + m_b[None, :, None]
+        + m_c[None, None, :]
+        - gm
+    )
+    ss_abc = s * np.sum(abc ** 2)
+
+    # Subject-by-effect SS (error terms).
+    m_sabc = y  # (S,A,B,C)
+    m_sa = np.mean(y, axis=(2, 3))  # (S,A)
+    m_sb = np.mean(y, axis=(1, 3))  # (S,B)
+    m_sc = np.mean(y, axis=(1, 2))  # (S,C)
+
+    m_sab = np.mean(y, axis=3)  # (S,A,B)
+    m_sac = np.mean(y, axis=2)  # (S,A,C)
+    m_sbc = np.mean(y, axis=1)  # (S,B,C)
+
+    sa = m_sa - ms[:, None] - m_a[None, :] + gm
+    sb = m_sb - ms[:, None] - m_b[None, :] + gm
+    sc = m_sc - ms[:, None] - m_c[None, :] + gm
+
+    ss_sa = lb * lc * np.sum(sa ** 2)
+    ss_sb = la * lc * np.sum(sb ** 2)
+    ss_sc = la * lb * np.sum(sc ** 2)
+
+    sab = (
+        m_sab
+        - m_sa[:, :, None]
+        - m_sb[:, None, :]
+        - m_ab[None, :, :]
+        + ms[:, None, None]
+        + m_a[None, :, None]
+        + m_b[None, None, :]
+        - gm
+    )
+    sac = (
+        m_sac
+        - m_sa[:, :, None]
+        - m_sc[:, None, :]
+        - m_ac[None, :, :]
+        + ms[:, None, None]
+        + m_a[None, :, None]
+        + m_c[None, None, :]
+        - gm
+    )
+    sbc = (
+        m_sbc
+        - m_sb[:, :, None]
+        - m_sc[:, None, :]
+        - m_bc[None, :, :]
+        + ms[:, None, None]
+        + m_b[None, :, None]
+        + m_c[None, None, :]
+        - gm
+    )
+
+    ss_sab = lc * np.sum(sab ** 2)
+    ss_sac = lb * np.sum(sac ** 2)
+    ss_sbc = la * np.sum(sbc ** 2)
+
+    sabc = (
+        m_sabc
+        - m_sab[:, :, :, None]
+        - m_sac[:, :, None, :]
+        - m_sbc[:, None, :, :]
+        - m_abc[None, :, :, :]
+        + m_sa[:, :, None, None]
+        + m_sb[:, None, :, None]
+        + m_sc[:, None, None, :]
+        + m_ab[None, :, :, None]
+        + m_ac[None, :, None, :]
+        + m_bc[None, None, :, :]
+        - ms[:, None, None, None]
+        - m_a[None, :, None, None]
+        - m_b[None, None, :, None]
+        - m_c[None, None, None, :]
+        + gm
+    )
+    ss_sabc = np.sum(sabc ** 2)
+
+    fac_a, fac_b, fac_c = factors
+    out = {
+        fac_a: float(ss_a / (ss_a + ss_s + ss_sa)),
+        fac_b: float(ss_b / (ss_b + ss_s + ss_sb)),
+        fac_c: float(ss_c / (ss_c + ss_s + ss_sc)),
+        f'{fac_a}:{fac_b}': float(ss_ab / (ss_ab + ss_s + ss_sab)),
+        f'{fac_a}:{fac_c}': float(ss_ac / (ss_ac + ss_s + ss_sac)),
+        f'{fac_b}:{fac_c}': float(ss_bc / (ss_bc + ss_s + ss_sbc)),
+        f'{fac_a}:{fac_b}:{fac_c}': float(ss_abc / (ss_abc + ss_s + ss_sabc)),
+    }
+    return out
+
+
 
 
 # =========================== ANOVAS ================================ #
@@ -222,9 +398,7 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
             'Category:Modality': (['Category', 'Modality'], ['Task']),
             'Category:Task': (['Category', 'Task'], ['Modality']),
             'Modality:Task': (['Modality', 'Task'], ['Category']),
-            'Category:Modality:Task': (
-                ['Category', 'Modality', 'Task'], None
-            ),
+            'Category:Modality:Task': (['Category', 'Modality', 'Task'], None),
         }
 
         eps_vals = []
@@ -239,11 +413,8 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
 
             within_cols, avg_over = effects[eff_name]
             wide = _wide_cells(
-                db,
-                subject_col='Subject',
-                within_cols=within_cols,
-                dv_col='PSC',
-                average_over=avg_over,
+                db, subject_col='Subject', within_cols=within_cols,
+                dv_col='PSC', average_over=avg_over
             )
             cov = np.cov(wide.values, rowvar=False, ddof=1)
             eps = _gg_epsilon_from_cov(cov)
@@ -258,6 +429,12 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
 
         aov['eps_GG'] = eps_vals
         aov['p_GG'] = pgg_vals
+
+        ng2_map = _ng2_threeway_within(
+            db, factors=['Category', 'Modality', 'Task'],
+            subject='Subject', dv='PSC'
+        )
+        aov['ng2'] = [ng2_map.get(str(eff), np.nan) for eff in aov.index]
 
         ph_cat = pg.pairwise_tests(
             data=db, dv='PSC', within='Category', subject='Subject',
@@ -288,6 +465,7 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
             os.path.join(out_dir, base + 'posthoc_task.tsv'),
             index=False, header=False, sep='\t'
         )
+
 
 
 def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
@@ -359,11 +537,8 @@ def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
 
             within_cols, avg_over = effects[eff_name]
             wide = _wide_cells(
-                agg,
-                subject_col='Subject',
-                within_cols=within_cols,
-                dv_col='PSC',
-                average_over=avg_over,
+                agg, subject_col='Subject', within_cols=within_cols,
+                dv_col='PSC', average_over=avg_over
             )
             cov = np.cov(wide.values, rowvar=False, ddof=1)
             eps = _gg_epsilon_from_cov(cov)
@@ -378,6 +553,12 @@ def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
 
         aov['eps_GG'] = eps_vals
         aov['p_GG'] = pgg_vals
+
+        ng2_map = _ng2_threeway_within(
+            agg, factors=['ROI', 'Modality', 'Task'],
+            subject='Subject', dv='PSC'
+        )
+        aov['ng2'] = [ng2_map.get(str(eff), np.nan) for eff in aov.index]
 
         os.makedirs(output_dir, exist_ok=True)
         base = f"{prefix}_{hem}_3way"
@@ -526,6 +707,7 @@ def twoway_rmanova_task(df, tasks_dic, out_dir, prefix, roi,
                 os.path.join(out_dir, base + 'posthoc.tsv'),
                 sep='\t', index=False
             )
+
 
 
 def twoway_rmanova_gtasks(df, out_dir, prefix, roi,
