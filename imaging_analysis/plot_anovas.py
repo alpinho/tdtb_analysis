@@ -71,7 +71,10 @@ ROI_PRETTY = {
 
 W_RATIO_STD = 0.95
 W_RATIO_NTFD_RANDOM = 1.4455
-W_RATIO_SPACER = 0.20
+W_RATIO_SPACER = 0.12
+
+# Scale overall figure width without changing internal layout.
+FIG_W_SCALE = 0.50
 
 
 # ============================ UTILITIES ============================ #
@@ -384,13 +387,16 @@ def plot_psc_boxplots(
     box_alpha = 0.72
     whis = 1.5
 
-    box_w = 0.65
+    box_w = 0.48
 
-    # Make boxes touch (but avoid overlap due to linewidths/notches).
+    # Keep box *centers* at the same locations as before (so relative
+    # spacing is preserved), while allowing narrower boxes.
+    base_box_w = 0.65
     gap = 1.02  # 1.00 = just-touch; >1 adds a small breathing room
+    center_step = gap * base_box_w
 
-    pos_2 = [1.0, 1.0 + gap * box_w]
-    pos_3 = [1.0, 1.0 + gap * box_w, 1.0 + 2.0 * gap * box_w]
+    pos_2 = [1.0, 1.0 + center_step]
+    pos_3 = [1.0, 1.0 + center_step, 1.0 + 2.0 * center_step]
 
     xpad = 0.45
     xlim_2 = (pos_2[0] - xpad, pos_2[-1] + xpad)
@@ -771,7 +777,7 @@ def plot_psc_boxplots(
     per_col = 1.18 + 0.034 * max(0, max_line_len - 8)
     per_col = min(per_col, 1.55)
 
-    fig_w = per_col * float(sum(width_ratios)) * figsize_scale
+    fig_w = per_col * float(sum(width_ratios)) * figsize_scale * FIG_W_SCALE
     fig_h = float(sum(height_ratios)) * figsize_scale
 
     fig, axes = plt.subplots(
