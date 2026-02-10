@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 28th of January, 2026
-Last update: January 2026
+Last update: February 2026
 
 Compatibility: Python 3.10.14
 """
@@ -395,13 +395,13 @@ def plot_psc_boxplots(
     annot_y_frac_base = 0.04
     annot_y_frac_step = 0.09
     annot_h_frac = 0.03
-    annot_headroom_frac = 0.01
+    annot_headroom_frac = 0.03
     within_annot_y_frac_base = 0.02
     within_annot_y_frac_step = 0.07
     within_annot_h_frac = 0.02
-    within_annot_headroom_frac = 0.006
+    within_annot_headroom_frac = 0.012
 
-    within_to_span_gap_frac = 0.09
+    within_to_span_gap_frac = 0.11
 
     roi_annot_overrides = {
         "dstr": {"headroom_frac": 0.002},
@@ -524,7 +524,10 @@ def plot_psc_boxplots(
         # Cross-modality (Auditory ↔ Visual) annotations can specify a
         # single task ("task"), a task list ("tasks"), or omit tasks
         # to indicate all tasks in the current figure.
-        if ("Auditory" in eligible_template) and ("Visual" in eligible_template):
+        if (
+            ("Auditory" in eligible_template)
+            and ("Visual" in eligible_template)
+        ):
             for ann in CROSS_AV_ANNOTATIONS:
                 if not _matches_roi(roi, ann.get("roi", "")):
                     continue
@@ -797,30 +800,19 @@ def plot_psc_boxplots(
             ),
         )
 
-    handles.append(
-        Line2D(
-            [0],
-            [0],
-            color="k",
-            linestyle="--",
-            linewidth=2.2,
-            label="Mean",
-        )
-    )
-
-    ncol = 4 if include_ntfd_random else 3
+    ncol = 3 if include_ntfd_random else 2
     fig.legend(
         handles=handles,
         loc="upper center",
         ncol=ncol,
         frameon=False,
-        bbox_to_anchor=(0.5, 0.995),
+        bbox_to_anchor=(0.5, 0.985),
         fontsize=legend_fs,
         handlelength=3.0,
         columnspacing=2.0,
     )
 
-    fig.subplots_adjust(top=0.975, right=0.975, hspace=0.25, wspace=0.25)
+    fig.subplots_adjust(top=0.945, right=0.975, hspace=0.62, wspace=0.32)
 
     # --------------------- PASS 2: draw panels ----------------------
     for r, spec in enumerate(roi_specs):
@@ -864,15 +856,9 @@ def plot_psc_boxplots(
                 notch=True,
                 patch_artist=True,
                 showfliers=False,
-                showmeans=True,
-                meanline=True,
+                showmeans=False,
                 whis=whis,
                 medianprops={"linewidth": 0, "color": "none"},
-                meanprops={
-                    "linestyle": "--",
-                    "linewidth": 2.2,
-                    "color": "k",
-                },
             )
 
             for patch, cat in zip(bp["boxes"], cats):
@@ -900,9 +886,10 @@ def plot_psc_boxplots(
 
             if j == 0:
                 ax.set_ylabel(
-                    f"{spec['roi_label']}\nPSC (%)",
+                    "PSC (%)",
                     fontsize=axis_label_fs,
                 )
+
                 ax.tick_params(axis="y", labelsize=ytick_fs)
                 ax.spines["left"].set_visible(True)
             else:
@@ -947,6 +934,30 @@ def plot_psc_boxplots(
                         y_data=y_data,
                         h_data=h_data,
                     )
+
+
+        # Row-level ROI title centered across all non-spacer panels.
+        # Place it in figure coordinates so it is centered per row.
+        row_axes = [
+            axes[r, jj]
+            for jj, (m_jj, _t_jj) in enumerate(col_spec_block)
+            if m_jj != "SPACER"
+        ]
+        if row_axes:
+            x0 = min(a.get_position().x0 for a in row_axes)
+            x1 = max(a.get_position().x1 for a in row_axes)
+            y1 = max(a.get_position().y1 for a in row_axes)
+
+            fig.text(
+                (x0 + x1) / 2.0,
+                y1 + 0.010,
+                spec["roi_label"],
+                ha="center",
+                va="bottom",
+                fontsize=axis_label_fs + 6,
+                color="k",
+                fontweight="medium",
+            )
 
 
         if roi is None:
