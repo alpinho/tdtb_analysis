@@ -404,6 +404,9 @@ def plot_psc_boxplots(
 
     xlabel_fs = 12
     xlabel_pad = 4
+
+    # Rotate panel labels to avoid overlap after width reduction.
+    xlabel_rotation = 25
     axis_label_fs = xlabel_fs
     ytick_fs = xlabel_fs
     legend_fs = axis_label_fs + 2
@@ -898,7 +901,14 @@ def plot_psc_boxplots(
 
             ax.set_xticks([])
             xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
-            ax.set_xlabel(xlabel, fontsize=xlabel_fs, labelpad=xlabel_pad)
+            ax.set_xlabel(
+                xlabel,
+                fontsize=xlabel_fs,
+                labelpad=xlabel_pad,
+                rotation=xlabel_rotation,
+                ha="right",
+                rotation_mode="anchor",
+            )
 
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
