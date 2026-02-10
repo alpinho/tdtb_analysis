@@ -60,8 +60,17 @@ ROI_PRETTY = {
 }
 
 # Geometry: make the 3-boxplot NTFD Random panels wider.
-W_RATIO_STD = 1.0
-W_RATIO_NTFD_RANDOM = 1.45
+#
+# NOTE: Absolute panel width in inches is approximately:
+#   panel_width ≈ per_col * W_RATIO_*
+# because fig_w is computed as per_col * sum(width_ratios).
+# To make each "pair-of-boxplots" panel narrower (without
+# changing fontsize), reduce W_RATIO_STD (and scale
+# W_RATIO_NTFD_RANDOM accordingly to preserve the relative width
+# of the 3-box panels).
+
+W_RATIO_STD = 0.95
+W_RATIO_NTFD_RANDOM = 1.4455
 W_RATIO_SPACER = 0.20
 
 
@@ -375,13 +384,17 @@ def plot_psc_boxplots(
     box_alpha = 0.72
     whis = 1.5
 
-    pos_2 = [1.0, 1.9]
-    pos_3 = [1.0, 1.9, 2.8]
-
-    xlim_2 = (0.55, 2.35)
-    xlim_3 = (0.55, 3.25)
-
     box_w = 0.65
+
+    # Make boxes touch (but avoid overlap due to linewidths/notches).
+    gap = 1.02  # 1.00 = just-touch; >1 adds a small breathing room
+
+    pos_2 = [1.0, 1.0 + gap * box_w]
+    pos_3 = [1.0, 1.0 + gap * box_w, 1.0 + 2.0 * gap * box_w]
+
+    xpad = 0.45
+    xlim_2 = (pos_2[0] - xpad, pos_2[-1] + xpad)
+    xlim_3 = (pos_3[0] - xpad, pos_3[-1] + xpad)
 
     xlabel_fs = 12
     xlabel_pad = 4
@@ -812,7 +825,7 @@ def plot_psc_boxplots(
         columnspacing=2.0,
     )
 
-    fig.subplots_adjust(top=0.945, right=0.975, hspace=0.62, wspace=0.32)
+    fig.subplots_adjust(top=0.945, right=0.975, hspace=0.45, wspace=0.1)
 
     # --------------------- PASS 2: draw panels ----------------------
     for r, spec in enumerate(roi_specs):
