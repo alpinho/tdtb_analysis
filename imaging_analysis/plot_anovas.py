@@ -71,7 +71,7 @@ ROI_PRETTY = {
 
 W_RATIO_STD = 0.95
 W_RATIO_NTFD_RANDOM = 1.4455
-W_RATIO_SPACER = 0.12
+W_RATIO_SPACER = 0.20
 
 # Scale overall figure width without changing internal layout.
 FIG_W_SCALE = 0.50
@@ -829,7 +829,7 @@ def plot_psc_boxplots(
         columnspacing=2.0,
     )
 
-    fig.subplots_adjust(top=0.945, right=0.975, hspace=0.45, wspace=0.1)
+    fig.subplots_adjust(top=0.945, right=0.975, hspace=0.45, wspace=0.22)
 
     # --------------------- PASS 2: draw panels ----------------------
     for r, spec in enumerate(roi_specs):
