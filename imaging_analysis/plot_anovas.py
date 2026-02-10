@@ -31,6 +31,11 @@ from matplotlib.ticker import FormatStrFormatter
 TASKS_MAIN = ["Production", "Perception", "NTFD"]
 TASK_NTFD_RANDOM = "NTFD Random"
 
+TASK_SHORT = {
+    "Production": "Prod",
+    "Perception": "Percep",
+}
+
 CATS_MAIN = ["Beat", "Interval"]
 CATS_NTFD_RANDOM = ["Beat", "Interval", "Random"]
 
@@ -401,7 +406,7 @@ def plot_psc_boxplots(
     xlabel_pad = 4
 
     # Rotate panel labels to avoid overlap after width reduction.
-    xlabel_rotation = 25
+    xlabel_rotation = 0
     axis_label_fs = xlabel_fs
     ytick_fs = xlabel_fs
     legend_fs = axis_label_fs + 2
@@ -791,6 +796,18 @@ def plot_psc_boxplots(
     if n_rows == 1:
         axes = np.expand_dims(axes, axis=0)
 
+    # ----------------- modality block columns (for labels) -----------------
+    # Map each modality to the list of subplot columns that belong to it.
+    mods_present: List[str] = []
+    cols_by_mod: Dict[str, List[int]] = {}
+    for j, (mod, _task) in enumerate(col_spec_block):
+        if mod == "SPACER":
+            continue
+        if mod not in mods_present:
+            mods_present.append(mod)
+        cols_by_mod.setdefault(mod, []).append(j)
+
+
     handles = [
         Patch(
             facecolor=colors["Beat"],
@@ -895,13 +912,13 @@ def plot_psc_boxplots(
             )
 
             ax.set_xticks([])
-            xlabel = task if mod == "Pooled" else f"{mod}\n{task}"
+            xlabel = TASK_SHORT.get(task, task)
             ax.set_xlabel(
                 xlabel,
                 fontsize=xlabel_fs,
                 labelpad=xlabel_pad,
                 rotation=xlabel_rotation,
-                ha="right",
+                ha="center",
                 rotation_mode="anchor",
             )
 
@@ -983,8 +1000,48 @@ def plot_psc_boxplots(
                 fontweight="medium",
             )
 
+        # Modality block labels (Pooled / Auditory / Visual) for this row.
+        # Place centered under each modality block *below the task labels*.
+        # We compute placement from the axes position and the rendered
+        # height of the per-panel task xlabel to avoid fragile geometry
+        # dependencies and to keep the label consistently below xlabels.
+        if not getattr(fig, "_modlabel_canvas_drawn", False):
+            fig.canvas.draw()
+            fig._modlabel_canvas_drawn = True
+
+        renderer = fig.canvas.get_renderer()
+        gap_fig = 0.004  # tighten distance to task labels
+
+        for mod in mods_present:
+            cols = cols_by_mod.get(mod, [])
+            if not cols:
+                continue
+
+            row_axes_mod = [axes[r, jj] for jj in cols]
+            x0m = min(a.get_position().x0 for a in row_axes_mod)
+            x1m = max(a.get_position().x1 for a in row_axes_mod)
+            x_center = (x0m + x1m) / 2.0
+
+            # Use the first axis in this modality block as reference for
+            # the per-panel task xlabel height (in figure fraction).
+            ax_ref = row_axes_mod[0]
+            bb = ax_ref.xaxis.get_label().get_window_extent(renderer=renderer)
+            label_h = float(bb.height) / float(fig.bbox.height)
+
+            y = float(ax_ref.get_position().y0) - label_h - gap_fig
+
+            fig.text(
+                x_center,
+                y,
+                mod,
+                ha="center",
+                va="top",
+                fontsize=axis_label_fs + 2,
+                color="k",
+            )
 
         if roi is None:
+
             continue
 
         for m, anns in spec["eligible_by_mod"].items():
@@ -1064,7 +1121,7 @@ def plot_psc_boxplots(
                     h_data=h_data,
                 )
 
-    fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.22)
+        fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.22)
     plt.close(fig)
 
 
