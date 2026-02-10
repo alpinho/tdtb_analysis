@@ -34,6 +34,7 @@ TASK_NTFD_RANDOM = "NTFD Random"
 TASK_SHORT = {
     "Production": "Prod",
     "Perception": "Percep",
+    "NTFD Random": "NTFD\nRandom",
 }
 
 CATS_MAIN = ["Beat", "Interval"]
