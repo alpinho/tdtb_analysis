@@ -388,12 +388,7 @@ def plot_psc_boxplots(
     whis = 1.5
 
     box_w = 0.48
-
-    # Keep box *centers* at the same locations as before (so relative
-    # spacing is preserved), while allowing narrower boxes.
-    base_box_w = 0.65
-    gap = 1.02  # 1.00 = just-touch; >1 adds a small breathing room
-    center_step = gap * base_box_w
+    center_step = box_w
 
     pos_2 = [1.0, 1.0 + center_step]
     pos_3 = [1.0, 1.0 + center_step, 1.0 + 2.0 * center_step]
