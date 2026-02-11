@@ -75,9 +75,9 @@ ROI_PRETTY = {
 # W_RATIO_NTFD_RANDOM accordingly to preserve the relative width
 # of the 3-box panels).
 
-W_RATIO_STD = 0.95
-W_RATIO_NTFD_RANDOM = 1.4455
-W_RATIO_SPACER = 0.20
+W_RATIO_STD = 0.9
+W_RATIO_NTFD_RANDOM = 1.3694
+W_RATIO_SPACER = 0.30
 
 # Scale overall figure width without changing internal layout.
 FIG_W_SCALE = 0.50
@@ -399,7 +399,7 @@ def plot_psc_boxplots(
     pos_2 = [1.0, 1.0 + center_step]
     pos_3 = [1.0, 1.0 + center_step, 1.0 + 2.0 * center_step]
 
-    xpad = 0.45
+    xpad = 0.4
     xlim_2 = (pos_2[0] - xpad, pos_2[-1] + xpad)
     xlim_3 = (pos_3[0] - xpad, pos_3[-1] + xpad)
 
@@ -847,7 +847,8 @@ def plot_psc_boxplots(
         columnspacing=2.0,
     )
 
-    fig.subplots_adjust(top=0.945, right=0.975, hspace=0.45, wspace=0.22)
+    fig.subplots_adjust(top=0.945, left=0.015, right=0.990, hspace=0.75,
+                        wspace=0.22)
 
     # --------------------- PASS 2: draw panels ----------------------
     for r, spec in enumerate(roi_specs):
