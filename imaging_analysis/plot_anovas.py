@@ -19,6 +19,7 @@ from typing import Dict, List, Sequence, Tuple
 
 import matplotlib.cbook as cbook
 import matplotlib.pyplot as plt
+from matplotlib.colors import to_rgb
 import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
@@ -302,8 +303,6 @@ def within_axis_annotation(
         clip_on=False,
     )
 
-
-
 # ============================ PLOTTING ============================= #
 
 
@@ -385,12 +384,88 @@ def plot_psc_boxplots(
     n_rows = len(rois)
 
     # ------------------------ style params -------------------------
-    colors = {
-        "Beat": "#6baed6",
-        "Interval": "#fdae6b",
-        "Random": "tab:pink",
+    # Color scheme (colorblind-friendly) ---------------------------------
+    # Requirements:
+    # - Different shades of one color across tasks within Auditory.
+    # - Same, but with a different base color family for Visual.
+    # - Beat must be darker than Interval within a task shade.
+    #
+    # We use Matplotlib's "tab20b" colormap and automatically pick:
+    # - 4 "yellow-ish" colors for Auditory (or first 3 if only 3 tasks)
+    # - 4 "pink-ish" colors for Visual (or first 3 if only 3 tasks)
+    #
+    # For the Beat vs Interval pair, we derive darker/lighter variants
+    # from the same task shade to keep hue consistent.
+
+    # Color scheme (CSS named colors; colorblind-friendly-ish):
+    # - Pooled: cyan/blue family
+    # - Auditory: orange/yellow family
+    # - Visual: magenta/pink family
+    #
+    # Within each (modality × task) shade:
+    #   Beat   -> darker
+    #   Interval -> lighter
+    #
+    # "Random" remains neutral gray (as before).
+
+    POOLED_BASE = ["darkslategrey", "darkcyan", "mediumaquamarine", "cyan"]
+    AUD_BASE = ["saddlebrown", "darkorange", "goldenrod", "yellow"]
+    VIS_BASE = ["rebeccapurple", "darkorchid", "violet", "pink"]
+
+    def _shades(base: list[str], n: int) -> list[tuple[float, float, float]]:
+        if n <= 0:
+            return []
+        return [to_rgb(base[i % len(base)]) for i in range(n)]
+
+    def _darken(
+        rgb: tuple[float, float, float],
+        factor: float = 0.78,
+    ) -> tuple[float, float, float]:
+        r, g, b = rgb
+        return (
+            max(0.0, r * factor),
+            max(0.0, g * factor),
+            max(0.0, b * factor),
+        )
+
+    def _lighten(
+        rgb: tuple[float, float, float],
+        amount: float = 0.65,
+    ) -> tuple[float, float, float]:
+        # Blend toward white by "amount" (0..1).
+        r, g, b = rgb
+        return (
+            min(1.0, r + (1.0 - r) * amount),
+            min(1.0, g + (1.0 - g) * amount),
+            min(1.0, b + (1.0 - b) * amount),
+        )
+
+    n_task_shades = len(tasks_per_block)
+    pooled_task_shades = _shades(POOLED_BASE, n_task_shades)
+    aud_task_shades = _shades(AUD_BASE, n_task_shades)
+    vis_task_shades = _shades(VIS_BASE, n_task_shades)
+
+    task_shade_by_mod: dict[str, dict[str, tuple[float, float, float]]] = {
+        "Pooled": dict(zip(tasks_per_block, pooled_task_shades)),
+        "Auditory": dict(zip(tasks_per_block, aud_task_shades)),
+        "Visual": dict(zip(tasks_per_block, vis_task_shades)),
     }
-    box_alpha = 0.72
+
+    def _cat_color(mod: str, task: str, cat: str) -> tuple[float, float, float]:
+        if cat == "Random":
+            return (0.70, 0.70, 0.70)
+
+        # Base shade depends on (block modality × task).
+        base = task_shade_by_mod.get(mod, {}).get(task)
+        if base is None:
+            # Robust fallback (should not happen unless unexpected labels).
+            base = to_rgb('0.5')
+
+        # Beat uses the pure base color; Interval is a lighter tint.
+        if cat == "Beat":
+            return base
+        return _lighten(base)
+    box_alpha = 1.0
     whis = 1.5
 
     box_w = 0.48
@@ -808,27 +883,26 @@ def plot_psc_boxplots(
             mods_present.append(mod)
         cols_by_mod.setdefault(mod, []).append(j)
 
-
-    handles = [
-        Patch(
-            facecolor=colors["Beat"],
-            edgecolor="none",
-            alpha=box_alpha,
-            label="Beat",
-        ),
-        Patch(
-            facecolor=colors["Interval"],
-            edgecolor="none",
-            alpha=box_alpha,
-            label="Interval",
-        ),
-    ]
+        handles = [
+            Patch(
+                facecolor=(0.35, 0.35, 0.35),
+                edgecolor="none",
+                alpha=box_alpha,
+                label="Beat (darker)",
+            ),
+            Patch(
+                facecolor=(0.80, 0.80, 0.80),
+                edgecolor="none",
+                alpha=box_alpha,
+                label="Interval (lighter)",
+            ),
+        ]
 
     if include_ntfd_random:
         handles.insert(
             2,
             Patch(
-                facecolor=colors["Random"],
+                facecolor=(0.70, 0.70, 0.70),
                 edgecolor="none",
                 alpha=box_alpha,
                 label="Random",
@@ -898,7 +972,7 @@ def plot_psc_boxplots(
             )
 
             for patch, cat in zip(bp["boxes"], cats):
-                patch.set_facecolor(colors[cat])
+                patch.set_facecolor(_cat_color(mod, task, cat))
                 patch.set_alpha(box_alpha)
 
             ax.set_ylim(*spec["y_lim"])
@@ -977,7 +1051,6 @@ def plot_psc_boxplots(
                         y_data=y_data,
                         h_data=h_data,
                     )
-
 
         # Row-level ROI title centered across all non-spacer panels.
         # Place it in figure coordinates so it is centered per row.
@@ -1307,7 +1380,7 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Production", "NTFD"),
         pvalue=0.00000183818864354019,
     ),
-        dict(
+    dict(
         roi="cereb",
         modality="Auditory",
         task_pair=("Production", "Perception"),
@@ -1373,13 +1446,13 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Production", "Perception"),
         pvalue=0.0403525496178749,
     ),
-        dict(
+    dict(
         roi="cereb",
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.00540313064133677,
     ),
-        dict(
+    dict(
         roi="cereb",
         modality="Visual",
         task_pair=("Perception", "NTFD"),
