@@ -20,10 +20,9 @@ from typing import Dict, List, Sequence, Tuple
 import matplotlib.cbook as cbook
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_rgb
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
 from matplotlib.ticker import FormatStrFormatter
 
 
@@ -271,21 +270,7 @@ def within_axis_annotation(
     lw: float = 1.2,
     fs: float = 14.0,
 ) -> None:
-    """Draw a bracket within a single axis (data coords).
-
-    Parameters
-    ----------
-    ax
-        Target axis.
-    x1, x2
-        X positions in data coordinates (e.g., Beat vs Interval).
-    text
-        Annotation text (typically star label).
-    y_data
-        Baseline Y position in data coordinates.
-    h_data
-        Bracket height in data coordinates.
-    """
+    """Draw a bracket within a single axis (data coords)."""
     y0 = y_data
     y1 = y_data + h_data
 
@@ -303,6 +288,7 @@ def within_axis_annotation(
         clip_on=False,
     )
 
+
 # ============================ PLOTTING ============================= #
 
 
@@ -314,12 +300,7 @@ def plot_psc_boxplots(
     pooled_only: bool = False,
     include_ntfd_random: bool = False,
 ) -> None:
-    """Plot PSC boxplots by ROI and modality/task blocks.
-
-    Adds support for an extra task (NTFD Random) shown as a fourth
-    panel per modality block with 3 categories (Beat/Interval/Random).
-    If pooled_only is True, only the pooled modality block is plotted.
-    """
+    """Plot PSC boxplots by ROI and modality/task blocks."""
     outpath = Path(outpath)
     if outpath.suffix == "":
         raise ValueError("outpath must end with .png or .pdf")
@@ -384,30 +365,6 @@ def plot_psc_boxplots(
     n_rows = len(rois)
 
     # ------------------------ style params -------------------------
-    # Color scheme (colorblind-friendly) ---------------------------------
-    # Requirements:
-    # - Different shades of one color across tasks within Auditory.
-    # - Same, but with a different base color family for Visual.
-    # - Beat must be darker than Interval within a task shade.
-    #
-    # We use Matplotlib's "tab20b" colormap and automatically pick:
-    # - 4 "yellow-ish" colors for Auditory (or first 3 if only 3 tasks)
-    # - 4 "pink-ish" colors for Visual (or first 3 if only 3 tasks)
-    #
-    # For the Beat vs Interval pair, we derive darker/lighter variants
-    # from the same task shade to keep hue consistent.
-
-    # Color scheme (CSS named colors; colorblind-friendly-ish):
-    # - Pooled: cyan/blue family
-    # - Auditory: orange/yellow family
-    # - Visual: magenta/pink family
-    #
-    # Within each (modality × task) shade:
-    #   Beat   -> darker
-    #   Interval -> lighter
-    #
-    # "Random" remains neutral gray (as before).
-
     POOLED_BASE = ["darkslategrey", "darkcyan", "mediumaquamarine", "cyan"]
     AUD_BASE = ["saddlebrown", "darkorange", "goldenrod", "yellow"]
     VIS_BASE = ["rebeccapurple", "darkorchid", "violet", "pink"]
@@ -417,22 +374,10 @@ def plot_psc_boxplots(
             return []
         return [to_rgb(base[i % len(base)]) for i in range(n)]
 
-    def _darken(
-        rgb: tuple[float, float, float],
-        factor: float = 0.78,
-    ) -> tuple[float, float, float]:
-        r, g, b = rgb
-        return (
-            max(0.0, r * factor),
-            max(0.0, g * factor),
-            max(0.0, b * factor),
-        )
-
     def _lighten(
         rgb: tuple[float, float, float],
         amount: float = 0.65,
     ) -> tuple[float, float, float]:
-        # Blend toward white by "amount" (0..1).
         r, g, b = rgb
         return (
             min(1.0, r + (1.0 - r) * amount),
@@ -451,20 +396,19 @@ def plot_psc_boxplots(
         "Visual": dict(zip(tasks_per_block, vis_task_shades)),
     }
 
-    def _cat_color(mod: str, task: str, cat: str) -> tuple[float, float, float]:
+    def _cat_color(
+            mod: str, task: str, cat: str) -> tuple[float, float, float]:
         if cat == "Random":
             return (0.70, 0.70, 0.70)
 
-        # Base shade depends on (block modality × task).
         base = task_shade_by_mod.get(mod, {}).get(task)
         if base is None:
-            # Robust fallback (should not happen unless unexpected labels).
-            base = to_rgb('0.5')
+            base = to_rgb("0.5")
 
-        # Beat uses the pure base color; Interval is a lighter tint.
         if cat == "Beat":
             return base
         return _lighten(base)
+
     box_alpha = 1.0
     whis = 1.5
 
@@ -479,13 +423,8 @@ def plot_psc_boxplots(
     xlim_3 = (pos_3[0] - xpad, pos_3[-1] + xpad)
 
     xlabel_fs = 12
-    xlabel_pad = 4
-
-    # Rotate panel labels to avoid overlap after width reduction.
-    xlabel_rotation = 0
     axis_label_fs = xlabel_fs
     ytick_fs = xlabel_fs
-    legend_fs = axis_label_fs + 2
 
     y_formatter = FormatStrFormatter("%.2f")
 
@@ -514,9 +453,6 @@ def plot_psc_boxplots(
         "occipital": {"base_frac": 0.020},
     }
 
-    
-    # Slightly increase annotation stacking distance for pooled-only
-    # figures to avoid rare bracket overlaps (e.g., Heschl's Gyrus).
     if pooled_only:
         annot_y_frac_step = 0.11
         roi_annot_overrides = dict(roi_annot_overrides)
@@ -587,7 +523,7 @@ def plot_psc_boxplots(
         }
 
         eligible_cross: List[dict] = []
-        
+
         for ann in ANNOTATIONS:
             if not _matches_roi(roi, ann["roi"]):
                 continue
@@ -619,13 +555,8 @@ def plot_psc_boxplots(
         for k in eligible_within_by_ax:
             eligible_within_by_ax[k].sort(key=lambda a: float(a["pvalue"]))
 
-        # Cross-modality (Auditory ↔ Visual) annotations can specify a
-        # single task ("task"), a task list ("tasks"), or omit tasks
-        # to indicate all tasks in the current figure.
-        if (
-            ("Auditory" in eligible_template)
-            and ("Visual" in eligible_template)
-        ):
+        if ("Auditory" in eligible_template) and \
+           ("Visual" in eligible_template):
             for ann in CROSS_AV_ANNOTATIONS:
                 if not _matches_roi(roi, ann.get("roi", "")):
                     continue
@@ -645,7 +576,8 @@ def plot_psc_boxplots(
                     continue
 
                 if not all(
-                    (("Auditory", t) in ax_keys) and (("Visual", t) in ax_keys)
+                    (("Auditory", t) in ax_keys) and 
+                    (("Visual", t) in ax_keys)
                     for t in tasks
                 ):
                     continue
@@ -659,7 +591,7 @@ def plot_psc_boxplots(
                 span = (max(idx) - min(idx)) if idx else 0
                 return (-span, float(a["pvalue"]))
 
-            eligible_cross.sort(key=_cross_sort_key)
+                eligible_cross.sort(key=_cross_sort_key)
 
         for m in eligible_by_mod:
             eligible_by_mod[m].sort(key=_ann_sort_key)
@@ -720,10 +652,8 @@ def plot_psc_boxplots(
         )
         pad = pad_frac_local * yr
 
-        max_stack_span = max(
-            (len(v) for v in eligible_by_mod.values()),
-            default=0,
-        )
+        max_stack_span = max((len(v) for v in eligible_by_mod.values()),
+                             default=0)
         max_stack_within = max(
             (len(v) for v in eligible_within_by_ax.values()),
             default=0,
@@ -739,8 +669,7 @@ def plot_psc_boxplots(
         top_needed_span = 0.0
         span_offset_max = max(
             (
-                v
-                + (within_to_span_gap_frac if v > 0.0 else 0.0)
+                v + (within_to_span_gap_frac if v > 0.0 else 0.0)
                 for v in within_stack_top_by_mod.values()
             ),
             default=0.0,
@@ -754,10 +683,6 @@ def plot_psc_boxplots(
                 + headroom_frac_local
             )
 
-        # Reserve extra vertical room for cross-modality annotations
-        # (Auditory ↔ Visual) drawn between the Auditory and Visual
-        # blocks. These p-values typically correspond to ROI × Modality
-        # pairwise tests (collapsed over Task).
         max_stack_cross = len(eligible_cross)
         cross_gap_frac = 0.12
         cross_start_frac = 0.0
@@ -791,7 +716,6 @@ def plot_psc_boxplots(
             )
 
         top_extra = max(top_needed_span, top_needed_within) * yr
-
         y_lim_raw = (y_min - pad, y_max + pad + top_extra)
 
         eps = 1e-9
@@ -872,8 +796,6 @@ def plot_psc_boxplots(
     if n_rows == 1:
         axes = np.expand_dims(axes, axis=0)
 
-    # ----------------- modality block columns (for labels) -----------------
-    # Map each modality to the list of subplot columns that belong to it.
     mods_present: List[str] = []
     cols_by_mod: Dict[str, List[int]] = {}
     for j, (mod, _task) in enumerate(col_spec_block):
@@ -883,46 +805,13 @@ def plot_psc_boxplots(
             mods_present.append(mod)
         cols_by_mod.setdefault(mod, []).append(j)
 
-        handles = [
-            Patch(
-                facecolor=(0.35, 0.35, 0.35),
-                edgecolor="none",
-                alpha=box_alpha,
-                label="Beat (darker)",
-            ),
-            Patch(
-                facecolor=(0.80, 0.80, 0.80),
-                edgecolor="none",
-                alpha=box_alpha,
-                label="Interval (lighter)",
-            ),
-        ]
-
-    if include_ntfd_random:
-        handles.insert(
-            2,
-            Patch(
-                facecolor=(0.70, 0.70, 0.70),
-                edgecolor="none",
-                alpha=box_alpha,
-                label="Random",
-            ),
-        )
-
-    ncol = 3 if include_ntfd_random else 2
-    fig.legend(
-        handles=handles,
-        loc="upper center",
-        ncol=ncol,
-        frameon=False,
-        bbox_to_anchor=(0.5, 0.985),
-        fontsize=legend_fs,
-        handlelength=3.0,
-        columnspacing=2.0,
+    fig.subplots_adjust(
+        top=0.965,
+        left=0.015,
+        right=0.990,
+        hspace=0.75,
+        wspace=0.22,
     )
-
-    fig.subplots_adjust(top=0.945, left=0.015, right=0.990, hspace=0.75,
-                        wspace=0.22)
 
     # --------------------- PASS 2: draw panels ----------------------
     for r, spec in enumerate(roi_specs):
@@ -988,35 +877,25 @@ def plot_psc_boxplots(
             )
 
             ax.set_xticks([])
-            xlabel = TASK_SHORT.get(task, task)
-            ax.set_xlabel(
-                xlabel,
-                fontsize=xlabel_fs,
-                labelpad=xlabel_pad,
-                rotation=xlabel_rotation,
-                ha="center",
-                rotation_mode="anchor",
-            )
+
+            label = TASK_SHORT.get(task, task)
+            if r == 0:
+                ax.set_title(label, fontsize=xlabel_fs, pad=8)
 
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
 
             if j == 0:
-                ax.set_ylabel(
-                    "PSC (%)",
-                    fontsize=axis_label_fs,
-                )
-
+                ax.set_ylabel("PSC (%)", fontsize=axis_label_fs)
                 ax.tick_params(axis="y", labelsize=ytick_fs)
                 ax.spines["left"].set_visible(True)
             else:
                 ax.set_yticklabels([])
                 ax.tick_params(axis="y", left=False, length=0)
                 ax.spines["left"].set_visible(False)
-            within_anns = spec.get("eligible_within_by_ax", {}).get(
-                (mod, task),
-                [],
-            )
+
+            within_anns = \
+                spec.get("eligible_within_by_ax", {}).get((mod, task), [])
             if within_anns and ("Beat" in cats) and ("Interval" in cats):
                 x1 = float(positions[0])
                 x2 = float(positions[1])
@@ -1027,22 +906,16 @@ def plot_psc_boxplots(
                         spec["y_max"]
                         + spec["pad"]
                         + (
-                            spec.get(
-                                "within_base_frac",
-                                within_annot_y_frac_base,
-                            )
+                            spec.get("within_base_frac", 
+                                     within_annot_y_frac_base)
                             + level
-                            * spec.get(
-                                "within_step_frac",
-                                within_annot_y_frac_step,
-                            )
+                            * spec.get("within_step_frac", 
+                                       within_annot_y_frac_step)
                         )
                         * spec["yr"]
                     )
-                    h_data = (
-                        spec.get("within_h_frac", within_annot_h_frac)
-                        * spec["yr"]
-                    )
+                    h_data = spec.get(
+                        "within_h_frac", within_annot_h_frac) * spec["yr"]
                     within_axis_annotation(
                         ax=ax,
                         x1=x1,
@@ -1052,8 +925,6 @@ def plot_psc_boxplots(
                         h_data=h_data,
                     )
 
-        # Row-level ROI title centered across all non-spacer panels.
-        # Place it in figure coordinates so it is centered per row.
         row_axes = [
             axes[r, jj]
             for jj, (m_jj, _t_jj) in enumerate(col_spec_block)
@@ -1075,17 +946,12 @@ def plot_psc_boxplots(
                 fontweight="medium",
             )
 
-        # Modality block labels (Pooled / Auditory / Visual) for this row.
-        # Place centered under each modality block *below the task labels*.
-        # We compute placement from the axes position and the rendered
-        # height of the per-panel task xlabel to avoid fragile geometry
-        # dependencies and to keep the label consistently below xlabels.
         if not getattr(fig, "_modlabel_canvas_drawn", False):
             fig.canvas.draw()
             fig._modlabel_canvas_drawn = True
 
         renderer = fig.canvas.get_renderer()
-        gap_fig = 0.006  # tighten distance to task labels
+        gap_fig = 0.006
 
         for mod in mods_present:
             cols = cols_by_mod.get(mod, [])
@@ -1097,8 +963,6 @@ def plot_psc_boxplots(
             x1m = max(a.get_position().x1 for a in row_axes_mod)
             x_center = (x0m + x1m) / 2.0
 
-            # Use the first axis in this modality block as reference for
-            # the per-panel task xlabel height (in figure fraction).
             ax_ref = row_axes_mod[0]
             bb = ax_ref.xaxis.get_label().get_window_extent(renderer=renderer)
             label_h = float(bb.height) / float(fig.bbox.height)
@@ -1116,7 +980,6 @@ def plot_psc_boxplots(
             )
 
         if roi is None:
-
             continue
 
         for m, anns in spec["eligible_by_mod"].items():
@@ -1155,10 +1018,6 @@ def plot_psc_boxplots(
                     h_data=h_data,
                 )
 
-        # Cross-modality (Auditory ↔ Visual) annotations. Each entry in
-        # CROSS_AV_ANNOTATIONS can specify a task group via "tasks", a
-        # single task via "task", or omit tasks to span all tasks in the
-        # current figure.
         eligible_cross = spec.get("eligible_cross", [])
         cross_start_frac = float(spec.get("cross_start_frac", 0.0))
         if eligible_cross and cross_start_frac > 0.0:
@@ -1255,32 +1114,18 @@ OUTPUT_PATH = os.path.join(
 )
 
 # ===================== WITHIN-SUBPLOT ANNOTATIONS ===================== #
-# Each entry defines ONE bracket between Beat and Interval WITHIN a single
-# task panel (i.e., within a subplot).
-#
-# roi: short key ("dstr", "sma", "pmv", ...)
-# modality: "Pooled" | "Auditory" | "Visual"
-# task: optional; if omitted, applies to all tasks in that block
-# pvalue: numeric p-value
+
 WITHIN_ANNOTATIONS: List[dict] = [
-#     dict(
-#         roi="dstr",
-#         modality="Pooled",
-#         task="Production", # toy example
-#         pvalue=0.0465950036732798,
-#     ),
+    # dict(
+    #     roi="dstr",
+    #     modality="Pooled",
+    #     task="Production",
+    #     pvalue=0.0465950036732798,
+    # ),
 ]
 
 # =================== CROSS-MODALITY (AUDIO ↔ VISUAL) ================ #
-# Each entry defines ONE bracket spanning Auditory and Visual panels
-# for a given ROI. This is typically used for ROI × Modality pairwise
-# tests from a 3-way RM ANOVA (collapsed over Task).
-#
-# roi: short key ("dstr", "sma", "pmv", ...)
-# task: optional single task name
-# tasks: optional list of tasks to span (group). If both task and
-# tasks are omitted, the bracket spans all tasks in the current figure.
-# pvalue: numeric p-value
+
 CROSS_AV_ANNOTATIONS: List[dict] = [
     dict(
         roi="pmd",
@@ -1300,13 +1145,7 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
 ]
 
 # ============================ ANNOTATIONS =========================== #
-# Each entry defines ONE bracket spanning two task-panels within ONE modality
-# block.
-#
-# roi: short key ("dstr", "sma", "pmv", ...)
-# modality: "Pooled" | "Auditory" | "Visual"
-# task_pair: (task_left, task_right)
-# pvalue: numeric p-value
+
 ANNOTATIONS: List[dict] = [
     dict(
         roi="dstr",
