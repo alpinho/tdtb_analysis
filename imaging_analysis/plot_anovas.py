@@ -1011,7 +1011,7 @@ def plot_psc_boxplots(
             fig._modlabel_canvas_drawn = True
 
         renderer = fig.canvas.get_renderer()
-        gap_fig = 0.004  # tighten distance to task labels
+        gap_fig = 0.006  # tighten distance to task labels
 
         for mod in mods_present:
             cols = cols_by_mod.get(mod, [])
