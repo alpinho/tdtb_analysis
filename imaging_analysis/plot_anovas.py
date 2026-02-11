@@ -34,6 +34,7 @@ TASK_NTFD_RANDOM = "NTFD Random"
 TASK_SHORT = {
     "Production": "Prod",
     "Perception": "Percep",
+    "NTFD": "NTFD",
     "NTFD Random": "NTFD\nRandom",
 }
 
@@ -66,15 +67,6 @@ ROI_PRETTY = {
 }
 
 # Geometry: make the 3-boxplot NTFD Random panels wider.
-#
-# NOTE: Absolute panel width in inches is approximately:
-#   panel_width ≈ per_col * W_RATIO_*
-# because fig_w is computed as per_col * sum(width_ratios).
-# To make each "pair-of-boxplots" panel narrower (without
-# changing fontsize), reduce W_RATIO_STD (and scale
-# W_RATIO_NTFD_RANDOM accordingly to preserve the relative width
-# of the 3-box panels).
-
 W_RATIO_STD = 0.9
 W_RATIO_NTFD_RANDOM = 1.3694
 W_RATIO_SPACER = 0.30
@@ -365,8 +357,8 @@ def plot_psc_boxplots(
     n_rows = len(rois)
 
     # ------------------------ style params -------------------------
-    POOLED_BASE = ["darkslategrey", "darkcyan", "mediumaquamarine", "cyan"]
-    AUD_BASE = ["saddlebrown", "darkorange", "goldenrod", "yellow"]
+    POOLED_BASE = ["steelblue", "darkturquoise", "turquoise", "cyan"]
+    AUD_BASE = ["saddlebrown", "chocolate", "orange", "gold"]
     VIS_BASE = ["rebeccapurple", "darkorchid", "violet", "pink"]
 
     def _shades(base: list[str], n: int) -> list[tuple[float, float, float]]:
@@ -376,8 +368,9 @@ def plot_psc_boxplots(
 
     def _lighten(
         rgb: tuple[float, float, float],
-        amount: float = 0.65,
+        amount: float = 0.78,
     ) -> tuple[float, float, float]:
+        # Blend toward white by "amount" (0..1). Larger -> lighter.
         r, g, b = rgb
         return (
             min(1.0, r + (1.0 - r) * amount),
@@ -397,7 +390,10 @@ def plot_psc_boxplots(
     }
 
     def _cat_color(
-            mod: str, task: str, cat: str) -> tuple[float, float, float]:
+        mod: str,
+        task: str,
+        cat: str,
+    ) -> tuple[float, float, float]:
         if cat == "Random":
             return (0.70, 0.70, 0.70)
 
@@ -423,6 +419,9 @@ def plot_psc_boxplots(
     xlim_3 = (pos_3[0] - xpad, pos_3[-1] + xpad)
 
     xlabel_fs = 12
+    xlabel_pad = 4
+    xlabel_rotation = 0
+
     axis_label_fs = xlabel_fs
     ytick_fs = xlabel_fs
 
@@ -555,8 +554,9 @@ def plot_psc_boxplots(
         for k in eligible_within_by_ax:
             eligible_within_by_ax[k].sort(key=lambda a: float(a["pvalue"]))
 
-        if ("Auditory" in eligible_template) and \
-           ("Visual" in eligible_template):
+        if ("Auditory" in eligible_template) and (
+            "Visual" in eligible_template
+        ):
             for ann in CROSS_AV_ANNOTATIONS:
                 if not _matches_roi(roi, ann.get("roi", "")):
                     continue
@@ -576,8 +576,7 @@ def plot_psc_boxplots(
                     continue
 
                 if not all(
-                    (("Auditory", t) in ax_keys) and 
-                    (("Visual", t) in ax_keys)
+                    (("Auditory", t) in ax_keys) and (("Visual", t) in ax_keys)
                     for t in tasks
                 ):
                     continue
@@ -591,7 +590,7 @@ def plot_psc_boxplots(
                 span = (max(idx) - min(idx)) if idx else 0
                 return (-span, float(a["pvalue"]))
 
-                eligible_cross.sort(key=_cross_sort_key)
+            eligible_cross.sort(key=_cross_sort_key)
 
         for m in eligible_by_mod:
             eligible_by_mod[m].sort(key=_ann_sort_key)
@@ -652,8 +651,10 @@ def plot_psc_boxplots(
         )
         pad = pad_frac_local * yr
 
-        max_stack_span = max((len(v) for v in eligible_by_mod.values()),
-                             default=0)
+        max_stack_span = max(
+            (len(v) for v in eligible_by_mod.values()),
+            default=0,
+        )
         max_stack_within = max(
             (len(v) for v in eligible_within_by_ax.values()),
             default=0,
@@ -877,10 +878,15 @@ def plot_psc_boxplots(
             )
 
             ax.set_xticks([])
-
-            label = TASK_SHORT.get(task, task)
-            if r == 0:
-                ax.set_title(label, fontsize=xlabel_fs, pad=8)
+            xlabel = TASK_SHORT.get(task, task)
+            ax.set_xlabel(
+                xlabel,
+                fontsize=xlabel_fs,
+                labelpad=xlabel_pad,
+                rotation=xlabel_rotation,
+                ha="center",
+                rotation_mode="anchor",
+            )
 
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
@@ -894,8 +900,10 @@ def plot_psc_boxplots(
                 ax.tick_params(axis="y", left=False, length=0)
                 ax.spines["left"].set_visible(False)
 
-            within_anns = \
-                spec.get("eligible_within_by_ax", {}).get((mod, task), [])
+            within_anns = spec.get("eligible_within_by_ax", {}).get(
+                (mod, task),
+                [],
+            )
             if within_anns and ("Beat" in cats) and ("Interval" in cats):
                 x1 = float(positions[0])
                 x2 = float(positions[1])
@@ -906,16 +914,22 @@ def plot_psc_boxplots(
                         spec["y_max"]
                         + spec["pad"]
                         + (
-                            spec.get("within_base_frac", 
-                                     within_annot_y_frac_base)
+                            spec.get(
+                                "within_base_frac",
+                                within_annot_y_frac_base,
+                            )
                             + level
-                            * spec.get("within_step_frac", 
-                                       within_annot_y_frac_step)
+                            * spec.get(
+                                "within_step_frac",
+                                within_annot_y_frac_step,
+                            )
                         )
                         * spec["yr"]
                     )
-                    h_data = spec.get(
-                        "within_h_frac", within_annot_h_frac) * spec["yr"]
+                    h_data = (
+                        spec.get("within_h_frac", within_annot_h_frac)
+                        * spec["yr"]
+                    )
                     within_axis_annotation(
                         ax=ax,
                         x1=x1,
@@ -925,6 +939,7 @@ def plot_psc_boxplots(
                         h_data=h_data,
                     )
 
+        # Row-level ROI title centered across all non-spacer panels.
         row_axes = [
             axes[r, jj]
             for jj, (m_jj, _t_jj) in enumerate(col_spec_block)
@@ -946,6 +961,7 @@ def plot_psc_boxplots(
                 fontweight="medium",
             )
 
+        # Modality block labels under each block, below the task xlabels.
         if not getattr(fig, "_modlabel_canvas_drawn", False):
             fig.canvas.draw()
             fig._modlabel_canvas_drawn = True
@@ -966,7 +982,6 @@ def plot_psc_boxplots(
             ax_ref = row_axes_mod[0]
             bb = ax_ref.xaxis.get_label().get_window_extent(renderer=renderer)
             label_h = float(bb.height) / float(fig.bbox.height)
-
             y = float(ax_ref.get_position().y0) - label_h - gap_fig
 
             fig.text(
