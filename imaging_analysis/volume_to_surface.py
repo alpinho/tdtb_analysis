@@ -22,7 +22,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 24th of February 2025
-Last Update: January 2026
+Last Update: February 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
@@ -448,6 +448,7 @@ def plot_flatmap(
         cbar_title='Z-values',
         n_ticks=4,
         tick_decimals=1,
+        show_colorbar=True,
     ):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -553,8 +554,10 @@ def plot_flatmap(
 
         # only show colorbar if threshold is finite and...
         # ... at least one value ≥ thr
-        show_cbar1 = bool(np.isfinite(threshold) 
-                          and np.nanmax(stats) >= threshold)
+        show_cbar1 = (
+            bool(show_colorbar)
+            and bool(np.isfinite(threshold) and np.nanmax(stats) >= threshold)
+        )
 
         if show_cbar1:
             norm = plt.Normalize(vmin=threshold, vmax=vmax)
@@ -1441,7 +1444,7 @@ task_tag = 'All Tasks'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'Encoding' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name = 'Auditory Encoding' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
@@ -1905,7 +1908,8 @@ if __name__ == '__main__':
         plot_flatmap(
             [zvals_lh_masked, zvals_rh_masked],
             thresh, task_id, cname, surfplots_folder,
-            hemi=['L', 'R'], colormap='viridis', vmax=v_max
+            hemi=['L', 'R'], colormap='viridis', vmax=v_max,
+            show_colorbar=False
         )
 
     # ====================== TWO-CONTRAST OVERLAY =====================
