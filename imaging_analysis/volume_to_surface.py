@@ -444,7 +444,8 @@ def plot_flatmap(
         hemi=['L', 'R'],
         colormap='viridis',
         colors=['Reds', 'Blues'],
-        vmax=10,
+        vmin=None,
+        vmax=None,
         cbar_title='Z-values',
         n_ticks=4,
         tick_decimals=1,
@@ -537,6 +538,18 @@ def plot_flatmap(
     # single-contrast branch
     if not two_rgb:
         lh, rh = stats
+
+        # Ensure SUITPy uses a deterministic color scale:
+        # - lower bound defaults to `threshold` (unless `vmin` provided)
+        # - upper bound defaults to data max (unless `vmax` provided)
+        cscale_lo = threshold if vmin is None else vmin
+        data_max = np.nanmax([np.nanmax(lh), np.nanmax(rh)])
+        cscale_hi = data_max if vmax is None else vmax
+        if not np.isfinite(cscale_hi):
+            cscale_hi = cscale_lo
+        if cscale_hi <= cscale_lo:
+            cscale_hi = cscale_lo + 1e-6
+
         for ax, stat, h in zip(axs, (lh, rh), hemi):
             plt.sca(ax)
             flatmap.plot(
@@ -546,6 +559,7 @@ def plot_flatmap(
                 undermap='gray',
                 underscale=[-1.5, 1],
                 threshold=threshold,
+                cscale=[cscale_lo, cscale_hi],
                 cmap=colormap,
                 borders=borders[h],
                 new_figure=False,
@@ -560,14 +574,14 @@ def plot_flatmap(
         )
 
         if show_cbar1:
-            norm = plt.Normalize(vmin=threshold, vmax=vmax)
+            norm = plt.Normalize(vmin=threshold, vmax=cscale_hi)
             sm = ScalarMappable(norm=norm, cmap=colormap)
             cbar = fig.colorbar(
                 sm, ax=list(axs), orientation='horizontal',
                 fraction=0.05, pad=0.02
             )
             cbar.set_label(cbar_title, fontsize=12, labelpad=8)
-            ticks = np.linspace(threshold, vmax, n_ticks)
+            ticks = np.linspace(threshold, cscale_hi, n_ticks)
             cbar.set_ticks(ticks)
             dec = int(tick_decimals) if tick_decimals is not None else 2
             cbar.ax.set_xticklabels(
@@ -1444,7 +1458,7 @@ task_tag = 'All Tasks'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'Auditory Encoding' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name = 'ALL' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
@@ -1724,6 +1738,7 @@ if __name__ == '__main__':
                 plot_flatmap(
                     stats=[lh_arr, rh_arr],
                     threshold=vmin,
+                    vmin=vmin,
                     task_key=task_id,
                     contrast_tag=f"{lvl}_{roi}",
                     output_dir=irois_imgs_folder,
@@ -1795,12 +1810,12 @@ if __name__ == '__main__':
             os.makedirs(_cdir, exist_ok=True)
 
             # ---- compute individual surfaces (gifti + cifti) --------
-            individual_surf(derivatives_folder, SUBJECTS, task_id, 
-                            all_contrasts, _cid, surf_folder, 
-                            surfspace='fslr32k', save='gifti')
-            individual_surf(derivatives_folder, SUBJECTS, task_id, 
-                            all_contrasts, _cid, surf_folder, 
-                            surfspace='fslr32k', save='cifti')
+            # individual_surf(derivatives_folder, SUBJECTS, task_id, 
+            #                 all_contrasts, _cid, surf_folder, 
+            #                 surfspace='fslr32k', save='gifti')
+            # individual_surf(derivatives_folder, SUBJECTS, task_id, 
+            #                 all_contrasts, _cid, surf_folder, 
+            #                 surfspace='fslr32k', save='cifti')
 
             # ---- compute group CIFTI → split → mask -----------------
             z_values = group_surf(surf_folder, SUBJECTS, task_id, _cid, _tag,
@@ -1859,12 +1874,12 @@ if __name__ == '__main__':
         os.makedirs(cdir, exist_ok=True)
 
         # ---- compute individual (gifti + cifti) ---------------------
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
-                        contrast_id, surf_folder, 
-                        surfspace='fslr32k', save='gifti')
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
-                        contrast_id, surf_folder, 
-                        surfspace='fslr32k', save='cifti')
+        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+        #                 contrast_id, surf_folder, 
+        #                 surfspace='fslr32k', save='gifti')
+        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+        #                 contrast_id, surf_folder, 
+        #                 surfspace='fslr32k', save='cifti')
 
         # ---- compute group → split → mask ---------------------------
         z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, 
@@ -1909,7 +1924,7 @@ if __name__ == '__main__':
             [zvals_lh_masked, zvals_rh_masked],
             thresh, task_id, cname, surfplots_folder,
             hemi=['L', 'R'], colormap='viridis', vmax=v_max,
-            show_colorbar=False
+            show_colorbar=True
         )
 
     # ====================== TWO-CONTRAST OVERLAY =====================
