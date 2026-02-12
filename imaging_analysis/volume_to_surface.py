@@ -1033,7 +1033,7 @@ def plot_multirois_flatmap(
 
     fig.set_size_inches(7.2, 2.75)
 
-    suffix = 'flat_all_irois'
+    suffix = 'flat'
     fname = (
         f'group_{task_name}_{contrast}_{suffix}_fslr32k.png'
         if len(hemi) == 2 else
@@ -1046,79 +1046,7 @@ def plot_multirois_flatmap(
         pad_inches=0
     )
 
-    # Leave room on the right for a vertical stack of horizontal colorbars
-    plt.subplots_adjust(left=0.0, right=0.77, top=0.97, bottom=0.10)
-
-    n_maps = len(labels)
-    x0 = 0.79
-    w = 0.20
-
-    # Stack horizontal colorbars vertically without overlap.
-    # Define geometry in figure-relative coordinates.
-    top = 0.95
-    bottom = 0.10
-    gap = 0.012
-    avail = top - bottom
-
-    # Compute a bar height that fits all maps. If needed, shrink the gap.
-    bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
-    if bar_h < 0.01:
-        gap = 0.005
-        bar_h = (avail - (n_maps - 1) * gap) / max(n_maps, 1)
-    bar_h = max(bar_h, 0.01)
-
-    for i, (cmap_i, lab) in enumerate(zip(colormaps, labels)):
-        y = top - (i + 1) * bar_h - i * gap
-
-        rect = [x0, y, w, bar_h]
-        cax = fig.add_axes(rect)
-
-        sm = ScalarMappable(
-            norm=Normalize(vmin=thr, vmax=vhi),
-            cmap=cmap_i,
-        )
-        sm.set_array([])
-
-        cb = fig.colorbar(
-            sm,
-            cax=cax,
-            orientation='horizontal',
-            ticks=cticks,
-        )
-        if i < n_maps - 1:
-            cb.ax.set_xticklabels([])
-            cb.ax.tick_params(labelbottom=False, labelsize=7, length=2)
-        else:
-            cb.ax.set_xticklabels([f"{t:.{dec}f}" for t in cticks])
-            cb.ax.tick_params(labelsize=7, length=2)
-
-        # Put the ROI label on the right side of the bar
-        cax.text(
-            1.02,
-            0.5,
-            lab,
-            va='center',
-            ha='left',
-            transform=cax.transAxes,
-            fontsize=8,
-        )
-
-    fig.set_size_inches(7.2, 2.75)
-    suffix = 'flat'
-    fname = (
-        f'group_{task_name}_{contrast}_{suffix}_'
-        f'fslr32k.png'
-        if len(hemi) == 2 else
-        f'group_{task_name}_{contrast}_{suffix}_'
-        f'fslr32k_{hemi[0]}.png'
-    )
-    fig.savefig(
-        os.path.join(output_dir, fname),
-        dpi=300,
-        bbox_inches='tight',
-        pad_inches=0
-    )
-
+    
 
 def split_and_save_sulc_cifti(cifti_path, output_dir):
     """
@@ -1458,7 +1386,7 @@ task_tag = 'All Tasks'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'ALL' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name = 'Auditory Encoding' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
@@ -1634,9 +1562,9 @@ else:
     }
 
 # Output folders
-surf_folder = os.path.join(surfparametric_folder, task_id, 
+surf_folder = os.path.join(surfparametric_folder, task_id,
                            'surface_files')
-contrasts_folder = os.path.join(surfparametric_folder, task_id, 
+contrasts_folder = os.path.join(surfparametric_folder, task_id,
                                 'surface_images')
 
 # Output folder for ROI overlap (cortex) flatmaps
@@ -1738,7 +1666,6 @@ if __name__ == '__main__':
                 plot_flatmap(
                     stats=[lh_arr, rh_arr],
                     threshold=vmin,
-                    vmin=vmin,
                     task_key=task_id,
                     contrast_tag=f"{lvl}_{roi}",
                     output_dir=irois_imgs_folder,
@@ -1810,12 +1737,12 @@ if __name__ == '__main__':
             os.makedirs(_cdir, exist_ok=True)
 
             # ---- compute individual surfaces (gifti + cifti) --------
-            # individual_surf(derivatives_folder, SUBJECTS, task_id, 
-            #                 all_contrasts, _cid, surf_folder, 
-            #                 surfspace='fslr32k', save='gifti')
-            # individual_surf(derivatives_folder, SUBJECTS, task_id, 
-            #                 all_contrasts, _cid, surf_folder, 
-            #                 surfspace='fslr32k', save='cifti')
+            individual_surf(derivatives_folder, SUBJECTS, task_id, 
+                            all_contrasts, _cid, surf_folder, 
+                            surfspace='fslr32k', save='gifti')
+            individual_surf(derivatives_folder, SUBJECTS, task_id, 
+                            all_contrasts, _cid, surf_folder, 
+                            surfspace='fslr32k', save='cifti')
 
             # ---- compute group CIFTI → split → mask -----------------
             z_values = group_surf(surf_folder, SUBJECTS, task_id, _cid, _tag,
@@ -1874,12 +1801,12 @@ if __name__ == '__main__':
         os.makedirs(cdir, exist_ok=True)
 
         # ---- compute individual (gifti + cifti) ---------------------
-        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
-        #                 contrast_id, surf_folder, 
-        #                 surfspace='fslr32k', save='gifti')
-        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
-        #                 contrast_id, surf_folder, 
-        #                 surfspace='fslr32k', save='cifti')
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+                        contrast_id, surf_folder, 
+                        surfspace='fslr32k', save='gifti')
+        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+                        contrast_id, surf_folder, 
+                        surfspace='fslr32k', save='cifti')
 
         # ---- compute group → split → mask ---------------------------
         z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, 
@@ -1924,7 +1851,7 @@ if __name__ == '__main__':
             [zvals_lh_masked, zvals_rh_masked],
             thresh, task_id, cname, surfplots_folder,
             hemi=['L', 'R'], colormap='viridis', vmax=v_max,
-            show_colorbar=True
+            show_colorbar=False
         )
 
     # ====================== TWO-CONTRAST OVERLAY =====================
