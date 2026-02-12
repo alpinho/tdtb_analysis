@@ -63,6 +63,7 @@ from utils import zval_conversion
 # %%
 # ========================== FUNCTIONS ================================
 
+
 def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
 
     if surfspace == 'fsaverage':
@@ -108,15 +109,15 @@ def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
 
 
 def individual_surf(
-        derivatives_dir,
-        subjects,
-        task_key,
-        contrasts_dic,
-        contrast_key,
-        surf_dir,
-        surfspace='fslr32k',
-        save='gifti',
-    ):
+    derivatives_dir,
+    subjects,
+    task_key,
+    contrasts_dic,
+    contrast_key,
+    surf_dir,
+    surfspace='fslr32k',
+    save='gifti',
+):
 
     # Paths of the NON-NORMALIZED individual contrast map for all subjects
     encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
@@ -436,21 +437,21 @@ def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
 
 
 def plot_flatmap(
-        stats,
-        threshold,
-        task_key,
-        contrast_tag,
-        output_dir,
-        hemi=['L', 'R'],
-        colormap='viridis',
-        colors=['Reds', 'Blues'],
-        vmin=None,
-        vmax=None,
-        cbar_title='Z-values',
-        n_ticks=4,
-        tick_decimals=1,
-        show_colorbar=True,
-    ):
+    stats,
+    threshold,
+    task_key,
+    contrast_tag,
+    output_dir,
+    hemi=['L', 'R'],
+    colormap='viridis',
+    colors=['Reds', 'Blues'],
+    vmin=None,
+    vmax=None,
+    cbar_title='Z-values',
+    n_ticks=4,
+    tick_decimals=1,
+    show_colorbar=True,
+):
     """
     Plot one or two contrasts on a flat cortical map.
 
@@ -661,7 +662,7 @@ def plot_flatmap(
                 left, right = contrast_tag.rsplit('_and_', 1)
             else:
                 raise ValueError(f"Can't find '_vs_' or '_and_' separator in "
-                                f"'{fname}'")
+                                 f"'{fname}'")
 
             # Pull only the contrast key from the left side 
             # (drop any 'group_…_' prefix)
@@ -723,11 +724,11 @@ def plot_flatmap(
             bars = [
                 # colorbar positions: [left, bottom, width, height]
                 (sm1, [.04, .08, .25, .04], thr1, m1_1, m1_2, v1,
-                f"Z-Values ({label1})"),
+                 f"Z-Values ({label1})"),
                 (sm2, [.3825, .08, .25, .04], thr2, m2_1, m2_2, v2,
-                f"Z-Values ({label2})"),
+                 f"Z-Values ({label2})"),
                 (sm3, [.715, .08, .25, .04], min_ol, m3_1, m3_2, 1.0, 
-                "Co-activation")
+                 "Co-activation")
             ]
 
             # Do colorbars
@@ -762,19 +763,19 @@ def plot_flatmap(
 
 
 def plot_multirois_flatmap(
-        stats,
-        threshold,
-        task_key,
-        contrast_tag,
-        output_dir,
-        hemi=['L', 'R'],
-        colormaps=None,
-        labels=None,
-        vmax=10,
-        cbar_title='Fraction of Participants',
-        cbar_ticks=None,
-        tick_decimals=2,
-    ):
+    stats,
+    threshold,
+    task_key,
+    contrast_tag,
+    output_dir,
+    hemi=['L', 'R'],
+    colormaps=None,
+    labels=None,
+    vmax=None,
+    cbar_title='Fraction of Participants',
+    cbar_ticks=None,
+    tick_decimals=2,
+):
     """
     Plot one or two contrasts on a flat cortical map.
 
@@ -855,11 +856,13 @@ def plot_multirois_flatmap(
     # stats is a list like: [[lh1, rh1], [lh2, rh2], ...]
     # We alpha-composite per-ROI RGBA layers, each using its own colormap.
     thr = float(threshold)
-    vhi = (
-        float(vmax)
-        if not isinstance(vmax, (list, tuple))
-        else float(vmax[0])
-    )
+    vhi = None
+    if vmax is not None:
+        vhi = (
+            float(vmax)
+            if not isinstance(vmax, (list, tuple))
+            else float(vmax[0])
+        )
 
     if labels is None:
         labels = [f"map-{i+1}" for i in range(len(stats))]
@@ -900,24 +903,24 @@ def plot_multirois_flatmap(
 
         data = np.full((nvert, 4), np.nan, float)
 
-        roi_vmax = []
-        for i in range(n_maps):
-            has_vals = np.any(np.isfinite(vals[i]))
-            vmax_i = np.nanmax(vals[i]) if has_vals else thr
-            if not np.isfinite(vmax_i) or vmax_i <= thr:
-                vmax_i = thr
-            roi_vmax.append(float(vmax_i))
+        # Set the global upper bound for scaling. If no explicit vmax was
+        # provided, fall back to the maximum winning value for this hemi.
+        if vhi is None:
+            if np.any(valid):
+                vhi = float(np.nanmax(win_val[valid]))
+            else:
+                vhi = float(thr)
+
+        denom = vhi - thr
+        if denom <= 0:
+            denom = 1.0
 
         for i, cmap_i in enumerate(colormaps):
             idx = valid & (winner == i)
             if not np.any(idx):
                 continue
 
-            denom_i = roi_vmax[i] - thr
-            if denom_i <= 0:
-                denom_i = 1.0
-
-            norm = np.clip((win_val[idx] - thr) / denom_i, 0.0, 1.0)
+            norm = np.clip((win_val[idx] - thr) / denom, 0.0, 1.0)
             cmap_obj = plt.get_cmap(cmap_i)
             rgba = cmap_obj(norm)
 
@@ -1044,9 +1047,8 @@ def plot_multirois_flatmap(
         dpi=300,
         bbox_inches='tight',
         pad_inches=0
-    )
+    )    
 
-    
 
 def split_and_save_sulc_cifti(cifti_path, output_dir):
     """
@@ -1562,9 +1564,9 @@ else:
     }
 
 # Output folders
-surf_folder = os.path.join(surfparametric_folder, task_id,
+surf_folder = os.path.join(surfparametric_folder, task_id, 
                            'surface_files')
-contrasts_folder = os.path.join(surfparametric_folder, task_id,
+contrasts_folder = os.path.join(surfparametric_folder, task_id, 
                                 'surface_images')
 
 # Output folder for ROI overlap (cortex) flatmaps
