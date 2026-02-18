@@ -442,10 +442,12 @@ def plot_psc_boxplots(
     roi_annot_overrides = {
         # More separation between stacked span-annotations... 
         # ... (low/medium/high).
-        "dstr": {"headroom_frac": 0., "step_frac": 0.18},
-        "cereb": {"headroom_frac": 0.002, "step_frac": 0.18},
-        "presma": {"headroom_frac": 0.002},
-        "sma": {"headroom_frac": 0.002, "step_frac": 0.20},
+        "dstr": {"headroom_frac": 0., "step_frac": 0.20}, 
+        "cereb": {"headroom_frac": 0., "step_frac": 0.20},
+        "presma": {"headroom_frac": 0.},
+        "pmd": {"headroom_frac": 0.},
+        "pmv": {"headroom_frac": 0.},
+        "sma": {"headroom_frac": 0., "step_frac": 0.20},
 
         # Keep your special padding/base, but add larger step ...
         # to prevent overlap when there are two+ annotation layers.
@@ -458,18 +460,18 @@ def plot_psc_boxplots(
 
         # Lower layer too close to medium -> increase step ...
         # ... (keep your base).
-        "occipital": {"base_frac": 0.020, "step_frac": 0.50, "headroom_frac": 0.},
+        "occipital": {"base_frac": 0.020, "step_frac": 0.50, "headroom_frac": -0.01},
     }
 
     roi_annot_overrides.update({
         "heschl": {
             "pad_frac": 0.020,
             "base_frac": 0.020,
-            "step_frac": 0.16,               # default
+            "step_frac": 0.05,               # default
             "step_min_frac": 0.10,           # compact when few layers
-            "step_max_frac": 0.15,           # avoid huge gaps
+            "step_max_frac": 0.1,           # avoid huge gaps
             "step_scale_per_layer": 0.25,    # grow when many layers
-            "headroom_frac": 0.003,
+            "headroom_frac": 0.,
         },
         "occipital": {
             "base_frac": 0.020,
@@ -1441,14 +1443,14 @@ if __name__ == "__main__":
 
     df_in = pd.concat([df_main, df_rand], ignore_index=True, axis=0)
 
-    # 1) Original figures (no NTFD Random panels)
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=OUTPUT_PATH,
-        figsize_scale=args.figscale,
-        audivisual_only=False,
-        include_ntfd_random=False,
-    )
+    # # 1) Original figures (no NTFD Random panels)
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=OUTPUT_PATH,
+    #     figsize_scale=args.figscale,
+    #     audivisual_only=False,
+    #     include_ntfd_random=False,
+    # )
 
     outpath_av = Path(OUTPUT_PATH)
     outpath_av = outpath_av.with_name(
@@ -1462,55 +1464,55 @@ if __name__ == "__main__":
         include_ntfd_random=False,
     )
 
-    # 1b) Pooled-only figure (pooled modality block only)
-    outpath_pooled = Path(OUTPUT_PATH)
-    outpath_pooled = outpath_pooled.with_name(
-        outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_pooled,
-        figsize_scale=args.figscale,
-        pooled_only=True,
-        include_ntfd_random=False,
-    )
+    # # 1b) Pooled-only figure (pooled modality block only)
+    # outpath_pooled = Path(OUTPUT_PATH)
+    # outpath_pooled = outpath_pooled.with_name(
+    #     outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_pooled,
+    #     figsize_scale=args.figscale,
+    #     pooled_only=True,
+    #     include_ntfd_random=False,
+    # )
 
-    # 2) Extended figures (with NTFD Random panels)
-    outpath_rand = Path(OUTPUT_PATH)
-    outpath_rand = outpath_rand.with_name(
-        outpath_rand.stem + "_ntfd_random" + outpath_rand.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_rand,
-        figsize_scale=args.figscale,
-        audivisual_only=False,
-        include_ntfd_random=True,
-    )
+    # # 2) Extended figures (with NTFD Random panels)
+    # outpath_rand = Path(OUTPUT_PATH)
+    # outpath_rand = outpath_rand.with_name(
+    #     outpath_rand.stem + "_ntfd_random" + outpath_rand.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_rand,
+    #     figsize_scale=args.figscale,
+    #     audivisual_only=False,
+    #     include_ntfd_random=True,
+    # )
 
-    outpath_rand_av = Path(OUTPUT_PATH)
-    outpath_rand_av = outpath_rand_av.with_name(
-        outpath_rand_av.stem + "_ntfd_random_audivisual_only"
-        + outpath_rand_av.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_rand_av,
-        figsize_scale=args.figscale,
-        audivisual_only=True,
-        include_ntfd_random=True,
-    )
+    # outpath_rand_av = Path(OUTPUT_PATH)
+    # outpath_rand_av = outpath_rand_av.with_name(
+    #     outpath_rand_av.stem + "_ntfd_random_audivisual_only"
+    #     + outpath_rand_av.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_rand_av,
+    #     figsize_scale=args.figscale,
+    #     audivisual_only=True,
+    #     include_ntfd_random=True,
+    # )
 
-    # 2b) Pooled-only figure with NTFD Random panels
-    outpath_pooled_rand = Path(OUTPUT_PATH)
-    outpath_pooled_rand = outpath_pooled_rand.with_name(
-        outpath_pooled_rand.stem + "_pooled_only_ntfd_random"
-        + outpath_pooled_rand.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_pooled_rand,
-        figsize_scale=args.figscale,
-        pooled_only=True,
-        include_ntfd_random=True,
-    )
+    # # 2b) Pooled-only figure with NTFD Random panels
+    # outpath_pooled_rand = Path(OUTPUT_PATH)
+    # outpath_pooled_rand = outpath_pooled_rand.with_name(
+    #     outpath_pooled_rand.stem + "_pooled_only_ntfd_random"
+    #     + outpath_pooled_rand.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_pooled_rand,
+    #     figsize_scale=args.figscale,
+    #     pooled_only=True,
+    #     include_ntfd_random=True,
+    # )
