@@ -440,47 +440,115 @@ def plot_psc_boxplots(
     within_to_span_gap_frac = 0.11
 
     roi_annot_overrides = {
-        # More separation between stacked span-annotations... 
-        # ... (low/medium/high).
-        "dstr": {"headroom_frac": 0., "step_frac": 0.20}, 
-        "cereb": {"headroom_frac": 0., "step_frac": 0.20},
-        "presma": {"headroom_frac": 0.},
-        "pmd": {"headroom_frac": 0.},
-        "pmv": {"headroom_frac": 0.},
-        "sma": {"headroom_frac": 0., "step_frac": 0.20},
+        # Explicit params for ALL ROIs (current values).
+        #
+        # Keys used by the code:
+        # - pad_frac (fallback is ypad_frac, 
+        #             except heschl fallback 0.045)
+        # - base_frac (fallback annot_y_frac_base)
+        # - step_frac (fallback annot_y_frac_step)
+        # - headroom_frac 
+        #   (fallback annot_headroom_frac, 
+        #    except heschl fallback 0.006)
+        # - step_min_frac / step_max_frac (fallback step_frac)
+        # - step_scale_per_layer (currently present in your overrides)
 
-        # Keep your special padding/base, but add larger step ...
-        # to prevent overlap when there are two+ annotation layers.
-        "heschl": {
-            "pad_frac": 0.022,      # Extra vertical space added above the highest data value
-            "base_frac": 0.024,     # Vertical offset of the first annotation layer
-            "step_frac": 0.30,      # The vertical distance between stacked annotation layers.
-            "headroom_frac": 0.,    # Extra vertical padding added to the y-axis upper limit
+        "dstr": {
+            "pad_frac": 0.06,
+            "base_frac": 0.04,
+            "step_frac": 0.20,
+            "step_min_frac": 0.20,
+            "step_max_frac": 0.20,
+            "step_scale_per_layer": 0.0,
+            "headroom_frac": 0.0,
         },
-
-        # Lower layer too close to medium -> increase step ...
-        # ... (keep your base).
-        "occipital": {"base_frac": 0.020, "step_frac": 0.50, "headroom_frac": -0.01},
-    }
-
-    roi_annot_overrides.update({
+        "cereb": {
+            "pad_frac": 0.06,
+            "base_frac": 0.04,
+            "step_frac": 0.20,
+            "step_min_frac": 0.20,
+            "step_max_frac": 0.20,
+            "step_scale_per_layer": 0.0,
+            "headroom_frac": 0.0,
+        },
+        "presma": {
+            "pad_frac": 0.06,
+            "base_frac": 0.04,
+            "step_frac": 0.09,
+            "step_min_frac": 0.09,
+            "step_max_frac": 0.09,
+            "step_scale_per_layer": 0.0,
+            "headroom_frac": 0.0,
+        },
+        "sma": {
+            "pad_frac": 0.06,
+            "base_frac": 0.04,
+            "step_frac": 0.20,
+            "step_min_frac": 0.20,
+            "step_max_frac": 0.20,
+            "step_scale_per_layer": 0.0,
+            "headroom_frac": 0.0,
+        },
+        "pmd": {
+            "pad_frac": 0.06,
+            "base_frac": 0.04,
+            "step_frac": 0.09,
+            "step_min_frac": 0.09,
+            "step_max_frac": 0.09,
+            "step_scale_per_layer": 0.0,
+            "headroom_frac": 0.0,
+        },
+        "pmv": {
+            "pad_frac": 0.06,
+            "base_frac": 0.04,
+            "step_frac": 0.09,
+            "step_min_frac": 0.09,
+            "step_max_frac": 0.09,
+            "step_scale_per_layer": 0.0,
+            "headroom_frac": 0.0,
+        },
         "heschl": {
             "pad_frac": 0.020,
             "base_frac": 0.020,
-            "step_frac": 0.05,               # default
-            "step_min_frac": 0.10,           # compact when few layers
-            "step_max_frac": 0.1,           # avoid huge gaps
-            "step_scale_per_layer": 0.25,    # grow when many layers
-            "headroom_frac": 0.,
+            "step_frac": 0.05,
+            "step_min_frac": 0.10,
+            "step_max_frac": 0.10,
+            "step_scale_per_layer": 0.25,
+            "headroom_frac": 0.0,
         },
         "occipital": {
+            "pad_frac": 0.06,
             "base_frac": 0.020,
             "step_frac": 0.16,
             "step_min_frac": 0.16,
             "step_max_frac": 0.16,
             "step_scale_per_layer": 0.0,
+            "headroom_frac": 0.03,
         },
-    })
+    }
+
+    # ------------------------------------------------------------------
+    # Legacy tuning block (kept for reference; disabled by request)
+    # ------------------------------------------------------------------
+    # roi_annot_overrides.update({
+    #     "heschl": {
+    #         "pad_frac": 0.020,
+    #         "base_frac": 0.020,
+    #         "step_frac": 0.05,               # default
+    #         "step_min_frac": 0.10,           # compact when few layers
+    #         "step_max_frac": 0.1,            # avoid huge gaps
+    #         "step_scale_per_layer": 0.25,    # grow when many layers
+    #         "headroom_frac": 0.,
+    #     },
+    #     "occipital": {
+    #         "base_frac": 0.020,
+    #         "step_frac": 0.16,
+    #         "step_min_frac": 0.16,
+    #         "step_max_frac": 0.16,
+    #         "step_scale_per_layer": 0.0,
+    #     },
+    # })
+
 
     if pooled_only:
         annot_y_frac_step = 0.11
