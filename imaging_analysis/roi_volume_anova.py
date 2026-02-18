@@ -11,7 +11,7 @@ Compatibility: Python 3.10.14
 
 Usage:
   python roi_anova_msdtb.py <n_rois> <encoding_type>
-  <n_rois> in {2, 6, 8, 10}
+  <n_rois> in {2, 4, 6, 8, 10}
   <encoding_type> in {bothmod, auditory, visual}
 
 Note: The encoding type pertain to the modality used to define the 
@@ -465,7 +465,6 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
             os.path.join(out_dir, base + 'posthoc_task.tsv'),
             index=False, header=False, sep='\t'
         )
-
 
 
 def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
@@ -1644,10 +1643,15 @@ roi_names4 = ['pmd', 'pmv', 'sma', 'presma']
 
 # #######################
 
-atlas_dirnames2 = [fsl_dir, ntk_dir]
-atlas_names2 = ['hos', 'ntk_symmni128']
-region_names2 = ['dorsal_striatum', 'cerebellum']
-roi_names2 = ['dstr', 'cereb']
+# atlas_dirnames2 = [fsl_dir, ntk_dir]
+# atlas_names2 = ['hos', 'ntk_symmni128']
+# region_names2 = ['dorsal_striatum', 'cerebellum']
+# roi_names2 = ['dstr', 'cereb']
+
+atlas_dirnames2 = [fsl_dir, fsl_dir]
+atlas_names2 = ['hos', 'hos']
+region_names2 = ['heschl_gyrus', 'occipital_lobe']
+roi_names2 = ['heschl', 'occipital']
 
 # ###### P-value to star map for posthoc annotations ######
 # Format: (Hemisphere, ROI, Task A, Task B) -> p-value

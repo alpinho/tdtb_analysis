@@ -440,17 +440,45 @@ def plot_psc_boxplots(
     within_to_span_gap_frac = 0.11
 
     roi_annot_overrides = {
-        "dstr": {"headroom_frac": 0.002},
-        "cereb": {"headroom_frac": 0.002},
+        # More separation between stacked span-annotations... 
+        # ... (low/medium/high).
+        "dstr": {"headroom_frac": 0., "step_frac": 0.18},
+        "cereb": {"headroom_frac": 0.002, "step_frac": 0.18},
         "presma": {"headroom_frac": 0.002},
-        "sma": {"headroom_frac": 0.002},
+        "sma": {"headroom_frac": 0.002, "step_frac": 0.20},
+
+        # Keep your special padding/base, but add larger step ...
+        # to prevent overlap when there are two+ annotation layers.
         "heschl": {
-            "pad_frac": 0.022,
-            "base_frac": 0.022,
+            "pad_frac": 0.022,      # Extra vertical space added above the highest data value
+            "base_frac": 0.024,     # Vertical offset of the first annotation layer
+            "step_frac": 0.30,      # The vertical distance between stacked annotation layers.
+            "headroom_frac": 0.,    # Extra vertical padding added to the y-axis upper limit
+        },
+
+        # Lower layer too close to medium -> increase step ...
+        # ... (keep your base).
+        "occipital": {"base_frac": 0.020, "step_frac": 0.50, "headroom_frac": 0.},
+    }
+
+    roi_annot_overrides.update({
+        "heschl": {
+            "pad_frac": 0.020,
+            "base_frac": 0.020,
+            "step_frac": 0.16,               # default
+            "step_min_frac": 0.10,           # compact when few layers
+            "step_max_frac": 0.15,           # avoid huge gaps
+            "step_scale_per_layer": 0.25,    # grow when many layers
             "headroom_frac": 0.003,
         },
-        "occipital": {"base_frac": 0.020},
-    }
+        "occipital": {
+            "base_frac": 0.020,
+            "step_frac": 0.16,
+            "step_min_frac": 0.16,
+            "step_max_frac": 0.16,
+            "step_scale_per_layer": 0.0,
+        },
+    })
 
     if pooled_only:
         annot_y_frac_step = 0.11
@@ -750,6 +778,12 @@ def plot_psc_boxplots(
                 "y_ticks": y_ticks,
                 "ann_base_frac": base_frac_local,
                 "ann_step_frac": step_frac_local,
+                "ann_step_min_frac": float(ov.get("step_min_frac",
+                                                   step_frac_local)),
+                "ann_step_max_frac": float(ov.get("step_max_frac",
+                                                   step_frac_local)),
+                "ann_step_scale_per_layer": float(ov.get(
+                    "step_scale_per_level", 0.0)),
                 "ann_h_frac": annot_h_frac,
                 "eligible_by_mod": eligible_by_mod,
                 "eligible_within_by_ax": eligible_within_by_ax,
@@ -1015,11 +1049,23 @@ def plot_psc_boxplots(
                 )
                 gap_frac = within_to_span_gap_frac if within_top > 0.0 else 0.0
 
+                # Adaptive vertical spacing: ...
+                # ... tighter when few spans, larger when many.
+                n_layers = len(anns)
+                step_default = spec.get("ann_step_frac", annot_y_frac_step)
+                step_min = float(spec.get("ann_step_min_frac", step_default))
+                step_max = float(spec.get("ann_step_max_frac", step_default))
+                step_scale = float(spec.get("ann_step_scale_per_layer", 0.0))
+
+                step_frac = step_default * \
+                    (1.0 + step_scale * max(0, n_layers - 1))
+                step_frac = max(step_min, min(step_max, step_frac))
+
                 y_data = (spec["y_max"] + spec["pad"]) + (
                     within_top
                     + gap_frac
                     + spec.get("ann_base_frac", annot_y_frac_base)
-                    + level * spec.get("ann_step_frac", annot_y_frac_step)
+                    + level * step_frac
                 ) * spec["yr"]
 
                 h_data = annot_h_frac * spec["yr"]
@@ -1053,10 +1099,20 @@ def plot_psc_boxplots(
                 p = float(ann["pvalue"])
                 text = pval_label_converter([p])[0]
 
+                n_layers = len(eligible_cross)
+                step_default = spec.get("ann_step_frac", annot_y_frac_step)
+                step_min = float(spec.get("ann_step_min_frac", step_default))
+                step_max = float(spec.get("ann_step_max_frac", step_default))
+                step_scale = float(spec.get("ann_step_scale_per_layer", 0.0))
+
+                step_frac = step_default * \
+                    (1.0 + step_scale * max(0, n_layers - 1))
+                step_frac = max(step_min, min(step_max, step_frac))
+
                 y_data = (spec["y_max"] + spec["pad"]) + (
                     cross_start_frac
                     + spec.get("ann_base_frac", annot_y_frac_base)
-                    + level * spec.get("ann_step_frac", annot_y_frac_step)
+                    + level * step_frac
                 ) * spec["yr"]
 
                 h_data = annot_h_frac * spec["yr"]
@@ -1128,7 +1184,7 @@ OUTPUT_PATH = os.path.join(
     "psc_boxplots_by_roi.png",
 )
 
-# ===================== WITHIN-SUBPLOT ANNOTATIONS ===================== #
+# ============= WITHIN-SUBPLOT ANNOTATIONS (BEAT ↔ INTERVAL) ======== #
 
 WITHIN_ANNOTATIONS: List[dict] = [
     # dict(
@@ -1139,7 +1195,7 @@ WITHIN_ANNOTATIONS: List[dict] = [
     # ),
 ]
 
-# =================== CROSS-MODALITY (AUDIO ↔ VISUAL) ================ #
+# =================== CROSS-MODALITY (AUDIO ↔ VISUAL) =============== #
 
 CROSS_AV_ANNOTATIONS: List[dict] = [
     dict(
@@ -1159,152 +1215,164 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
     ),
 ]
 
-# ============================ ANNOTATIONS =========================== #
+# ========================== CROSS-TASKS ============================ #
 
+# Pooled refer three-way ANOVA for ROI and Task,...
+# ... collapsing across modalities
+# For separate modalities, we also did 2way RM ANOVA pairwise comparisons
+
+# Reporting uncorrected pvalues that survived to ...
+# ... pHolm-Bonferroni correction across the 3way ANOVA
 ANNOTATIONS: List[dict] = [
     dict(
         roi="dstr",
         modality="Pooled",
         task_pair=("Production", "Perception"),
-        pvalue=0.000000183218571178129,
+        pvalue=0.00000000832811687173313,
     ),
     dict(
         roi="dstr",
         modality="Pooled",
         task_pair=("Production", "NTFD"),
-        pvalue=0.000000747501935034951,
+        pvalue=0.0000000355953302397596,
     ),
     dict(
         roi="cereb",
         modality="Pooled",
         task_pair=("Production", "NTFD"),
-        pvalue=0.0038694053454941,
+        pvalue=0.000241837834093381,
     ),
     dict(
         roi="presma",
         modality="Pooled",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.028120293825793,
+        pvalue=0.00187468625505287,
     ),
     dict(
         roi="sma",
         modality="Pooled",
         task_pair=("Production", "Perception"),
-        pvalue=0.0000130156708231288,
+        pvalue=0.000000650783541156439,
     ),
     dict(
         roi="sma",
         modality="Pooled",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0003850973375033,
+        pvalue=0.0000202682809212273,
     ),
     dict(
         roi="heschl",
         modality="Pooled",
         task_pair=("Production", "NTFD"),
-        pvalue=0.0000000326951551140279,
+        pvalue=0.00000000136229812975116,
     ),
     dict(
         roi="heschl",
         modality="Pooled",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0000000543008044450249,
+        pvalue=0.00000000236090454108804,
     ),
     dict(
         roi="occipital",
         modality="Pooled",
         task_pair=("Production", "Perception"),
-        pvalue=0.0022787859816777,
+        pvalue=0.000134046234216341,
     ),
     dict(
         roi="occipital",
         modality="Pooled",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0005348873092657,
+        pvalue=0.000029715961625874,
     ),
     dict(
         roi="dstr",
         modality="Auditory",
         task_pair=("Production", "Perception"),
-        pvalue=0.0000021248924487773,
+        pvalue=0.00000106244622438865,
     ),
     dict(
         roi="dstr",
         modality="Auditory",
         task_pair=("Production", "NTFD"),
-        pvalue=0.00000183818864354019,
+        pvalue=0.000000612729547846731,
     ),
     dict(
         roi="cereb",
         modality="Auditory",
         task_pair=("Production", "Perception"),
-        pvalue=0.0379419854399417,
+        pvalue=0.0142145961772677,
     ),
     dict(
         roi="cereb",
         modality="Auditory",
         task_pair=("Production", "NTFD"),
-        pvalue=0.0379419854399417,
+        pvalue=0.0126473284799806,
     ),
     dict(
         roi="sma",
         modality="Auditory",
         task_pair=("Production", "Perception"),
-        pvalue=0.000162787388365263,
+        pvalue=0.000054262462788421,
+    ),
+    dict( # significant only in the 3way ANOVA
+        roi="sma",
+        modality="Auditory",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0374092539730202,
     ),
     dict(
         roi="sma",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.00489334607628016,
+        pvalue=0.00244667303814008,
     ),
     dict(
         roi="heschl",
         modality="Auditory",
         task_pair=("Production", "NTFD"),
-        pvalue=0.000000240156240258075,
+        pvalue=0.000000120078120129038,
     ),
     dict(
         roi="heschl",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0000000579114755245975,
+        pvalue=0.0000000193038251748658,
     ),
     dict(
         roi="occipital",
         modality="Auditory",
         task_pair=("Production", "Perception"),
-        pvalue=0.00126981044307286,
+        pvalue=0.000634905221536432,
     ),
     dict(
         roi="occipital",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0000385272615964822,
+        pvalue=0.0000128424205321607,
     ),
     dict(
         roi="dstr",
         modality="Visual",
         task_pair=("Production", "Perception"),
-        pvalue=0.00000000184946736988189,
+        pvalue=0.000000000616489123293964,
     ),
     dict(
         roi="dstr",
         modality="Visual",
         task_pair=("Production", "NTFD"),
-        pvalue=0.00000159473283827306,
+        pvalue=0.00000079736641913653,
     ),
     dict(
         roi="cereb",
         modality="Visual",
         task_pair=("Production", "Perception"),
-        pvalue=0.0403525496178749,
+        pvalue=0.0201762748089375,
     ),
     dict(
         roi="cereb",
         modality="Visual",
         task_pair=("Production", "NTFD"),
-        pvalue=0.00540313064133677,
+        pvalue=0.00180104354711226,
     ),
     dict(
         roi="cereb",
@@ -1316,9 +1384,9 @@ ANNOTATIONS: List[dict] = [
         roi="sma",
         modality="Visual",
         task_pair=("Production", "Perception"),
-        pvalue=0.00000370507689903499,
+        pvalue=0.00000123502563301166,
     ),
-    dict(
+    dict( # significant only in the 3way ANOVA
         roi="sma",
         modality="Visual",
         task_pair=("Production", "NTFD"),
@@ -1328,31 +1396,31 @@ ANNOTATIONS: List[dict] = [
         roi="sma",
         modality="Visual",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.00160228828086688,
+        pvalue=0.000801144140433441,
     ),
     dict(
         roi="heschl",
         modality="Visual",
         task_pair=("Production", "NTFD"),
-        pvalue=0.01626277489796,
+        pvalue=0.00813138744897999,
     ),
     dict(
         roi="heschl",
         modality="Visual",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0132859760754688,
+        pvalue=0.00442865869182293,
     ),
     dict(
         roi="occipital",
         modality="Visual",
         task_pair=("Production", "Perception"),
-        pvalue=0.00192781380693208,
+        pvalue=0.000642604602310693,
     ),
     dict(
         roi="occipital",
         modality="Visual",
         task_pair=("Production", "NTFD"),
-        pvalue=0.00218791026848211,
+        pvalue=0.00109395513424105,
     ),
 ]
 
