@@ -34,7 +34,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 7th of October 2025
-Last Update: January 2026
+Last Update: February 2026
 
 Compatibility: Python 3.10.16
 """
@@ -527,7 +527,7 @@ def plot_matrix(
     # cbar = fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
     # cbar.set_label('Repeated-measures correlation ($r_{rm}$)', labelpad=10)
     fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
-    ax.set_title('Repeated-measures correlation ($r_{rm}$)', pad=10)
+    ax.set_title('Within-subject Correlation ($r_{rm}$)', pad=10)
 
     # --- stars
     if p_mat is not None:
