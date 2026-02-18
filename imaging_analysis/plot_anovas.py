@@ -292,6 +292,7 @@ def plot_psc_boxplots(
     pooled_only: bool = False,
     include_ntfd_random: bool = False,
     y_limits: dict[str, tuple[float, float]] | None = None,
+    show_yaxis: dict[str, bool] | None = None,
 ) -> None:
     """Plot PSC boxplots by ROI and modality/task blocks."""
     outpath = Path(outpath)
@@ -996,6 +997,12 @@ def plot_psc_boxplots(
             ax.set_yticks(spec["y_ticks"])
             ax.yaxis.set_major_formatter(y_formatter)
 
+            # --- Optional per-ROI y-axis visibility (computed here, applied later)
+            rkey = _roi_key(str(spec.get("roi", ""))) or ""
+            display_axis = True
+            if show_yaxis is not None:
+                display_axis = show_yaxis.get(rkey, True)
+
             ax.axhline(
                 0,
                 color=zero_line_color,
@@ -1026,6 +1033,15 @@ def plot_psc_boxplots(
                 ax.set_yticklabels([])
                 ax.tick_params(axis="y", left=False, length=0)
                 ax.spines["left"].set_visible(False)
+
+            # --- Apply per-ROI y-axis visibility (after column-specific formatting)
+            if not display_axis:
+                ax.tick_params(axis="y", left=False, labelleft=False)
+                ax.set_yticklabels([])
+                ax.spines["left"].set_visible(False)
+                ax.set_ylabel("")
+                ax.yaxis.label.set_visible(False)
+                ax.yaxis.set_ticks_position("none")
 
             within_anns = spec.get("eligible_within_by_ax", {}).get(
                 (mod, task),
@@ -1560,7 +1576,17 @@ if __name__ == "__main__":
             "cereb": (-0.4, 1.4),
             "presma": (-0.4, 1.2),
             "sma": (-0.4, 1.2),
-            "pmv": (-0., 1.),
+            "pmv": (-0.2, 1.),
+        },
+        show_yaxis={
+            "heschl": True,
+            "occipital": False,
+            "dstr": True,
+            "cereb": False,
+            "presma": True,
+            "sma": False,
+            "pmd": True,
+            "pmv": False,
         },
     )
 
