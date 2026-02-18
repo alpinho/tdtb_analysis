@@ -398,11 +398,14 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.)
     # ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
 
-    ax.view_init(elev=15, azim=-10)
+    # 3D rotation of the plot
+    # elev → vertical tilt (camera height)
+    # azim → horizontal rotation (camera around z-axis)
+    ax.view_init(elev=15, azim=-47.5)
 
     # Fixed axis limits (explicit, not data-driven)
     ax.set_xlim(-0.35, 0.0)      # MDS1
-    ax.set_ylim(0.35, -0.35)     # MDS2
+    ax.set_ylim(-0.35, 0.35)     # MDS2
     ax.set_zlim(-0.30, 0.30)     # MDS3
 
     # Make panes transparent (we will draw our own black box edges).
