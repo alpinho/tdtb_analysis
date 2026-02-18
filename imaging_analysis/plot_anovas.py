@@ -23,7 +23,7 @@ from matplotlib.colors import to_rgb
 from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter, MultipleLocator
 
 
 # ============================ CONSTANTS ============================ #
@@ -266,9 +266,9 @@ def within_axis_annotation(
     y0 = y_data
     y1 = y_data + h_data
 
-    ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=False)
-    ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=False)
-    ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=False)
+    ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=True)
+    ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=True)
+    ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=True)
     ax.text(
         (x1 + x2) / 2.0,
         y1,
@@ -277,7 +277,7 @@ def within_axis_annotation(
         va="bottom",
         fontsize=fs,
         color="k",
-        clip_on=False,
+        clip_on=True,
     )
 
 
@@ -291,6 +291,7 @@ def plot_psc_boxplots(
     audivisual_only: bool = False,
     pooled_only: bool = False,
     include_ntfd_random: bool = False,
+    y_limits: dict[str, tuple[float, float]] | None = None,
 ) -> None:
     """Plot PSC boxplots by ROI and modality/task blocks."""
     outpath = Path(outpath)
@@ -471,15 +472,15 @@ def plot_psc_boxplots(
             "step_scale_per_layer": 0.0,
             "headroom_frac": 0.0,
         },
-        "presma": {
-            "pad_frac": 0.06,
-            "base_frac": 0.04,
-            "step_frac": 0.09,
-            "step_min_frac": 0.09,
-            "step_max_frac": 0.09,
-            "step_scale_per_layer": 0.0,
-            "headroom_frac": 0.0,
-        },
+        # "presma": {
+        #     "pad_frac": 0.06,
+        #     "base_frac": 0.04,
+        #     "step_frac": 0.09,
+        #     "step_min_frac": 0.09,
+        #     "step_max_frac": 0.09,
+        #     "step_scale_per_layer": 0.0,
+        #     "headroom_frac": 0.0,
+        # },
         "sma": {
             "pad_frac": 0.06,
             "base_frac": 0.04,
@@ -563,6 +564,7 @@ def plot_psc_boxplots(
     zero_line_zorder = 1
 
     ytick_step = 0.20
+
     inches_per_step = 0.68
     min_row_height = 2.0
 
@@ -817,25 +819,38 @@ def plot_psc_boxplots(
         top_extra = max(top_needed_span, top_needed_within) * yr
         y_lim_raw = (y_min - pad, y_max + pad + top_extra)
 
-        eps = 1e-9
-        y0 = float(np.floor((y_lim_raw[0] + eps) / ytick_step) * ytick_step)
-        y1 = float(np.ceil((y_lim_raw[1] - eps) / ytick_step) * ytick_step)
+        explicit_ylim = None
+        if (y_limits is not None) and (rkey is not None):
+            explicit_ylim = y_limits.get(rkey)
 
-        if (y1 - y_lim_raw[1]) < (0.22 * ytick_step):
-            y1_candidate = y1 - ytick_step
-            if y1_candidate >= (y_lim_raw[1] - 1e-12):
-                y1 = y1_candidate
+        if explicit_ylim is not None:
+            y0, y1 = float(explicit_ylim[0]), float(explicit_ylim[1])
+            y_ticks = np.arange(y0, y1 + 0.5 * ytick_step, ytick_step)
+            if y_ticks.size < 2:
+                y_ticks = np.array([y0, y1])
+        else:
+            eps = 1e-9
+            y0 = float(
+                np.floor((y_lim_raw[0] + eps) / ytick_step) * ytick_step
+            )
+            y1 = float(
+                np.ceil((y_lim_raw[1] - eps) / ytick_step) * ytick_step
+            )
 
-        y0 = min(y0, 0.0)
-        y1 = max(y1, 0.0)
+            if (y1 - y_lim_raw[1]) < (0.22 * ytick_step):
+                y1_candidate = y1 - ytick_step
+                if y1_candidate >= (y_lim_raw[1] - 1e-12):
+                    y1 = y1_candidate
 
-        y_ticks = np.arange(y0, y1 + 0.5 * ytick_step, ytick_step)
-        if y_ticks.size < 2:
-            y_ticks = np.array([y0, y1])
+            y0 = min(y0, 0.0)
+            y1 = max(y1, 0.0)
 
-        n_steps = max(int(y_ticks.size - 1), 1)
+            y_ticks = np.arange(y0, y1 + 0.5 * ytick_step, ytick_step)
+            if y_ticks.size < 2:
+                y_ticks = np.array([y0, y1])
+
+        n_steps = max(int(np.ceil((y1 - y0) / ytick_step)), 1)
         row_h = max(min_row_height, n_steps * inches_per_step)
-
         roi_specs.append(
             {
                 "roi": roi,
@@ -848,12 +863,15 @@ def plot_psc_boxplots(
                 "y_ticks": y_ticks,
                 "ann_base_frac": base_frac_local,
                 "ann_step_frac": step_frac_local,
-                "ann_step_min_frac": float(ov.get("step_min_frac",
-                                                   step_frac_local)),
-                "ann_step_max_frac": float(ov.get("step_max_frac",
-                                                   step_frac_local)),
-                "ann_step_scale_per_layer": float(ov.get(
-                    "step_scale_per_level", 0.0)),
+                "ann_step_min_frac": float(
+                    ov.get("step_min_frac", step_frac_local)
+                ),
+                "ann_step_max_frac": float(
+                    ov.get("step_max_frac", step_frac_local)
+                ),
+                "ann_step_scale_per_layer": float(
+                    ov.get("step_scale_per_level", 0.0)
+                ),
                 "ann_h_frac": annot_h_frac,
                 "eligible_by_mod": eligible_by_mod,
                 "eligible_within_by_ax": eligible_within_by_ax,
@@ -888,15 +906,17 @@ def plot_psc_boxplots(
     fig_w = per_col * float(sum(width_ratios)) * figsize_scale * FIG_W_SCALE
     fig_h = float(sum(height_ratios)) * figsize_scale
 
+
     fig, axes = plt.subplots(
-        nrows=n_rows,
+        nrows=len(roi_specs),
         ncols=n_cols,
         figsize=(fig_w, fig_h),
-        sharey=False,
         gridspec_kw={
             "width_ratios": width_ratios,
             "height_ratios": height_ratios,
         },
+        sharex=False,
+        sharey=False,
     )
     if n_rows == 1:
         axes = np.expand_dims(axes, axis=0)
@@ -917,6 +937,7 @@ def plot_psc_boxplots(
         hspace=0.75,
         wspace=0.22,
     )
+
 
     # --------------------- PASS 2: draw panels ----------------------
     for r, spec in enumerate(roi_specs):
@@ -970,6 +991,8 @@ def plot_psc_boxplots(
                 patch.set_alpha(box_alpha)
 
             ax.set_ylim(*spec["y_lim"])
+            ax.yaxis.set_major_locator(MultipleLocator(ytick_step))
+            ax.spines["left"].set_bounds(*spec["y_lim"])
             ax.set_yticks(spec["y_ticks"])
             ax.yaxis.set_major_formatter(y_formatter)
 
@@ -1127,8 +1150,9 @@ def plot_psc_boxplots(
                 step_max = float(spec.get("ann_step_max_frac", step_default))
                 step_scale = float(spec.get("ann_step_scale_per_layer", 0.0))
 
-                step_frac = step_default * \
-                    (1.0 + step_scale * max(0, n_layers - 1))
+                step_frac = step_default * (
+                    1.0 + step_scale * max(0, n_layers - 1)
+                )
                 step_frac = max(step_min, min(step_max, step_frac))
 
                 y_data = (spec["y_max"] + spec["pad"]) + (
@@ -1175,8 +1199,9 @@ def plot_psc_boxplots(
                 step_max = float(spec.get("ann_step_max_frac", step_default))
                 step_scale = float(spec.get("ann_step_scale_per_layer", 0.0))
 
-                step_frac = step_default * \
-                    (1.0 + step_scale * max(0, n_layers - 1))
+                step_frac = step_default * (
+                    1.0 + step_scale * max(0, n_layers - 1)
+                )
                 step_frac = max(step_min, min(step_max, step_frac))
 
                 y_data = (spec["y_max"] + spec["pad"]) + (
@@ -1530,6 +1555,13 @@ if __name__ == "__main__":
         figsize_scale=args.figscale,
         audivisual_only=True,
         include_ntfd_random=False,
+        y_limits={
+            "occipital": (-0.6, 2.2),
+            "cereb": (-0.4, 1.4),
+            "presma": (-0.4, 1.2),
+            "sma": (-0.4, 1.2),
+            "pmv": (-0., 1.),
+        },
     )
 
     # # 1b) Pooled-only figure (pooled modality block only)
