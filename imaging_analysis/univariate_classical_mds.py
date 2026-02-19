@@ -193,7 +193,7 @@ def _draw_custom_xticklabels_3d(
     if x_half_range <= 0:
         x_half_range = 1.0
 
-    y0 = float(ax.get_ylim()[0])
+    y0 = float(ax.get_ylim()[1])
     z0 = float(ax.get_zlim()[0])
 
     inv_fig = fig.transFigure.inverted()
@@ -216,6 +216,8 @@ def _draw_custom_xticklabels_3d(
             ha="center",
             va="bottom",
             fontsize=fontsize,
+            rotation=0.,          # ← rotate a little
+            rotation_mode="anchor",  # important for correct pivot
         )
         txt.set_in_layout(False)
 
@@ -234,7 +236,7 @@ def _draw_custom_xlabel_3d(
     ax.set_xlabel("")
 
     x0, x1 = ax.get_xlim()
-    y0 = float(ax.get_ylim()[0])
+    y0 = float(ax.get_ylim()[1])
     z0 = float(ax.get_zlim()[0])
     xmid = 0.5 * (float(x0) + float(x1))
 
@@ -284,7 +286,9 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     xlabel_text = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ax.set_xlabel("")
     ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.0)
-    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.0)
+    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.0, 
+                  rotation=90.0,)
+    ax.zaxis.set_rotate_label(False)
 
     # >>> UPDATED (as requested)
     ax.view_init(elev=15, azim=10)
@@ -367,22 +371,22 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
     # >>> UPDATED offsets for azim=10 (as requested)
-    X_TICKLABEL_DX_PX = -60.0
-    X_TICKLABEL_DY_PX = -40.0
+    X_TICKLABEL_DX_PX = 62.0
+    X_TICKLABEL_DY_PX = -50.
     _draw_custom_xticklabels_3d(
         fig=fig,
         ax=ax,
         fontsize=10,
         dy_px=X_TICKLABEL_DY_PX,
         dx_px=X_TICKLABEL_DX_PX,
-        spread_x_px=5.0,
+        spread_x_px=-2.0,
         spread_y_px=-5.0,
     )
 
     # ---- X-axis-only fix: redraw x-axis title with pixel offsets ----
     # >>> UPDATED offsets for azim=10 (as requested)
-    X_LABEL_DX_PX = -90.0
-    X_LABEL_DY_PX = -42.0
+    X_LABEL_DX_PX = 102.0
+    X_LABEL_DY_PX = -45.0
 
     _draw_custom_xlabel_3d(
         fig=fig,
@@ -391,7 +395,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         fontsize=10,
         dx_px=X_LABEL_DX_PX,
         dy_px=X_LABEL_DY_PX,
-        rotation=-60.0,
+        rotation=73.0,
     )
 
     # Draw a black 3D bounding box (selected edges).
