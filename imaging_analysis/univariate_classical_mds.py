@@ -412,9 +412,11 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     edges = [
         (0, 2), (2, 6), (6, 4), (4, 0),
-        (0, 1), (2, 3), (3, 7),
-        (6, 7),
+        (0, 1), (2, 3),
+        # (3, 7),  # removed: top edge on right MDS1–MDS3 plane (y=y1)
+        # (6, 7),  # removed: closer vertical edge on right MDS1–MDS3 plane (y=y1)
         (1, 3),
+        (1, 5),    # added: top edge on left MDS1–MDS3 plane (y=y0)
     ]
 
     for i, j in edges:
