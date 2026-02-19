@@ -121,7 +121,7 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     fig, ax = plt.subplots(figsize=(6, 5), dpi=150)
     ax.scatter(coords[:, c1], coords[:, c2])
 
-    labels = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
+    labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
     x_rng = float(coords[:, c1].max() - coords[:, c1].min())
     y_rng = float(coords[:, c2].max() - coords[:, c2].min())
@@ -141,7 +141,7 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
 
     texts = []
     for k, (x_val, y_val, name) in enumerate(
-        zip(coords[:, c1], coords[:, c2], labels)
+        zip(coords[:, c1], coords[:, c2], labels_disp)
     ):
         off_x, off_y = offsets[k % len(offsets)]
         txt = ax.text(
@@ -175,32 +175,12 @@ def _draw_custom_xticklabels_3d(
     spread_y_px=0.0,
 ):
     """
-    Redraw x tick labels in 3D at projected tick positions, with 
-    explicit screen-space (pixel) offsets and optional symmetric 
+    Redraw x tick labels in 3D at projected tick positions, with
+    explicit screen-space (pixel) offsets and optional symmetric
     spreading in x and y.
-
-    Parameters
-    ----------
-    fig : matplotlib.figure.Figure
-        Figure containing the 3D axis.
-    ax : mpl_toolkits.mplot3d.axes3d.Axes3D
-        3D axis.
-    fontsize : int
-        Font size for tick labels.
-    dx_px, dy_px : float
-        Constant pixel shifts applied to all x tick labels 
-        (right/up positive).
-    spread_x_px, spread_y_px : float
-        Additional symmetric "fan-out" applied based on tick value 
-        relative to the center tick, in pixels. Positive values spread 
-        labels away from the center tick in screen-space x and y, 
-        respectively.
     """
-
-    # Ensure final projection is available and tick Text artists exist.
     fig.canvas.draw()
 
-    # Hide the default x tick labels (keep tick marks).
     for t in ax.get_xticklabels():
         t.set_visible(False)
 
@@ -208,13 +188,11 @@ def _draw_custom_xticklabels_3d(
     if xticks.size == 0:
         return
 
-    # Center and half-range for normalized tick coordinate u in [-1, 1].
     x_center = 0.5 * (float(xticks.min()) + float(xticks.max()))
     x_half_range = 0.5 * (float(xticks.max()) - float(xticks.min()))
     if x_half_range <= 0:
         x_half_range = 1.0
 
-    # Anchor for x-axis tick locations in mplot3d: (ymin, zmin).
     y0 = float(ax.get_ylim()[0])
     z0 = float(ax.get_zlim()[0])
 
@@ -222,18 +200,14 @@ def _draw_custom_xticklabels_3d(
     formatter = ax.xaxis.get_major_formatter()
 
     for xv in xticks:
-        # Project 3D tick anchor to 2D.
         x2, y2, _ = proj3d.proj_transform(float(xv), y0, z0, ax.get_proj())
         x_disp, y_disp = ax.transData.transform((x2, y2))
 
-        # Normalized position (center tick -> 0), used for symmetric spreading.
         u = (float(xv) - x_center) / x_half_range
 
-        # Screen-space offsets (pixels): base shift + fan-out.
         x_disp += float(dx_px) + float(spread_x_px) * u
         y_disp += float(dy_px) + float(spread_y_px) * u
 
-        # Convert display coords to figure fraction and draw label.
         x_fig, y_fig = inv_fig.transform((x_disp, y_disp))
         txt = fig.text(
             x_fig,
@@ -243,7 +217,6 @@ def _draw_custom_xticklabels_3d(
             va="bottom",
             fontsize=fontsize,
         )
-        # Prevent layout engines from shrinking the axes due to these artists.
         txt.set_in_layout(False)
 
 
@@ -289,12 +262,6 @@ def _draw_custom_xlabel_3d(
 def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     """
     Plot 3D MDS for chosen components (1-based indices).
-
-    coords : (n, p) array of MDS scores
-    labels : list-like of length n (e.g., ROI names)
-    explained_var : (p,) eigenvalues or per-axis variance
-    out_path : PNG output path
-    comps : tuple of 3 components, 1-based (e.g., (1, 2, 4))
     """
     c1, c2, c3 = comps[0] - 1, comps[1] - 1, comps[2] - 1
 
@@ -312,96 +279,15 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         alpha=0.8,
     )
 
-    labels = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
-
-    x_rng = float(coords[:, c1].max() - coords[:, c1].min())
-    y_rng = float(coords[:, c2].max() - coords[:, c2].min())
-    z_rng = float(coords[:, c3].max() - coords[:, c3].min())
-
-    dx = x_rng * 0.02 if x_rng > 0 else 0.01
-    dy = y_rng * 0.02 if y_rng > 0 else 0.01
-    dz = z_rng * 0.02 if z_rng > 0 else 0.01
-
-    offsets = [
-        (dx, 0.0, 0.0),
-        (0.0, dy, 0.0),
-        (0.0, 0.0, dz),
-        (-dx, 0.0, 0.0),
-        (0.0, -dy, 0.0),
-        (0.0, 0.0, -dz),
-        (dx, dy, 0.0),
-        (-dx, -dy, 0.0),
-    ]
-
-    for k, (x, y, z, name) in enumerate(
-        zip(coords[:, c1], coords[:, c2], coords[:, c3], labels)
-    ):
-        ox, oy, oz = offsets[k % len(offsets)]
-        ha = "left"
-        va = "center"
-
-        if name == "Heschl's Gyrus":
-            ox = -1.6 * dx
-            oy = 3.0 * dy
-            oz = 0.4 * dz
-            ha = "right"
-        elif name == "PreSMA":
-            oy = 1.3 * dy
-            oz = -0.5 * dz
-            ha = "right"
-        elif name == "Dorsal Striatum":
-            oy = 10.0 * dy
-            oz = 4.5 * dz
-        elif name == "Occipital\nLobe":
-            oy = 0. * dy
-            oz = 6.0 * dz
-        elif name == "Cerebellum":
-            oy = 16.0 * dy
-            oz = 1.5 * dz
-        elif name == "PMV":
-            ox = 0.7 * dx
-            oy = 6.7 * dy
-            oz = 1.0 * dz
-        elif name == "PMD":
-            ox = 0.9 * dx
-            oy = 7.8 * dy
-        elif name == "SMA":
-            oy = -1.3 * dy
-            oz = 0.1 * dz
-
-        if name == "Occipital\nLobe":
-            ax.text(
-                x + ox,
-                y + oy,
-                z + oz,
-                name,
-                ha="center",
-                va="center",
-                multialignment="center",
-                clip_on=True,
-            )
-        else:
-            ax.text(
-                x + ox,
-                y + oy,
-                z + oz,
-                name,
-                ha=ha,
-                va=va,
-                clip_on=True,
-            )
+    labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
     xlabel_text = f"MDS{c1 + 1} ({var[c1]:.1%})"
-    ax.set_xlabel("")  # hide default 3D xlabel (we redraw it below)
+    ax.set_xlabel("")
+    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.0)
+    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.0)
 
-    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.)
-    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.)
-    # ax.set_title(f"Classical MDS - 3D (MDS{c1 + 1}, {c2 + 1}, {c3 + 1})")
-
-    # 3D rotation of the plot
-    # elev → vertical tilt (camera height)
-    # azim → horizontal rotation (camera around z-axis)
-    ax.view_init(elev=15, azim=-47.5)
+    # >>> UPDATED (as requested)
+    ax.view_init(elev=15, azim=10)
 
     # Fixed axis limits (explicit, not data-driven)
     ax.set_xlim(-0.35, 0.0)      # MDS1
@@ -443,10 +329,6 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ax.zaxis.set_major_formatter(formatter)
 
     # Keep equal visual spacing per tick-step across all axes.
-    x0, x1 = ax.get_xlim()
-    y0, y1 = ax.get_ylim()
-    z0, z1 = ax.get_zlim()
-
     nx = abs(x1 - x0) / tick_step if tick_step > 0 else 1.0
     ny = abs(y1 - y0) / tick_step if tick_step > 0 else 1.0
     nz = abs(z1 - z0) / tick_step if tick_step > 0 else 1.0
@@ -454,7 +336,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     # Draw vertical stems with an opacity gradient, without "dashed" artifacts.
     z_bottom = float(ax.get_zlim()[0])
-    n_segments = 640  # dense enough to look continuous in raster output
+    n_segments = 640
 
     for x, y, z_top in zip(coords[:, c1], coords[:, c2], coords[:, c3]):
         zs = np.linspace(z_bottom, z_top, n_segments + 1)
@@ -479,27 +361,28 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
             )
 
     # Tick label styling (keep your y/z behavior as-is).
-    ax.tick_params(axis="x", labelrotation=0.0, labelsize=10.0, pad=0.)
-    ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.)
-    ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.)
+    ax.tick_params(axis="x", labelrotation=0.0, labelsize=10.0, pad=0.0)
+    ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.0)
+    ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.0)
 
     # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
-    # Tune this if needed: typical working range is 6–12 px.
-    X_TICKLABEL_DX_PX = -87.
-    X_TICKLABEL_DY_PX = -48.
+    # >>> UPDATED offsets for azim=10 (as requested)
+    X_TICKLABEL_DX_PX = -60.0
+    X_TICKLABEL_DY_PX = -40.0
     _draw_custom_xticklabels_3d(
-            fig=fig,
-            ax=ax,
-            fontsize=10,
-            dy_px=X_TICKLABEL_DY_PX,
-            dx_px=X_TICKLABEL_DX_PX,
-            spread_x_px=5.,
-            spread_y_px=-5.,
-        )
+        fig=fig,
+        ax=ax,
+        fontsize=10,
+        dy_px=X_TICKLABEL_DY_PX,
+        dx_px=X_TICKLABEL_DX_PX,
+        spread_x_px=5.0,
+        spread_y_px=-5.0,
+    )
 
     # ---- X-axis-only fix: redraw x-axis title with pixel offsets ----
-    X_LABEL_DX_PX = -126.     # horizontal shift: +right / -left
-    X_LABEL_DY_PX = -50.   # vertical shift: +up / -down (tune)
+    # >>> UPDATED offsets for azim=10 (as requested)
+    X_LABEL_DX_PX = -90.0
+    X_LABEL_DY_PX = -42.0
 
     _draw_custom_xlabel_3d(
         fig=fig,
@@ -508,7 +391,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         fontsize=10,
         dx_px=X_LABEL_DX_PX,
         dy_px=X_LABEL_DY_PX,
-        rotation=-73.
+        rotation=-60.0,
     )
 
     # Draw a black 3D bounding box (selected edges).
@@ -528,38 +411,77 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ]
 
     edges = [
-        # Bottom rectangle (z = z0)
         (0, 2), (2, 6), (6, 4), (4, 0),
-
-        # Vertical back edges
         (0, 1), (2, 3), (3, 7),
-
-        # Vertical front edge (keep one depth cue)
         (6, 7),
-
-        # Back top edge
         (1, 3),
     ]
 
     for i, j in edges:
         xi, yi, zi = corners[i]
         xj, yj, zj = corners[j]
-        ax.plot(
-            [xi, xj],
-            [yi, yj],
-            [zi, zj],
-            color="black",
-            linewidth=1.0,
-            alpha=1.0,
-        )
+        ax.plot([xi, xj], [yi, yj], [zi, zj], color="black", linewidth=1.0)
 
     # --- Remove tick marks (3D "spikes") but keep tick labels + grid ---
     for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
         axis._axinfo["tick"]["inward_factor"] = 0.0
         axis._axinfo["tick"]["outward_factor"] = 0.0
 
-    # Keep grid visible (uses locator positions, not tick mark length)
     ax.grid(True)
+
+    # =================== FIXED 3D LABEL POSITIONS (2D projected) =================== #
+    fig.canvas.draw()
+    inv_fig = fig.transFigure.inverted()
+
+    # >>> slightly smaller labels (as requested)
+    LABEL_FONTSIZE = 10
+
+    # Per-label pixel offsets (tune once, then stable)
+    LABEL_OFFSETS_PX = {
+        "Heschl's Gyrus": (-27, -5),
+        "Dorsal Striatum": (-80, 60),
+        "Cerebellum": (-17, 33),
+        "Occipital\nLobe": (25, 30),
+        "Occipital Lobe": (8, 6),
+        "PMD": (7, -5),
+        "PMV": (9, 1),
+        "PreSMA": (4, 6),
+        "SMA": (-72, 10),
+    }
+
+    for x, y, z, name in zip(
+        coords[:, c1], coords[:, c2], coords[:, c3], labels_disp
+    ):
+        x2, y2, _ = proj3d.proj_transform(float(x), float(y), float(z), ax.get_proj())
+        x_px, y_px = ax.transData.transform((x2, y2))
+
+        dx_px, dy_px = LABEL_OFFSETS_PX.get(name, (6, 6))
+        x_px += float(dx_px)
+        y_px += float(dy_px)
+
+        x_fig, y_fig = inv_fig.transform((x_px, y_px))
+
+        if name.startswith("Occipital"):
+            t = fig.text(
+                x_fig,
+                y_fig,
+                name,
+                ha="center",
+                va="center",
+                multialignment="center",
+                fontsize=LABEL_FONTSIZE,
+            )
+        else:
+            t = fig.text(
+                x_fig,
+                y_fig,
+                name,
+                ha="left",
+                va="center",
+                fontsize=LABEL_FONTSIZE,
+            )
+        t.set_in_layout(False)
+    # =============================================================================== #
 
     fig.tight_layout()
     fig.savefig(out_path)
@@ -568,10 +490,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
 # ============================= CONFIG ============================== #
 
-# Number of components to keep from the decomposition
 N_COMPONENTS = 3
-
-# Individualization level of input data
 INDIVID_LEVEL = "i"
 
 ROI_LABELS = {
@@ -614,7 +533,6 @@ MDS_OUTPUT_DIR = os.path.join(
 
 if __name__ == "__main__":
 
-    # Load input matrix (ROI x ROI correlation or Gram matrix)
     mtx_path = os.path.join(
         BASE_ALL,
         "matrix_r_"
@@ -624,25 +542,19 @@ if __name__ == "__main__":
     df = pd.read_csv(mtx_path, sep="\t", index_col=0)
     mtx = df.to_numpy(dtype=float)
 
-    # Normalize the correlation matrix by its rank
     rank = np.linalg.matrix_rank(mtx)
     mtx = mtx / rank
 
-    # Classical MDS on the Gram/correlation matrix
-    # scores are V * sqrt(eigenvalues); eigval are eigenvalues
     scores, eigval = pcm.util.classical_mds(mtx)
 
-    # Keep the first N components
     coords = scores[:, :N_COMPONENTS]
 
-    # Variance share over all positive eigenvalues
     ev_pos = np.clip(eigval, 0, None)
     denom = ev_pos.sum() if ev_pos.sum() > 0 else 1.0
     ev_ratio_full = ev_pos[:N_COMPONENTS] / denom
 
     os.makedirs(MDS_OUTPUT_DIR, exist_ok=True)
 
-    # All 2D pairs
     axes_1based = list(range(1, coords.shape[1] + 1))
     for a, b in combinations(axes_1based, 2):
         out2d = os.path.join(
@@ -657,7 +569,6 @@ if __name__ == "__main__":
             comps=(a, b),
         )
 
-    # All 3D triples
     if coords.shape[1] >= 3:
         for a, b, c in combinations(axes_1based, 3):
             out3d = os.path.join(
