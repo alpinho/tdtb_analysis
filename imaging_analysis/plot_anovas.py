@@ -1407,30 +1407,30 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Production", "NTFD"),
         pvalue=0.000000612729547846731,
     ),
-    dict(
-        roi="cereb",
-        modality="Auditory",
-        task_pair=("Production", "Perception"),
-        pvalue=0.0142145961772677,
-    ),
-    dict(
-        roi="cereb",
-        modality="Auditory",
-        task_pair=("Production", "NTFD"),
-        pvalue=0.0126473284799806,
-    ),
+    # dict(
+    #     roi="cereb",
+    #     modality="Auditory", # significant only in the 3way ANOVA
+    #     task_pair=("Production", "Perception"),
+    #     pvalue=0.0142145961772677,
+    # ),
+    # dict(
+    #     roi="cereb",
+    #     modality="Auditory", # significant only in the 3way ANOVA
+    #     task_pair=("Production", "NTFD"),
+    #     pvalue=0.0126473284799806,
+    # ),
     dict(
         roi="sma",
         modality="Auditory",
         task_pair=("Production", "Perception"),
         pvalue=0.000054262462788421,
     ),
-    dict( # significant only in the 3way ANOVA
-        roi="sma",
-        modality="Auditory",
-        task_pair=("Production", "NTFD"),
-        pvalue=0.0374092539730202,
-    ),
+    # dict( # significant only in the 3way ANOVA
+    #     roi="sma",
+    #     modality="Auditory",
+    #     task_pair=("Production", "NTFD"),
+    #     pvalue=0.0374092539730202,
+    # ),
     dict(
         roi="sma",
         modality="Auditory",
@@ -1473,54 +1473,54 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Production", "NTFD"),
         pvalue=0.00000079736641913653,
     ),
-    dict(
-        roi="cereb",
-        modality="Visual",
-        task_pair=("Production", "Perception"),
-        pvalue=0.0201762748089375,
-    ),
+    # dict(
+    #     roi="cereb",
+    #     modality="Visual", # significant only in the 3way ANOVA
+    #     task_pair=("Production", "Perception"),
+    #     pvalue=0.0201762748089375,
+    # ),
     dict(
         roi="cereb",
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.00180104354711226,
     ),
-    dict(
-        roi="cereb",
-        modality="Visual",
-        task_pair=("Perception", "NTFD"),
-        pvalue=0.048577005574705,
-    ),
+    # dict(
+    #     roi="cereb",
+    #     modality="Visual", # significant only in the 3way ANOVA
+    #     task_pair=("Perception", "NTFD"),
+    #     pvalue=0.048577005574705,
+    # ),
     dict(
         roi="sma",
         modality="Visual",
         task_pair=("Production", "Perception"),
         pvalue=0.00000123502563301166,
     ),
-    dict( # significant only in the 3way ANOVA
-        roi="sma",
-        modality="Visual",
-        task_pair=("Production", "NTFD"),
-        pvalue=0.0237468150390989,
-    ),
+    # dict( # significant only in the 3way ANOVA
+    #     roi="sma",
+    #     modality="Visual",
+    #     task_pair=("Production", "NTFD"),
+    #     pvalue=0.0237468150390989,
+    # ),
     dict(
         roi="sma",
         modality="Visual",
         task_pair=("Perception", "NTFD"),
         pvalue=0.000801144140433441,
     ),
-    dict(
-        roi="heschl",
-        modality="Visual",
-        task_pair=("Production", "NTFD"),
-        pvalue=0.00813138744897999,
-    ),
-    dict(
-        roi="heschl",
-        modality="Visual",
-        task_pair=("Perception", "NTFD"),
-        pvalue=0.00442865869182293,
-    ),
+    # dict(
+    #     roi="heschl", # significant only in the 3way ANOVA
+    #     modality="Visual",
+    #     task_pair=("Production", "NTFD"),
+    #     pvalue=0.00813138744897999,
+    # ),
+    # dict(
+    #     roi="heschl", # significant only in the 3way ANOVA
+    #     modality="Visual",
+    #     task_pair=("Perception", "NTFD"),
+    #     pvalue=0.00442865869182293,
+    # ),
     dict(
         roi="occipital",
         modality="Visual",
@@ -1552,14 +1552,14 @@ if __name__ == "__main__":
 
     df_in = pd.concat([df_main, df_rand], ignore_index=True, axis=0)
 
-    # # 1) Original figures (no NTFD Random panels)
-    # plot_psc_boxplots(
-    #     df=df_in,
-    #     outpath=OUTPUT_PATH,
-    #     figsize_scale=args.figscale,
-    #     audivisual_only=False,
-    #     include_ntfd_random=False,
-    # )
+    # 1) Original figures (no NTFD Random panels)
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=OUTPUT_PATH,
+        figsize_scale=args.figscale,
+        audivisual_only=False,
+        include_ntfd_random=False,
+    )
 
     outpath_av = Path(OUTPUT_PATH)
     outpath_av = outpath_av.with_name(
@@ -1573,35 +1573,37 @@ if __name__ == "__main__":
         include_ntfd_random=False,
         y_limits={
             "occipital": (-0.6, 2.2),
-            "cereb": (-0.4, 1.4),
+            "dstr": (-0.6, 2.2),
+            "cereb": (-0.6, 2.2),
             "presma": (-0.4, 1.2),
             "sma": (-0.4, 1.2),
-            "pmv": (-0.2, 1.),
+            "pmd": (-0.4, 1.2),
+            "pmv": (-0.4, 1.2),
         },
         show_yaxis={
             "heschl": True,
-            "occipital": False,
+            "occipital": True,
             "dstr": True,
-            "cereb": False,
+            "cereb": True,
             "presma": True,
-            "sma": False,
+            "sma": True,
             "pmd": True,
-            "pmv": False,
+            "pmv": True,
         },
     )
 
-    # # 1b) Pooled-only figure (pooled modality block only)
-    # outpath_pooled = Path(OUTPUT_PATH)
-    # outpath_pooled = outpath_pooled.with_name(
-    #     outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
-    # )
-    # plot_psc_boxplots(
-    #     df=df_in,
-    #     outpath=outpath_pooled,
-    #     figsize_scale=args.figscale,
-    #     pooled_only=True,
-    #     include_ntfd_random=False,
-    # )
+    # 1b) Pooled-only figure (pooled modality block only)
+    outpath_pooled = Path(OUTPUT_PATH)
+    outpath_pooled = outpath_pooled.with_name(
+        outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
+    )
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=outpath_pooled,
+        figsize_scale=args.figscale,
+        pooled_only=True,
+        include_ntfd_random=False,
+    )
 
     # # 2) Extended figures (with NTFD Random panels)
     # outpath_rand = Path(OUTPUT_PATH)
