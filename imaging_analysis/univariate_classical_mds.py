@@ -111,15 +111,22 @@ def nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30):
 
 def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     """Plot 2D classical MDS and keep labels fully inside axes."""
-    c1 = comps[0] - 1
-    c2 = comps[1] - 1
+
+    # For the MDS1 vs MDS2 panel, reverse the view: MDS2 on x, MDS1 on y.
+    if tuple(comps) == (1, 2):
+        comps_plot = (2, 1)
+    else:
+        comps_plot = tuple(comps)
+
+    c1 = comps_plot[0] - 1
+    c2 = comps_plot[1] - 1
 
     var = np.clip(explained_var, 0, None)
     denom = var.sum() if var.sum() > 0 else 1.0
     var = var / denom
 
     fig, ax = plt.subplots(figsize=(6, 5), dpi=150)
-    ax.scatter(coords[:, c1], coords[:, c2])
+    ax.scatter(coords[:, c1], coords[:, c2], color="mediumblue", alpha=0.8)
 
     labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
@@ -154,9 +161,58 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
         )
         texts.append(txt)
 
-    ax.axhline(0, lw=0.5)
-    ax.axvline(0, lw=0.5)
-    ax.set_title(f"Classical MDS - 2D (MDS{c1 + 1} vs MDS{c2 + 1})")
+    # Fixed axis limits to match the 3D plot.
+    axis_limits = {
+        0: (-0.35, 0.0),    # MDS1
+        1: (-0.35, 0.35),   # MDS2
+        2: (-0.30, 0.30),   # MDS3
+    }
+    ax.set_xlim(*axis_limits.get(c1, ax.get_xlim()))
+    ax.set_ylim(*axis_limits.get(c2, ax.get_ylim()))
+
+    # Ticks/grid: 0.05 tick spacing, label every 0.1 (as in 3D).
+    tick_step = 0.05
+    label_step = 0.1
+
+    labeler = SparseTickLabeler(
+        label_step=label_step,
+        decimals=1,
+        zero_str="0.0",
+        atol_mult=1e-8,
+        atol_zero=1e-12,
+    )
+    formatter = FuncFormatter(labeler)
+
+    x0, x1 = ax.get_xlim()
+    y0, y1 = ax.get_ylim()
+
+    xt = build_fixed_ticks(x0, x1, tick_step)
+    yt = build_fixed_ticks(y0, y1, tick_step)
+
+    ax.xaxis.set_major_locator(FixedLocator(xt))
+    ax.yaxis.set_major_locator(FixedLocator(yt))
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+
+    # Remove top/right spines and separate spines from the grid.
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_position(("outward", 4))
+    ax.spines["bottom"].set_position(("outward", 4))
+
+    ax.grid(True, color="0.8", linewidth=0.8)
+    ax.set_axisbelow(True)
+
+    # Highlight zero axes in blue.
+    ax.axhline(0, lw=0.9, color="mediumblue", zorder=1)
+    ax.axvline(0, lw=0.9, color="mediumblue", zorder=1)
+
+    ax.set_title("Classical Multidimensional Scaling - 3 components")
+
+    xlabel = f"MDS{c1 + 1} ({var[c1]:.1%})"
+    ylabel = f"MDS{c2 + 1} ({var[c2]:.1%})"
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
     nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30)
 
@@ -286,7 +342,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     xlabel_text = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ax.set_xlabel("")
     ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.0)
-    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.0, 
+    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.0,
                   rotation=90.0,)
     ax.zaxis.set_rotate_label(False)
 
