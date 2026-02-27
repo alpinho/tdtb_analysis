@@ -125,7 +125,29 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     denom = var.sum() if var.sum() > 0 else 1.0
     var = var / denom
 
-    fig, ax = plt.subplots(figsize=(6, 5), dpi=150)
+    axis_limits = {
+        0: (-0.35, 0.05),   # MDS1
+        1: (-0.35, 0.35),   # MDS2
+        2: (-0.30, 0.30),   # MDS3
+    }
+
+    xlim = axis_limits.get(c1, (float(coords[:, c1].min()),
+                               float(coords[:, c1].max())))
+    ylim = axis_limits.get(c2, (float(coords[:, c2].min()),
+                               float(coords[:, c2].max())))
+
+    x_range = float(abs(xlim[1] - xlim[0]))
+    y_range = float(abs(ylim[1] - ylim[0]))
+
+    ref_figsize = (6.0, 5.0)
+    ref_x_range = 0.70
+    ref_y_range = 0.60
+
+    k = min(ref_figsize[0] / ref_x_range, ref_figsize[1] / ref_y_range)
+    pad = 1.08
+    figsize = (max(5.0, k * x_range * pad), max(4.0, k * y_range * pad))
+
+    fig, ax = plt.subplots(figsize=figsize, dpi=150)
     ax.scatter(coords[:, c1], coords[:, c2], color="mediumblue", alpha=0.8)
 
     labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
@@ -160,15 +182,35 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
             clip_on=True,
         )
         texts.append(txt)
-
     # Fixed axis limits to match the 3D plot.
-    axis_limits = {
-        0: (-0.35, 0.0),    # MDS1
-        1: (-0.35, 0.35),   # MDS2
-        2: (-0.30, 0.30),   # MDS3
-    }
-    ax.set_xlim(*axis_limits.get(c1, ax.get_xlim()))
-    ax.set_ylim(*axis_limits.get(c2, ax.get_ylim()))
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+
+    ax.set_aspect("equal", adjustable="box")
+
+    # Remove lateral blank borders for MDS1 vs MDS3 only
+    if set(comps_plot) == {1, 3}:
+        fig.canvas.draw()
+
+        bbox = ax.get_position()
+        fig_w, fig_h = fig.get_size_inches()
+
+        x_range = abs(ax.get_xlim()[1] - ax.get_xlim()[0])
+        y_range = abs(ax.get_ylim()[1] - ax.get_ylim()[0])
+
+        data_ratio = y_range / x_range
+        fig_ratio = fig_h / fig_w
+
+        new_width = bbox.height * (fig_ratio / data_ratio)
+        center = bbox.x0 + bbox.width / 2.0
+        new_x0 = center - new_width / 2.0
+
+        ax.set_position([
+            new_x0,
+            bbox.y0,
+            new_width,
+            bbox.height,
+        ])
 
     # Ticks/grid: 0.05 tick spacing, label every 0.1 (as in 3D).
     tick_step = 0.05
@@ -207,7 +249,14 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     ax.axhline(0, lw=0.9, color="mediumblue", zorder=1)
     ax.axvline(0, lw=0.9, color="mediumblue", zorder=1)
 
-    ax.set_title("Classical Multidimensional Scaling - 3 components")
+    title_pad = 6
+    if set(comps_plot) == {1, 3}:
+        title_pad = 15  # slightly higher for MDS1 vs MDS3
+
+    ax.set_title(
+        "Classical Multidimensional Scaling - 3 components",
+        pad=title_pad,
+    )
 
     xlabel = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ylabel = f"MDS{c2 + 1} ({var[c2]:.1%})"
@@ -216,8 +265,19 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
 
     nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30)
 
-    fig.tight_layout()
-    fig.savefig(out_path)
+    fig.tight_layout(pad=0.5)
+    if set(comps_plot) == {1, 3}:
+        fig.savefig(
+            out_path,
+            bbox_inches="tight",
+            pad_inches=0.08,   # slightly less aggressive trimming
+        )
+    else:
+        fig.savefig(
+            out_path,
+            bbox_inches="tight",
+            pad_inches=0.08,
+        )
     plt.close(fig)
 
 
@@ -342,7 +402,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     xlabel_text = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ax.set_xlabel("")
     ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.0)
-    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.0,
+    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.0, 
                   rotation=90.0,)
     ax.zaxis.set_rotate_label(False)
 
