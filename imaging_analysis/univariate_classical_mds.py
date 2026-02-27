@@ -8,7 +8,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 30th of October 2025
-Last Update: January 2026
+Last Update: February 2026
 
 Compatibility: Python 3.10.16
 """
