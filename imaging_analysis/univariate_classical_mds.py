@@ -457,21 +457,27 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
         # Plane z=z0
         for xv in xs_in:
-            ax.plot([xv, xv], [y0, y1], [z0, z0], color=color, linewidth=lw, zorder=0)
+            ax.plot([xv, xv], [y0, y1], [z0, z0], color=color, linewidth=lw,
+                    zorder=0)
         for yv in ys_in:
-            ax.plot([x0, x1], [yv, yv], [z0, z0], color=color, linewidth=lw, zorder=0)
+            ax.plot([x0, x1], [yv, yv], [z0, z0], color=color, linewidth=lw,
+                    zorder=0)
 
         # Plane x=x0
         for yv in ys_in:
-            ax.plot([x0, x0], [yv, yv], [z0, z1], color=color, linewidth=lw, zorder=0)
+            ax.plot([x0, x0], [yv, yv], [z0, z1], color=color, linewidth=lw,
+                    zorder=0)
         for zv in zs_in:
-            ax.plot([x0, x0], [y0, y1], [zv, zv], color=color, linewidth=lw, zorder=0)
+            ax.plot([x0, x0], [y0, y1], [zv, zv], color=color, linewidth=lw,
+                    zorder=0)
 
         # Plane y=y1
         for xv in xs_in:
-            ax.plot([xv, xv], [y0, y0], [z0, z1], color=color, linewidth=lw, zorder=0)
+            ax.plot([xv, xv], [y0, y0], [z0, z1], color=color, linewidth=lw, 
+                    zorder=0)
         for zv in zs_in:
-            ax.plot([x0, x1], [y0, y0], [zv, zv], color=color, linewidth=lw, zorder=0)
+            ax.plot([x0, x1], [y0, y0], [zv, zv], color=color, linewidth=lw,
+                    zorder=0)
 
     c1, c2, c3 = comps[0] - 1, comps[1] - 1, comps[2] - 1
 
@@ -629,6 +635,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         (2, 3),
         (1, 3),
         (1, 5),
+        (5, 4),
     ]
 
     for i, j in edges:
