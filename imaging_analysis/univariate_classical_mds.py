@@ -443,7 +443,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
     # >>> UPDATED offsets for azim=10 (as requested)
-    X_TICKLABEL_DX_PX = 115.0
+    X_TICKLABEL_DX_PX = 114.0
     X_TICKLABEL_DY_PX = -80.
     _draw_custom_xticklabels_3d(
         fig=fig,
@@ -500,10 +500,23 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         xj, yj, zj = corners[j]
         ax.plot([xi, xj], [yi, yj], [zi, zj], color="black", linewidth=1.0)
 
-    # --- Remove tick marks (3D "spikes") but keep tick labels + grid ---
-    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
-        axis._axinfo["tick"]["inward_factor"] = 0.0
-        axis._axinfo["tick"]["outward_factor"] = 0.0
+    # --- Draw small, centered 3D tick marks (in + out) ---
+    # Axis-specific 3D tick sizes
+    # MDS1 (x-axis) → half smaller
+    # MDS2 (y-axis) + MDS3 (z-axis) → slightly bigger
+
+    tick_x = 0.09    # half of ~0.18
+    tick_y = 0.50    # slightly bigger
+    tick_z = 0.50    # slightly bigger
+
+    ax.xaxis._axinfo["tick"]["inward_factor"] = tick_x
+    ax.xaxis._axinfo["tick"]["outward_factor"] = tick_x
+
+    ax.yaxis._axinfo["tick"]["inward_factor"] = tick_y
+    ax.yaxis._axinfo["tick"]["outward_factor"] = tick_y
+
+    ax.zaxis._axinfo["tick"]["inward_factor"] = tick_z
+    ax.zaxis._axinfo["tick"]["outward_factor"] = tick_z
 
     ax.grid(True)
 
