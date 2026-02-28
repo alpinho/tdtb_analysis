@@ -347,10 +347,11 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     """
     Plot 3D MDS for chosen components (1-based indices).
 
-    Major ticks/labels are shown only at 0.1 steps. A 0.05 grid is 
-    drawn manually on the visible box planes, without adding extra tick 
+    Major ticks/labels are shown only at 0.1 steps. A 0.05 grid is
+    drawn manually on the visible box planes, without adding extra tick
     marks.
     """
+
     def _draw_minor_grid_planes(
         ax,
         xlim,
@@ -377,63 +378,21 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
         # Plane z=z0
         for xv in xs_in:
-            ax.plot(
-                [xv, xv],
-                [y0, y1],
-                [z0, z0],
-                color=color,
-                linewidth=lw,
-                zorder=0,
-            )
+            ax.plot([xv, xv], [y0, y1], [z0, z0], color=color, linewidth=lw, zorder=0)
         for yv in ys_in:
-            ax.plot(
-                [x0, x1],
-                [yv, yv],
-                [z0, z0],
-                color=color,
-                linewidth=lw,
-                zorder=0,
-            )
+            ax.plot([x0, x1], [yv, yv], [z0, z0], color=color, linewidth=lw, zorder=0)
 
         # Plane x=x0
         for yv in ys_in:
-            ax.plot(
-                [x0, x0],
-                [yv, yv],
-                [z0, z1],
-                color=color,
-                linewidth=lw,
-                zorder=0,
-            )
+            ax.plot([x0, x0], [yv, yv], [z0, z1], color=color, linewidth=lw, zorder=0)
         for zv in zs_in:
-            ax.plot(
-                [x0, x0],
-                [y0, y1],
-                [zv, zv],
-                color=color,
-                linewidth=lw,
-                zorder=0,
-            )
+            ax.plot([x0, x0], [y0, y1], [zv, zv], color=color, linewidth=lw, zorder=0)
 
         # Plane y=y1
         for xv in xs_in:
-            ax.plot(
-                [xv, xv],
-                [y0, y0],
-                [z0, z1],
-                color=color,
-                linewidth=lw,
-                zorder=0,
-            )
+            ax.plot([xv, xv], [y0, y0], [z0, z1], color=color, linewidth=lw, zorder=0)
         for zv in zs_in:
-            ax.plot(
-                [x0, x1],
-                [y0, y0],
-                [zv, zv],
-                color=color,
-                linewidth=lw,
-                zorder=0,
-            )
+            ax.plot([x0, x1], [y0, y0], [zv, zv], color=color, linewidth=lw, zorder=0)
 
     c1, c2, c3 = comps[0] - 1, comps[1] - 1, comps[2] - 1
 
@@ -465,15 +424,14 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     ax.view_init(elev=15, azim=10)
 
-    ax.set_xlim(-0.35, 0.0)      # MDS1
-    ax.set_ylim(-0.35, 0.35)     # MDS2
-    ax.set_zlim(-0.30, 0.30)     # MDS3
+    ax.set_xlim(-0.35, 0.0)   # MDS1
+    ax.set_ylim(-0.35, 0.35)  # MDS2
+    ax.set_zlim(-0.30, 0.30)  # MDS3
 
     ax.xaxis.pane.set_alpha(0.0)
     ax.yaxis.pane.set_alpha(0.0)
     ax.zaxis.pane.set_alpha(0.0)
 
-    # Major ticks/labels only at 0.1.
     tick_step = 0.05
     label_step = 0.1
 
@@ -519,7 +477,6 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     z_bottom = float(ax.get_zlim()[0])
     n_segments = 640
-
     for x, y, z_top in zip(coords[:, c1], coords[:, c2], coords[:, c3]):
         zs = np.linspace(z_bottom, z_top, n_segments + 1)
         for i in range(n_segments):
@@ -585,8 +542,12 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     ]
 
     edges = [
-        (0, 2), (2, 6), (6, 4), (4, 0),
-        (0, 1), (2, 3),
+        (0, 2),
+        (2, 6),
+        (6, 4),
+        (4, 0),
+        (0, 1),
+        (2, 3),
         (1, 3),
         (1, 5),
     ]
@@ -594,8 +555,14 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     for i, j in edges:
         xi, yi, zi = corners[i]
         xj, yj, zj = corners[j]
-        ax.plot([xi, xj], [yi, yj], [zi, zj], color="black", linewidth=1.0,
-                zorder=10)
+        ax.plot(
+            [xi, xj],
+            [yi, yj],
+            [zi, zj],
+            color="black",
+            linewidth=1.0,
+            zorder=10,
+        )
 
     # ------------------------------------------------------------------
     # 3D ticks: keep labels at 0.1 steps, but draw our own black tick
@@ -607,28 +574,25 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         Major ticks only (0.1). Draw ticks on the visible spines for azim≈10.
 
         Keep:
-        - MDS2 (y-axis) OK → edge (x=x1, z=z0), tick direction ±x
+        - MDS2 (y-axis): edge (x=x1, z=z0), tick direction ±x
 
         Fix:
-        - MDS1 (x-axis) → edge (y=y1, z=z0), tick direction ±y
-        - MDS3 (z-axis) → edge (x=x0, y=y1), tick direction ±x
+        - MDS1 (x-axis): edge (y=y1, z=z0), tick direction ±y
+        - MDS3 (z-axis): edge (y=y0), tick direction ±x
         """
         x0, x1 = xlim
         y0, y1 = ylim
-        z0, z1 = zlim
+        z0, _z1 = zlim
 
         x_rng = float(abs(x1 - x0))
         y_rng = float(abs(y1 - y0))
 
-        # Lengths in data units (match your "dash" aesthetic)
-        # x ticks half smaller; y/z slightly bigger
-        len_x = 0.010 * y_rng   # x-axis ticks extend along y
-        len_y = 0.040 * x_rng   # y-axis ticks extend along x
-        len_z = 0.040 * x_rng   # z-axis ticks extend along x
+        # Lengths in data units (your "dash" aesthetic)
+        len_x = 0.010 * y_rng  # x-axis ticks extend along y (half smaller)
+        len_y = 0.040 * x_rng  # y-axis ticks extend along x (slightly bigger)
+        len_z = 0.040 * x_rng  # z-axis ticks extend along x (slightly bigger)
 
-        lw = 1.0
         col = "black"
-        zorder = 30
 
         # --- MDS1 (x-axis): edge y=y1, z=z0, direction ±y ---
         for xv in xt:
@@ -637,30 +601,29 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
                 [y1 - len_x, y1 + len_x],
                 [z0, z0],
                 color=col,
-                linewidth=lw,
-                zorder=zorder,
+                linewidth=1.0,
+                zorder=30,
             )
 
-        # --- MDS2 (y-axis): edge x=x1, z=z0, direction ±x (UNCHANGED) ---
+        # --- MDS2 (y-axis): edge x=x1, z=z0, direction ±x ---
         for yv in yt:
             ax.plot(
                 [x1 - len_y, x1 + len_y],
                 [yv, yv],
                 [z0, z0],
                 color=col,
-                linewidth=lw,
-                zorder=zorder,
+                linewidth=1.0,
+                zorder=30,
             )
 
-        # --- MDS3 (z-axis): edge x=x0, y=y0 (front-left), direction ±x ---
-        lw = 1.2  # <- slightly thicker so it reads over the grid
+        # --- MDS3 (z-axis): edge y=y0 (front), direction ±x ---
         for zv in zt:
             ax.plot(
                 [x1 - len_z, x1 + len_z],
                 [y0, y0],
                 [zv, zv],
-                color="black",
-                linewidth=lw,
+                color=col,
+                linewidth=1.2,
                 zorder=10_000,
             )
 
@@ -670,7 +633,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         axis._axinfo["tick"]["outward_factor"] = 0.0
         axis._axinfo["tick"]["linewidth"] = {False: 0.0, True: 0.0}
 
-    # Major grid at 0.1 is OFF; we draw only the 0.05 grid planes manually.
+    # Major grid at 0.1 is OFF; draw only 0.05 grid planes manually.
     ax.grid(False)
     _draw_minor_grid_planes(
         ax=ax,
@@ -709,15 +672,8 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         "SMA": (-72, 10),
     }
 
-    for x, y, z, name in zip(
-        coords[:, c1], coords[:, c2], coords[:, c3], labels_disp
-    ):
-        x2, y2, _ = proj3d.proj_transform(
-            float(x),
-            float(y),
-            float(z),
-            ax.get_proj(),
-        )
+    for x, y, z, name in zip(coords[:, c1], coords[:, c2], coords[:, c3], labels_disp):
+        x2, y2, _ = proj3d.proj_transform(float(x), float(y), float(z), ax.get_proj())
         x_px, y_px = ax.transData.transform((x2, y2))
 
         dx_px, dy_px = LABEL_OFFSETS_PX.get(name, (6, 6))
