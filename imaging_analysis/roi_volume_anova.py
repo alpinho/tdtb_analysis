@@ -1643,15 +1643,15 @@ roi_names4 = ['pmd', 'pmv', 'sma', 'presma']
 
 # #######################
 
-# atlas_dirnames2 = [fsl_dir, ntk_dir]
-# atlas_names2 = ['hos', 'ntk_symmni128']
-# region_names2 = ['dorsal_striatum', 'cerebellum']
-# roi_names2 = ['dstr', 'cereb']
+atlas_dirnames2 = [fsl_dir, ntk_dir]
+atlas_names2 = ['hos', 'ntk_symmni128']
+region_names2 = ['dorsal_striatum', 'cerebellum']
+roi_names2 = ['dstr', 'cereb']
 
-atlas_dirnames2 = [fsl_dir, fsl_dir]
-atlas_names2 = ['hos', 'hos']
-region_names2 = ['heschl_gyrus', 'occipital_lobe']
-roi_names2 = ['heschl', 'occipital']
+# atlas_dirnames2 = [fsl_dir, fsl_dir]
+# atlas_names2 = ['hos', 'hos']
+# region_names2 = ['heschl_gyrus', 'occipital_lobe']
+# roi_names2 = ['heschl', 'occipital']
 
 # ###### P-value to star map for posthoc annotations ######
 # Format: (Hemisphere, ROI, Task A, Task B) -> p-value
