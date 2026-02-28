@@ -333,10 +333,108 @@ def _draw_custom_xlabel_3d(
     txt.set_in_layout(False)
 
 
+def _keep_interior(vals, vmin, vmax, atol=1e-12):
+    """Return vals excluding points at vmin or vmax (within atol)."""
+    out = []
+    for v in vals:
+        if np.isclose(v, vmin, atol=atol) or np.isclose(v, vmax, atol=atol):
+            continue
+        out.append(v)
+    return np.asarray(out, dtype=float)
+
+
 def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     """
     Plot 3D MDS for chosen components (1-based indices).
+
+    Major ticks/labels are shown only at 0.1 steps. A 0.05 grid is 
+    drawn manually on the visible box planes, without adding extra tick 
+    marks.
     """
+    def _draw_minor_grid_planes(
+        ax,
+        xlim,
+        ylim,
+        zlim,
+        step=0.05,
+        color="0.7",
+        lw=0.8,
+    ):
+        """
+        Draw 0.05 grid on the 3 visible planes (x=x0, y=y1, z=z0).
+        """
+        x0, x1 = xlim
+        y0, y1 = ylim
+        z0, z1 = zlim
+
+        xs = build_fixed_ticks(x0, x1, step)
+        ys = build_fixed_ticks(y0, y1, step)
+        zs = build_fixed_ticks(z0, z1, step)
+
+        xs_in = _keep_interior(xs, x0, x1)
+        ys_in = _keep_interior(ys, y0, y1)
+        zs_in = _keep_interior(zs, z0, z1)
+
+        # Plane z=z0
+        for xv in xs_in:
+            ax.plot(
+                [xv, xv],
+                [y0, y1],
+                [z0, z0],
+                color=color,
+                linewidth=lw,
+                zorder=0,
+            )
+        for yv in ys_in:
+            ax.plot(
+                [x0, x1],
+                [yv, yv],
+                [z0, z0],
+                color=color,
+                linewidth=lw,
+                zorder=0,
+            )
+
+        # Plane x=x0
+        for yv in ys_in:
+            ax.plot(
+                [x0, x0],
+                [yv, yv],
+                [z0, z1],
+                color=color,
+                linewidth=lw,
+                zorder=0,
+            )
+        for zv in zs_in:
+            ax.plot(
+                [x0, x0],
+                [y0, y1],
+                [zv, zv],
+                color=color,
+                linewidth=lw,
+                zorder=0,
+            )
+
+        # Plane y=y1
+        for xv in xs_in:
+            ax.plot(
+                [xv, xv],
+                [y0, y0],
+                [z0, z1],
+                color=color,
+                linewidth=lw,
+                zorder=0,
+            )
+        for zv in zs_in:
+            ax.plot(
+                [x0, x1],
+                [y0, y0],
+                [zv, zv],
+                color=color,
+                linewidth=lw,
+                zorder=0,
+            )
+
     c1, c2, c3 = comps[0] - 1, comps[1] - 1, comps[2] - 1
 
     var = np.clip(explained_var, 0, None)
@@ -358,24 +456,24 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     xlabel_text = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ax.set_xlabel("")
     ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.0)
-    ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})", labelpad=1.0, 
-                  rotation=90.0,)
+    ax.set_zlabel(
+        f"MDS{c3 + 1} ({var[c3]:.1%})",
+        labelpad=1.0,
+        rotation=90.0,
+    )
     ax.zaxis.set_rotate_label(False)
 
-    # >>> UPDATED (as requested)
     ax.view_init(elev=15, azim=10)
 
-    # Fixed axis limits (explicit, not data-driven)
     ax.set_xlim(-0.35, 0.0)      # MDS1
     ax.set_ylim(-0.35, 0.35)     # MDS2
     ax.set_zlim(-0.30, 0.30)     # MDS3
 
-    # Make panes transparent (we will draw our own black box edges).
     ax.xaxis.pane.set_alpha(0.0)
     ax.yaxis.pane.set_alpha(0.0)
     ax.zaxis.pane.set_alpha(0.0)
 
-    # Ticks: keep 0.05 tick spacing on all axes, but label every 0.1.
+    # Major ticks/labels only at 0.1.
     tick_step = 0.05
     label_step = 0.1
 
@@ -392,36 +490,42 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     y0, y1 = ax.get_ylim()
     z0, z1 = ax.get_zlim()
 
-    xt = build_fixed_ticks(x0, x1, tick_step)
-    yt = build_fixed_ticks(y0, y1, tick_step)
-    zt = build_fixed_ticks(z0, z1, tick_step)
+    eps = 1e-12
+    x_start = np.ceil((x0 - eps) / label_step) * label_step
+    x_stop = np.floor((x1 + eps) / label_step) * label_step
+    xt_major = np.arange(x_start, x_stop + eps, label_step)
 
-    ax.xaxis.set_major_locator(FixedLocator(xt))
-    ax.yaxis.set_major_locator(FixedLocator(yt))
-    ax.zaxis.set_major_locator(FixedLocator(zt))
+    y_start = np.ceil((y0 - eps) / label_step) * label_step
+    y_stop = np.floor((y1 + eps) / label_step) * label_step
+    yt_major = np.arange(y_start, y_stop + eps, label_step)
+
+    z_start = np.ceil((z0 - eps) / label_step) * label_step
+    z_stop = np.floor((z1 + eps) / label_step) * label_step
+    zt_major = np.arange(z_start, z_stop + eps, label_step)
+
+    ax.xaxis.set_major_locator(FixedLocator(xt_major))
+    ax.yaxis.set_major_locator(FixedLocator(yt_major))
+    ax.zaxis.set_major_locator(FixedLocator(zt_major))
 
     ax.xaxis.set_major_formatter(formatter)
     ax.yaxis.set_major_formatter(formatter)
     ax.zaxis.set_major_formatter(formatter)
 
-    # Keep equal visual spacing per tick-step across all axes.
+    # Equal visual spacing per 0.05 step across axes.
     nx = abs(x1 - x0) / tick_step if tick_step > 0 else 1.0
     ny = abs(y1 - y0) / tick_step if tick_step > 0 else 1.0
     nz = abs(z1 - z0) / tick_step if tick_step > 0 else 1.0
     ax.set_box_aspect((nx, ny, nz))
 
-    # Draw vertical stems with an opacity gradient, without "dashed" artifacts.
     z_bottom = float(ax.get_zlim()[0])
     n_segments = 640
 
     for x, y, z_top in zip(coords[:, c1], coords[:, c2], coords[:, c3]):
         zs = np.linspace(z_bottom, z_top, n_segments + 1)
-
         for i in range(n_segments):
             z0s = zs[i]
             z1s = zs[i + 1]
             alpha = 1.0 - (i / n_segments)
-
             ax.plot(
                 [x, x],
                 [y, y],
@@ -436,15 +540,12 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
                 zorder=2,
             )
 
-    # Tick label styling (keep your y/z behavior as-is).
     ax.tick_params(axis="x", labelrotation=0.0, labelsize=10.0, pad=0.0)
     ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.0)
     ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.0)
 
-    # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
-    # >>> UPDATED offsets for azim=10 (as requested)
-    X_TICKLABEL_DX_PX = 114.0
-    X_TICKLABEL_DY_PX = -80.
+    X_TICKLABEL_DX_PX = 119.0
+    X_TICKLABEL_DY_PX = -78.0
     _draw_custom_xticklabels_3d(
         fig=fig,
         ax=ax,
@@ -452,14 +553,11 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         dy_px=X_TICKLABEL_DY_PX,
         dx_px=X_TICKLABEL_DX_PX,
         spread_x_px=-3.75,
-        spread_y_px=-15,
+        spread_y_px=-15.0,
     )
 
-    # ---- X-axis-only fix: redraw x-axis title with pixel offsets ----
-    # >>> UPDATED offsets for azim=10 (as requested)
-    X_LABEL_DX_PX = 160.0
-    X_LABEL_DY_PX = -80.0
-
+    X_LABEL_DX_PX = 158.0
+    X_LABEL_DY_PX = -78.0
     _draw_custom_xlabel_3d(
         fig=fig,
         ax=ax,
@@ -470,7 +568,7 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         rotation=73.0,
     )
 
-    # Draw a black 3D bounding box (selected edges).
+    # Black bounding box edges (unchanged).
     x0, x1 = ax.get_xlim()
     y0, y1 = ax.get_ylim()
     z0, z1 = ax.get_zlim()
@@ -489,45 +587,116 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     edges = [
         (0, 2), (2, 6), (6, 4), (4, 0),
         (0, 1), (2, 3),
-        # (3, 7),  # removed: top edge on right MDS1–MDS3 plane (y=y1)
-        # (6, 7),  # removed: closer vertical edge on right MDS1–MDS3 plane (y=y1)
         (1, 3),
-        (1, 5),    # added: top edge on left MDS1–MDS3 plane (y=y0)
+        (1, 5),
     ]
 
     for i, j in edges:
         xi, yi, zi = corners[i]
         xj, yj, zj = corners[j]
-        ax.plot([xi, xj], [yi, yj], [zi, zj], color="black", linewidth=1.0)
+        ax.plot([xi, xj], [yi, yj], [zi, zj], color="black", linewidth=1.0,
+                zorder=10)
 
-    # --- Draw small, centered 3D tick marks (in + out) ---
-    # Axis-specific 3D tick sizes
-    # MDS1 (x-axis) → half smaller
-    # MDS2 (y-axis) + MDS3 (z-axis) → slightly bigger
+    # ------------------------------------------------------------------
+    # 3D ticks: keep labels at 0.1 steps, but draw our own black tick
+    # marks (symmetric around the spine) only where labels exist.
+    # This avoids mplot3d's internal tick coloring/shading quirks.
+    # ------------------------------------------------------------------
+    def _draw_custom_major_ticks(ax, xlim, ylim, zlim, xt, yt, zt):
+        """
+        Major ticks only (0.1). Draw ticks on the visible spines for azim≈10.
 
-    tick_x = 0.09    # half of ~0.18
-    tick_y = 0.50    # slightly bigger
-    tick_z = 0.50    # slightly bigger
+        Keep:
+        - MDS2 (y-axis) OK → edge (x=x1, z=z0), tick direction ±x
 
-    ax.xaxis._axinfo["tick"]["inward_factor"] = tick_x
-    ax.xaxis._axinfo["tick"]["outward_factor"] = tick_x
+        Fix:
+        - MDS1 (x-axis) → edge (y=y1, z=z0), tick direction ±y
+        - MDS3 (z-axis) → edge (x=x0, y=y1), tick direction ±x
+        """
+        x0, x1 = xlim
+        y0, y1 = ylim
+        z0, z1 = zlim
 
-    ax.yaxis._axinfo["tick"]["inward_factor"] = tick_y
-    ax.yaxis._axinfo["tick"]["outward_factor"] = tick_y
+        x_rng = float(abs(x1 - x0))
+        y_rng = float(abs(y1 - y0))
 
-    ax.zaxis._axinfo["tick"]["inward_factor"] = tick_z
-    ax.zaxis._axinfo["tick"]["outward_factor"] = tick_z
+        # Lengths in data units (match your "dash" aesthetic)
+        # x ticks half smaller; y/z slightly bigger
+        len_x = 0.010 * y_rng   # x-axis ticks extend along y
+        len_y = 0.040 * x_rng   # y-axis ticks extend along x
+        len_z = 0.040 * x_rng   # z-axis ticks extend along x
 
-    ax.grid(True)
+        lw = 1.0
+        col = "black"
+        zorder = 30
 
-    # =================== FIXED 3D LABEL POSITIONS (2D projected) =================== #
+        # --- MDS1 (x-axis): edge y=y1, z=z0, direction ±y ---
+        for xv in xt:
+            ax.plot(
+                [xv, xv],
+                [y1 - len_x, y1 + len_x],
+                [z0, z0],
+                color=col,
+                linewidth=lw,
+                zorder=zorder,
+            )
+
+        # --- MDS2 (y-axis): edge x=x1, z=z0, direction ±x (UNCHANGED) ---
+        for yv in yt:
+            ax.plot(
+                [x1 - len_y, x1 + len_y],
+                [yv, yv],
+                [z0, z0],
+                color=col,
+                linewidth=lw,
+                zorder=zorder,
+            )
+
+        # --- MDS3 (z-axis): edge x=x0, y=y0 (front-left), direction ±x ---
+        lw = 1.2  # <- slightly thicker so it reads over the grid
+        for zv in zt:
+            ax.plot(
+                [x1 - len_z, x1 + len_z],
+                [y0, y0],
+                [zv, zv],
+                color="black",
+                linewidth=lw,
+                zorder=10_000,
+            )
+
+    # Disable mpl 3D tick marks completely (keep tick labels).
+    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        axis._axinfo["tick"]["inward_factor"] = 0.0
+        axis._axinfo["tick"]["outward_factor"] = 0.0
+        axis._axinfo["tick"]["linewidth"] = {False: 0.0, True: 0.0}
+
+    # Major grid at 0.1 is OFF; we draw only the 0.05 grid planes manually.
+    ax.grid(False)
+    _draw_minor_grid_planes(
+        ax=ax,
+        xlim=(x0, x1),
+        ylim=(y0, y1),
+        zlim=(z0, z1),
+        step=tick_step,
+        color="0.7",
+        lw=0.8,
+    )
+
+    # Draw custom black ticks only at labeled (major) positions.
+    _draw_custom_major_ticks(
+        ax=ax,
+        xlim=(x0, x1),
+        ylim=(y0, y1),
+        zlim=(z0, z1),
+        xt=xt_major,
+        yt=yt_major,
+        zt=zt_major,
+    )
+
     fig.canvas.draw()
     inv_fig = fig.transFigure.inverted()
-
-    # >>> slightly smaller labels (as requested)
     LABEL_FONTSIZE = 10
 
-    # Per-label pixel offsets (tune once, then stable)
     LABEL_OFFSETS_PX = {
         "Heschl's Gyrus": (-27, -5),
         "Dorsal Striatum": (-80, 60),
@@ -543,7 +712,12 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     for x, y, z, name in zip(
         coords[:, c1], coords[:, c2], coords[:, c3], labels_disp
     ):
-        x2, y2, _ = proj3d.proj_transform(float(x), float(y), float(z), ax.get_proj())
+        x2, y2, _ = proj3d.proj_transform(
+            float(x),
+            float(y),
+            float(z),
+            ax.get_proj(),
+        )
         x_px, y_px = ax.transData.transform((x2, y2))
 
         dx_px, dy_px = LABEL_OFFSETS_PX.get(name, (6, 6))
@@ -572,11 +746,8 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
                 fontsize=LABEL_FONTSIZE,
             )
         t.set_in_layout(False)
-    # =============================================================================== #
 
-    # Manual trim that keeps the canvas stable (prevents reprojection drift).
-    fig.subplots_adjust(left=0., right=.97, bottom=-.05, top=1.1)
-
+    fig.subplots_adjust(left=0.0, right=0.97, bottom=-0.05, top=1.10)
     fig.savefig(out_path)
     plt.close(fig)
 
