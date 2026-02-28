@@ -132,9 +132,9 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     }
 
     xlim = axis_limits.get(c1, (float(coords[:, c1].min()),
-                               float(coords[:, c1].max())))
+                                float(coords[:, c1].max())))
     ylim = axis_limits.get(c2, (float(coords[:, c2].min()),
-                               float(coords[:, c2].max())))
+                                float(coords[:, c2].max())))
 
     x_range = float(abs(xlim[1] - xlim[0]))
     y_range = float(abs(ylim[1] - ylim[0]))
@@ -145,7 +145,16 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
 
     k = min(ref_figsize[0] / ref_x_range, ref_figsize[1] / ref_y_range)
     pad = 1.08
-    figsize = (max(5.0, k * x_range * pad), max(4.0, k * y_range * pad))
+
+    w = k * x_range * pad
+    h = k * y_range * pad
+
+    # For MDS1 vs MDS3: keep the same pixels-per-unit scale as the
+    # MDS2 vs MDS3 reference by NOT clamping the figsize.
+    if set(comps_plot) == {1, 3}:
+        figsize = (w, h)
+    else:
+        figsize = (max(5.0, w), max(4.0, h))
 
     fig, ax = plt.subplots(figsize=figsize, dpi=150)
     ax.scatter(coords[:, c1], coords[:, c2], color="mediumblue", alpha=0.8)
@@ -188,30 +197,6 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
 
     ax.set_aspect("equal", adjustable="box")
 
-    # Remove lateral blank borders for MDS1 vs MDS3 only
-    if set(comps_plot) == {1, 3}:
-        fig.canvas.draw()
-
-        bbox = ax.get_position()
-        fig_w, fig_h = fig.get_size_inches()
-
-        x_range = abs(ax.get_xlim()[1] - ax.get_xlim()[0])
-        y_range = abs(ax.get_ylim()[1] - ax.get_ylim()[0])
-
-        data_ratio = y_range / x_range
-        fig_ratio = fig_h / fig_w
-
-        new_width = bbox.height * (fig_ratio / data_ratio)
-        center = bbox.x0 + bbox.width / 2.0
-        new_x0 = center - new_width / 2.0
-
-        ax.set_position([
-            new_x0,
-            bbox.y0,
-            new_width,
-            bbox.height,
-        ])
-
     # Ticks/grid: 0.05 tick spacing, label every 0.1 (as in 3D).
     tick_step = 0.05
     label_step = 0.1
@@ -249,14 +234,20 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     ax.axhline(0, lw=0.9, color="mediumblue", zorder=1)
     ax.axvline(0, lw=0.9, color="mediumblue", zorder=1)
 
-    title_pad = 6
     if set(comps_plot) == {1, 3}:
-        title_pad = 15  # slightly higher for MDS1 vs MDS3
-
-    ax.set_title(
-        "Classical Multidimensional Scaling - 3 components",
-        pad=title_pad,
-    )
+        ax.set_title("")  # remove axes title
+        fig.text(
+            0.5, 0.985,
+            "Classical Multidimensional Scaling\n 3 components",
+            ha="center",
+            va="top",
+            fontsize=plt.rcParams["axes.titlesize"],
+        )
+    else:
+        ax.set_title(
+            "Classical Multidimensional Scaling\n 3 components",
+            pad=10,
+        )
 
     xlabel = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ylabel = f"MDS{c2 + 1} ({var[c2]:.1%})"
@@ -265,12 +256,18 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
 
     nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30)
 
-    fig.tight_layout(pad=0.5)
     if set(comps_plot) == {1, 3}:
+        fig.tight_layout(pad=0.5, rect=(0.0, 0.0, 1.0, 0.94))
+    else:
+        fig.tight_layout(pad=0.5)
+
+    if set(comps_plot) == {1, 3}:
+        # Explicit margins to visually center the plot (no tight bbox crop).
+        fig.subplots_adjust(left=0.18, right=0.96)
         fig.savefig(
             out_path,
             bbox_inches="tight",
-            pad_inches=0.08,   # slightly less aggressive trimming
+            pad_inches=0.10,
         )
     else:
         fig.savefig(
@@ -278,6 +275,7 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
             bbox_inches="tight",
             pad_inches=0.08,
         )
+
     plt.close(fig)
 
 
@@ -332,7 +330,7 @@ def _draw_custom_xticklabels_3d(
             ha="center",
             va="bottom",
             fontsize=fontsize,
-            rotation=0.,          # ← rotate a little
+            rotation=0.,             # ← rotate a little
             rotation_mode="anchor",  # important for correct pivot
         )
         txt.set_in_layout(False)
