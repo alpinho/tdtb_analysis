@@ -763,6 +763,101 @@ def twoway_rmanova_gtasks(df, out_dir, prefix, roi,
         )
 
 
+def twoway_rmanova_taskmod_perroi(
+    df,
+    out_dir,
+    prefix,
+    roi,
+    alternative="two-sided",
+    hems=("lh", "rh", "bh"),
+):
+    """
+    2-way RM-ANOVA PER ROI: Task × Modality.
+
+    - Drops "All Tasks"
+    - If Category exists, averages PSC across Category first
+      so the design is Subject × Task × Modality (per hemisphere).
+    - Writes ANOVA + posthoc TSVs per hemisphere.
+    """
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep="\t")
+
+    if "Contrast" in df.columns:
+        df = df.drop(columns=["Contrast"])
+
+    df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
+
+    # Keep only real tasks
+    df = df[df.Task != "All Tasks"].copy()
+
+    # If Category is present, collapse it 
+    # (we want Task × Modality only)
+    if "Category" in df.columns:
+        df = (
+            df.groupby(
+                ["Subject", "Task", "Modality", "Hemisphere"],
+                as_index=False,
+            )
+            .agg({"PSC": "mean"})
+        )
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    for hem in hems:
+        db = df[df.Hemisphere == hem].copy()
+
+        _assert_no_nan_psc(db, where=f"2w_taskxmod {roi} {hem}")
+        _assert_unique_cells(
+            db,
+            ["Subject", "Task", "Modality", "Hemisphere"],
+            where=f"2w_taskxmod {roi} {hem}",
+        )
+        _assert_expected_levels(
+            db,
+            "Task",
+            ["Production", "Perception", "NTFD"],
+            where=f"2w_taskxmod {roi} {hem}",
+        )
+        _assert_expected_levels(
+            db,
+            "Modality",
+            ["Auditory", "Visual"],
+            where=f"2w_taskxmod {roi} {hem}",
+        )
+        _assert_complete_within(
+            db,
+            "Subject",
+            ["Task", "Modality"],
+            where=f"2w_taskxmod {roi} {hem}",
+        )
+
+        anova = pg.rm_anova(
+            data=db,
+            dv="PSC",
+            within=["Task", "Modality"],
+            subject="Subject",
+            detailed=True,
+            effsize="ng2",
+        )
+
+        post = pg.pairwise_tests(
+            data=db,
+            dv="PSC",
+            within=["Task", "Modality"],
+            subject="Subject",
+            alternative=alternative,
+            return_desc=True,
+            padjust="holm",
+            effsize="cohen",
+        )
+
+        base = f"{prefix}_{roi}_{hem}_2w-taskxmod_"
+        anova.to_csv(os.path.join(out_dir, base + "anova.tsv"),
+                     sep="\t", index=False)
+        post.to_csv(os.path.join(out_dir, base + "posthoc.tsv"),
+                    sep="\t", index=False)
+
+
 def oneway_rmanova(df, tasks_dic, out_dir, prefix, roi,
                    hems=('lh', 'rh', 'bh'),
                    modalities=('Auditory', 'Visual')):
@@ -1845,6 +1940,12 @@ if __name__ == '__main__':
                     t2_dir = os.path.join(anovas_dir, '2way-anova_task')
                     twoway_rmanova_task(
                         df_path, tasks, t2_dir, tag, rlab
+                    )
+
+                    # Task × Modality
+                    tm_dir = os.path.join(anovas_dir, '2way-anova_taskxmod')
+                    twoway_rmanova_taskmod_perroi(
+                        df_path, tm_dir, tag, rlab
                     )
 
                     ow_dir = os.path.join(anovas_dir, '1way-anova')
