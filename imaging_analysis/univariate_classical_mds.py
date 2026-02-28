@@ -242,9 +242,11 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     # (pixel-wise) across panels.
     fig.subplots_adjust(left=0.20, right=0.96, bottom=0.12, top=0.90)
 
-    fig.savefig(out_path)
-    plt.close(fig)
-
+    fig.savefig(
+        out_path,
+        bbox_inches="tight",
+        pad_inches=0.08,
+    )
     plt.close(fig)
 
 
