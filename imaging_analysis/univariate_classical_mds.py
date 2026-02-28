@@ -661,15 +661,15 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     LABEL_FONTSIZE = 10
 
     LABEL_OFFSETS_PX = {
-        "Heschl's Gyrus": (-27, -5),
-        "Dorsal Striatum": (-80, 60),
-        "Cerebellum": (-17, 33),
-        "Occipital\nLobe": (25, 30),
+        "Heschl's Gyrus": (-85, 4),
+        "Dorsal Striatum": (-98, 130),
+        "Cerebellum": (-8, 44),
+        "Occipital\nLobe": (58, 40),
         "Occipital Lobe": (8, 6),
-        "PMD": (7, -5),
-        "PMV": (9, 1),
-        "PreSMA": (4, 6),
-        "SMA": (-72, 10),
+        "PMD": (7, 8),
+        "PMV": (8, 18),
+        "PreSMA": (-4, 32),
+        "SMA": (-90, 38),
     }
 
     for x, y, z, name in zip(coords[:, c1], coords[:, c2], coords[:, c3], labels_disp):
