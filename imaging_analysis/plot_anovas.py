@@ -1093,15 +1093,21 @@ def plot_psc_boxplots(
             x1 = max(a.get_position().x1 for a in row_axes)
             y1 = max(a.get_position().y1 for a in row_axes)
 
+            # String values for fonweight: 
+            # 'ultralight', 'light', 'normal', 'regular', 'book', 
+            # 'medium', 'roman', 'semibold', 'demibold', 'demi', 
+            # 'bold', 'heavy', 'extra bold', 'black'
+            # Relative values like 'lighter' and 'bolder' are also 
+            # available.
             fig.text(
                 (x0 + x1) / 2.0,
                 y1 + 0.010,
                 spec["roi_label"],
                 ha="center",
                 va="bottom",
-                fontsize=axis_label_fs + 6,
+                fontsize=axis_label_fs + 8,
                 color="k",
-                fontweight="medium",
+                fontweight="semibold",
             )
 
         # Modality block labels under each block, below the task xlabels.
