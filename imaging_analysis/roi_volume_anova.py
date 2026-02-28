@@ -141,7 +141,6 @@ def _assert_complete_within(df, subject, within_cols, where=''):
     )
 
 
-
 def _gg_epsilon_from_cov(cov: np.ndarray) -> float:
     """Compute Greenhouse-Geisser epsilon from a covariance matrix.
 
@@ -356,10 +355,7 @@ def _ng2_threeway_within(df: pd.DataFrame,
     return out
 
 
-
-
 # =========================== ANOVAS ================================ #
-
 
 def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
     """3-way RM-ANOVA: Category × Modality × Task."""
@@ -706,7 +702,6 @@ def twoway_rmanova_task(df, tasks_dic, out_dir, prefix, roi,
                 os.path.join(out_dir, base + 'posthoc.tsv'),
                 sep='\t', index=False
             )
-
 
 
 def twoway_rmanova_gtasks(df, out_dir, prefix, roi,
