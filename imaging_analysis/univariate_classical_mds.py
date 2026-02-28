@@ -443,22 +443,22 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
 
     # ---- X-axis-only fix: redraw x tick labels next to their ticks ----
     # >>> UPDATED offsets for azim=10 (as requested)
-    X_TICKLABEL_DX_PX = 62.0
-    X_TICKLABEL_DY_PX = -50.
+    X_TICKLABEL_DX_PX = 115.0
+    X_TICKLABEL_DY_PX = -80.
     _draw_custom_xticklabels_3d(
         fig=fig,
         ax=ax,
         fontsize=10,
         dy_px=X_TICKLABEL_DY_PX,
         dx_px=X_TICKLABEL_DX_PX,
-        spread_x_px=-2.0,
-        spread_y_px=-5.0,
+        spread_x_px=-3.75,
+        spread_y_px=-15,
     )
 
     # ---- X-axis-only fix: redraw x-axis title with pixel offsets ----
     # >>> UPDATED offsets for azim=10 (as requested)
-    X_LABEL_DX_PX = 102.0
-    X_LABEL_DY_PX = -45.0
+    X_LABEL_DX_PX = 160.0
+    X_LABEL_DY_PX = -80.0
 
     _draw_custom_xlabel_3d(
         fig=fig,
@@ -561,7 +561,9 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
         t.set_in_layout(False)
     # =============================================================================== #
 
-    fig.tight_layout()
+    # Manual trim that keeps the canvas stable (prevents reprojection drift).
+    fig.subplots_adjust(left=0., right=.97, bottom=-.05, top=1.1)
+
     fig.savefig(out_path)
     plt.close(fig)
 
