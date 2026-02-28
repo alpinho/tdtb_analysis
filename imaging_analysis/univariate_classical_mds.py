@@ -110,8 +110,17 @@ def nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30):
 
 
 def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
-    """Plot 2D classical MDS and keep labels fully inside axes."""
+    """
+    Plot 2D classical MDS and keep labels fully inside axes.
 
+    Supports per-panel, per-ROI label offsets via LABEL_OFFSETS_BY_PANEL.
+
+    Notes
+    -----
+    - Offsets are in *data units* (same units as coords).
+    - Panel key uses the plotted component order (after the MDS1 vs MDS2
+      swap). So for input comps=(1, 2), the panel key is (2, 1).
+    """
     # For MDS1 vs MDS2, reverse the view: MDS2 on x, MDS1 on y.
     if tuple(comps) == (1, 2):
         comps_plot = (2, 1)
@@ -125,6 +134,7 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     denom = var.sum() if var.sum() > 0 else 1.0
     var = var / denom
 
+    # Fixed limits for first 3 components; others are data-driven.
     axis_limits = {
         0: (-0.35, 0.05),   # MDS1
         1: (-0.35, 0.35),   # MDS2
@@ -155,11 +165,22 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
 
     labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
+    # For panel (1, 3), remove line break in Occipital label
+    if comps_plot in [(1, 3), (2, 3)]:
+        labels_disp = [
+            name.replace("\n", " ")
+            if name == "Occipital\nLobe"
+            else name
+            for name in labels_disp
+        ]
+
+    # Default offset magnitude (used for the fallback pattern).
     x_rng = float(coords[:, c1].max() - coords[:, c1].min())
     y_rng = float(coords[:, c2].max() - coords[:, c2].min())
     dx = x_rng * 0.015 if x_rng > 0 else 0.01
     dy = y_rng * 0.015 if y_rng > 0 else 0.01
 
+    # Default pattern for labels without per-ROI overrides.
     offsets = [
         (dx, 0.0),
         (0.0, dy),
@@ -171,19 +192,77 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
         (-dx, -dy),
     ]
 
+    # -----------------------------------------------------------------
+    # Per-panel, per-ROI offsets (DATA UNITS).
+    # Key: comps_plot tuple, e.g. (2, 1) for input comps=(1, 2).
+    # Value: dict mapping ROI display label -> (off_x, off_y).
+    #
+    # Add/adjust entries as needed; panels not listed fall back to the
+    # default cycling pattern above.
+    # -----------------------------------------------------------------
+    LABEL_OFFSETS_BY_PANEL = {
+        (2, 1): {  # MDS2 (x) vs MDS1 (y)
+            "Dorsal Striatum": (-.175, .000),
+            "Cerebellum": (-.02, .018),
+            "PreSMA": (-.0825, -.01),
+            "SMA": (-.055, .0005),
+            "PMD": (0.01, -.1),
+            "PMV": (.0125, -.001),
+            "Heschl's Gyrus": (.015, -.0015),
+            "Occipital\nLobe": (0., .035),
+        },
+        (1, 3): {  # MDS1 (x) vs MDS3 (y)
+            "Dorsal Striatum": (.015, .000),
+            "Cerebellum": (.009, 0.0075),
+            "PreSMA": (.012, -.0025),
+            "SMA": (.012, .000),
+            "PMD": (.01, -.001),
+            "PMV": (.0125, -.001),
+            "Heschl's Gyrus": (-.085, -.025),
+            "Occipital Lobe": (.085, 0.),
+        },
+        (2, 3): {  # MDS2 (x) vs MDS3 (y)
+            "Dorsal Striatum": (-.1725, .000),
+            "Cerebellum": (-.126, .0085),
+            "PreSMA": (-.087, -.006),
+            "SMA": (-.057, .0001),
+            "PMD": (.015, -.001),
+            "PMV": (.015, -.001),
+            "Heschl's Gyrus": (.015, -.001),
+            "Occipital Lobe": (0., .02),
+        },
+    }
+
+    panel_offsets = LABEL_OFFSETS_BY_PANEL.get(comps_plot, {})
+
     texts = []
     for idx, (x_val, y_val, name) in enumerate(
         zip(coords[:, c1], coords[:, c2], labels_disp)
     ):
-        off_x, off_y = offsets[idx % len(offsets)]
-        txt = ax.text(
-            x_val + off_x,
-            y_val + off_y,
-            name,
-            va="center",
-            ha="left",
-            clip_on=True,
-        )
+        if name in panel_offsets:
+            off_x, off_y = panel_offsets[name]
+        else:
+            off_x, off_y = offsets[idx % len(offsets)]
+
+        if name.startswith("Occipital"):
+            txt = ax.text(
+                x_val + float(off_x),
+                y_val + float(off_y),
+                name,
+                va="center",
+                ha="center",
+                multialignment="center",
+                clip_on=True,
+            )
+        else:
+            txt = ax.text(
+                x_val + float(off_x),
+                y_val + float(off_y),
+                name,
+                va="center",
+                ha="left",
+                clip_on=True,
+            )
         texts.append(txt)
 
     ax.set_xlim(*xlim)
@@ -661,15 +740,15 @@ def plot_mds_3d(coords, labels, explained_var, out_path, comps=(1, 2, 3)):
     LABEL_FONTSIZE = 10
 
     LABEL_OFFSETS_PX = {
-        "Heschl's Gyrus": (-85, 4),
         "Dorsal Striatum": (-98, 130),
         "Cerebellum": (-8, 44),
-        "Occipital\nLobe": (58, 40),
-        "Occipital Lobe": (8, 6),
-        "PMD": (7, 8),
-        "PMV": (8, 18),
         "PreSMA": (-4, 32),
         "SMA": (-90, 38),
+        "PMD": (7, 8),
+        "PMV": (8, 18),
+        "Heschl's Gyrus": (-85, 4),
+        "Occipital\nLobe": (58, 40),
+        "Occipital Lobe": (8, 6),
     }
 
     for x, y, z, name in zip(coords[:, c1], coords[:, c2], coords[:, c3], labels_disp):
