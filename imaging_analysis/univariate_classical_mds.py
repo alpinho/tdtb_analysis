@@ -149,12 +149,9 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     w = k * x_range * pad
     h = k * y_range * pad
 
-    # For MDS1 vs MDS3: keep the same pixels-per-unit scale as the
-    # MDS2 vs MDS3 reference by NOT clamping the figsize.
-    if set(comps_plot) == {1, 3}:
-        figsize = (w, h)
-    else:
-        figsize = (max(5.0, w), max(4.0, h))
+    # Keep the same pixels-per-unit scale across all 2D panels by not
+    # clamping the figure size (clamps change pixels per data unit).
+    figsize = (w, h)
 
     fig, ax = plt.subplots(figsize=figsize, dpi=150)
     ax.scatter(coords[:, c1], coords[:, c2], color="mediumblue", alpha=0.8)
@@ -234,21 +231,6 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     ax.axhline(0, lw=0.9, color="mediumblue", zorder=1)
     ax.axvline(0, lw=0.9, color="mediumblue", zorder=1)
 
-    if set(comps_plot) == {1, 3}:
-        ax.set_title("")  # remove axes title
-        fig.text(
-            0.5, 0.985,
-            "Classical Multidimensional Scaling\n 3 components",
-            ha="center",
-            va="top",
-            fontsize=plt.rcParams["axes.titlesize"],
-        )
-    else:
-        ax.set_title(
-            "Classical Multidimensional Scaling\n 3 components",
-            pad=10,
-        )
-
     xlabel = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ylabel = f"MDS{c2 + 1} ({var[c2]:.1%})"
     ax.set_xlabel(xlabel)
@@ -256,25 +238,12 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
 
     nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30)
 
-    if set(comps_plot) == {1, 3}:
-        fig.tight_layout(pad=0.5, rect=(0.0, 0.0, 1.0, 0.94))
-    else:
-        fig.tight_layout(pad=0.5)
+    # Lock margins so the axes box is identical 
+    # (pixel-wise) across panels.
+    fig.subplots_adjust(left=0.20, right=0.96, bottom=0.12, top=0.90)
 
-    if set(comps_plot) == {1, 3}:
-        # Explicit margins to visually center the plot (no tight bbox crop).
-        fig.subplots_adjust(left=0.18, right=0.96)
-        fig.savefig(
-            out_path,
-            bbox_inches="tight",
-            pad_inches=0.10,
-        )
-    else:
-        fig.savefig(
-            out_path,
-            bbox_inches="tight",
-            pad_inches=0.08,
-        )
+    fig.savefig(out_path)
+    plt.close(fig)
 
     plt.close(fig)
 
