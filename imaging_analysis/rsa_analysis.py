@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 26th of March 2025
-Last Update: June 2025
+Last Update: March 2026
 
 Compatibility: Python 3.10.16
 """
@@ -382,7 +382,7 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                     iroi_mask_dir, 'all', region, atlas, 
                     'individual_roi_masks',
                     (f'{tag}_sub-{subjects[0]:02d}_'
-                    f'{roi}_{hems[0]}_mask.nii.gz')
+                     f'{roi}_{hems[0]}_mask.nii.gz')
                 )
             else:
                 first_mask_path = os.path.join(
@@ -423,7 +423,7 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                                     iroi_mask_dir, 'all', region, atlas,
                                     'individual_roi_masks',
                                     (f'{tag}_sub-{subject:02d}_'
-                                    f'{roi}_{hem}_mask.nii.gz')
+                                     f'{roi}_{hem}_mask.nii.gz')
                                 )
                             else:
                                 iroi_mask_path = os.path.join(
@@ -442,8 +442,10 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                             # Find the beta map row matching subject,
                             # condition, run
                             row_match = df_unfiltered[
-                                (df_unfiltered['subject'] == subject) &
-                                (df_unfiltered['condition_name'] == condition) &
+                                (df_unfiltered['subject'] == subject)
+                                &
+                                (df_unfiltered['condition_name'] == condition)
+                                &
                                 (df_unfiltered['run_number'] == run)
                             ]
                             if len(row_match) != 1:
@@ -462,7 +464,7 @@ def grandglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                             else:
                                 assert smoothing == 'smoothed'
                                 betamap_path = os.path.join(
-                                    base_dir, 
+                                    base_dir,
                                     row_match.iloc[0][
                                         'swmasked_betamap_prewhitened_path']
                                 )
@@ -522,11 +524,11 @@ def compute_euclidean_distances(Y, tasks, conditions,
 
     # Filter conditions based on the specified task
     if tasks == ['prod']:
-        Y_hem = Y_hem[:4] # First 4 conditions 
+        Y_hem = Y_hem[:4]  # First 4 conditions
     elif tasks == ['percep']:
-        Y_hem = Y_hem[4:8] # Next 4 conditions
+        Y_hem = Y_hem[4:8]  # Next 4 conditions
     elif tasks == ['ntfd']:
-        Y_hem = Y_hem[8:] # Last 4 conditions
+        Y_hem = Y_hem[8:]  # Last 4 conditions
     else:
         assert tasks == ['prod', 'percep', 'ntfd']
         pass
@@ -756,7 +758,8 @@ def rsa(tags, tasks, regions, rois, rsa_dir, thresh_label, smooth_label,
 
             # Create output folder if it does not exist
             output_dir = os.path.join(
-                rsa_folder, f'euclidean_distances_{thresh_label}_{smooth_label}')
+                rsa_folder, 
+                f'euclidean_distances_{thresh_label}_{smooth_label}')
             os.makedirs(output_dir, exist_ok=True)
 
             # Save the distances to a .npy file
@@ -958,13 +961,14 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
             y_vals = []
             for t in task_order:
                 for m in modality_order:
-                    sub = d[(d['task']==t)&(d['modality']==m)]
-                    if sub.empty: continue
-                    q1,q3 = sub['mean_value'].quantile([0.25,0.75])
+                    sub = d[(d['task'] == t) & (d['modality'] == m)]
+                    if sub.empty:
+                        continue
+                    q1, q3 = sub['mean_value'].quantile([0.25, 0.75])
                     y_vals.append(q3 + 1.5*(q3-q1))
             top = max(y_vals) if y_vals else 0
             bot = min(d['mean_value'].min(), 0)
-            margin = (top-bot)*0.2 if top!=bot else 0.05
+            margin = (top-bot)*0.2 if top != bot else 0.05
             ax.set_ylim(bot-margin, top+margin)
 
             # annotations
@@ -972,14 +976,15 @@ def periodicity_significance(output_dir, tasks, conditions, tags, regions,
                                   len(valid_modalities))
             for i, t in enumerate(task_order):
                 for j, m in enumerate(modality_order):
-                    sub = d[(d['task']==t)&(d['modality']==m)]
-                    if sub.empty: continue
+                    sub = d[(d['task'] == t) & (d['modality'] == m)]
+                    if sub.empty:
+                        continue
                     p = sub['p_val'].iloc[0]
                     sig = (
-                        '****' if p<1e-4 else
-                        '***'  if p<1e-3 else
-                        '**'   if p<1e-2 else
-                        '*'    if p<0.05  else
+                        '****' if p < 1e-4 else
+                        '***' if p < 1e-3 else
+                        '**' if p < 1e-2 else
+                        '*' if p < 0.05 else
                         'n.s.'
                     )
                     x = i + offsets[j]
@@ -1088,7 +1093,7 @@ def encoding_significance(output_dir, conditions, tags,
             n_subj, n_cond, _ = idist.shape
             cond_labels = [
                 f"{abbr}_{t}"
-                for t in ['prod','percep','ntfd']
+                for t in ['prod', 'percep', 'ntfd']
                 for abbr in conditions.values()
             ]
             idx = np.tril_indices(n_cond, k=-1)
@@ -1109,20 +1114,21 @@ def encoding_significance(output_dir, conditions, tags,
             df_all['task2'] = df_all['label2'].str.split('_').str[-1]
             df_all['mod'] = df_all['label1'].str[0]
             df_all = df_all[df_all['mod'] == df_all['label2'].str[0]]
-            df_all['modality'] = df_all['mod'].map({'a':'audio','v':'visual'})
+            df_all['modality'] = \
+                df_all['mod'].map({'a': 'audio', 'v': 'visual'})
 
             # collect significance
             for t1, t2 in task_pairs:
                 for modality in valid_modalities:
                     sub = df_all[
-                        ((df_all['task1']==t1)&(df_all['task2']==t2))|
-                        ((df_all['task1']==t2)&(df_all['task2']==t1))
+                        ((df_all['task1'] == t1) & (df_all['task2'] == t2)) |
+                        ((df_all['task1'] == t2) & (df_all['task2'] == t1))
                     ]
-                    sub = sub[sub['modality']==modality]
+                    sub = sub[sub['modality'] == modality]
                     if sub.empty:
                         continue
                     mps = sub.groupby('subject')['value'].mean().reset_index()
-                    if len(mps)>1:
+                    if len(mps) > 1:
                         t_stat, p_val = ttest_1samp(mps['value'], popmean=0)
                     else:
                         t_stat, p_val = np.nan, np.nan
@@ -1158,21 +1164,21 @@ def encoding_significance(output_dir, conditions, tags,
             len(valid_rois), 1,
             figsize=(24, 5*len(valid_rois)), sharex=True
         )
-        if len(valid_rois)==1:
-            axes=[axes]
+        if len(valid_rois) == 1:
+            axes = [axes]
         for ax, roi in zip(axes, valid_rois):
             # remove x-axis tick marks
             ax.tick_params(axis='x', which='both', bottom=False, top=False)
-            dfp = concat[concat['roi']==roi]
+            dfp = concat[concat['roi'] == roi]
             sns.boxplot(
                 data=dfp,
                 x='pair', y='mean_value', hue='modality',
                 order=pair_labels, hue_order=valid_modalities,
                 width=box_width, notch=True,
                 showfliers=False, meanline=True, showmeans=True,
-                medianprops={'color':'k','linewidth':0},
-                meanprops={'color':'tab:brown','linewidth':1.5},
-                boxprops={'alpha':0.5,'edgecolor':'black'},
+                medianprops={'color': 'k', 'linewidth': 0},
+                meanprops={'color': 'tab:brown', 'linewidth': 1.5},
+                boxprops={'alpha': 0.5, 'edgecolor': 'black'},
                 ax=ax
             )
             ax.margins(x=0.15)
@@ -1182,13 +1188,15 @@ def encoding_significance(output_dir, conditions, tags,
             y_vals = []
             for pair in pair_labels:
                 for mod in valid_modalities:
-                    sub = dfp[(dfp['pair']==pair)&(dfp['modality']==mod)]
-                    if sub.empty: continue
-                    q1, q3 = sub['mean_value'].quantile([0.25,0.75])
+                    sub = \
+                        dfp[(dfp['pair'] == pair) & (dfp['modality'] == mod)]
+                    if sub.empty:
+                        continue
+                    q1, q3 = sub['mean_value'].quantile([0.25, 0.75])
                     y_vals.append(q3 + 1.5*(q3-q1))
             top = max(y_vals) if y_vals else dfp['mean_value'].max()
             bottom = min(dfp['mean_value'].min(), 0)
-            margin = (top - bottom) * .05 if top!=bottom else 0.02
+            margin = (top - bottom) * .05 if top != bottom else 0.02
             y_annot = top + margin
 
             # symmetric offsets for modalities
@@ -1196,15 +1204,23 @@ def encoding_significance(output_dir, conditions, tags,
                                   len(valid_modalities))
             for i, pair in enumerate(pair_labels):
                 for j, mod in enumerate(valid_modalities):
-                    sub = dfp[(dfp['pair']==pair)&(dfp['modality']==mod)]
-                    if sub.empty: continue
+                    sub = \
+                        dfp[(dfp['pair'] == pair) & (dfp['modality'] == mod)]
+                    if sub.empty: 
+                        continue
                     p = sub['p_val'].iloc[0]
-                    if np.isnan(p): sig = 'n.s.'
-                    elif p<1e-4: sig='****'
-                    elif p<1e-3: sig='***'
-                    elif p<1e-2: sig='**'
-                    elif p<0.05: sig='*'
-                    else: sig=''
+                    if np.isnan(p):
+                        sig = 'n.s.'
+                    elif p < 1e-4:
+                        sig = '****'
+                    elif p < 1e-3:
+                        sig = '***'
+                    elif p < 1e-2:
+                        sig = '**'
+                    elif p < 0.05:
+                        sig = '*'
+                    else:
+                        sig = 'n.s.'
                     x = i + offsets[j]
                     ax.text(x, y_annot, sig,
                             ha='center', va='bottom',
@@ -1292,13 +1308,14 @@ roi_names = ['dstr',
 # roi_names = ['heschl',
 #              'occipital']
 
-# itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
+# itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 
+#          'g']
 itags = ['i', 'i8a']
 
 hemispheres = ['bh']  # Both hemispheres
 
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
-smooth = 'unsmoothed' # 'smoothed'
+smooth = 'unsmoothed'  # 'smoothed'
 
 iroi_main_dir = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
