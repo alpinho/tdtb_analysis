@@ -20,6 +20,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from plot_anovas import bootstrap_conf_intervals
+
 
 # ========================== FUNCTIONS =================================
 
@@ -110,22 +112,47 @@ def plot_boxplots_mod(data, roi_name, y_label='Percent Signal Change (%)',
         }
         df = pd.DataFrame(data=datum)
 
-        # Create boxplot with reduced width and no dodge
-        sns.boxplot(
-            ax=ax_i,
-            x='Conditions',
-            y=y_label,
-            data=df,
-            width=.5,  # Keep width at 0.4
+        # # Create boxplot with reduced width and no dodge
+        # sns.boxplot(
+        #     ax=ax_i,
+        #     x='Conditions',
+        #     y=y_label,
+        #     data=df,
+        #     width=.5,  # Keep width at 0.4
+        #     notch=True,
+        #     dodge=False,  # Prevents extra spacing between boxes
+        #     showmeans=True,
+        #     meanline=True,
+        #     meanprops={'color': 'black', 'linewidth': 1.5},
+        #     medianprops={'visible': False},  # Removes black median line
+        #     boxprops={'facecolor': "none", "edgecolor": "black"},
+        #     whiskerprops={'color': 'black'},
+        #     capprops={'color': 'black'}
+        # )
+
+        data_boxes = [conditions[:, 0], conditions[:, 1]]
+        conf_intervals = bootstrap_conf_intervals(
+            data=data_boxes,
+            n_boot=5000,
+            alpha=0.05,
+            seed=12345,
+        )
+
+        ax_i.boxplot(
+            data_boxes,
+            positions=[0, 1],
+            widths=0.5,
             notch=True,
-            dodge=False,  # Prevents extra spacing between boxes
+            patch_artist=True,
             showmeans=True,
             meanline=True,
+            showfliers=False,
             meanprops={'color': 'black', 'linewidth': 1.5},
-            medianprops={'visible': False},  # Removes black median line
-            boxprops={'facecolor': "none", "edgecolor": "black"},
+            medianprops={'linewidth': 0, 'color': 'none'},
+            boxprops={'facecolor': 'none', 'edgecolor': 'black'},
             whiskerprops={'color': 'black'},
-            capprops={'color': 'black'}
+            capprops={'color': 'black'},
+            conf_intervals=conf_intervals,
         )
 
         # Overlay individual data points as spheres with colored contours
