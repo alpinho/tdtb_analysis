@@ -281,6 +281,48 @@ def within_axis_annotation(
     )
 
 
+def bootstrap_median_ci(
+    vals: np.ndarray,
+    n_boot: int = 5000,
+    alpha: float = 0.05,
+    rng: np.random.Generator | None = None,
+) -> tuple[float, float]:
+    """Percentile bootstrap CI for the median (subjects resampled)."""
+    x = np.asarray(vals, dtype=float)
+    x = x[np.isfinite(x)]
+    n = x.size
+    if n < 3:
+        med = float(np.median(x)) if n > 0 else np.nan
+        return (med, med)
+    if rng is None:
+        rng = np.random.default_rng()
+    idx = rng.integers(0, n, size=(n_boot, n))
+    meds = np.median(x[idx], axis=1)
+    lo = float(np.quantile(meds, alpha / 2.0))
+    hi = float(np.quantile(meds, 1.0 - alpha / 2.0))
+    return (lo, hi)
+
+
+def bootstrap_conf_intervals(
+    data: list[np.ndarray],
+    n_boot: int = 5000,
+    alpha: float = 0.05,
+    seed: int = 12345,
+) -> np.ndarray:
+    """Compute median CIs for each box in data."""
+    rng = np.random.default_rng(seed)
+    cis: list[tuple[float, float]] = []
+    for vals in data:
+        lo, hi = bootstrap_median_ci(
+            vals=np.asarray(vals, dtype=float),
+            n_boot=n_boot,
+            alpha=alpha,
+            rng=rng,
+        )
+        cis.append((lo, hi))
+    return np.asarray(cis, dtype=float)
+
+
 # ============================ PLOTTING ============================= #
 
 
@@ -473,15 +515,15 @@ def plot_psc_boxplots(
             "step_scale_per_layer": 0.0,
             "headroom_frac": 0.0,
         },
-        # "presma": {
-        #     "pad_frac": 0.06,
-        #     "base_frac": 0.04,
-        #     "step_frac": 0.09,
-        #     "step_min_frac": 0.09,
-        #     "step_max_frac": 0.09,
-        #     "step_scale_per_layer": 0.0,
-        #     "headroom_frac": 0.0,
-        # },
+        "presma": {
+            "pad_frac": 0.06,
+            "base_frac": 0.04,
+            "step_frac": 0.09,
+            "step_min_frac": 0.09,
+            "step_max_frac": 0.09,
+            "step_scale_per_layer": 0.0,
+            "headroom_frac": 0.0,
+        },
         "sma": {
             "pad_frac": 0.06,
             "base_frac": 0.04,
@@ -550,7 +592,6 @@ def plot_psc_boxplots(
     #         "step_scale_per_layer": 0.0,
     #     },
     # })
-
 
     if pooled_only:
         annot_y_frac_step = 0.11
@@ -975,6 +1016,21 @@ def plot_psc_boxplots(
                 positions = pos_3
                 ax.set_xlim(*xlim_3)
 
+            # --- Bootstrap notch confidence intervals ---
+            use_bootstrap_notches = True
+            boot_n = 5000
+            boot_alpha = 0.05
+            boot_seed = 12345
+
+            conf_intervals = None
+            if use_bootstrap_notches:
+                conf_intervals = bootstrap_conf_intervals(
+                    data=data,
+                    n_boot=boot_n,
+                    alpha=boot_alpha,
+                    seed=boot_seed,
+                )
+
             bp = ax.boxplot(
                 data,
                 positions=positions,
@@ -985,6 +1041,7 @@ def plot_psc_boxplots(
                 showmeans=False,
                 whis=whis,
                 medianprops={"linewidth": 0, "color": "none"},
+                conf_intervals=conf_intervals,
             )
 
             for patch, cat in zip(bp["boxes"], cats):
@@ -1413,30 +1470,30 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Production", "NTFD"),
         pvalue=0.000000612729547846731,
     ),
-    # dict(
-    #     roi="cereb",
-    #     modality="Auditory", # significant only in the 3way ANOVA
-    #     task_pair=("Production", "Perception"),
-    #     pvalue=0.0142145961772677,
-    # ),
-    # dict(
-    #     roi="cereb",
-    #     modality="Auditory", # significant only in the 3way ANOVA
-    #     task_pair=("Production", "NTFD"),
-    #     pvalue=0.0126473284799806,
-    # ),
+    dict(
+        roi="cereb",
+        modality="Auditory", # significant only in the 3way ANOVA
+        task_pair=("Production", "Perception"),
+        pvalue=0.0142145961772677,
+    ),
+    dict(
+        roi="cereb",
+        modality="Auditory", # significant only in the 3way ANOVA
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0126473284799806,
+    ),
     dict(
         roi="sma",
         modality="Auditory",
         task_pair=("Production", "Perception"),
         pvalue=0.000054262462788421,
     ),
-    # dict( # significant only in the 3way ANOVA
-    #     roi="sma",
-    #     modality="Auditory",
-    #     task_pair=("Production", "NTFD"),
-    #     pvalue=0.0374092539730202,
-    # ),
+    dict( # significant only in the 3way ANOVA
+        roi="sma",
+        modality="Auditory",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0374092539730202,
+    ),
     dict(
         roi="sma",
         modality="Auditory",
@@ -1479,54 +1536,54 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Production", "NTFD"),
         pvalue=0.00000079736641913653,
     ),
-    # dict(
-    #     roi="cereb",
-    #     modality="Visual", # significant only in the 3way ANOVA
-    #     task_pair=("Production", "Perception"),
-    #     pvalue=0.0201762748089375,
-    # ),
+    dict(
+        roi="cereb",
+        modality="Visual", # significant only in the 3way ANOVA
+        task_pair=("Production", "Perception"),
+        pvalue=0.0201762748089375,
+    ),
     dict(
         roi="cereb",
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.00180104354711226,
     ),
-    # dict(
-    #     roi="cereb",
-    #     modality="Visual", # significant only in the 3way ANOVA
-    #     task_pair=("Perception", "NTFD"),
-    #     pvalue=0.048577005574705,
-    # ),
+    dict(
+        roi="cereb",
+        modality="Visual", # significant only in the 3way ANOVA
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.048577005574705,
+    ),
     dict(
         roi="sma",
         modality="Visual",
         task_pair=("Production", "Perception"),
         pvalue=0.00000123502563301166,
     ),
-    # dict( # significant only in the 3way ANOVA
-    #     roi="sma",
-    #     modality="Visual",
-    #     task_pair=("Production", "NTFD"),
-    #     pvalue=0.0237468150390989,
-    # ),
+    dict( # significant only in the 3way ANOVA
+        roi="sma",
+        modality="Visual",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0237468150390989,
+    ),
     dict(
         roi="sma",
         modality="Visual",
         task_pair=("Perception", "NTFD"),
         pvalue=0.000801144140433441,
     ),
-    # dict(
-    #     roi="heschl", # significant only in the 3way ANOVA
-    #     modality="Visual",
-    #     task_pair=("Production", "NTFD"),
-    #     pvalue=0.00813138744897999,
-    # ),
-    # dict(
-    #     roi="heschl", # significant only in the 3way ANOVA
-    #     modality="Visual",
-    #     task_pair=("Perception", "NTFD"),
-    #     pvalue=0.00442865869182293,
-    # ),
+    dict(
+        roi="heschl", # significant only in the 3way ANOVA
+        modality="Visual",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.00813138744897999,
+    ),
+    dict(
+        roi="heschl", # significant only in the 3way ANOVA
+        modality="Visual",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.00442865869182293,
+    ),
     dict(
         roi="occipital",
         modality="Visual",
