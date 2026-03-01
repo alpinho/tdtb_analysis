@@ -24,6 +24,7 @@ from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 from matplotlib.ticker import FormatStrFormatter, MultipleLocator
+from matplotlib.patches import Patch
 
 
 # ============================ CONSTANTS ============================ #
@@ -980,11 +981,97 @@ def plot_psc_boxplots(
         wspace=0.22,
     )
 
-    # --- Global legend text (top-right) ---
+    # --- Condition legend: 2 rows × 6 cols, ordered like the panels ---
+    if not getattr(fig, "_top_canvas_drawn", False):
+        fig.canvas.draw()
+        fig._top_canvas_drawn = True
+
+    cols_nonspacer = [
+        j for j, (m, _t) in enumerate(col_spec_block) if m != "SPACER"
+    ]
+
+    ax1 = axes[0, cols_nonspacer[-1]]
+    x_right = float(ax1.get_position().x1)
+    y_top_axes = float(
+        max(axes[0, j].get_position().y1 for j in cols_nonspacer)
+    )
+
+    y_ci = y_top_axes + 0.060
+    y_beat = y_top_axes + 0.047
+    y_int = y_top_axes + 0.041
+
+    # Global legend text (top-right)
     fig.text(
-        0.985,
-        0.995,
+        x_right,
+        y_ci,
         "95% bootstrap CI for the Median of PSC",
+        ha="right",
+        va="top",
+        fontsize=axis_label_fs + 2,
+        color="k",
+    )
+
+    legend_mods = ["Auditory", "Visual"] if audivisual_only else []
+    if pooled_only:
+        legend_mods = ["Pooled"]
+    if (not legend_mods) and (not pooled_only):
+        legend_mods = ["Pooled", "Auditory", "Visual"]
+
+    beat_colors: list[tuple[float, float, float]] = []
+    interval_colors: list[tuple[float, float, float]] = []
+    for mod in legend_mods:
+        for task in tasks_per_block:
+            beat_colors.append(_cat_color(mod, task, "Beat"))
+            interval_colors.append(_cat_color(mod, task, "Interval"))
+
+    beat_handles = [
+        Patch(facecolor=c, edgecolor="0.2") for c in beat_colors
+    ]
+    int_handles = [
+        Patch(facecolor=c, edgecolor="0.2") for c in interval_colors
+    ]
+
+    x_leg = x_right - 0.15
+    fig.legend(
+        handles=beat_handles,
+        labels=[""] * len(beat_handles),
+        loc="upper right",
+        bbox_to_anchor=(x_leg, y_beat),
+        ncol=len(beat_handles),
+        frameon=False,
+        fontsize=axis_label_fs,
+        handlelength=0.95,
+        handletextpad=0.0,
+        columnspacing=0.45,
+        borderaxespad=0.0,
+    )
+    fig.legend(
+        handles=int_handles,
+        labels=[""] * len(int_handles),
+        loc="upper right",
+        bbox_to_anchor=(x_leg, y_int),
+        ncol=len(int_handles),
+        frameon=False,
+        fontsize=axis_label_fs,
+        handlelength=0.95,
+        handletextpad=0.0,
+        columnspacing=0.45,
+        borderaxespad=0.0,
+    )
+
+    fig.text(
+        x_right - 0.055,
+        y_beat - 0.001,
+        "Beat",
+        ha="right",
+        va="top",
+        fontsize=axis_label_fs + 2,
+        color="k",
+    )
+    fig.text(
+        x_right,
+        y_int - 0.001,
+        "Interval",
         ha="right",
         va="top",
         fontsize=axis_label_fs + 2,
