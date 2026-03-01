@@ -970,7 +970,7 @@ def plot_psc_boxplots(
             continue
         if mod not in mods_present:
             mods_present.append(mod)
-        cols_by_mod.setdefault(mod, []).append(j)
+        cols_by_mod.setdefault(mod, []).append(j)  
 
     fig.subplots_adjust(
         top=0.965,
@@ -980,6 +980,16 @@ def plot_psc_boxplots(
         wspace=0.22,
     )
 
+    # --- Global legend text (top-right) ---
+    fig.text(
+        0.985,
+        0.995,
+        "95% bootstrap CI for the Median of PSC",
+        ha="right",
+        va="top",
+        fontsize=axis_label_fs + 2,
+        color="k",
+    )
 
     # --------------------- PASS 2: draw panels ----------------------
     for r, spec in enumerate(roi_specs):
