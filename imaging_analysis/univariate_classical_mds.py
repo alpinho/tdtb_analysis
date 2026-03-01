@@ -8,7 +8,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 30th of October 2025
-Last Update: February 2026
+Last Update: March 2026
 
 Compatibility: Python 3.10.16
 """
@@ -203,11 +203,11 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
     LABEL_OFFSETS_BY_PANEL = {
         (2, 1): {  # MDS2 (x) vs MDS1 (y)
             "Dorsal Striatum": (-.175, .000),
-            "Cerebellum": (-.02, .018),
+            "Cerebellum": (-.09, .035),
             "PreSMA": (-.0825, -.01),
             "SMA": (-.055, .0005),
-            "PMD": (0.01, -.1),
-            "PMV": (.0125, -.001),
+            "PMD": (0.01, -.12),
+            "PMV": (.0125, .001),
             "Heschl's Gyrus": (.015, -.0015),
             "Occipital\nLobe": (0., .035),
         },
@@ -244,10 +244,12 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
         else:
             off_x, off_y = offsets[idx % len(offsets)]
 
+        x_txt = x_val + float(off_x)
+        y_txt = y_val + float(off_y)
         if name.startswith("Occipital"):
             txt = ax.text(
-                x_val + float(off_x),
-                y_val + float(off_y),
+                x_txt,
+                y_txt,
                 name,
                 va="center",
                 ha="center",
@@ -256,13 +258,25 @@ def plot_mds_2d(coords, labels, explained_var, out_path, comps=(1, 2)):
             )
         else:
             txt = ax.text(
-                x_val + float(off_x),
-                y_val + float(off_y),
+                x_txt,
+                y_txt,
                 name,
                 va="center",
+                
                 ha="left",
                 clip_on=True,
             )
+
+        # --- NEW: leader line only for Cerebellum ---
+        if name == "Cerebellum":
+            ax.plot(
+                [x_val - .0025, x_txt + .075],
+                [y_val + .009, y_txt - .01],
+                color="black",
+                linewidth=0.8,
+                zorder=5,
+            )
+
         texts.append(txt)
 
     ax.set_xlim(*xlim)
