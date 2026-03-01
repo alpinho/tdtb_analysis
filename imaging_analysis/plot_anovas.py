@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 28th of January, 2026
-Last update: February 2026
+Last update: March 2026
 
 Compatibility: Python 3.10.14
 """
@@ -336,6 +336,11 @@ def plot_psc_boxplots(
     include_ntfd_random: bool = False,
     y_limits: dict[str, tuple[float, float]] | None = None,
     show_yaxis: dict[str, bool] | None = None,
+    x_leg_dx: float = -0.15,
+    tag_dx_beat: float = -0.055,
+    tag_dx_interval: float = -0.001,
+    tag_dy: float = -0.001,
+    row_gap: float = 0.006,
 ) -> None:
     """Plot PSC boxplots by ROI and modality/task blocks."""
     outpath = Path(outpath)
@@ -981,26 +986,27 @@ def plot_psc_boxplots(
         wspace=0.22,
     )
 
-    # --- Condition legend: 2 rows × 6 cols, ordered like the panels ---
+    # --- Condition legend: 2 rows × N cols ---
     if not getattr(fig, "_top_canvas_drawn", False):
         fig.canvas.draw()
         fig._top_canvas_drawn = True
 
     cols_nonspacer = [
-        j for j, (m, _t) in enumerate(col_spec_block) if m != "SPACER"
+        j for j, (m, _t) in enumerate(col_spec_block)
+        if m != "SPACER"
     ]
+    ax_last = axes[0, cols_nonspacer[-1]]
 
-    ax1 = axes[0, cols_nonspacer[-1]]
-    x_right = float(ax1.get_position().x1)
+    x_right = float(ax_last.get_position().x1)
     y_top_axes = float(
         max(axes[0, j].get_position().y1 for j in cols_nonspacer)
     )
 
+    # Fixed vertical layout (stable across figures)
     y_ci = y_top_axes + 0.060
     y_beat = y_top_axes + 0.047
-    y_int = y_top_axes + 0.041
+    y_int = y_beat - float(row_gap)
 
-    # Global legend text (top-right)
     fig.text(
         x_right,
         y_ci,
@@ -1019,19 +1025,23 @@ def plot_psc_boxplots(
 
     beat_colors: list[tuple[float, float, float]] = []
     interval_colors: list[tuple[float, float, float]] = []
+
     for mod in legend_mods:
         for task in tasks_per_block:
             beat_colors.append(_cat_color(mod, task, "Beat"))
             interval_colors.append(_cat_color(mod, task, "Interval"))
 
     beat_handles = [
-        Patch(facecolor=c, edgecolor="0.2") for c in beat_colors
+        Patch(facecolor=c, edgecolor="0.2")
+        for c in beat_colors
     ]
     int_handles = [
-        Patch(facecolor=c, edgecolor="0.2") for c in interval_colors
+        Patch(facecolor=c, edgecolor="0.2")
+        for c in interval_colors
     ]
 
-    x_leg = x_right - 0.15
+    x_leg = x_right + float(x_leg_dx)
+
     fig.legend(
         handles=beat_handles,
         labels=[""] * len(beat_handles),
@@ -1045,6 +1055,7 @@ def plot_psc_boxplots(
         columnspacing=0.45,
         borderaxespad=0.0,
     )
+
     fig.legend(
         handles=int_handles,
         labels=[""] * len(int_handles),
@@ -1060,17 +1071,18 @@ def plot_psc_boxplots(
     )
 
     fig.text(
-        x_right - 0.055,
-        y_beat - 0.001,
+        x_right + float(tag_dx_beat),
+        y_beat + float(tag_dy),
         "Beat",
         ha="right",
         va="top",
         fontsize=axis_label_fs + 2,
         color="k",
     )
+
     fig.text(
-        x_right,
-        y_int - 0.001,
+        x_right + float(tag_dx_interval),
+        y_int + float(tag_dy),
         "Interval",
         ha="right",
         va="top",
@@ -1713,13 +1725,13 @@ if __name__ == "__main__":
     df_in = pd.concat([df_main, df_rand], ignore_index=True, axis=0)
 
     # 1) Original figures (no NTFD Random panels)
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=OUTPUT_PATH,
-        figsize_scale=args.figscale,
-        audivisual_only=False,
-        include_ntfd_random=False,
-    )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=OUTPUT_PATH,
+    #     figsize_scale=args.figscale,
+    #     audivisual_only=False,
+    #     include_ntfd_random=False,
+    # )
 
     outpath_av = Path(OUTPUT_PATH)
     outpath_av = outpath_av.with_name(
@@ -1750,20 +1762,28 @@ if __name__ == "__main__":
             "pmd": True,
             "pmv": True,
         },
+        x_leg_dx=-0.175,
+        tag_dx_beat=-0.035,
+        tag_dx_interval=0.05,
+        tag_dy=-0.00075,
+        row_gap=0.005,
     )
 
     # 1b) Pooled-only figure (pooled modality block only)
-    outpath_pooled = Path(OUTPUT_PATH)
-    outpath_pooled = outpath_pooled.with_name(
-        outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_pooled,
-        figsize_scale=args.figscale,
-        pooled_only=True,
-        include_ntfd_random=False,
-    )
+    # outpath_pooled = Path(OUTPUT_PATH)
+    # outpath_pooled = outpath_pooled.with_name(
+    #     outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_pooled,
+    #     figsize_scale=args.figscale,
+    #     pooled_only=True,
+    #     include_ntfd_random=False,
+    #     x_leg_dx=-0.15,
+    #     tag_dx=0.055,
+    #     tag_dy=-0.001,
+    # )
 
     # # 2) Extended figures (with NTFD Random panels)
     # outpath_rand = Path(OUTPUT_PATH)
