@@ -251,7 +251,7 @@ def plot_boxplots_rois(rois_data, modality='both',
     #     fontweight='bold',
     #     y=.98
     # )
-    fig.text(0.79, .94, "95% CI for the Mean of PSC", fontsize=16, ha='center')
+    fig.text(0.79, .94, "95% CI for the Median of PSC", fontsize=16, ha='center')
 
     # Compute and print mean values for each ROI and modality
     dstr_means = np.mean(dstr_data, axis=0)
