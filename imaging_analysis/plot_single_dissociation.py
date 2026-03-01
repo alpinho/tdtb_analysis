@@ -9,7 +9,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 10th of March 2025
-Last Update: January 2026
+Last Update: March 2026
 
 Compatibility: Python 3.10.14
 """
@@ -326,7 +326,7 @@ def plot_boxplots_rois(rois_data, modality='both',
                     linewidth=2.5)
             ax.vlines(x_positions, y_max, y_max * 0.975, color='k',
                       linewidth=2.5)
-            ax.text(np.mean(x_positions), y_max * 1.01, f'*',
+            ax.text(np.mean(x_positions), y_max * 1.01, f'**',
                     ha='center', va='bottom', fontsize=28)
 
     # Adjust layout to fit the title
