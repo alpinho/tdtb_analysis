@@ -172,6 +172,9 @@ def plot_mds_2d(
 
         ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
         ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
+        # Zero reference lines (match custom styling)
+        ax.axhline(0, lw=0.9, color="mediumblue", zorder=1)
+        ax.axvline(0, lw=0.9, color="mediumblue", zorder=1)
 
         # Data-driven padding for limits, keeping defaults otherwise.
         x_min = float(coords[:, c1].min())
@@ -924,7 +927,7 @@ def plot_mds_3d(
 
 # ============================= CONFIG ============================== #
 
-N_COMPONENTS = 2
+N_COMPONENTS = 3
 INDIVID_LEVEL = "i"
 
 USE_CUSTOM_PLOTTING = (N_COMPONENTS == 3)
