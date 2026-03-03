@@ -153,7 +153,12 @@ def plot_mds_2d(
     # ---------------------------------------------------------------
     if not use_custom:
         fig, ax = plt.subplots(figsize=(6.0, 5.0), dpi=150)
-        ax.scatter(coords[:, c1], coords[:, c2], alpha=0.8)
+        ax.scatter(
+            coords[:, c1],
+            coords[:, c2],
+            color="mediumblue",
+            alpha=0.8
+        )
 
         for x_val, y_val, name in zip(coords[:, c1], coords[:, c2], labels_disp):
             ax.annotate(
@@ -502,7 +507,13 @@ def plot_mds_3d(
     fig = plt.figure(figsize=(6, 5), dpi=150)
     ax = fig.add_subplot(111, projection="3d")
 
-    ax.scatter(coords[:, c1], coords[:, c2], coords[:, c3], alpha=0.8)
+    ax.scatter(
+        coords[:, c1],
+        coords[:, c2],
+        coords[:, c3],
+        color="mediumblue",
+        alpha=0.8,
+    )
 
     # Default mode: rely on mplot3d defaults.
     if not use_custom:
@@ -913,7 +924,7 @@ def plot_mds_3d(
 
 # ============================= CONFIG ============================== #
 
-N_COMPONENTS = 3
+N_COMPONENTS = 2
 INDIVID_LEVEL = "i"
 
 USE_CUSTOM_PLOTTING = (N_COMPONENTS == 3)
