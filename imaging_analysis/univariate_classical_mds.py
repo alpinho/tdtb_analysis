@@ -160,7 +160,8 @@ def plot_mds_2d(
             alpha=0.8
         )
 
-        for x_val, y_val, name in zip(coords[:, c1], coords[:, c2], labels_disp):
+        for x_val, y_val, name in zip(coords[:, c1], coords[:, c2], 
+                                      labels_disp):
             ax.annotate(
                 name,
                 (float(x_val), float(y_val)),
