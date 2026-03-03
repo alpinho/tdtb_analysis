@@ -312,8 +312,8 @@ def plot_mds_2d(
                 clip_on=True,
             )
 
-        # Leader line only for Cerebellum.
-        if name == "Cerebellum":
+        # Leader line only for Cerebellum in MDS2 (x) vs MDS1 (y).
+        if name == "Cerebellum" and comps_plot == (2, 1):
             ax.plot(
                 [float(x_val) - 0.0025, x_txt + 0.075],
                 [float(y_val) + 0.009, y_txt - 0.01],
