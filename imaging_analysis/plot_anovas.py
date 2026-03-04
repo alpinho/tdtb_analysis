@@ -954,7 +954,6 @@ def plot_psc_boxplots(
     fig_w = per_col * float(sum(width_ratios)) * figsize_scale * FIG_W_SCALE
     fig_h = float(sum(height_ratios)) * figsize_scale
 
-
     fig, axes = plt.subplots(
         nrows=len(roi_specs),
         ncols=n_cols,
@@ -1163,7 +1162,8 @@ def plot_psc_boxplots(
             ax.set_yticks(spec["y_ticks"])
             ax.yaxis.set_major_formatter(y_formatter)
 
-            # --- Optional per-ROI y-axis visibility (computed here, applied later)
+            # --- Optional per-ROI y-axis visibility 
+            # (computed here, applied later)
             rkey = _roi_key(str(spec.get("roi", ""))) or ""
             display_axis = True
             if show_yaxis is not None:
@@ -1200,7 +1200,8 @@ def plot_psc_boxplots(
                 ax.tick_params(axis="y", left=False, length=0)
                 ax.spines["left"].set_visible(False)
 
-            # --- Apply per-ROI y-axis visibility (after column-specific formatting)
+            # --- Apply per-ROI y-axis visibility 
+            # (after column-specific formatting)
             if not display_axis:
                 ax.tick_params(axis="y", left=False, labelleft=False)
                 ax.set_yticklabels([])
@@ -1581,13 +1582,13 @@ ANNOTATIONS: List[dict] = [
     ),
     dict(
         roi="cereb",
-        modality="Auditory", # significant only in the 3way ANOVA
+        modality="Auditory",  # significant only in the 3way ANOVA
         task_pair=("Production", "Perception"),
         pvalue=0.0142145961772677,
     ),
     dict(
         roi="cereb",
-        modality="Auditory", # significant only in the 3way ANOVA
+        modality="Auditory",  # significant only in the 3way ANOVA
         task_pair=("Production", "NTFD"),
         pvalue=0.0126473284799806,
     ),
@@ -1597,8 +1598,8 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Production", "Perception"),
         pvalue=0.000054262462788421,
     ),
-    dict( # significant only in the 3way ANOVA
-        roi="sma",
+    dict(
+        roi="sma",  # significant only in the 3way ANOVA
         modality="Auditory",
         task_pair=("Production", "NTFD"),
         pvalue=0.0374092539730202,
@@ -1647,7 +1648,7 @@ ANNOTATIONS: List[dict] = [
     ),
     dict(
         roi="cereb",
-        modality="Visual", # significant only in the 3way ANOVA
+        modality="Visual",  # significant only in the 3way ANOVA
         task_pair=("Production", "Perception"),
         pvalue=0.0201762748089375,
     ),
@@ -1659,7 +1660,7 @@ ANNOTATIONS: List[dict] = [
     ),
     dict(
         roi="cereb",
-        modality="Visual", # significant only in the 3way ANOVA
+        modality="Visual",  # significant only in the 3way ANOVA
         task_pair=("Perception", "NTFD"),
         pvalue=0.048577005574705,
     ),
@@ -1669,8 +1670,8 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Production", "Perception"),
         pvalue=0.00000123502563301166,
     ),
-    dict( # significant only in the 3way ANOVA
-        roi="sma",
+    dict(
+        roi="sma",  # significant only in the 3way ANOVA
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.0237468150390989,
@@ -1682,13 +1683,13 @@ ANNOTATIONS: List[dict] = [
         pvalue=0.000801144140433441,
     ),
     dict(
-        roi="heschl", # significant only in the 3way ANOVA
+        roi="heschl",  # significant only in the 3way ANOVA
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.00813138744897999,
     ),
     dict(
-        roi="heschl", # significant only in the 3way ANOVA
+        roi="heschl",  # significant only in the 3way ANOVA
         modality="Visual",
         task_pair=("Perception", "NTFD"),
         pvalue=0.00442865869182293,
