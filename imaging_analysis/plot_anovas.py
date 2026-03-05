@@ -1182,6 +1182,7 @@ def plot_psc_boxplots(
                     seed=boot_seed,
                 )
 
+            box_lw = 1.2
             bp = ax.boxplot(
                 data,
                 positions=positions,
@@ -1189,7 +1190,12 @@ def plot_psc_boxplots(
                 notch=True,
                 patch_artist=True,
                 showfliers=False,
-                showmeans=False,
+                showmeans=True,
+                meanline=True,
+                meanprops=dict(
+                    color="k",
+                    linestyle="-",
+                    linewidth=box_lw,),
                 whis=whis,
                 medianprops={"linewidth": 0, "color": "none"},
                 conf_intervals=conf_intervals,
@@ -1469,9 +1475,11 @@ def plot_psc_boxplots(
 
                     y_base = _ydata_to_yfig(fig, ax_aud, y_data)
 
+                    line_margin = 0.035  # controls shortening of lower lines
                     fig.add_artist(
                         Line2D(
-                            [x_aud_left, x_aud_right],
+                            [x_aud_left + line_margin, 
+                             x_aud_right - line_margin],
                             [y_base, y_base],
                             transform=fig.transFigure,
                             lw=1.2,
@@ -1480,7 +1488,8 @@ def plot_psc_boxplots(
                     )
                     fig.add_artist(
                         Line2D(
-                            [x_vis_left, x_vis_right],
+                            [x_vis_left + line_margin, 
+                             x_vis_right - line_margin],
                             [y_base, y_base],
                             transform=fig.transFigure,
                             lw=1.2,
@@ -1490,7 +1499,7 @@ def plot_psc_boxplots(
 
                     x_mid_aud = (x_aud_left + x_aud_right) / 2.0
                     x_mid_vis = (x_vis_left + x_vis_right) / 2.0
-                    h_data_long = h_data * 4.
+                    h_data_long = h_data * 2.
 
                     span_annotation_figx_figspan(
                         fig,
@@ -1609,18 +1618,8 @@ WITHIN_ANNOTATIONS: List[dict] = [
 CROSS_AV_ANNOTATIONS: List[dict] = [
     dict(
         roi="heschl",
-        tasks=["Production"],
-        pvalue=0.0000000000802234738172611,
-    ),
-    dict(
-        roi="heschl",
-        tasks=["Perception"],
-        pvalue=0.0000000000046523603251016,
-    ),
-    dict(
-        roi="heschl",
-        tasks=["NTFD"],
-        pvalue=0.0000000000000457620883861892,
+        tasks=["Production", "Perception", "NTFD"],
+        pvalue=0.000000000000019175900003915,
     ),
     dict(
         roi="pmd",
@@ -1847,13 +1846,25 @@ ANNOTATIONS: List[dict] = [
         roi="heschl",
         modality="Auditory",
         task_pair=("Production", "NTFD"),
-        pvalue=0.00000000136229812975116,
+        pvalue=0.000000120078120129038,
     ),
     dict(
         roi="heschl",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.00000000236090454108802,
+        pvalue=0.0000000193038251748658,
+    ),
+    dict(
+        roi="heschl",
+        modality="Visual",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.00813138744897999,
+    ),
+    dict(
+        roi="heschl",
+        modality="Visual",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.00442865869182293,
     ),
 ]
 
