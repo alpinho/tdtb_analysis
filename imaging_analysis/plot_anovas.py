@@ -44,6 +44,11 @@ CATS_NTFD_RANDOM = ["Beat", "Interval", "Random"]
 
 MODALITIES = ["Auditory", "Visual"]
 MOD_BLOCKS = ["Pooled", "Auditory", "Visual"]
+MOD_LABEL = {
+    "Pooled": "Both Modalities",
+    "Auditory": "Auditory",
+    "Visual": "Visual",
+}
 
 ROI_ORDER = [
     "dstr",
@@ -1416,7 +1421,7 @@ def plot_psc_boxplots(
             fig.text(
                 x_center,
                 y,
-                mod,
+                MOD_LABEL.get(mod, mod),
                 ha="center",
                 va="top",
                 fontsize=axis_label_fs + 2,
@@ -1563,7 +1568,7 @@ def plot_psc_boxplots(
 
                     x_mid_aud = (x_aud_left + x_aud_right) / 2.0
                     x_mid_vis = (x_vis_left + x_vis_right) / 2.0
-                    h_data_long = h_data * 2.
+                    h_data_long = h_data * 2.5
 
                     span_annotation_figx_figspan(
                         fig,
@@ -1686,9 +1691,9 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
         pvalue=0.000000000000019175900003915,
     ),
     dict(
-        roi="pmd",
+        roi="occipital",
         tasks=["Production", "Perception", "NTFD"],
-        pvalue=0.00382583338647626,
+        pvalue=0.00000000290970950214818,
     ),
 ]
 
@@ -1930,6 +1935,30 @@ ANNOTATIONS: List[dict] = [
         task_pair=("Perception", "NTFD"),
         pvalue=0.00442865869182293,
     ),
+    dict(
+        roi="occipital",
+        modality="Auditory",
+        task_pair=("Production", "Perception"),
+        pvalue=0.000634905221536432,
+    ),
+    dict(
+        roi="occipital",
+        modality="Auditory",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.0000128424205321607,
+    ),
+    dict(
+        roi="occipital",
+        modality="Visual",
+        task_pair=("Production", "Perception"),
+        pvalue=0.000642604602310693,
+    ),
+    dict(
+        roi="occipital",
+        modality="Visual",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.00109395513424105,
+    ),
 ]
 
 # ============================== RUN ================================ #
@@ -1949,13 +1978,13 @@ if __name__ == "__main__":
     df_in = pd.concat([df_main, df_rand], ignore_index=True, axis=0)
 
     # 1) Original figures (no NTFD Random panels)
-    # plot_psc_boxplots(
-    #     df=df_in,
-    #     outpath=OUTPUT_PATH,
-    #     figsize_scale=args.figscale,
-    #     audivisual_only=False,
-    #     include_ntfd_random=False,
-    # )
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=OUTPUT_PATH,
+        figsize_scale=args.figscale,
+        audivisual_only=False,
+        include_ntfd_random=False,
+    )
 
     outpath_av = Path(OUTPUT_PATH)
     outpath_av = outpath_av.with_name(
