@@ -253,6 +253,49 @@ def span_annotation_datay_figspan(
     )
 
 
+
+def span_annotation_figx_figspan(
+    fig: plt.Figure,
+    ax_ref: plt.Axes,
+    x1: float,
+    x2: float,
+    text: str,
+    y_data: float,
+    h_data: float,
+    lw: float = 1.2,
+    fs: float = 14.0,
+) -> None:
+    """Draw a bracket using figure x-coordinates.
+
+    Y anchors to ax_ref data coords.
+    """
+    if not getattr(fig, "_ann_canvas_drawn", False):
+        fig.canvas.draw()
+        fig._ann_canvas_drawn = True
+
+    y0 = _ydata_to_yfig(fig, ax_ref, y_data)
+    y1 = _ydata_to_yfig(fig, ax_ref, y_data + h_data)
+
+    fig.add_artist(
+        Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
+    )
+    fig.add_artist(
+        Line2D([x1, x2], [y1, y1], transform=fig.transFigure, lw=lw, c="k")
+    )
+    fig.add_artist(
+        Line2D([x2, x2], [y1, y0], transform=fig.transFigure, lw=lw, c="k")
+    )
+    fig.text(
+        (x1 + x2) / 2.0,
+        y1,
+        text,
+        ha="center",
+        va="bottom",
+        fontsize=fs,
+        color="k",
+    )
+
+
 def within_axis_annotation(
     ax: plt.Axes,
     x1: float,
@@ -1401,14 +1444,72 @@ def plot_psc_boxplots(
 
                 h_data = annot_h_frac * spec["yr"]
 
-                span_annotation_datay_figspan(
-                    fig,
-                    ax_left=ax_aud,
-                    ax_right=ax_vis,
-                    text=text,
-                    y_data=y_data,
-                    h_data=h_data,
-                )
+                if len(tasks) > 1:
+                    ax_aud_left = ax_lookup.get(("Auditory", t_left))
+                    ax_aud_right = ax_lookup.get(("Auditory", t_right))
+                    ax_vis_left = ax_lookup.get(("Visual", t_left))
+                    ax_vis_right = ax_lookup.get(("Visual", t_right))
+                    if (
+                        (ax_aud_left is None)
+                        or (ax_aud_right is None)
+                        or (ax_vis_left is None)
+                        or (ax_vis_right is None)
+                    ):
+                        continue
+
+                    b_al = ax_aud_left.get_position()
+                    b_ar = ax_aud_right.get_position()
+                    b_vl = ax_vis_left.get_position()
+                    b_vr = ax_vis_right.get_position()
+
+                    x_aud_left = b_al.x0
+                    x_aud_right = b_ar.x1
+                    x_vis_left = b_vl.x0
+                    x_vis_right = b_vr.x1
+
+                    y_base = _ydata_to_yfig(fig, ax_aud, y_data)
+
+                    fig.add_artist(
+                        Line2D(
+                            [x_aud_left, x_aud_right],
+                            [y_base, y_base],
+                            transform=fig.transFigure,
+                            lw=1.2,
+                            c="k",
+                        )
+                    )
+                    fig.add_artist(
+                        Line2D(
+                            [x_vis_left, x_vis_right],
+                            [y_base, y_base],
+                            transform=fig.transFigure,
+                            lw=1.2,
+                            c="k",
+                        )
+                    )
+
+                    x_mid_aud = (x_aud_left + x_aud_right) / 2.0
+                    x_mid_vis = (x_vis_left + x_vis_right) / 2.0
+                    h_data_long = h_data * 4.
+
+                    span_annotation_figx_figspan(
+                        fig,
+                        ax_ref=ax_aud,
+                        x1=x_mid_aud,
+                        x2=x_mid_vis,
+                        text=text,
+                        y_data=y_data,
+                        h_data=h_data_long,
+                    )
+                else:
+                    span_annotation_datay_figspan(
+                        fig,
+                        ax_left=ax_aud,
+                        ax_right=ax_vis,
+                        text=text,
+                        y_data=y_data,
+                        h_data=h_data,
+                    )
 
         fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.22)
     plt.close(fig)
@@ -1520,6 +1621,11 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
         roi="heschl",
         tasks=["NTFD"],
         pvalue=0.0000000000000457620883861892,
+    ),
+    dict(
+        roi="pmd",
+        tasks=["Production", "Perception", "NTFD"],
+        pvalue=0.00382583338647626,
     ),
 ]
 
