@@ -253,7 +253,6 @@ def span_annotation_datay_figspan(
     )
 
 
-
 def span_annotation_figx_figspan(
     fig: plt.Figure,
     ax_ref: plt.Axes,
@@ -365,6 +364,45 @@ def bootstrap_conf_intervals(
         )
         cis.append((lo, hi))
     return np.asarray(cis, dtype=float)
+
+
+def _poly_xspan_at_y(
+    patch,
+    y: float,
+) -> tuple[float, float] | None:
+    """Return x-span of a box polygon at a given y (data coords).
+
+    Computes intersections of the polygon edges with the horizontal
+    line y = y. Returns (xmin, xmax) or None if it cannot be computed.
+    """
+    verts = patch.get_path().vertices
+    if verts.shape[0] < 3:
+        return None
+
+    xs: list[float] = []
+    n = verts.shape[0]
+
+    for i in range(n):
+        x0, y0 = verts[i]
+        x1, y1 = verts[(i + 1) % n]
+
+        # Edge crosses y (including endpoints).
+        if (y0 <= y <= y1) or (y1 <= y <= y0):
+            dy = y1 - y0
+            if abs(dy) < 1e-12:
+                # Horizontal edge lying on y: include both endpoints.
+                if abs(y - y0) < 1e-12:
+                    xs.extend([float(x0), float(x1)])
+                continue
+
+            t = (y - y0) / dy
+            x = x0 + t * (x1 - x0)
+            xs.append(float(x))
+
+    if len(xs) < 2:
+        return None
+
+    return (min(xs), max(xs))
 
 
 # ============================ PLOTTING ============================= #
@@ -1190,8 +1228,8 @@ def plot_psc_boxplots(
                 notch=True,
                 patch_artist=True,
                 showfliers=False,
-                showmeans=True,
-                meanline=True,
+                showmeans=False,
+                meanline=False,
                 meanprops=dict(
                     color="k",
                     linestyle="-",
@@ -1204,6 +1242,32 @@ def plot_psc_boxplots(
             for patch, cat in zip(bp["boxes"], cats):
                 patch.set_facecolor(_cat_color(mod, task, cat))
                 patch.set_alpha(box_alpha)
+
+            for patch, values in zip(bp["boxes"], data):
+                vals = np.asarray(values, dtype=float)
+                vals = vals[np.isfinite(vals)]
+                if vals.size == 0:
+                    continue
+
+                mean_val = float(np.mean(vals))
+
+                span = _poly_xspan_at_y(patch, mean_val)
+                if span is None:
+                    # Fallback: box full width (should be rare).
+                    verts = patch.get_path().vertices
+                    x_left = float(verts[:, 0].min())
+                    x_right = float(verts[:, 0].max())
+                else:
+                    x_left, x_right = span
+
+                ax.plot(
+                    [x_left, x_right],
+                    [mean_val, mean_val],
+                    color="k",
+                    lw=patch.get_linewidth(),
+                    zorder=3,
+                    solid_capstyle="butt",
+                )
 
             ax.set_ylim(*spec["y_lim"])
             ax.yaxis.set_major_locator(MultipleLocator(ytick_step))
