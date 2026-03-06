@@ -1573,7 +1573,7 @@ def plot_psc_boxplots(
 
                     x_mid_aud = (x_aud_left + x_aud_right) / 2.0
                     x_mid_vis = (x_vis_left + x_vis_right) / 2.0
-                    h_data_long = h_data * 3.
+                    h_data_long = 0.08
 
                     span_annotation_figx_figspan(
                         fig,
