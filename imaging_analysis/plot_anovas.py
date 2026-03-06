@@ -1697,7 +1697,7 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
     ),
     dict(
         roi="pmd",
-        task_pair=("Production"),
+        task_pair=["Production"],
         pvalue=0.00713058316319962,
     ),
 ]
