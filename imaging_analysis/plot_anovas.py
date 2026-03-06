@@ -1519,7 +1519,12 @@ def plot_psc_boxplots(
 
                 h_data = annot_h_frac * spec["yr"]
 
-                if len(tasks) > 1:
+                use_lower_lines = (
+                    len(tasks) == len(TASKS_MAIN)
+                    and set(tasks) == set(TASKS_MAIN)
+                )
+
+                if use_lower_lines:
                     ax_aud_left = ax_lookup.get(("Auditory", t_left))
                     ax_aud_right = ax_lookup.get(("Auditory", t_right))
                     ax_vis_left = ax_lookup.get(("Visual", t_left))
@@ -1544,10 +1549,10 @@ def plot_psc_boxplots(
 
                     y_base = _ydata_to_yfig(fig, ax_aud, y_data)
 
-                    line_margin = 0.035  # controls shortening of lower lines
+                    line_margin = 0.035
                     fig.add_artist(
                         Line2D(
-                            [x_aud_left + line_margin, 
+                            [x_aud_left + line_margin,
                              x_aud_right - line_margin],
                             [y_base, y_base],
                             transform=fig.transFigure,
@@ -1557,7 +1562,7 @@ def plot_psc_boxplots(
                     )
                     fig.add_artist(
                         Line2D(
-                            [x_vis_left + line_margin, 
+                            [x_vis_left + line_margin,
                              x_vis_right - line_margin],
                             [y_base, y_base],
                             transform=fig.transFigure,
@@ -1568,7 +1573,7 @@ def plot_psc_boxplots(
 
                     x_mid_aud = (x_aud_left + x_aud_right) / 2.0
                     x_mid_vis = (x_vis_left + x_vis_right) / 2.0
-                    h_data_long = h_data * 2.5
+                    h_data_long = h_data * 3.
 
                     span_annotation_figx_figspan(
                         fig,
@@ -1697,7 +1702,7 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
     ),
     dict(
         roi="pmd",
-        task_pair=["Production"],
+        task="Production",
         pvalue=0.00713058316319962,
     ),
 ]
