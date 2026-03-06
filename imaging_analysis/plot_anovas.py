@@ -62,7 +62,7 @@ ROI_ORDER = [
 ]
 
 ROI_PRETTY = {
-    "dstr": "Dorsal Striatum",
+    "dstr": "Dorsal\nStriatum",
     "cereb": "Cerebellum",
     "presma": "PreSMA",
     "sma": "SMA",
