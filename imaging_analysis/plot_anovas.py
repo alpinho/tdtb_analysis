@@ -1102,11 +1102,13 @@ def plot_psc_boxplots(
         color="k",
     )
 
-    legend_mods = ["Auditory", "Visual"] if audivisual_only else []
+    legend_mods: list[str]
     if pooled_only:
         legend_mods = ["Pooled"]
-    if (not legend_mods) and (not pooled_only):
-        legend_mods = ["Pooled", "Auditory", "Visual"]
+    elif audivisual_only:
+        legend_mods = ["Auditory", "Visual"]
+    else:
+        legend_mods = ["Auditory", "Visual", "Pooled"]
 
     beat_colors: list[tuple[float, float, float]] = []
     interval_colors: list[tuple[float, float, float]] = []
@@ -2071,7 +2073,8 @@ if __name__ == "__main__":
             "pmd": False,
             "pmv": False,
         },
-        row_gap=0.005,
+        row_gap=0.004,
+        tag_dx_beat=-0.056,
     )
 
     outpath_av = Path(OUTPUT_PATH)
@@ -2107,7 +2110,7 @@ if __name__ == "__main__":
         tag_dx_beat=-0.035,
         tag_dx_interval=0.05,
         tag_dy=-0.00075,
-        row_gap=0.005,
+        row_gap=0.004,
     )
 
     # 1b) Pooled-only figure (pooled modality block only)
