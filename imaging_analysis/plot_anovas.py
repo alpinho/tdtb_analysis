@@ -1695,6 +1695,11 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
         tasks=["Production", "Perception", "NTFD"],
         pvalue=0.00000000290970950214818,
     ),
+    dict(
+        roi="pmd",
+        task_pair=("Production"),
+        pvalue=0.00713058316319962,
+    ),
 ]
 
 # ========================== CROSS-TASKS ============================ #
@@ -1958,6 +1963,54 @@ ANNOTATIONS: List[dict] = [
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.00109395513424105,
+    ),
+    dict(
+        roi="dorsal striatum",
+        modality="Pooled",
+        task_pair=("Production", "Perception"),
+        pvalue=0.00000000832811687173313,
+    ),
+    dict(
+        roi="dorsal striatum",
+        modality="Pooled",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0000000355953302397597,
+    ),
+    dict(
+        roi="cerebellum",
+        modality="Pooled",
+        task_pair=("Production", "Perception"),
+        pvalue=0.00379959020327813,
+    ),
+    dict(
+        roi="cerebellum",
+        modality="Pooled",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.000241837834093381,
+    ),
+    dict(
+        roi="presma",
+        modality="Pooled",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.00187468625505287,
+    ),
+    dict(
+        roi="sma",
+        modality="Pooled",
+        task_pair=("Production", "Perception"),
+        pvalue=0.000000650783541156441,
+    ),
+    dict(
+        roi="sma",
+        modality="Pooled",
+        task_pair=("Production", "NTFD"),
+        pvalue=0.0102668978573674,
+    ),
+    dict(
+        roi="sma",
+        modality="Pooled",
+        task_pair=("Perception", "NTFD"),
+        pvalue=0.0000202682809212273,
     ),
 ]
 
