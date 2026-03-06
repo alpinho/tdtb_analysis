@@ -1702,9 +1702,19 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
     ),
     dict(
         roi="pmd",
-        task="Production",
-        pvalue=0.00713058316319962,
+        tasks=["Production", "Perception", "NTFD"],
+        pvalue=0.00382583338647626,
     ),
+    # dict(
+    #     roi=,
+    #     task="Production",
+    #     pvalue=,
+    # ),
+    # dict(
+    #     roi=,
+    #     task_pair=["Production"],
+    #     pvalue=,
+    # ),
 ]
 
 # ========================== CROSS-TASKS ============================ #
@@ -2042,6 +2052,26 @@ if __name__ == "__main__":
         figsize_scale=args.figscale,
         audivisual_only=False,
         include_ntfd_random=False,
+        y_limits={
+            "occipital": (-0.6, 2.2),
+            "dstr": (-0.6, 2.2),
+            "cereb": (-0.6, 2.2),
+            "presma": (-0.4, 1.2),
+            "sma": (-0.4, 1.2),
+            "pmd": (-0.4, 1.2),
+            "pmv": (-0.4, 1.2),
+        },
+        show_yaxis={
+            "heschl": True,
+            "occipital": False,
+            "dstr": False,
+            "cereb": False,
+            "presma": True,
+            "sma": False,
+            "pmd": False,
+            "pmv": False,
+        },
+        row_gap=0.005,
     )
 
     outpath_av = Path(OUTPUT_PATH)
