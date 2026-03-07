@@ -1828,15 +1828,27 @@ roi_names4 = ['pmd', 'pmv', 'sma', 'presma']
 
 # #######################
 
-atlas_dirnames2 = [fsl_dir, ntk_dir]
-atlas_names2 = ['hos', 'ntk_symmni128']
-region_names2 = ['dorsal_striatum', 'cerebellum']
-roi_names2 = ['dstr', 'cereb']
+atlas_dirnames3 = [fsl_dir, ntk_dir, hmat_dir]
+atlas_names3 = ['hos', 'ntk_symmni128', 'hmat']
+region_names3 = ['dorsal_striatum', 'cerebellum', 'motor_area']
+roi_names3 = ['dstr', 'cereb', 'sma']
+
+# #######################
+
+# atlas_dirnames2 = [fsl_dir, ntk_dir]
+# atlas_names2 = ['hos', 'ntk_symmni128']
+# region_names2 = ['dorsal_striatum', 'cerebellum']
+# roi_names2 = ['dstr', 'cereb']
 
 # atlas_dirnames2 = [fsl_dir, fsl_dir]
 # atlas_names2 = ['hos', 'hos']
 # region_names2 = ['heschl_gyrus', 'occipital_lobe']
 # roi_names2 = ['heschl', 'occipital']
+
+atlas_dirnames2 = [fsl_dir, hmat_dir]
+atlas_names2 = ['hos', 'hmat']
+region_names2 = ['dorsal_striatum', 'motor_area']
+roi_names2 = ['dstr', 'sma']
 
 # ###### P-value to star map for posthoc annotations ######
 # Format: (Hemisphere, ROI, Task A, Task B) -> p-value
@@ -1960,13 +1972,18 @@ if __name__ == '__main__':
         atlas_names = atlas_names4
         region_names = region_names4
         roi_names = roi_names4
+    elif n_rois == 3:
+        atlas_dirnames = atlas_dirnames3
+        atlas_names = atlas_names3
+        region_names = region_names3
+        roi_names = roi_names3
     elif n_rois == 2:
         atlas_dirnames = atlas_dirnames2
         atlas_names = atlas_names2
         region_names = region_names2
         roi_names = roi_names2
     else:
-        raise ValueError("n_rois must be one of {2, 4, 6, 8, 10}.")
+        raise ValueError("n_rois must be one of {2, 3, 4, 6, 8, 10}.")
 
     encoding_type = sys.argv[2]
     msdtb_dir = os.path.join(
@@ -2082,7 +2099,7 @@ if __name__ == '__main__':
 
         # #################### MULTI-ROI ANOVAS ##################### #
         # Multi-ROI analyses + posthoc plots
-        if n_rois in (2, 4, 6, 8):
+        if n_rois in (2, 3, 4, 6, 8):
 
             # both modalities
             cat_dir = os.path.join(
