@@ -487,36 +487,33 @@ def plot_seed_vs_target_boxplots(
         )
 
     ax.axhline(0.0, linewidth=1.0, color='0.5')
+    ax.set_ylim(-.7, 1.0)
     ax.set_xticks(centers)
-    ax.set_xticklabels(
-        [ROI_LABELS.get(t, t) for t in targets],
-        rotation=45,
-        ha='right',
-    )
+    labels = [ROI_LABELS.get(t, t) for t in targets]
+    labels = ['PreSMA' if l == 'preSMA' else l for l in labels]
+    ax.set_xticklabels(labels)
     ax.set_ylabel('Subject-wise Pearson r')
-    ax.set_xlabel('Target ROI')
-    ax.set_title(f'{indiv} | {modality} | {hemi}')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-
-    y_min, y_max = ax.get_ylim()
-    y_span = y_max - y_min
 
     for idx, target in enumerate(targets):
         row = paired_df.loc[paired_df['target_roi'] == target]
         if row.empty:
             continue
+
         stars = p_to_stars(float(row['p'].iloc[0]))
         if not stars:
             continue
+
         ax.text(
             centers[idx],
-            y_max - 0.05 * y_span,
+            1.01,
             stars,
             ha='center',
             va='bottom',
             fontsize=11,
             fontweight='bold',
+            clip_on=False,
         )
 
     handles = [
@@ -535,7 +532,12 @@ def plot_seed_vs_target_boxplots(
             markersize=7,
         ),
     ]
-    ax.legend(handles=handles, frameon=False, loc='upper right')
+    ax.legend(
+        handles=handles,
+        frameon=False,
+        loc='upper right',
+        bbox_to_anchor=(1.0, 1.28),
+    )
 
     fig.tight_layout()
     out_png.parent.mkdir(parents=True, exist_ok=True)
