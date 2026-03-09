@@ -441,7 +441,7 @@ def plot_seed_vs_target_boxplots(
         positions.extend([pos, pos + 0.35])
         data.extend([vals_d, vals_c])
         centers.append(pos + 0.175)
-        pos += 1.1
+        pos += .9
 
     bp = ax.boxplot(
         data,
@@ -493,6 +493,8 @@ def plot_seed_vs_target_boxplots(
     labels = ['PreSMA' if l == 'preSMA' else l for l in labels]
     ax.set_xticks(centers)
     ax.set_xticklabels(labels)
+    ax.set_xlim(positions[0] - .225, positions[-1] + .225)
+    ax.margins(x=0)
     ax.set_ylabel('Subject-wise Pearson r')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
