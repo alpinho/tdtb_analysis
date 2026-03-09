@@ -420,7 +420,7 @@ def plot_seed_vs_target_boxplots(
     """
     Paired boxplots with bootstrap notches and mean lines.
     """
-    fig, ax = plt.subplots(figsize=(10.0, 4.8))
+    fig, ax = plt.subplots(figsize=(6.4, 4.8))
 
     dstr_color = '#E69F00'
     cereb_color = '#56B4E9'
@@ -440,10 +440,10 @@ def plot_seed_vs_target_boxplots(
             all_corrs['pair'] == f'cereb-{target}', 'r'
         ].to_numpy(dtype=float)
 
-        positions.extend([pos, pos + 0.35])
+        positions.extend([pos, pos + 0.17])
         data.extend([vals_d, vals_c])
-        centers.append(pos + 0.175)
-        pos += 0.9
+        centers.append(pos + 0.12)
+        pos += 0.6
 
     conf_intervals = bootstrap_conf_intervals(
         data=data,
@@ -452,7 +452,7 @@ def plot_seed_vs_target_boxplots(
         seed=12345,
     )
 
-    box_w = 0.25
+    box_w = 0.14
     box_lw = 1.2
 
     bp = ax.boxplot(
@@ -471,8 +471,8 @@ def plot_seed_vs_target_boxplots(
 
     for i, box in enumerate(bp['boxes']):
         color = dstr_color if i % 2 == 0 else cereb_color
-        box.set_facecolor(color)
-        box.set_alpha(0.35)
+        face_color = (*plt.matplotlib.colors.to_rgb(color), 0.35)
+        box.set_facecolor(face_color)
         box.set_edgecolor(color)
         box.set_linewidth(box_lw)
 
@@ -518,13 +518,19 @@ def plot_seed_vs_target_boxplots(
         ax.scatter(
             np.full(len(vals), xpos) + jitter,
             vals,
-            s=20,
+            s=10,
             alpha=0.8,
             color=color,
             zorder=3,
         )
 
-    ax.axhline(0.0, linewidth=1.0, color='0.5')
+    ax.axhline(
+        0.0,
+        linewidth=1.0,
+        color='0.4',
+        linestyle='--',
+        dashes=(4, 3),
+    )
     ax.set_ylim(-1.0, 1.0)
 
     labels = [ROI_LABELS.get(t, t) for t in targets]
@@ -535,7 +541,7 @@ def plot_seed_vs_target_boxplots(
     ax.set_xlim(positions[0] - 0.225, positions[-1] + 0.225)
     ax.margins(x=0)
 
-    ax.set_ylabel('Subject-wise Pearson r')
+    ax.set_ylabel('Subject-wise Correlation ($r_s$)')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
@@ -622,9 +628,9 @@ ROI_LABELS: Dict[str, str] = {
     'pmd': 'PMD',
     'presma': 'preSMA',
     'sma': 'SMA',
-    'heschl': "Heschl's Gyrus",
-    'occipital': 'Occipital Lobe',
-    'occipital_lobe': 'Occipital Lobe',
+    'heschl': "Heschl's\nGyrus",
+    'occipital': 'Occipital\nLobe',
+    'occipital_lobe': 'Occipital\nLobe',
 }
 
 ROI_ORDER_GROUPS: List[List[str]] = [
