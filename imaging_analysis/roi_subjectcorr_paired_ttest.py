@@ -420,8 +420,8 @@ def plot_seed_vs_target_boxplots(
     """
     fig, ax = plt.subplots(figsize=(10.0, 4.8))
 
-    cereb_color = '#4C72B0'
-    dstr_color = '#DD8452'
+    dstr_color = '#E69F00'
+    cereb_color = '#56B4E9'
 
     positions = []
     data = []
