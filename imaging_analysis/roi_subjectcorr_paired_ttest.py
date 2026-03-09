@@ -431,15 +431,15 @@ def plot_seed_vs_target_boxplots(
     rng = np.random.default_rng(7)
 
     for target in targets:
-        vals_c = all_corrs.loc[
-            all_corrs['pair'] == f'cereb-{target}', 'r'
-        ].to_numpy(dtype=float)
         vals_d = all_corrs.loc[
             all_corrs['pair'] == f'dstr-{target}', 'r'
         ].to_numpy(dtype=float)
+        vals_c = all_corrs.loc[
+            all_corrs['pair'] == f'cereb-{target}', 'r'
+        ].to_numpy(dtype=float)
 
         positions.extend([pos, pos + 0.35])
-        data.extend([vals_c, vals_d])
+        data.extend([vals_d, vals_c])
         centers.append(pos + 0.175)
         pos += 1.1
 
@@ -453,29 +453,29 @@ def plot_seed_vs_target_boxplots(
     )
 
     for i, box in enumerate(bp['boxes']):
-        color = cereb_color if i % 2 == 0 else dstr_color
+        color = dstr_color if i % 2 == 0 else cereb_color
         box.set_facecolor(color)
         box.set_alpha(0.35)
         box.set_edgecolor(color)
         box.set_linewidth(1.2)
 
     for i, line in enumerate(bp['medians']):
-        color = cereb_color if i % 2 == 0 else dstr_color
+        color = dstr_color if i % 2 == 0 else cereb_color
         line.set_color(color)
         line.set_linewidth(1.6)
 
     for i, whisker in enumerate(bp['whiskers']):
-        color = cereb_color if (i // 2) % 2 == 0 else dstr_color
+        color = dstr_color if (i // 2) % 2 == 0 else cereb_color
         whisker.set_color(color)
         whisker.set_linewidth(1.0)
 
     for i, cap in enumerate(bp['caps']):
-        color = cereb_color if (i // 2) % 2 == 0 else dstr_color
+        color = dstr_color if (i // 2) % 2 == 0 else cereb_color
         cap.set_color(color)
         cap.set_linewidth(1.0)
 
     for i, (xpos, vals) in enumerate(zip(positions, data)):
-        color = cereb_color if i % 2 == 0 else dstr_color
+        color = dstr_color if i % 2 == 0 else cereb_color
         jitter = rng.normal(0.0, 0.025, size=len(vals))
         ax.scatter(
             np.full(len(vals), xpos) + jitter,
@@ -487,10 +487,11 @@ def plot_seed_vs_target_boxplots(
         )
 
     ax.axhline(0.0, linewidth=1.0, color='0.5')
-    ax.set_ylim(-.7, 1.0)
-    ax.set_xticks(centers)
+    ax.set_ylim(-1.0, 1.0)
+
     labels = [ROI_LABELS.get(t, t) for t in targets]
     labels = ['PreSMA' if l == 'preSMA' else l for l in labels]
+    ax.set_xticks(centers)
     ax.set_xticklabels(labels)
     ax.set_ylabel('Subject-wise Pearson r')
     ax.spines['top'].set_visible(False)
@@ -507,7 +508,7 @@ def plot_seed_vs_target_boxplots(
 
         ax.text(
             centers[idx],
-            1.01,
+            1.05,
             stars,
             ha='center',
             va='bottom',
@@ -519,16 +520,16 @@ def plot_seed_vs_target_boxplots(
     handles = [
         plt.Line2D(
             [0], [0], marker='s', linestyle='',
-            markerfacecolor=cereb_color,
-            markeredgecolor=cereb_color,
-            label='Cerebellum',
+            markerfacecolor=dstr_color,
+            markeredgecolor=dstr_color,
+            label='Dorsal Striatum',
             markersize=7,
         ),
         plt.Line2D(
             [0], [0], marker='s', linestyle='',
-            markerfacecolor=dstr_color,
-            markeredgecolor=dstr_color,
-            label='Dorsal Striatum',
+            markerfacecolor=cereb_color,
+            markeredgecolor=cereb_color,
+            label='Cerebellum',
             markersize=7,
         ),
     ]
