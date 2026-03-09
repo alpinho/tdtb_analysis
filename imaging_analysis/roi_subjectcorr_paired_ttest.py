@@ -38,6 +38,8 @@ import numpy as np
 import pandas as pd
 import pingouin as pg
 
+from plot_anovas import bootstrap_conf_intervals, _poly_xspan_at_y
+
 
 # =========================== FUNCTIONS ============================= #
 
@@ -416,7 +418,7 @@ def plot_seed_vs_target_boxplots(
     modality: str,
 ) -> None:
     """
-    Simple paired boxplots with subject-level points.
+    Paired boxplots with bootstrap notches and mean lines.
     """
     fig, ax = plt.subplots(figsize=(10.0, 4.8))
 
@@ -441,15 +443,30 @@ def plot_seed_vs_target_boxplots(
         positions.extend([pos, pos + 0.35])
         data.extend([vals_d, vals_c])
         centers.append(pos + 0.175)
-        pos += .9
+        pos += 0.9
+
+    conf_intervals = bootstrap_conf_intervals(
+        data=data,
+        n_boot=5000,
+        alpha=0.05,
+        seed=12345,
+    )
+
+    box_w = 0.25
+    box_lw = 1.2
 
     bp = ax.boxplot(
         data,
         positions=positions,
-        widths=0.25,
+        widths=box_w,
+        notch=True,
         patch_artist=True,
-        whis=1.5,
         showfliers=False,
+        showmeans=False,
+        meanline=False,
+        whis=1.5,
+        medianprops={'linewidth': 0, 'color': 'none'},
+        conf_intervals=conf_intervals,
     )
 
     for i, box in enumerate(bp['boxes']):
@@ -457,12 +474,7 @@ def plot_seed_vs_target_boxplots(
         box.set_facecolor(color)
         box.set_alpha(0.35)
         box.set_edgecolor(color)
-        box.set_linewidth(1.2)
-
-    for i, line in enumerate(bp['medians']):
-        color = dstr_color if i % 2 == 0 else cereb_color
-        line.set_color(color)
-        line.set_linewidth(1.6)
+        box.set_linewidth(box_lw)
 
     for i, whisker in enumerate(bp['whiskers']):
         color = dstr_color if (i // 2) % 2 == 0 else cereb_color
@@ -473,6 +485,32 @@ def plot_seed_vs_target_boxplots(
         color = dstr_color if (i // 2) % 2 == 0 else cereb_color
         cap.set_color(color)
         cap.set_linewidth(1.0)
+
+    for patch, vals in zip(bp['boxes'], data):
+        vals = np.asarray(vals, dtype=float)
+        vals = vals[np.isfinite(vals)]
+        if vals.size == 0:
+            continue
+
+        mean_val = float(np.mean(vals))
+        edge_color = patch.get_edgecolor()
+
+        span = _poly_xspan_at_y(patch, mean_val)
+        if span is None:
+            verts = patch.get_path().vertices
+            x_left = float(verts[:, 0].min())
+            x_right = float(verts[:, 0].max())
+        else:
+            x_left, x_right = span
+
+        ax.plot(
+            [x_left, x_right],
+            [mean_val, mean_val],
+            color=edge_color,
+            lw=patch.get_linewidth(),
+            zorder=3,
+            solid_capstyle='butt',
+        )
 
     for i, (xpos, vals) in enumerate(zip(positions, data)):
         color = dstr_color if i % 2 == 0 else cereb_color
@@ -490,11 +528,13 @@ def plot_seed_vs_target_boxplots(
     ax.set_ylim(-1.0, 1.0)
 
     labels = [ROI_LABELS.get(t, t) for t in targets]
-    labels = ['PreSMA' if l == 'preSMA' else l for l in labels]
+    labels = ['PreSMA' if lab == 'preSMA' else lab for lab in labels]
+
     ax.set_xticks(centers)
     ax.set_xticklabels(labels)
-    ax.set_xlim(positions[0] - .225, positions[-1] + .225)
+    ax.set_xlim(positions[0] - 0.225, positions[-1] + 0.225)
     ax.margins(x=0)
+
     ax.set_ylabel('Subject-wise Pearson r')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -521,14 +561,18 @@ def plot_seed_vs_target_boxplots(
 
     handles = [
         plt.Line2D(
-            [0], [0], marker='s', linestyle='',
+            [0], [0],
+            marker='s',
+            linestyle='',
             markerfacecolor=dstr_color,
             markeredgecolor=dstr_color,
             label='Dorsal Striatum',
             markersize=7,
         ),
         plt.Line2D(
-            [0], [0], marker='s', linestyle='',
+            [0], [0],
+            marker='s',
+            linestyle='',
             markerfacecolor=cereb_color,
             markeredgecolor=cereb_color,
             label='Cerebellum',
