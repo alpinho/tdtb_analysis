@@ -393,9 +393,6 @@ def paired_tests_from_subject_corrs(
             'pair_dstr': pair_d,
             'mean_r_cereb': float(merged['r_cereb'].mean()),
             'mean_r_dstr': float(merged['r_dstr'].mean()),
-            'mean_diff_cereb_minus_dstr': float(
-                (merged['r_cereb'] - merged['r_dstr']).mean()
-            ),
             't': float(t_res['T'].iloc[0]),
             'dof': float(t_res['dof'].iloc[0]),
             'p_uncorr': float(t_res[p_col].iloc[0]),
