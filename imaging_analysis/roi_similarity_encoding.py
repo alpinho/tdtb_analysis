@@ -34,7 +34,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 7th of October 2025
-Last Update: February 2026
+Last Update: March 2026
 
 Compatibility: Python 3.10.16
 """
@@ -408,7 +408,7 @@ def plot_profiles(
     ax.legend(frameon=False, loc=LEG_LOC)
     ax.text(
         ANNO_X, ANNO_Y,
-        rf"$r_{{rm}}={r_val:.3f},\ p={p_val:.3f}$",
+        rf"$r_{{ws}}={r_val:.3f},\ p={p_val:.3f}$",
         transform=ax.transAxes, va='top',
         bbox=dict(boxstyle="round,pad=.3", fc="white",
                   ec="gray", alpha=0.7),
@@ -524,10 +524,8 @@ def plot_matrix(
     # ax.set_title(title)
 
     # --- colorbar: keep compact and avoid huge right whitespace
-    # cbar = fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
-    # cbar.set_label('Repeated-measures correlation ($r_{rm}$)', labelpad=10)
     fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
-    ax.set_title('Within-subject Correlation ($r_{rm}$)', pad=10)
+    ax.set_title('Within-subject Correlation ($r_{ws}$)', pad=10)
 
     # --- stars
     if p_mat is not None:
@@ -745,6 +743,15 @@ if __name__ == "__main__":
                     wide = wide_for_rmcorr(
                         df_all, hemi=hemi, modality=modality,
                         roi1=roi1, roi2=roi2, add_rest=ADD_REST
+                    )
+
+                    vec_lengths = wide.groupby('Subject').size()
+                    print(
+                        f"[VECTOR LENGTH] {roi1}-{roi2} | "
+                        f"{indiv} | {modality} | {hemi} | "
+                        f"min={vec_lengths.min()} "
+                        f"max={vec_lengths.max()} "
+                        f"unique={sorted(vec_lengths.unique())}"
                     )
 
                     rmc = pg.rm_corr(
