@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 import pingouin as pg
 
+from matplotlib.colors import to_rgb
 from plot_anovas import bootstrap_conf_intervals, _poly_xspan_at_y
 
 
@@ -515,12 +516,14 @@ def plot_seed_vs_target_boxplots(
     for i, (xpos, vals) in enumerate(zip(positions, data)):
         color = dstr_color if i % 2 == 0 else cereb_color
         jitter = rng.normal(0.0, 0.025, size=len(vals))
+
+        dot_color = tuple(np.array(to_rgb(color)) * 0.75)
         ax.scatter(
             np.full(len(vals), xpos) + jitter,
             vals,
-            s=10,
-            alpha=0.8,
-            color=color,
+            s=12,
+            facecolors=dot_color,
+            edgecolors='none',
             zorder=3,
         )
 
