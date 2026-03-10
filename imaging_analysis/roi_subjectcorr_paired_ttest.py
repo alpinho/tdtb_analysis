@@ -718,6 +718,17 @@ if __name__ == '__main__':
                         roi2=roi2,
                         add_rest=ADD_REST,
                     )
+
+                    # Diagnostic: print vector length per subject
+                    vec_lengths = wide.groupby('Subject').size()
+                    print(
+                        f"[VECTOR LENGTH] {roi1}-{roi2} | "
+                        f"{indiv} | {modality} | {hemi} | "
+                        f"min={vec_lengths.min()} "
+                        f"max={vec_lengths.max()} "
+                        f"unique={sorted(vec_lengths.unique())}"
+                    )
+                    
                     corr_df = compute_subject_corrs(wide, roi1, roi2)
                     corr_df['individualization'] = indiv
                     corr_df['modality'] = modality
