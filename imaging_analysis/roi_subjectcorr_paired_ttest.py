@@ -521,6 +521,7 @@ def plot_seed_vs_target_boxplots(
             s=12,
             facecolors=dot_color,
             edgecolors='none',
+            alpha=.65,
             zorder=3,
         )
 
