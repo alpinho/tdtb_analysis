@@ -398,7 +398,7 @@ def paired_tests_from_subject_corrs(
             ),
             't': float(t_res['T'].iloc[0]),
             'dof': float(t_res['dof'].iloc[0]),
-            'p': float(t_res[p_col].iloc[0]),
+            'p_uncorr': float(t_res[p_col].iloc[0]),
             'cohen_d': float(t_res['cohen-d'].iloc[0]),
             'ci95_low': ci_low,
             'ci95_high': ci_high,
@@ -553,7 +553,7 @@ def plot_seed_vs_target_boxplots(
         if row.empty:
             continue
 
-        stars = p_to_stars(float(row['p'].iloc[0]))
+        stars = p_to_stars(float(row['p_uncorr'].iloc[0]))
         if not stars:
             continue
 
@@ -728,7 +728,7 @@ if __name__ == '__main__':
                         f"max={vec_lengths.max()} "
                         f"unique={sorted(vec_lengths.unique())}"
                     )
-                    
+
                     corr_df = compute_subject_corrs(wide, roi1, roi2)
                     corr_df['individualization'] = indiv
                     corr_df['modality'] = modality
@@ -743,6 +743,20 @@ if __name__ == '__main__':
                     cortical_targets=cortical_targets,
                     indiv=indiv,
                 )
+
+                reject, p_corr = pg.multicomp(
+                    paired_df['p_uncorr'].to_numpy(dtype=float),
+                    alpha=ALPHA,
+                    method='holm',
+                )
+
+                paired_df.insert(
+                    paired_df.columns.get_loc('p_uncorr') + 1,
+                    'p_holm',
+                    p_corr
+                )
+
+                paired_df['significant_holm'] = reject
                 paired_df['modality'] = modality
                 paired_df['hemisphere'] = hemi
 
