@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2024
-Last update: February 2026
+Last update: March 2026
 
 Compatibility: Python 3.10.14
 
@@ -686,8 +686,14 @@ def twoway_rmanova_task(df, tasks_dic, out_dir, prefix, roi,
                 data=db, dv='PSC', within=['Modality', 'Category'],
                 subject='Subject', detailed=True, effsize='ng2'
             )
-            post = pg.pairwise_tests(
+            post1 = pg.pairwise_tests(
                 data=db, dv='PSC', within=['Category', 'Modality'],
+                subject='Subject', alternative=alternative,
+                return_desc=True, padjust='holm',
+                effsize='cohen'
+            )
+            post2 = pg.pairwise_tests(
+                data=db, dv='PSC', within=['Modality', 'Category'],
                 subject='Subject', alternative=alternative,
                 return_desc=True, padjust='holm',
                 effsize='cohen'
@@ -698,8 +704,12 @@ def twoway_rmanova_task(df, tasks_dic, out_dir, prefix, roi,
                 os.path.join(out_dir, base + 'anova.tsv'),
                 sep='\t', index=False
             )
-            post.to_csv(
-                os.path.join(out_dir, base + 'posthoc.tsv'),
+            post1.to_csv(
+                os.path.join(out_dir, base + 'catmod_posthoc.tsv'),
+                sep='\t', index=False
+            )
+            post2.to_csv(
+                os.path.join(out_dir, base + 'modcat_posthoc.tsv'),
                 sep='\t', index=False
             )
 
