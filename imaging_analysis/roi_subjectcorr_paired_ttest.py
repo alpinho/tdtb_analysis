@@ -532,7 +532,8 @@ def plot_seed_vs_target_boxplots(
         linestyle='--',
         dashes=(4, 3),
     )
-    ax.set_ylim(-1.0, 1.0)
+    ax.set_ylim(-.7, 1.)
+    # ax.set_yticks(np.arange(-0.75, 1.01, 0.25))
 
     labels = [ROI_LABELS.get(t, t) for t in targets]
     labels = ['PreSMA' if lab == 'preSMA' else lab for lab in labels]
