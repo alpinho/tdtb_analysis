@@ -71,7 +71,7 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
 
             # Filter beta_names to keep only encoding-related ones
             mask = np.char.find(beta_names, 'encoding') >= 0
-            # Apply mask to get filtered names and runs
+            # Apply mask to get filtered beta names and run numbers
             filtered_beta_names = beta_names[mask]
             filtered_run_numbers = run_numbers[mask] 
 
