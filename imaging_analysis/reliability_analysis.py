@@ -91,8 +91,12 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
                 cond = name[:-len('_encoding*bf(1)')]
 
                 # Get task_id
-                match = re.search(r'task-(.*?)_run', rawdata_repeat[i])
-                task_id = match.group(1) if match else None
+                if model != 'rand_ntfd':
+                    match = re.search(r'task-(.*?)_run', rawdata_repeat[i])
+                    task_id = match.group(1) if match else None
+                else:
+                    assert model == 'rand_ntfd'
+                    task_id = model
 
                 # Map condition type to its abbreviation and combine...
                 # ... with task_id
@@ -142,9 +146,9 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-SUBJECTS = [46]
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [46]
 
 # Parent directories
 home = os.path.expanduser('~')
@@ -156,8 +160,8 @@ else:
     data_storage = '/cifs/diedrichsen'
 
 # Define tasks in the glm
-# glm_tasks = ['prod', 'percep', 'ntfd']
-glm_tasks = ['rand_ntfd']
+glm_tasks = ['prod', 'percep', 'ntfd', 'rand_ntfd']
+# glm_tasks = ['rand_ntfd']
 
 # Path for output folders
 reliability_folder = os.path.join(
