@@ -17,6 +17,10 @@ import numpy as np
 
 from nitools import spm
 
+# Prevent DataFrame truncation when printing
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+
 
 # =========================== FUNCTIONS ================================
 
@@ -76,7 +80,7 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
                                    for i in range(len(beta_names))])
             # Apply the same mask to filter beta_files
             filtered_beta_files = beta_files[mask]
-
+            
             # Loop over the original beta_names with their index
             for i, name in enumerate(filtered_beta_names):
                 # Remove the suffix to get the condition type
@@ -136,7 +140,7 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
 # Subjects without pilot
 # SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 #             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-SUBJECTS = [3]
+SUBJECTS = [43]
 
 # Parent directories
 home = os.path.expanduser('~')
