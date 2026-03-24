@@ -73,6 +73,31 @@ def rsa_dataframe(subjects, task_models, base_dir, cond_mapping, output_path,
             if glm_type == 'task_glm':
                 run_numbers = np.array(SPM.run_number)
             else:
+                # This mapping is necessary because in the grandglm
+                # the order of the runs, and thus the betas, depend on
+                # the order of the acquisition. For the majority of 
+                # the participants, the order is 
+                # production ses 1 run 1, production ses 1 run 2, 
+                # perception ses 1 run 1, percepton ses 1 run 2,
+                # ntfd ses 1 run 1, ntfd ses 1 run 2,
+                # production ses 2 run 1, production ses 2 run 2,
+                # perception ses 2 run 1, perception ses 2 run 2,
+                # ntfd ses 2 run 1, ntfd ses 2 run 1.
+                # The runs for each task are then re-numbered from 
+                # 1 to 4 across the 2 sessions.
+                # Exceptions exist for subjects 14, 42, 43 nd 46.
+                # For instance, in subject 14, the order is:
+                # production 1, production 2,
+                # perception 1, perception 2,
+                # ntfd 1, ntfd2,
+                # production 3,
+                # perception 3,
+                # perception 4,
+                # ntfd 3,
+                # ntfd 4,
+                # production 4.
+                # Consult datamap.m to better understand the 
+                # correspondence employed.
                 assert glm_type == 'grand_glm'
                 if subj == 14:
                     run_numbers = np.repeat(
