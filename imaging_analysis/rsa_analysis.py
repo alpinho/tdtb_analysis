@@ -105,8 +105,11 @@ def rsa_dataframe(subjects, task_models, base_dir, cond_mapping, output_path,
 
             # Filter beta_names to keep only encoding-related ones
             mask = np.char.find(beta_names, 'encoding') >= 0
-            # Apply mask to get filtered names
-            filtered_beta_names = beta_names[mask] 
+            # Apply mask to get filtered beta names and run numbers
+            filtered_beta_names = beta_names[mask]
+
+            if glm_type == 'task_glm':
+                run_numbers = run_numbers[mask]
 
             # Corresponding full list of beta files
             beta_files = np.array([f"beta_{i+1:04d}.nii"
@@ -1257,9 +1260,9 @@ def encoding_significance(output_dir, conditions, tags,
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-# SUBJECTS = [42]
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SUBJECTS = [42]
 
 # Path for output folders
 rsa_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1361,7 +1364,7 @@ if __name__ == '__main__':
     # Create dataframes
     # db_grandglm = rsa_dataframe(
     #     SUBJECTS, glm_tasks, data_storage, conditions_mapping,
-    #     db_grandglm_path, glm_type='grand_glm')
+    #     db_grandglm_path, glm_type='task_glm')
 
     # Prewhiten grand glm beta maps and save them, ...
     # db_grandglm = prewhiten_betas(
