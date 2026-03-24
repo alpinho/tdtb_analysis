@@ -37,6 +37,10 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
         subj_str = f"sub-{subj:02d}"
         for model in task_models:
 
+            if model != 'rand_ntfd':
+                cond_mapping.pop('auditory_random', None)
+                cond_mapping.pop('visual_random', None)
+
             spm_dir = os.path.join(
                 derivatives_dir, subj_str, 'estimates', model,
                 'ffx_rwls_dbb_hrf128'
@@ -67,7 +71,7 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
             rawdata_unique = rawdata_files_cleaned[np.sort(unique_indices)]
             # Match its length with the number of encoding entries...
             # ... in beta_names
-            rawdata_repeat = np.repeat(rawdata_unique, 4)
+            rawdata_repeat = np.repeat(rawdata_unique, len(cond_mapping))
 
             # Filter beta_names to keep only encoding-related ones
             mask = np.char.find(beta_names, 'encoding') >= 0
@@ -80,7 +84,7 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
                                    for i in range(len(beta_names))])
             # Apply the same mask to filter beta_files
             filtered_beta_files = beta_files[mask]
-
+            
             # Loop over the original beta_names with their index
             for i, name in enumerate(filtered_beta_names):
                 # Remove the suffix to get the condition type
@@ -152,8 +156,8 @@ else:
     data_storage = '/cifs/diedrichsen'
 
 # Define tasks in the glm
-# glm_tasks = ['prod', 'percep', 'ntfd', 'rand_ntfd']
-glm_tasks = ['prod', 'percep', 'ntfd']
+# glm_tasks = ['prod', 'percep', 'ntfd']
+glm_tasks = ['rand_ntfd']
 
 # Path for output folders
 reliability_folder = os.path.join(
@@ -163,8 +167,10 @@ reliability_folder = os.path.join(
 conditions_mapping = {
     'auditory_beat': 'abeat',
     'auditory_interval': 'ainterval',
+    'auditory_random': 'arandom',
     'visual_beat': 'vbeat',
-    'visual_interval': 'vinterval'
+    'visual_interval': 'vinterval',
+    'visual_random': 'vrandom'
 }
 
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
