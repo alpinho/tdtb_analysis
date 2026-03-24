@@ -25,7 +25,7 @@ pd.set_option('display.max_columns', None)
 # =========================== FUNCTIONS ================================
 
 def reliability_dataframe(subjects, task_models, base_dir, cond_mapping, 
-                          output_path):
+                          output_path, prefix, masking):
     """Builds the inputs DataFrame, saves it, and returns it."""
 
     derivatives_dir = os.path.join(
@@ -80,7 +80,7 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
                                    for i in range(len(beta_names))])
             # Apply the same mask to filter beta_files
             filtered_beta_files = beta_files[mask]
-            
+
             # Loop over the original beta_names with their index
             for i, name in enumerate(filtered_beta_names):
                 # Remove the suffix to get the condition type
@@ -105,9 +105,9 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
                 # Get the regressor id and build path of...
                 # ... corresponding masked derivative
                 reg_number = os.path.splitext(filtered_beta_files[i])[0][5:]
-                pscmap_path = os.path.join(
-                    masked_derivatives_dir, 
-                    'wpsc_maps_' + reg_number + '_desc-wbmasked.nii')
+                psc_fname = prefix + '_maps_' + reg_number + '_desc-' + \
+                    masking + 'masked.nii'
+                pscmap_path = os.path.join(masked_derivatives_dir, psc_fname)
 
                 # Convert full paths to paths relative to base_dir
                 relative_betamap_path = os.path.relpath(
@@ -140,7 +140,7 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
 # Subjects without pilot
 # SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 #             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-SUBJECTS = [43]
+SUBJECTS = [46]
 
 # Parent directories
 home = os.path.expanduser('~')
@@ -169,6 +169,8 @@ conditions_mapping = {
 
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
 smooth = 'unsmoothed'  # 'smoothed'
+derivative_type = 'wpsc'
+mask_type = 'wb'
 
 # ####################### ROIs ##############################
 atlas_names = ['hos', 
@@ -199,4 +201,5 @@ if __name__ == '__main__':
         f'reliability_taskglm_{thresh_type}_{smooth}.tsv')
 
     reliability_dataframe(SUBJECTS, glm_tasks, data_storage, 
-                          conditions_mapping, db_taskglm_path)
+                          conditions_mapping, db_taskglm_path, 
+                          derivative_type, mask_type)
