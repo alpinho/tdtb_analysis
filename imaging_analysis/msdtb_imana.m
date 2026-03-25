@@ -1930,6 +1930,15 @@ switch what
         % model_type = 'drbb';
         
         output_folder = 'ffx_rwls_dbb_hrf128';
+
+        % REPLICATE OVER SESSIONS OR NOT?
+        % Don't replicate --- 'none'
+        % Replicate --- 'repl'
+        % Replicate&Scale --- 'replsc' (this is the ffx)
+        % Create per Session --- 'sess'
+        % Both: Replicate + Create per session --- 'both'
+        % Both: Replicate&Scale + Create per session --- 'bothsc'
+        sessrep_mode = 'sess'
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -1967,15 +1976,15 @@ switch what
                     A.consess{c}.tcon.name = [contrast_prefix{dg} ...
                         contrasts_list{c,1}];
                     A.consess{c}.tcon.weights = contrasts_list{c,2};
-                    A.consess{c}.tcon.sessrep = 'replsc';
+                    A.consess{c}.tcon.sessrep = sessrep_mode; % 'replsc'
                 end
 
                 % Delete existing contrasts
-                A.delete = 1; % 1 yes, 0 no
+                A.delete = 0; % 1 yes, 0 no
                 matlabbatch{1}.spm.stats.con=A;
                 spm_jobman('run', matlabbatch);
             end
-        end % s (subject)
+        end % s (subject) 
         
     case 'GLM:calc_PSC'                           
         % Calculate percent signal change for selected contrasts - based on betas
