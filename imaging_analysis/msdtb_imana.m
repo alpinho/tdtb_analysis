@@ -84,10 +84,11 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
-subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-% subj_n = [3];
+subj_n = [10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28, 29, 32, ...
+    34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -1908,27 +1909,34 @@ switch what
 
     case 'GLM:individual_ffx_t'
         % Estimate ffx individual tmaps across runs and sessions
-        
+        %
         % Example usage:
         % msdtb_imana('GLM:individual_ffx_t', ...
         %             'design', {'rand_ntfd'}, ...
         %             'model_type', 'drbb', ...
         %             'output_folder', 'ffx_rwls_drbb_hrf42')
- 
-        contrasts_list = {};
+        %
+        % Examples with subsets:
+        % msdtb_imana('GLM:individual_ffx_t', ...
+        %             'design', {'prod'})
+        %
+        % msdtb_imana('GLM:individual_ffx_t', ...
+        %             'design', {'prod', 'ntfd'})
+
         % Go to the folder of script
         cd(fileparts(mfilename('fullpath')))
-        
+
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
-        
+
         sn = subj_id; % subject list
-        
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'prod', 'percep', 'ntfd'};
         % design = {'rand_ntfd'};
-        
+
         model_type = 'dbb';
         % model_type = 'drbb';
-        
+
         output_folder = 'ffx_rwls_dbb_hrf128';
 
         % REPLICATE OVER SESSIONS OR NOT?
@@ -1938,53 +1946,84 @@ switch what
         % Create per Session --- 'sess'
         % Both: Replicate + Create per session --- 'both'
         % Both: Replicate&Scale + Create per session --- 'bothsc'
-        sessrep_mode = 'sess'
-        
+        sessrep_mode = 'sess';
+
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        
+
         vararginoptions(varargin, {'sn', 'design', 'model_type', ...
-            'output_folder'});
-        
-        contrasts_list = {};
-        if isequal(design, {'prod', 'percep', 'ntfd', 'allmain_tasks'})
-            contrast_prefix = {'Production: ', 'Perception: ', 'NTFD: ', ...
-                'AllTasks: '};
-            if strcmp(model_type, 'dbb')
-                contrasts_list = contrasts;
-            elseif strcmp(model_type, 'drbb')
-                contrasts_list = contrasts_drbb;
-            end
-        elseif isequal(design, {'rand_ntfd'})
-            contrast_prefix = {'Random NTFD: '};
-            if strcmp(model_type, 'dbb')
-                contrasts_list = contrasts_random;
-            elseif strcmp(model_type, 'drbb')
-                contrasts_list = contrasts_random_drbb;
-            end
-        end
-        
+            'output_folder', 'sessrep_mode'});
+
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, est_dir);  
-            for dg=1:length(design)          
-                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    output_folder)
+                subj_str{s}, est_dir);
+
+            for dg = 1:length(design)
+                estdesign_folder = fullfile(estderiv_subj_dir, ...
+                    design{dg}, output_folder);
+
+                % Determine contrasts and prefix for the current design
+                switch design{dg}
+                    case 'prod'
+                        contrast_prefix_curr = 'Production: ';
+                        if strcmp(model_type, 'dbb')
+                            contrasts_list_curr = contrasts;
+                        elseif strcmp(model_type, 'drbb')
+                            contrasts_list_curr = contrasts_drbb;
+                        end
+
+                    case 'percep'
+                        contrast_prefix_curr = 'Perception: ';
+                        if strcmp(model_type, 'dbb')
+                            contrasts_list_curr = contrasts;
+                        elseif strcmp(model_type, 'drbb')
+                            contrasts_list_curr = contrasts_drbb;
+                        end
+
+                    case 'ntfd'
+                        contrast_prefix_curr = 'NTFD: ';
+                        if strcmp(model_type, 'dbb')
+                            contrasts_list_curr = contrasts;
+                        elseif strcmp(model_type, 'drbb')
+                            contrasts_list_curr = contrasts_drbb;
+                        end
+
+                    case 'allmain_tasks'
+                        contrast_prefix_curr = 'AllTasks: ';
+                        if strcmp(model_type, 'dbb')
+                            contrasts_list_curr = contrasts;
+                        elseif strcmp(model_type, 'drbb')
+                            contrasts_list_curr = contrasts_drbb;
+                        end
+
+                    case 'rand_ntfd'
+                        contrast_prefix_curr = 'Random NTFD: ';
+                        if strcmp(model_type, 'dbb')
+                            contrasts_list_curr = contrasts_random;
+                        elseif strcmp(model_type, 'drbb')
+                            contrasts_list_curr = contrasts_random_drbb;
+                        end
+
+                    otherwise
+                        error('Unknown design: %s', design{dg});
+                end
 
                 A = []; % structure with SPM fields to build the t-contrasts
                 A.spmmat = {[estdesign_folder '/SPM.mat']};
-                for c=1:length(contrasts_list)
-                    A.consess{c}.tcon.name = [contrast_prefix{dg} ...
-                        contrasts_list{c,1}];
-                    A.consess{c}.tcon.weights = contrasts_list{c,2};
-                    A.consess{c}.tcon.sessrep = sessrep_mode; % 'replsc'
+
+                for c = 1:length(contrasts_list_curr)
+                    A.consess{c}.tcon.name = [contrast_prefix_curr ...
+                        contrasts_list_curr{c,1}];
+                    A.consess{c}.tcon.weights = contrasts_list_curr{c,2};
+                    A.consess{c}.tcon.sessrep = sessrep_mode;
                 end
 
                 % Delete existing contrasts
                 A.delete = 0; % 1 yes, 0 no
-                matlabbatch{1}.spm.stats.con=A;
+                clear matlabbatch
+                matlabbatch{1}.spm.stats.con = A;
                 spm_jobman('run', matlabbatch);
             end
-        end % s (subject) 
+        end % s (subject)
         
     case 'GLM:calc_PSC'                           
         % Calculate percent signal change for selected contrasts - based on betas
