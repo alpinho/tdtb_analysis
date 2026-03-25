@@ -15,7 +15,7 @@ import re
 import pandas as pd
 import numpy as np
 
-from nitools import spm
+
 from nilearn import image
 from nilearn.maskers import NiftiMasker
 
@@ -43,9 +43,11 @@ def reliability_dataframe(
 
             if model != 'rand_ntfd':
                 contrasts_mapping = contrasts_main
+                n_runs = 4
             else:
                 assert model == 'rand_ntfd'
                 contrasts_mapping = contrasts_random
+                n_runs = 2            
 
             spm_dir = os.path.join(
                 derivatives_dir, subj_str, 'estimates', model,
@@ -56,96 +58,110 @@ def reliability_dataframe(
                 'masked_derivatives_rwls_dbb_hrf128'
             )
 
-            # Load SPM.mat using nitools
-            SPM = spm.SpmGlm(spm_dir)
-            SPM.get_info_from_spm_mat()  # retrieve SPM.mat info
+            contrast_names = list(contrasts_mapping.values())
+            for contrast_name in contrast_names:
+                for run_num in np.arange(1, n_runs + 1):
+
+                    rows.append({
+                        'subject': subj,
+                        'task_id': model,
+                        'contrast_name': contrast_name,
+                        'run_number': run_num,
+                        'betamap_path': spm_dir,
+                        'wmasked_pscmap_path': masked_derivatives_dir,
+                        'swmasked_pscmap_path': masked_derivatives_dir
+                    })
+
+            # # Load SPM.mat using nitools
+            # SPM = spm.SpmGlm(spm_dir)
+            # SPM.get_info_from_spm_mat()  # retrieve SPM.mat info
             
-            # Retrieve beta names, rawdata_files, and run_numbers...
-            # ... as numpy arrays
-            beta_names = np.array(SPM.beta_names)
-            rawdata_files = np.array(SPM.rawdata_files)
-            run_numbers = np.array(SPM.run_number)
+            # # Retrieve beta names, rawdata_files, and run_numbers...
+            # # ... as numpy arrays
+            # beta_names = np.array(SPM.beta_names)
+            # rawdata_files = np.array(SPM.rawdata_files)
+            # run_numbers = np.array(SPM.run_number)
 
-            # Remove volume numbers from rawdata_files
-            rawdata_files_cleaned = np.array(
-                [re.sub(r', \d+\s*$', '', rawdata_file)
-                 for rawdata_file in rawdata_files])
-            # Get unique elements while preserving the original order...
-            _, unique_indices = np.unique(rawdata_files_cleaned,
-                                          return_index=True)
-            # ... and sort by original order
-            rawdata_unique = rawdata_files_cleaned[np.sort(unique_indices)]
-            # Match its length with the number of encoding entries...
-            # ... in beta_names
-            rawdata_repeat = np.repeat(rawdata_unique, len(contrasts_mapping))
+            # # Remove volume numbers from rawdata_files
+            # rawdata_files_cleaned = np.array(
+            #     [re.sub(r', \d+\s*$', '', rawdata_file)
+            #      for rawdata_file in rawdata_files])
+            # # Get unique elements while preserving the original order...
+            # _, unique_indices = np.unique(rawdata_files_cleaned,
+            #                               return_index=True)
+            # # ... and sort by original order
+            # rawdata_unique = rawdata_files_cleaned[np.sort(unique_indices)]
+            # # Match its length with the number of encoding entries...
+            # # ... in beta_names
+            # rawdata_repeat = np.repeat(rawdata_unique, len(contrasts_mapping))
 
-            # Filter beta_names to keep only encoding-related ones
-            mask = np.char.find(beta_names, 'encoding') >= 0
-            # Apply mask to get filtered beta names and run numbers
-            filtered_beta_names = beta_names[mask]
-            filtered_run_numbers = run_numbers[mask] 
+            # # Filter beta_names to keep only encoding-related ones
+            # mask = np.char.find(beta_names, 'encoding') >= 0
+            # # Apply mask to get filtered beta names and run numbers
+            # filtered_beta_names = beta_names[mask]
+            # filtered_run_numbers = run_numbers[mask] 
 
-            # Corresponding full list of beta files
-            beta_files = np.array([f"beta_{i+1:04d}.nii"
-                                   for i in range(len(beta_names))])
-            # Apply the same mask to filter beta_files
-            filtered_beta_files = beta_files[mask]
+            # # Corresponding full list of beta files
+            # beta_files = np.array([f"beta_{i+1:04d}.nii"
+            #                        for i in range(len(beta_names))])
+            # # Apply the same mask to filter beta_files
+            # filtered_beta_files = beta_files[mask]
             
-            # Loop over the original beta_names with their index
-            for i, name in enumerate(filtered_beta_names):
-                # Remove the suffix to get the condition type
-                cond = name[:-len('_encoding*bf(1)')]
+            # # Loop over the original beta_names with their index
+            # for i, name in enumerate(filtered_beta_names):
+            #     # Remove the suffix to get the condition type
+            #     cond = name[:-len('_encoding*bf(1)')]
 
-                # Get task_id
-                if model != 'rand_ntfd':
-                    match = re.search(r'task-(.*?)_run', rawdata_repeat[i])
-                    task_id = match.group(1) if match else None
-                else:
-                    assert model == 'rand_ntfd'
-                    task_id = model
+            #     # Get task_id
+            #     if model != 'rand_ntfd':
+            #         match = re.search(r'task-(.*?)_run', rawdata_repeat[i])
+            #         task_id = match.group(1) if match else None
+            #     else:
+            #         assert model == 'rand_ntfd'
+            #         task_id = model
 
-                # Map condition type to its abbreviation and combine...
-                # ... with task_id
-                cond_abbr = cond_mapping.get(cond, cond)
-                condition_name = f"{cond_abbr}_{task_id}"
+            #     # Map condition type to its abbreviation and combine...
+            #     # ... with task_id
+            #     cond_abbr = cond_mapping.get(cond, cond)
+            #     condition_name = f"{cond_abbr}_{task_id}"
                
-                # Use the original beta index (1-indexed) for the...
-                # ... betamap filename
-                betamap_path = os.path.join(spm_dir, filtered_beta_files[i])
+            #     # Use the original beta index (1-indexed) for the...
+            #     # ... betamap filename
+            #     betamap_path = os.path.join(spm_dir, filtered_beta_files[i])
 
-                # Get the corresponding run number
-                run_num = filtered_run_numbers[i]
+            #     # Get the corresponding run number
+            #     run_num = filtered_run_numbers[i]
 
-                # Get the regressor id and build path of...
-                # ... corresponding masked derivative
-                reg_number = os.path.splitext(filtered_beta_files[i])[0][5:]
-                psc_fname = prefix + '_' + reg_number + '_desc-' + masking + \
-                    'masked.nii'
-                spsc_fname = prefix + '_' + reg_number + '_desc-' + 'sm8' + \
-                    masking + 'masked.nii'
+            #     # Get the regressor id and build path of...
+            #     # ... corresponding masked derivative
+            #     reg_number = os.path.splitext(filtered_beta_files[i])[0][5:]
+            #     psc_fname = prefix + '_' + reg_number + '_desc-' + masking + \
+            #         'masked.nii'
+            #     spsc_fname = prefix + '_' + reg_number + '_desc-' + 'sm8' + \
+            #         masking + 'masked.nii'
 
-                pscmap_path = os.path.join(masked_derivatives_dir, psc_fname)
-                spscmap_path = os.path.join(masked_derivatives_dir, 
-                                            spsc_fname)
+            #     pscmap_path = os.path.join(masked_derivatives_dir, psc_fname)
+            #     spscmap_path = os.path.join(masked_derivatives_dir, 
+            #                                 spsc_fname)
 
-                # Convert full paths to paths relative to base_dir
-                relative_betamap_path = os.path.relpath(
-                    betamap_path, base_dir)
-                relative_pscmap_path = os.path.relpath(
-                    pscmap_path, base_dir)
-                relative_spscmap_path = os.path.relpath(
-                    spscmap_path, base_dir)
+            #     # Convert full paths to paths relative to base_dir
+            #     relative_betamap_path = os.path.relpath(
+            #         betamap_path, base_dir)
+            #     relative_pscmap_path = os.path.relpath(
+            #         pscmap_path, base_dir)
+            #     relative_spscmap_path = os.path.relpath(
+            #         spscmap_path, base_dir)
                 
-                rows.append({
-                    'subject': subj,
-                    'task_id': task_id,
-                    'run_number': run_num,
-                    'condition_type': cond,
-                    'condition_name': condition_name,
-                    'betamap_path': relative_betamap_path,
-                    'wmasked_pscmap_path': relative_pscmap_path,
-                    'swmasked_pscmap_path': relative_spscmap_path
-                })
+            #     rows.append({
+            #         'subject': subj,
+            #         'task_id': task_id,
+            #         'run_number': run_num,
+            #         'condition_type': cond,
+            #         'condition_name': condition_name,
+            #         'betamap_path': relative_betamap_path,
+            #         'wmasked_pscmap_path': relative_pscmap_path,
+            #         'swmasked_pscmap_path': relative_spscmap_path
+            #     })
 
     # Create the DataFrame
     df = pd.DataFrame(rows)
@@ -373,9 +389,9 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
-SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-# SUBJECTS = [46]
+# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+SUBJECTS = [3]
 
 # Parent directories
 home = os.path.expanduser('~')
@@ -544,7 +560,7 @@ if __name__ == '__main__':
     #                      vbeat_percep, vinterval_percep,
     #                      abeat_ntfd, ainterval_ntfd,
     #                      vbeat_ntfd, vinterval_ntfd
-    taskglm_roi_extraction(db_taskglm_path, data_storage, glm_tasks,
-                           SUBJECTS, itags, region_names, atlas_names,
-                           roi_names, hemispheres, iroi_main_dir,
-                           thresh_type, smooth)
+    # taskglm_roi_extraction(db_taskglm_path, data_storage, glm_tasks,
+    #                        SUBJECTS, itags, region_names, atlas_names,
+    #                        roi_names, hemispheres, iroi_main_dir,
+    #                        thresh_type, smooth)
