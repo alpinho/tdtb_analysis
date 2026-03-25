@@ -115,10 +115,10 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
                 # Get the regressor id and build path of...
                 # ... corresponding masked derivative
                 reg_number = os.path.splitext(filtered_beta_files[i])[0][5:]
-                psc_fname = prefix + '_maps_' + reg_number + '_desc-' + \
+                psc_fname = prefix + '_' + reg_number + '_desc-' + masking + \
+                    'masked.nii'
+                spsc_fname = prefix + '_' + reg_number + '_desc-' + 'sm8' + \
                     masking + 'masked.nii'
-                spsc_fname = prefix + '_maps_' + reg_number + '_desc-' + \
-                    'sm8' + masking + 'masked.nii'
 
                 pscmap_path = os.path.join(masked_derivatives_dir, psc_fname)
                 spscmap_path = os.path.join(masked_derivatives_dir, 
@@ -293,7 +293,8 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                                 iroi_mask_path = os.path.join(
                                     os.path.dirname(
                                         os.path.abspath(__file__)),
-                                    iroi_mask_dir, 'all', region, atlas,
+                                    iroi_mask_dir, 'bothmod_allmain_tasks', 
+                                    'main_tasks', region, atlas,
                                     'individual_roi_masks',
                                     (f'{tag}_sub-{subject:02d}_'
                                      f'{roi}_{hem}_mask.nii.gz')
@@ -302,7 +303,8 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                                 iroi_mask_path = os.path.join(
                                     os.path.dirname(
                                         os.path.abspath(__file__)),
-                                    iroi_mask_dir, 'all', region, atlas, roi,
+                                    iroi_mask_dir, 'bothmod_allmain_tasks', 
+                                    'main_tasks', region, atlas, roi,
                                     'individual_roi_masks',
                                     (f'{tag}_sub-{subject:02d}_'
                                      f'{roi}_{hem}_mask.nii.gz')
@@ -407,21 +409,25 @@ derivative_type = 'wpsc'
 mask_type = 'wb'
 
 # ####################### ROIs ##############################
-atlas_names = ['hos', 
-               'ntk_symmni128', 
-               'hmat', 'hmat', 'hmat', 'hmat',
-               'hos',
-               'hos']
-region_names = ['dorsal_striatum', 
-                'cerebellum', 
-                'motor_area', 'motor_area', 'motor_area', 'motor_area',
-                'heschl_gyrus',
-                'occipital_lobe']
-roi_names = ['dstr', 
-             'cereb', 
-             'pmd', 'pmv', 'sma', 'presma',
-             'heschl',
-             'occipital']
+# atlas_names = ['hos', 
+#                'ntk_symmni128', 
+#                'hmat', 'hmat', 'hmat', 'hmat',
+#                'hos',
+#                'hos']
+# region_names = ['dorsal_striatum', 
+#                 'cerebellum', 
+#                 'motor_area', 'motor_area', 'motor_area', 'motor_area',
+#                 'heschl_gyrus',
+#                 'occipital_lobe']
+# roi_names = ['dstr', 
+#              'cereb', 
+#              'pmd', 'pmv', 'sma', 'presma',
+#              'heschl',
+#              'occipital']
+
+atlas_names = ['hos']
+region_names = ['dorsal_striatum']
+roi_names = ['dstr']
 
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 
 #          'g']
@@ -445,12 +451,12 @@ if __name__ == '__main__':
                                    'reliability_taskglm.tsv')
 
     # Create dataframes
-    reliability_dataframe(SUBJECTS, glm_tasks, data_storage, 
-                          conditions_mapping, db_taskglm_path, 
-                          derivative_type, mask_type)
+    # reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
+    #                       conditions_mapping, db_taskglm_path,
+    #                       derivative_type, mask_type)
 
     # Open dataframes
-    db_grandglm = pd.read_csv(db_taskglm_path, sep='\t')
+    # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
 
     # Extract signals from derivatives using individualized ROIs
     # Order of conditions: abeat_prod, ainterval_prod,
