@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2023
-Last update: October 2025
+Last update: March 2026
 
 Compatibility: Python 3.10.14
 
@@ -381,7 +381,7 @@ tasks_roiextract = {
     k: v for k, v in tasks.items() if v in tasks_roiextract_vals
 }
 
-# -------- All contrast dictionaries (kept as requested) --------
+# -------- All contrast dictionaries --------
 
 ALL_CONTRASTS_MAIN = {
     1: 'Encoding',
@@ -448,16 +448,6 @@ ALL_CONTRASTS_RAND = {
     41: 'Visual Random vs Visual Non-Random',
     42: 'Decision'
 }
-
-# Defaults; will be finalized below
-all_contrasts = ALL_CONTRASTS_MAIN
-selected_contrasts = {
-    10: 'Auditory Beat',
-    11: 'Auditory Interval',
-    14: 'Visual Beat',
-    15: 'Visual Interval'
-}
-folder_name = 'main_tasks'
 
 model = 'rwls'
 masking = 'wb'
