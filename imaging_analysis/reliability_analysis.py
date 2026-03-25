@@ -26,8 +26,10 @@ pd.set_option('display.max_columns', None)
 
 # =========================== FUNCTIONS ================================
 
-def reliability_dataframe(subjects, task_models, base_dir, cond_mapping, 
-                          output_path, prefix, masking):
+def reliability_dataframe(
+        subjects, task_models, base_dir,
+        contrasts_main, contrasts_random,
+        output_path, prefix, masking):
     """Builds the inputs DataFrame, saves it, and returns it."""
 
     derivatives_dir = os.path.join(
@@ -40,8 +42,10 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
         for model in task_models:
 
             if model != 'rand_ntfd':
-                cond_mapping.pop('auditory_random', None)
-                cond_mapping.pop('visual_random', None)
+                contrasts_mapping = contrasts_main
+            else:
+                assert model == 'rand_ntfd'
+                contrasts_mapping = contrasts_random
 
             spm_dir = os.path.join(
                 derivatives_dir, subj_str, 'estimates', model,
@@ -73,7 +77,7 @@ def reliability_dataframe(subjects, task_models, base_dir, cond_mapping,
             rawdata_unique = rawdata_files_cleaned[np.sort(unique_indices)]
             # Match its length with the number of encoding entries...
             # ... in beta_names
-            rawdata_repeat = np.repeat(rawdata_unique, len(cond_mapping))
+            rawdata_repeat = np.repeat(rawdata_unique, len(contrasts_mapping))
 
             # Filter beta_names to keep only encoding-related ones
             mask = np.char.find(beta_names, 'encoding') >= 0
@@ -331,20 +335,21 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                                     f"condition='{condition}', run={run}."
                                 )
                             if smoothing == 'unsmoothed':
-                                betamap_path = os.path.join(
+                                map_path = os.path.join(
                                     base_dir, 
                                     row_match.iloc[0][
                                         'wmasked_pscmap_path']
                                 )
                             else:
                                 assert smoothing == 'smoothed'
-                                betamap_path = os.path.join(
+                                map_path = os.path.join(
                                     base_dir,
                                     row_match.iloc[0][
                                         'swmasked_pscmap_path']
                                 )
-                            betamap = image.load_img(betamap_path)
-                            voxels = masker.fit_transform(betamap)
+                            print(map_path)
+                            map = image.load_img(map_path)
+                            voxels = masker.fit_transform(map)
                             data_array[h, c, r, s, :] = voxels
 
             # Save array to disk
@@ -389,16 +394,6 @@ glm_tasks = ['prod', 'percep', 'ntfd', 'rand_ntfd']
 reliability_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'reliability')
 
-# Define mapping for condition type abbreviations
-conditions_mapping = {
-    'auditory_beat': 'abeat',
-    'auditory_interval': 'ainterval',
-    'auditory_random': 'arandom',
-    'visual_beat': 'vbeat',
-    'visual_interval': 'vinterval',
-    'visual_random': 'vrandom'
-}
-
 # Threshold of group-level contrast ued to generate ROI
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
 # Derivatives used are smoothed or unsmoothed?
@@ -408,19 +403,103 @@ derivative_type = 'wpsc'
 # Whole-brain (wb) mask or gray-matter (gm) mask?
 mask_type = 'wb'
 
+# -------- All contrast dictionaries --------
+
+ALL_CONTRASTS_MAIN = {
+    1: 'Encoding',
+    2: 'Auditory Encoding',
+    3: 'Visual Encoding',
+    4: 'Auditory vs Visual Encoding',
+    5: 'Visual vs Auditory Encoding',
+    6: 'Beat',
+    7: 'Interval',
+    8: 'Beat vs Interval',
+    9: 'Interval vs Beat',
+    10: 'Auditory Beat',
+    11: 'Auditory Interval',
+    12: 'Auditory Beat vs Auditory Interval',
+    13: 'Auditory Interval vs Auditory Beat',
+    14: 'Visual Beat',
+    15: 'Visual Interval',
+    16: 'Visual Beat vs Visual Interval',
+    17: 'Visual Interval vs Visual Beat',
+    18: 'Decision'
+}
+
+ALL_CONTRASTS_RAND = {
+    1: 'Encoding',
+    2: 'Auditory Encoding',
+    3: 'Visual Encoding',
+    4: 'Auditory vs Visual Encoding',
+    5: 'Visual vs Auditory Encoding',
+    6: 'Beat',
+    7: 'Interval',
+    8: 'Non-Random',
+    9: 'Random',
+    10: 'Beat vs Interval',
+    11: 'Interval vs Beat',
+    12: 'Beat vs Random',
+    13: 'Random vs Beat',
+    14: 'Interval vs Random',
+    15: 'Random vs Interval',
+    16: 'Non-Random vs Random',
+    17: 'Random vs Non-Random',
+    18: 'Auditory Beat',
+    19: 'Auditory Interval',
+    20: 'Auditory Non-Random',
+    21: 'Auditory Random',
+    22: 'Auditory Beat vs Auditory Interval',
+    23: 'Auditory Interval vs Auditory Beat',
+    24: 'Auditory Beat vs Auditory Random',
+    25: 'Auditory Random vs Auditory Beat',
+    26: 'Auditory Interval vs Auditory Random',
+    27: 'Auditory Random vs Auditory Interval',
+    28: 'Auditory Non-Random vs Auditory Random',
+    29: 'Auditory Random vs Auditory Non-Random',
+    30: 'Visual Beat',
+    31: 'Visual Interval',
+    32: 'Visual Non-Random',
+    33: 'Visual Random',
+    34: 'Visual Beat vs Visual Interval',
+    35: 'Visual Interval vs Visual Beat',
+    36: 'Visual Beat vs Visual Random',
+    37: 'Visual Random vs Visual Beat',
+    38: 'Visual Interval vs Visual Random',
+    39: 'Visual Random vs Visual Interval',
+    40: 'Visual Non-Random vs Visual Random',
+    41: 'Visual Random vs Visual Non-Random',
+    42: 'Decision'
+}
+
+selected_contrasts_main = {
+    10: 'Auditory Beat',
+    11: 'Auditory Interval',
+    14: 'Visual Beat',
+    15: 'Visual Interval'
+}
+
+selected_contrasts_random = {
+    18: 'Auditory Beat',
+    19: 'Auditory Interval',
+    21: 'Auditory Random',
+    30: 'Visual Beat',
+    31: 'Visual Interval',
+    33: 'Visual Random'
+}
+
 # ####################### ROIs ##############################
-# atlas_names = ['hos', 
-#                'ntk_symmni128', 
+# atlas_names = ['hos',
+#                'ntk_symmni128',
 #                'hmat', 'hmat', 'hmat', 'hmat',
 #                'hos',
 #                'hos']
-# region_names = ['dorsal_striatum', 
-#                 'cerebellum', 
+# region_names = ['dorsal_striatum',
+#                 'cerebellum',
 #                 'motor_area', 'motor_area', 'motor_area', 'motor_area',
 #                 'heschl_gyrus',
 #                 'occipital_lobe']
-# roi_names = ['dstr', 
-#              'cereb', 
+# roi_names = ['dstr',
+#              'cereb',
 #              'pmd', 'pmv', 'sma', 'presma',
 #              'heschl',
 #              'occipital']
@@ -451,9 +530,9 @@ if __name__ == '__main__':
                                    'reliability_taskglm.tsv')
 
     # Create dataframes
-    # reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
-    #                       conditions_mapping, db_taskglm_path,
-    #                       derivative_type, mask_type)
+    reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
+                          selected_contrasts_main, selected_contrasts_random, 
+                          db_taskglm_path, derivative_type, mask_type)
 
     # Open dataframes
     # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
