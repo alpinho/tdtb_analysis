@@ -1342,7 +1342,9 @@ itags = ['i', 'i8a']
 
 hemispheres = ['bh']  # Both hemispheres
 
+# Threshold of group-level contrast ued to generate ROI
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
+# Derivatives used are smoothed or unsmoothed?
 smooth = 'unsmoothed'  # 'smoothed'
 
 iroi_main_dir = os.path.join(
