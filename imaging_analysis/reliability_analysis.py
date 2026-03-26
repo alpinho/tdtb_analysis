@@ -16,7 +16,7 @@ import numpy as np
 
 
 from nilearn import image
-from nilearn.maskers import NiftiMasker
+from nilearn.input_data import NiftiLabelsMasker
 
 # Prevent DataFrame truncation when printing
 pd.set_option('display.max_rows', None)
@@ -55,6 +55,8 @@ def reliability_dataframe(
             n_runs = keys[1] - keys[0]
 
             for key, value in contrasts_mapping.items():
+                con_name = value.lower().replace(' ', '_')
+                cond_name = con_name + '_' + model
                 for rn in np.arange(n_runs):
 
                     if smoothing == 'unsmoothed':
@@ -73,7 +75,8 @@ def reliability_dataframe(
                     rows.append({
                         'subject': subj,
                         'task_id': model,
-                        'contrast_name': value.lower().replace(' ', '_'),
+                        'contrast_name': con_name,
+                        'condition_name': cond_name,
                         'run_number': rn + 1,
                         pscpath_colname: relative_pscmap_path,
                     })
@@ -88,14 +91,14 @@ def reliability_dataframe(
     return df
 
 
-def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags, 
+def taskglm_roi_extraction(df_input, base_dir, tags, 
                            regions, atlases, rois, hems, iroi_mask_dir, 
                            thresh, smoothing):
     """
     Extract mean PSC within an ROI for each contrast.
 
     Output array shape:
-    (hemisphere, tasks, contrasts, subjects)
+    (hemisphere, conditions, runs, subjects)
     """
 
     if isinstance(df_input, str):
@@ -109,50 +112,20 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
         for tag in tags:
             print(f"Processing tag: {tag}")
 
-            # Preserve user-specified order
+            subjects = [s for s in df_unfiltered['subject'].unique()]
             condition_names = [
                 c for c in df_unfiltered['condition_name'].unique()]
             run_numbers = [r for r in df_unfiltered['run_number'].unique()]
-            # subjects and hems are already user-specified sequences
 
             n_hems = len(hems)
             n_conditions = len(condition_names)
             n_runs = len(run_numbers)
             n_subjects = len(subjects)
 
-            # Placeholder to get voxel dimensionality
-            if region == 'dorsal_striatum':
-                first_mask_path = os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)),
-                    iroi_mask_dir, 'bothmod_allmain_tasks', 'main_tasks', 
-                    region, atlas, 'individual_roi_masks',
-                    (f'{tag}_sub-{subjects[0]:02d}_'
-                     f'{roi}_{hems[0]}_mask.nii.gz')
-                )
-            else:
-                first_mask_path = os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)),
-                    iroi_mask_dir, 'bothmod_allmain_tasks', 'main_tasks', 
-                    region, atlas, roi, 'individual_roi_masks',
-                    (f'{tag}_sub-{subjects[0]:02d}_'
-                     f'{roi}_{hems[0]}_mask.nii.gz')
-                )
-
-            first_masker = NiftiMasker(
-                mask_img=first_mask_path, standardize=False
-            )
-            first_df = df_unfiltered[df_unfiltered['subject'] == subjects[0]]
-            first_img = image.load_img(
-                os.path.join(base_dir, first_df.iloc[0][
-                    'wmasked_pscmap_path'])
-            )
-            example_voxels = first_masker.fit_transform(first_img)
-            voxel_dim = example_voxels.shape[1]
-
-            # Initialize the 5D array
-            # Shape = (hemispheres, conditions, runs, subjects, voxels)
+            # Initialize the 4D array
+            # Shape = (hemispheres, conditions, runs, subjects)
             data_array = np.full(
-                (n_hems, n_conditions, n_runs, n_subjects, voxel_dim),
+                (n_hems, n_conditions, n_runs, n_subjects),
                 np.nan
             )
 
@@ -182,9 +155,8 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                                      f'{roi}_{hem}_mask.nii.gz')
                                 )
 
-                            masker = NiftiMasker(
-                                mask_img=iroi_mask_path, standardize=False
-                            )
+                            masker = NiftiLabelsMasker(
+                                labels_img=iroi_mask_path)
 
                             # Find the derivative map row matching subject,
                             # condition, run
@@ -217,24 +189,24 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                                 )
                             print(map_path)
                             map = image.load_img(map_path)
-                            voxels = masker.fit_transform(map)
-                            data_array[h, c, r, s, :] = voxels
+                            val = masker.fit_transform(map)
+                            data_array[h, c, r, s] = val
 
             # Save array to disk
             output_folder = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 'results', 'reliability', 
-                f'taskglm_roi_signals_{thresh}_{smoothing}', region
+                f'taskglm_roi_signals_{smoothing}', region
             )
             os.makedirs(output_folder, exist_ok=True)
 
             output_path = os.path.join(
                 output_folder,
-                f'taskglm_roi_signals_{roi}_{tag}_{thresh}_{smoothing}.npy'
+                f'taskglm_roi_signals_{roi}_{tag}_{smoothing}.npy'
             )
             np.save(output_path, data_array)
             print(
-                f"Saved 5D voxel array for tag '{tag}' to {output_path}"
+                f"Saved 4D voxel array for tag '{tag}' to {output_path}"
             )
 
 
@@ -398,21 +370,25 @@ if __name__ == '__main__':
                                    f'reliability_taskglm_{smooth}.tsv')
 
     # Create dataframes
-    reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
-                          selected_contrasts_main, selected_contrasts_random, 
-                          db_taskglm_path, derivative_type, mask_type, smooth)
+    # reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
+    #                       selected_contrasts_main, selected_contrasts_random, 
+    #                       db_taskglm_path, derivative_type, mask_type, smooth)
 
     # Open dataframe
     # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
 
     # Extract signals from derivatives using individualized ROIs
-    # Order of conditions: abeat_prod, ainterval_prod,
-    #                      vbeat_prod, vinterval_prod,
-    #                      abeat_percep, ainterval_percep,
-    #                      vbeat_percep, vinterval_percep,
-    #                      abeat_ntfd, ainterval_ntfd,
-    #                      vbeat_ntfd, vinterval_ntfd
-    # taskglm_roi_extraction(db_taskglm_path, data_storage, glm_tasks,
-    #                        SUBJECTS, itags, region_names, atlas_names,
-    #                        roi_names, hemispheres, iroi_main_dir,
-    #                        thresh_type, smooth)
+    # Order of conditions: 
+    #   'auditory_beat_prod', 'auditory_interval_prod', 
+    #   'visual_beat_prod', 'visual_interval_prod',
+    #   'auditory_beat_percep', 'auditory_interval_percep', 
+    #   'visual_beat_percep', 'visual_interval_percep',
+    #   'auditory_beat_ntfd', 'auditory_interval_ntfd', 
+    #   'visual_beat_ntfd', 'visual_interval_ntfd',
+    #   'auditory_beat_rand_ntfd', 'auditory_interval_rand_ntfd', 
+    #   'auditory_random_rand_ntfd',
+    #   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd', 
+    #   'visual_random_rand_ntfd'
+    taskglm_roi_extraction(db_taskglm_path, data_storage, itags, 
+                           region_names, atlas_names, roi_names, hemispheres, 
+                           iroi_main_dir, thresh_type, smooth)
