@@ -73,7 +73,7 @@ def reliability_dataframe(
                     rows.append({
                         'subject': subj,
                         'task_id': model,
-                        'contrast_name': value,
+                        'contrast_name': value.lower().replace(' ', '_'),
                         'run_number': rn + 1,
                         pscpath_colname: relative_pscmap_path,
                     })
@@ -92,73 +92,10 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
                            regions, atlases, rois, hems, iroi_mask_dir, 
                            thresh, smoothing):
     """
-    Extracts ROI signals for given subjects, tags, regions, and
-    hemispheres, saving a 5D array per tag.
+    Extract mean PSC within an ROI for each contrast.
 
-    The output array has shape:
-        (hemispheres, conditions, runs, subjects, voxels)
-
-    Parameters
-    ----------
-    df_input : str or pandas.DataFrame
-        Path to a tab-separated input file or a DataFrame containing
-        experimental data. Must include columns:
-        ['subject', 'condition_name', 'run_number',
-         'swmasked_betamap_prewhitened_path'].
-    base_dir: str
-        Path of home dir
-    task_models : list of str
-        List of task model names. 'allmain_tasks' will be excluded if
-        present.
-    subjects : list of int
-        List of subject identifiers.
-    tags : list of str
-        List of tags for which separate output arrays will be saved.
-    regions : list of str
-        List of region names to process
-        (matched with `atlases` and `rois`).
-    atlases : list of str
-        List of atlas names (matched with `regions` and `rois`).
-    rois : list of str
-        List of ROI names (matched with `regions` and `atlases`).
-    hems : list of str
-        List of hemisphere identifiers (e.g., ['lh', 'rh']).
-    
-
-    Notes
-    -----
-    For each combination of region, atlas, roi, and tag, the function:
-        - Loads the corresponding ROI mask for each subject and
-          hemisphere.
-        - Extracts voxel values from the provided beta maps for each
-          subject, condition, and run.
-        - Saves the resulting array to disk as a .npy file under
-          ./results/rsa/grandglm_roi_signals/<region>/
-          grandglm_roi_signals_<roi>_<tag>.npy
-
-    The axes of the output array are ordered as:
-        (hemisphere, condition, run, subject, voxel)
-    where 'voxel' is the number of voxels in the ROI mask.
-
-    The extraction is performed in the order of `condition_names`,
-    `run_numbers`, `subjects`, then `hems` as they first appear
-    in the input data.
-
-    `condition_names` are ordered as it follows:
-    ['abeat_prod', 'ainterval_prod', 
-     'vbeat_prod', 'vinterval_prod', 
-     'abeat_percep', 'ainterval_percep', 
-     'vbeat_percep', 'vinterval_percep', 
-     'abeat_ntfd', 'ainterval_ntfd', 
-     'vbeat_ntfd', 'vinterval_ntfd']
-
-    Missing data (e.g., missing beta map or mask) results in NaNs in
-    the output array.
-
-    Raises
-    ------
-    ValueError
-        If `df_input` is not a string or pandas DataFrame.
+    Output array shape:
+    (hemisphere, tasks, contrasts, subjects)
     """
 
     if isinstance(df_input, str):
@@ -456,7 +393,7 @@ if __name__ == '__main__':
     # Create output folder if it does not exist
     os.makedirs(reliability_folder, exist_ok=True)
 
-    # Paths of dataframes
+    # Paths of dataframe
     db_taskglm_path = os.path.join(reliability_folder,
                                    f'reliability_taskglm_{smooth}.tsv')
 
@@ -465,7 +402,7 @@ if __name__ == '__main__':
                           selected_contrasts_main, selected_contrasts_random, 
                           db_taskglm_path, derivative_type, mask_type, smooth)
 
-    # Open dataframes
+    # Open dataframe
     # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
 
     # Extract signals from derivatives using individualized ROIs
