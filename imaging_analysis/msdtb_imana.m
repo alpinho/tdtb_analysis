@@ -87,7 +87,8 @@ wb_dir   = 'surfaceWB';
 subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-% subj_n = [3];
+% subj_n = [20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, ...
+%     44, 45, 46, 47];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -2348,8 +2349,9 @@ switch what
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
 
         % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        design = {'prod', 'percep', 'ntfd'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep', 'ntfd'};
+        % design = {'ntfd'};
+        design = {'rand_ntfd'};
 
         input_folder = 'ffx_rwls_dbb_hrf128';
 
