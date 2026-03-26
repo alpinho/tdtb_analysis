@@ -87,7 +87,7 @@ wb_dir   = 'surfaceWB';
 subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-% subj_n = [42, 43, 44, 45, 46, 47];
+% subj_n = [3];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -2334,98 +2334,254 @@ switch what
         
     case 'CON:norm_smooth'
         % Normalize and smooth individual contrasts or t-maps
-        % Example usage: msdtb_imana(
-        %                   'CON:norm_smooth', ...
-        %                   'design', {'rand_ntfd'}, ...
-        %                   'input_folder', 'ffx_rwls_drbb_hrf42', ...
-        %                   'file_type', 'spmT')     
-        
+        %
+        % Example usage:
+        % msdtb_imana('CON:norm_smooth', ...
+        %             'design', {'rand_ntfd'}, ...
+        %             'input_folder', 'ffx_rwls_drbb_hrf42', ...
+        %             'file_type', 'spmT', ...
+        %             'contrast_scope', 'runs', ...
+        %             'delete_existing', 1)
+
         sn = subj_id; % subject list
-        
+
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
-        
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'prod', 'percep', 'ntfd'};
         % design = {'rand_ntfd'};
-        
+
         input_folder = 'ffx_rwls_dbb_hrf128';
-        
-        file_type = 'con'; % options: 'con, spmT, ResMS, psc, beta' (beta refers to the prewhitened files)
+
+        % options: 'con', 'spmT', 'ResMS', 'psc', 'beta'
+        % (beta refers to the prewhitened files)
+        file_type = 'psc';
+
         smoothing_kernel = [8 8 8];
-        
+
+        % Which file family to process?
+        % 'ffx'  -> across-run files only
+        % 'runs' -> run-specific files only
+        % 'all'  -> all indexed files
+        contrast_scope = 'runs';
+
+        % Delete existing normalized/smoothed files in selected range only
+        delete_existing = 1;
+
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        
+
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
-            'file_type', 'smoothing_kernel'});
-        
+            'file_type', 'smoothing_kernel', 'contrast_scope', ...
+            'delete_existing'});
+
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
-                subj_str{s}, est_dir); 
-            for dg=1:length(design)           
-                estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
-                    input_folder);
-                
-                % Delete pre-existing w* files of the same type in the
-                % folder
-                if any(size(dir(...
-                        [estdesign_folder '/w' file_type '*.nii']), 1))
-                    delete([estdesign_folder '/w' file_type '*.nii']);
+                subj_str{s}, est_dir);
+
+            for dg = 1:length(design)
+                estdesign_folder = fullfile(estderiv_subj_dir, ...
+                    design{dg}, input_folder);
+
+                % ---------------------------------------------------------
+                % Determine file index range for con / psc / spmT
+                % ---------------------------------------------------------
+                use_index_range = ismember(file_type, {'con', 'psc', 'spmT'});
+
+                if use_index_range
+                    if strcmp(design{dg}, 'rand_ntfd')
+                        ffx_first = 1;
+                        ffx_last = 42;
+                        runs_first = 43;
+                        runs_last = 127;
+                    else
+                        ffx_first = 1;
+                        ffx_last = 18;
+                        runs_first = 19;
+                        runs_last = 90;
+                    end
+
+                    if strcmp(contrast_scope, 'ffx')
+                        first_idx = ffx_first;
+                        last_idx = ffx_last;
+                    elseif strcmp(contrast_scope, 'runs')
+                        first_idx = runs_first;
+                        last_idx = runs_last;
+                    elseif strcmp(contrast_scope, 'all')
+                        first_idx = 1;
+                        last_idx = max(ffx_last, runs_last);
+                    else
+                        error('Unknown contrast_scope: %s', contrast_scope);
+                    end
                 end
-                % Delete pre-existing sw* files of the same type in the
-                % folder
-                if any(size(dir(...
-                        [estdesign_folder '/sw' file_type '*.nii']), 1))
-                    delete([estdesign_folder '/sw' file_type '*.nii']);
+
+                % ---------------------------------------------------------
+                % Delete pre-existing normalized/smoothed files
+                % ---------------------------------------------------------
+                if delete_existing
+                    if use_index_range
+                        for c = first_idx:last_idx
+                            wfile = fullfile(estdesign_folder, ...
+                                sprintf('w%s_%04d.nii', file_type, c));
+                            swfile = fullfile(estdesign_folder, ...
+                                sprintf('sw%s_%04d.nii', file_type, c));
+
+                            if exist(wfile, 'file')
+                                delete(wfile);
+                            end
+                            if exist(swfile, 'file')
+                                delete(swfile);
+                            end
+                        end
+                    else
+                        % Keep original behavior for non-indexed file types
+                        if strcmp(file_type, 'ResMS')
+                            wfile = fullfile(estdesign_folder, ...
+                                sprintf('w%s.nii', file_type));
+                            swfile = fullfile(estdesign_folder, ...
+                                sprintf('sw%s.nii', file_type));
+
+                            if exist(wfile, 'file')
+                                delete(wfile);
+                            end
+                            if exist(swfile, 'file')
+                                delete(swfile);
+                            end
+
+                        elseif strcmp(file_type, 'beta')
+                            wbeta_files = dir(fullfile(estdesign_folder, ...
+                                'wbeta_*_desc-prewhitened.nii'));
+                            for k = 1:length(wbeta_files)
+                                delete(fullfile(estdesign_folder, ...
+                                    wbeta_files(k).name));
+                            end
+
+                            swbeta_files = dir(fullfile(estdesign_folder, ...
+                                'swbeta_*_desc-prewhitened.nii'));
+                            for k = 1:length(swbeta_files)
+                                delete(fullfile(estdesign_folder, ...
+                                    swbeta_files(k).name));
+                            end
+                        end
+                    end
                 end
-                
+
+                % ---------------------------------------------------------
+                % Build input file list
+                % ---------------------------------------------------------
                 confiles = {};
+
                 if strcmp(file_type, 'ResMS')
                     cname = sprintf('%s.nii', file_type);
                     confiles = {fullfile(estdesign_folder, cname)};
+
                 elseif strcmp(file_type, 'beta')
-                    beta_files = dir([estdesign_folder '/' file_type ...
-                        '_*_desc-prewhitened.nii']);
-                    beta_paths = fullfile(estdesign_folder, {beta_files.name});
-                    confiles = beta_paths(:);  % Convert to an n x 1 cell array
+                    beta_files = dir(fullfile(estdesign_folder, ...
+                        [file_type '_*_desc-prewhitened.nii']));
+                    beta_paths = fullfile(estdesign_folder, ...
+                        {beta_files.name});
+                    confiles = beta_paths(:);
+
                 else
-                    % List of contrasts in source folder
-                    n_contrasts = numel(dir([estdesign_folder '/' file_type ...
-                        '_*.nii']));
-                    for c=1:n_contrasts
-                        cname = sprintf('%s_%04d.nii', file_type, c);
-                        confiles{c,1} = fullfile(estdesign_folder, cname);
+                    % con / psc / spmT -> indexed files
+                    if use_index_range
+                        for c = first_idx:last_idx
+                            cname = sprintf('%s_%04d.nii', file_type, c);
+                            cpath = fullfile(estdesign_folder, cname);
+                            if exist(cpath, 'file')
+                                confiles{end+1,1} = cpath;
+                            end
+                        end
+                    else
+                        n_contrasts = numel(dir(fullfile(estdesign_folder, ...
+                            [file_type '_*.nii'])));
+                        for c = 1:n_contrasts
+                            cname = sprintf('%s_%04d.nii', file_type, c);
+                            confiles{c,1} = fullfile(estdesign_folder, cname);
+                        end
                     end
                 end
-                
-                % Deformation-Field file
+
+                if isempty(confiles)
+                    fprintf(['No input files found for %s | %s | %s | ' ...
+                        'scope=%s\n'], subj_str{s}, design{dg}, ...
+                        file_type, contrast_scope);
+                    continue
+                end
+
+                % ---------------------------------------------------------
+                % Deformation field
+                % ---------------------------------------------------------
                 deffield_folder = fullfile(base_dir, derivatives_dir, ...
                     subj_str{s}, 'ses-01', 'anat');
-                deffield_file = [deffield_folder '/y_' subj_str{s} '_T1w.nii'];
-                
+                deffield_file = fullfile(deffield_folder, ...
+                    ['y_' subj_str{s} '_T1w.nii']);
+
+                % ---------------------------------------------------------
                 % Apply normalization
+                % ---------------------------------------------------------
                 spmja_normalization_write(deffield_file, confiles, ...
                     'voxel_size', [2.5 2.5 2.5])
-                
-                % List normalized contrasts in ffx folder
-                cd(estdesign_folder)
-                wsource_list = dir(fullfile(estdesign_folder, ...
-                    ['w' file_type '*.nii']));
-                w_values=struct2cell(wsource_list);
-                wsource_files = w_values(1,1:end)';
-                
-                % Smooth normalized contrasts
+
+                % ---------------------------------------------------------
+                % Collect normalized files for smoothing
+                % ---------------------------------------------------------
+                wsource_files = {};
+
+                if use_index_range
+                    for c = first_idx:last_idx
+                        wname = sprintf('w%s_%04d.nii', file_type, c);
+                        wpath = fullfile(estdesign_folder, wname);
+                        if exist(wpath, 'file')
+                            wsource_files{end+1,1} = wpath;
+                        end
+                    end
+                else
+                    if strcmp(file_type, 'ResMS')
+                        wpath = fullfile(estdesign_folder, ...
+                            sprintf('w%s.nii', file_type));
+                        if exist(wpath, 'file')
+                            wsource_files = {wpath};
+                        end
+
+                    elseif strcmp(file_type, 'beta')
+                        wsource_list = dir(fullfile(estdesign_folder, ...
+                            'wbeta_*_desc-prewhitened.nii'));
+                        wsource_files = fullfile(estdesign_folder, ...
+                            {wsource_list.name})';
+                    else
+                        wsource_list = dir(fullfile(estdesign_folder, ...
+                            ['w' file_type '*.nii']));
+                        wsource_files = fullfile(estdesign_folder, ...
+                            {wsource_list.name})';
+                    end
+                end
+
+                if isempty(wsource_files)
+                    fprintf(['No normalized files found for smoothing: ' ...
+                        '%s | %s | %s | scope=%s\n'], subj_str{s}, ...
+                        design{dg}, file_type, contrast_scope);
+                    continue
+                end
+
+                % ---------------------------------------------------------
+                % Smooth normalized files
+                % ---------------------------------------------------------
                 S = [];
                 S.data = wsource_files;
                 S.fwhm = smoothing_kernel;
                 S.dtype = 0;
                 S.im = 0;
                 S.prefix = 's';
-                
-                matlabbatch{1} = {};
-                matlabbatch{1}.spm.spatial.smooth=S;
-                spm_jobman('run',matlabbatch);
-                
-            end % dg (design)           
-        end % s (sn)
+
+                clear matlabbatch
+                matlabbatch{1}.spm.spatial.smooth = S;
+                spm_jobman('run', matlabbatch);
+
+                fprintf('%s | %s | %s | scope=%s - Done\n', ...
+                    subj_str{s}, design{dg}, file_type, contrast_scope);
+
+            end % dg
+        end % s
         
     case 'GROUP:mask'
         % Example usage: msdtb_imana('GROUP:mask', 'mask_type', 'wrmask_gray')
