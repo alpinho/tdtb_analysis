@@ -2029,120 +2029,148 @@ switch what
         
     case 'GLM:calc_PSC'
 
-        % Calculate percent signal change for selected contrasts - based on betas
-        
+        % Calculate percent signal change for across-run contrasts
+        % based on betas
+        %
         % Example usage:
         % msdtb_imana('GLM:calc_PSC', ...
         %             'design', {'rand_ntfd'}, ...
         %             'model_derivatives', 'time', ...
-        %             'output_folder', 'ffx_rwls_drbb_hrf42_timederiv')
-        
+        %             'output_folder', 'ffx_rwls_drbb_hrf42_timederiv', ...
+        %             'delete_existing', 1)
+
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
-        
+
         sn = subj_id; % subject list
-        
+
         design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
-        
-        model_derivatives = 'no_deriv'
-        % model_derivatives = 'time'
-        % model_derivatives = 'timedisp'
-        
+
+        model_derivatives = 'no_deriv';
+        % model_derivatives = 'time';
+        % model_derivatives = 'timedisp';
+
         output_folder = 'ffx_rwls_dbb_hrf128';
-        
+
+        % Delete existing across-run PSC files in the relevant contrast
+        % range only
+        delete_existing = 1;
+
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         vararginoptions(varargin, {'sn', 'design', 'model_derivatives', ...
-            'output_folder'});
+            'output_folder', 'delete_existing'});
 
         for s = sn
             % Go to subject’s directory and load SPM info
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);
-            
-            for dg=1:length(design)
+
+            for dg = 1:length(design)
                 estdesign_folder = fullfile(estderiv_subj_dir, design{dg}, ...
                     output_folder);
-                cd(fullfile(estdesign_folder));
-                
-                % Delete pre-existing psc* files in the folder
-                if any(size(dir(...
-                        [estdesign_folder '/psc*.nii']), 1))
-                    delete([estdesign_folder '/psc*.nii']);
-                end
-                
+                cd(estdesign_folder);
+
                 load SPM;
-                X=(SPM.xX.X(:,SPM.xX.iC)); % Design matrix - raw
-                                
-                P={};
-                numB=length(SPM.xX.iB);     % Partitions - runs
-                for p=SPM.xX.iB
-                    P{end+1,1}=fullfile(estdesign_folder, ...
-                        sprintf('beta_%4.4d.nii',p));  % get the intercepts and use them to calculate the baseline (mean images)
+                X = SPM.xX.X(:, SPM.xX.iC); % Design matrix - raw
+
+                P = {};
+                numB = length(SPM.xX.iB); % Partitions - runs
+                for p = SPM.xX.iB
+                    P{end+1,1} = fullfile(estdesign_folder, ...
+                        sprintf('beta_%04d.nii', p));
                 end
-                
+
                 t_con_name = extractfield(SPM.xCon, 'name');
+
+                % Across-run contrast range only
+                first_ffx_con = 1;
+                if strcmp(design{dg}, 'rand_ntfd')
+                    last_ffx_con = 42;
+                    step = 7;
+                else
+                    last_ffx_con = 18;
+                    step = 5;
+                end
+
+                if length(t_con_name) < last_ffx_con
+                    error(['Expected at least %d contrasts for design %s, ' ...
+                        'but only found %d.'], last_ffx_con, design{dg}, ...
+                        length(t_con_name));
+                end
+
+                % Delete only across-run PSC files in the relevant range
+                if delete_existing
+                    for con = first_ffx_con:last_ffx_con
+                        psc_file = fullfile(estdesign_folder, ...
+                            sprintf('psc_%04d.nii', con));
+                        if exist(psc_file, 'file')
+                            delete(psc_file);
+                        end
+                    end
+                end
+
                 % Create string with formula
                 con_div_intercepts = '';
-                for r=1:numB
+                for r = 1:numB
                     if r == numB
-                        con_div_intercepts = sprintf('i%d./((%si%d)/%d)', ...
-                            r+1, con_div_intercepts, r, numB);
+                        con_div_intercepts = sprintf( ...
+                            'i%d./((%si%d)/%d)', ...
+                            r + 1, con_div_intercepts, r, numB);
                     else
                         con_div_intercepts = sprintf('%si%d+', ...
                             con_div_intercepts, r);
                     end
                 end
-                
-                for con=1:length(t_con_name)  % all contrasts
-                    
+
+                for con = first_ffx_con:last_ffx_con
+
                     % Height of response (peak) according to regressors
                     % of the contrast
-                    if strcmp(design{dg},'rand_ntfd')
-                        step=7;
-                    else
-                        step=5;
-                    end
-                    maxX=[];
-                    maxX=max(X);
+                    maxX = max(X);
                     if strcmp(model_derivatives, 'time')
-                        maxX = maxX(1:2:end); % remove peaks of time derivatives
+                        maxX = maxX(1:2:end);
                     elseif strcmp(model_derivatives, 'timedisp')
-                        maxX = maxX(1:3:end); % remove peaks of time and dispersion derivatives
+                        maxX = maxX(1:3:end);
                     end
-                    if con < length(t_con_name)
-                        maxX(step:step:end)=[] % remove 'decision' peaks for the encoding constrasts
-                        h=min(maxX);
+
+                    if con < last_ffx_con
+                        % Remove decision peaks for the encoding contrasts
+                        maxX(step:step:end) = [];
+                        h = min(maxX);
                     else
-                        decision_max=[];
-                        decision_max=maxX(step:step:end) % retrieve the decision peaks for the decision contrast
-                        h=min(decision_max);
+                        % Retrieve the decision peaks for the decision contrast
+                        decision_max = maxX(step:step:end);
+                        h = min(decision_max);
                     end
-                        
-                    P{numB+1,1}=fullfile(estdesign_folder, ...
+
+                    P{numB+1,1} = fullfile(estdesign_folder, ...
                         sprintf('con_%04d.nii', con));
-                    outname=fullfile(estdesign_folder, ...
+                    outname = fullfile(estdesign_folder, ...
                         sprintf('psc_%04d.nii', con));
-                    
-                    formula=sprintf('100.*%f.*%s', h, con_div_intercepts);
-                    
+
+                    formula = sprintf('100.*%f.*%s', h, ...
+                        con_div_intercepts);
+
                     A = [];
                     A.input = P;
                     A.output = outname;
-                    A.outdir = {output_folder};
+                    A.outdir = {estdesign_folder};
                     A.expression = formula;
                     A.var = struct('name', {}, 'value', {});
                     A.options.dmtx = 0;
                     A.options.mask = 0;
                     A.options.interp = 1;
-                    A.options.dtype = 4;               
+                    A.options.dtype = 4;
 
-                    matlabbatch{1}.spm.util.imcalc=A;
+                    clear matlabbatch
+                    matlabbatch{1}.spm.util.imcalc = A;
                     spm_jobman('run', matlabbatch);
 
                     fprintf('Contrast: %s\n', t_con_name{con});
                 end
-                fprintf('%s - Done\n', subj_str{s});
+
+                fprintf('%s | %s - Done\n', subj_str{s}, design{dg});
             end
         end
 
@@ -2164,8 +2192,7 @@ switch what
 
         sn = subj_id; % subject list
 
-        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        design = {'prod'};
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'rand_ntfd'};
 
         model_derivatives = 'no_deriv';
