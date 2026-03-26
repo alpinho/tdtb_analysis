@@ -84,8 +84,10 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
-subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+
+subj_n = [3];
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -2025,7 +2027,8 @@ switch what
             end
         end % s (subject)
         
-    case 'GLM:calc_PSC'                           
+    case 'GLM:calc_PSC'
+
         % Calculate percent signal change for selected contrasts - based on betas
         
         % Example usage:
@@ -2140,6 +2143,164 @@ switch what
                     fprintf('Contrast: %s\n', t_con_name{con});
                 end
                 fprintf('%s - Done\n', subj_str{s});
+            end
+        end
+
+    case 'GLM:calc_PSC_runs'
+        % Calculate run-specific percent signal change for run-specific
+        % contrasts - based on betas from the same multi-run GLM
+        %
+        % This case assumes that run-specific contrasts were previously
+        % created with tcon.sessrep = 'sess'.
+        %
+        % Example usage:
+        % msdtb_imana('GLM:calc_PSC_runs', ...
+        %             'design', {'rand_ntfd'}, ...
+        %             'model_derivatives', 'time', ...
+        %             'output_folder', 'ffx_rwls_drbb_hrf42_timederiv', ...
+        %             'delete_existing', 1)
+
+        % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
+
+        sn = subj_id; % subject list
+
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'prod'};
+        % design = {'rand_ntfd'};
+
+        model_derivatives = 'no_deriv';
+        % model_derivatives = 'time';
+        % model_derivatives = 'timedisp';
+
+        output_folder = 'ffx_rwls_dbb_hrf128';
+
+        % Delete existing run-specific PSC files in the relevant contrast
+        % range only
+        delete_existing = 1;
+
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+        vararginoptions(varargin, {'sn', 'design', 'model_derivatives', ...
+            'output_folder', 'delete_existing'});
+
+        for s = sn
+            estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
+                subj_str{s}, est_dir);
+
+            for dg = 1:length(design)
+                estdesign_folder = fullfile(estderiv_subj_dir, ...
+                    design{dg}, output_folder);
+                cd(estdesign_folder);
+
+                load SPM;
+
+                Xfull = SPM.xX.X;
+                t_con_name = extractfield(SPM.xCon, 'name');
+                numB = length(SPM.xX.iB);
+
+                % First run-specific contrast index
+                if strcmp(design{dg}, 'rand_ntfd')
+                    first_run_con = 43;
+                    step = 7;
+                else
+                    first_run_con = 19;
+                    step = 5;
+                end
+
+                if length(t_con_name) < first_run_con
+                    error(['No session-specific contrasts found for ' ...
+                        'design %s.'], design{dg});
+                end
+
+                % Delete only run-specific PSC files in the relevant range
+                if delete_existing
+                    for con = first_run_con:length(t_con_name)
+                        psc_file = fullfile(estdesign_folder, ...
+                            sprintf('psc_%04d.nii', con));
+                        if exist(psc_file, 'file')
+                            delete(psc_file);
+                        end
+                    end
+                end
+
+                for con = first_run_con:length(t_con_name)
+                    curr_name = t_con_name{con};
+
+                    % Extract run number from contrast name
+                    % Assumes sessrep='sess' adds Sn(k)
+                    tok = regexp(curr_name, 'Session\s*(\d+)', 'tokens');
+
+                    if isempty(tok)
+                        fprintf(['Skipping contrast %d: could not parse ' ...
+                            'run number from name "%s"\n'], ...
+                            con, curr_name);
+                        continue
+                    end
+
+                    run_idx = str2double(tok{1}{1});
+
+                    if isnan(run_idx) || run_idx < 1 || run_idx > numB
+                        fprintf(['Skipping contrast %d: invalid run index ' ...
+                            'in name "%s"\n'], con, curr_name);
+                        continue
+                    end
+
+                    % Intercept beta for this run only
+                    intercept_beta = fullfile(estdesign_folder, ...
+                        sprintf('beta_%04d.nii', SPM.xX.iB(run_idx)));
+
+                    % Columns of this run only
+                    Xrun = Xfull(:, SPM.Sess(run_idx).col);
+                    maxX = max(Xrun);
+
+                    % Remove derivative regressors if needed
+                    if strcmp(model_derivatives, 'time')
+                        maxX = maxX(1:2:end);
+                    elseif strcmp(model_derivatives, 'timedisp')
+                        maxX = maxX(1:3:end);
+                    end
+
+                    % Decide whether this is an encoding or decision contrast
+                    if ~isempty(regexpi(curr_name, 'decision'))
+                        decision_max = maxX(step:step:end);
+                        h = min(decision_max);
+                    else
+                        maxX(step:step:end) = [];
+                        h = min(maxX);
+                    end
+
+                    % Current run-specific contrast image
+                    con_img = fullfile(estdesign_folder, ...
+                        sprintf('con_%04d.nii', con));
+
+                    % Output name matches contrast index
+                    outname = fullfile(estdesign_folder, ...
+                        sprintf('psc_%04d.nii', con));
+
+                    % PSC formula:
+                    % 100 * h * (run-specific contrast / run-specific intercept)
+                    formula = sprintf('100.*%f.*(i2./i1)', h);
+
+                    A = [];
+                    A.input = {intercept_beta; con_img};
+                    A.output = outname;
+                    A.outdir = {estdesign_folder};
+                    A.expression = formula;
+                    A.var = struct('name', {}, 'value', {});
+                    A.options.dmtx = 0;
+                    A.options.mask = 0;
+                    A.options.interp = 1;
+                    A.options.dtype = 4;
+
+                    clear matlabbatch
+                    matlabbatch{1}.spm.util.imcalc = A;
+                    spm_jobman('run', matlabbatch);
+
+                    fprintf(['PSC created for contrast %04d ' ...
+                        '(run %d): %s\n'], con, run_idx, curr_name);
+                end
+
+                fprintf('%s | %s - Done\n', subj_str{s}, design{dg});
             end
         end
         
