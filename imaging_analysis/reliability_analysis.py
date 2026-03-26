@@ -11,7 +11,6 @@ Compatibility: Python 3.10.16
 """
 
 import os
-import re
 import pandas as pd
 import numpy as np
 
@@ -29,7 +28,7 @@ pd.set_option('display.max_columns', None)
 def reliability_dataframe(
         subjects, task_models, base_dir,
         contrasts_main, contrasts_random,
-        output_path, prefix, masking):
+        output_path, prefix, masking, smoothing):
     """Builds the inputs DataFrame, saves it, and returns it."""
 
     derivatives_dir = os.path.join(
@@ -43,125 +42,41 @@ def reliability_dataframe(
 
             if model != 'rand_ntfd':
                 contrasts_mapping = contrasts_main
-                n_runs = 4
             else:
                 assert model == 'rand_ntfd'
-                contrasts_mapping = contrasts_random
-                n_runs = 2            
+                contrasts_mapping = contrasts_random        
 
-            spm_dir = os.path.join(
-                derivatives_dir, subj_str, 'estimates', model,
-                'ffx_rwls_dbb_hrf128'
-            )
             masked_derivatives_dir = os.path.join(
                 derivatives_dir, subj_str, 'estimates', model,
                 'masked_derivatives_rwls_dbb_hrf128'
             )
 
-            contrast_names = list(contrasts_mapping.values())
-            for contrast_name in contrast_names:
-                for run_num in np.arange(1, n_runs + 1):
+            keys = list(contrasts_mapping)
+            n_runs = keys[1] - keys[0]
 
+            for key, value in contrasts_mapping.items():
+                for rn in np.arange(n_runs):
+
+                    if smoothing == 'unsmoothed':
+                        psc_fname = f'{prefix}_{key + rn:04d}_' + \
+                                    f'desc-{masking}masked.nii'
+                        pscpath_colname = 'wmasked_pscmap_path'
+                    else:
+                        assert smoothing == 'smoothed'
+                        psc_fname = f'{prefix}_{key + rn:04d}_' + \
+                                    f'desc-sm8{masking}masked.nii'
+                        pscpath_colname = 'swmasked_pscmap_path'
+                    pscmap_path = os.path.join(masked_derivatives_dir,
+                                               psc_fname)
+                    relative_pscmap_path = os.path.relpath(pscmap_path,
+                                                           base_dir)
                     rows.append({
                         'subject': subj,
                         'task_id': model,
-                        'contrast_name': contrast_name,
-                        'run_number': run_num,
-                        'betamap_path': spm_dir,
-                        'wmasked_pscmap_path': masked_derivatives_dir,
-                        'swmasked_pscmap_path': masked_derivatives_dir
+                        'contrast_name': value,
+                        'run_number': rn + 1,
+                        pscpath_colname: relative_pscmap_path,
                     })
-
-            # # Load SPM.mat using nitools
-            # SPM = spm.SpmGlm(spm_dir)
-            # SPM.get_info_from_spm_mat()  # retrieve SPM.mat info
-            
-            # # Retrieve beta names, rawdata_files, and run_numbers...
-            # # ... as numpy arrays
-            # beta_names = np.array(SPM.beta_names)
-            # rawdata_files = np.array(SPM.rawdata_files)
-            # run_numbers = np.array(SPM.run_number)
-
-            # # Remove volume numbers from rawdata_files
-            # rawdata_files_cleaned = np.array(
-            #     [re.sub(r', \d+\s*$', '', rawdata_file)
-            #      for rawdata_file in rawdata_files])
-            # # Get unique elements while preserving the original order...
-            # _, unique_indices = np.unique(rawdata_files_cleaned,
-            #                               return_index=True)
-            # # ... and sort by original order
-            # rawdata_unique = rawdata_files_cleaned[np.sort(unique_indices)]
-            # # Match its length with the number of encoding entries...
-            # # ... in beta_names
-            # rawdata_repeat = np.repeat(rawdata_unique, len(contrasts_mapping))
-
-            # # Filter beta_names to keep only encoding-related ones
-            # mask = np.char.find(beta_names, 'encoding') >= 0
-            # # Apply mask to get filtered beta names and run numbers
-            # filtered_beta_names = beta_names[mask]
-            # filtered_run_numbers = run_numbers[mask] 
-
-            # # Corresponding full list of beta files
-            # beta_files = np.array([f"beta_{i+1:04d}.nii"
-            #                        for i in range(len(beta_names))])
-            # # Apply the same mask to filter beta_files
-            # filtered_beta_files = beta_files[mask]
-            
-            # # Loop over the original beta_names with their index
-            # for i, name in enumerate(filtered_beta_names):
-            #     # Remove the suffix to get the condition type
-            #     cond = name[:-len('_encoding*bf(1)')]
-
-            #     # Get task_id
-            #     if model != 'rand_ntfd':
-            #         match = re.search(r'task-(.*?)_run', rawdata_repeat[i])
-            #         task_id = match.group(1) if match else None
-            #     else:
-            #         assert model == 'rand_ntfd'
-            #         task_id = model
-
-            #     # Map condition type to its abbreviation and combine...
-            #     # ... with task_id
-            #     cond_abbr = cond_mapping.get(cond, cond)
-            #     condition_name = f"{cond_abbr}_{task_id}"
-               
-            #     # Use the original beta index (1-indexed) for the...
-            #     # ... betamap filename
-            #     betamap_path = os.path.join(spm_dir, filtered_beta_files[i])
-
-            #     # Get the corresponding run number
-            #     run_num = filtered_run_numbers[i]
-
-            #     # Get the regressor id and build path of...
-            #     # ... corresponding masked derivative
-            #     reg_number = os.path.splitext(filtered_beta_files[i])[0][5:]
-            #     psc_fname = prefix + '_' + reg_number + '_desc-' + masking + \
-            #         'masked.nii'
-            #     spsc_fname = prefix + '_' + reg_number + '_desc-' + 'sm8' + \
-            #         masking + 'masked.nii'
-
-            #     pscmap_path = os.path.join(masked_derivatives_dir, psc_fname)
-            #     spscmap_path = os.path.join(masked_derivatives_dir, 
-            #                                 spsc_fname)
-
-            #     # Convert full paths to paths relative to base_dir
-            #     relative_betamap_path = os.path.relpath(
-            #         betamap_path, base_dir)
-            #     relative_pscmap_path = os.path.relpath(
-            #         pscmap_path, base_dir)
-            #     relative_spscmap_path = os.path.relpath(
-            #         spscmap_path, base_dir)
-                
-            #     rows.append({
-            #         'subject': subj,
-            #         'task_id': task_id,
-            #         'run_number': run_num,
-            #         'condition_type': cond,
-            #         'condition_name': condition_name,
-            #         'betamap_path': relative_betamap_path,
-            #         'wmasked_pscmap_path': relative_pscmap_path,
-            #         'swmasked_pscmap_path': relative_spscmap_path
-            #     })
 
     # Create the DataFrame
     df = pd.DataFrame(rows)
@@ -389,9 +304,9 @@ def taskglm_roi_extraction(df_input, base_dir, task_models, subjects, tags,
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
-# SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
-#             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
-SUBJECTS = [3]
+SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
+            29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# SUBJECTS = [3]
 
 # Parent directories
 home = os.path.expanduser('~')
@@ -421,86 +336,86 @@ mask_type = 'wb'
 
 # -------- All contrast dictionaries --------
 
-ALL_CONTRASTS_MAIN = {
-    1: 'Encoding',
-    2: 'Auditory Encoding',
-    3: 'Visual Encoding',
-    4: 'Auditory vs Visual Encoding',
-    5: 'Visual vs Auditory Encoding',
-    6: 'Beat',
-    7: 'Interval',
-    8: 'Beat vs Interval',
-    9: 'Interval vs Beat',
-    10: 'Auditory Beat',
-    11: 'Auditory Interval',
-    12: 'Auditory Beat vs Auditory Interval',
-    13: 'Auditory Interval vs Auditory Beat',
-    14: 'Visual Beat',
-    15: 'Visual Interval',
-    16: 'Visual Beat vs Visual Interval',
-    17: 'Visual Interval vs Visual Beat',
-    18: 'Decision'
+ALL_CONTRASTS_MAIN_RUN1 = {
+    19: 'Encoding',
+    23: 'Auditory Encoding',
+    27: 'Visual Encoding',
+    31: 'Auditory vs Visual Encoding',
+    35: 'Visual vs Auditory Encoding',
+    39: 'Beat',
+    43: 'Interval',
+    47: 'Beat vs Interval',
+    51: 'Interval vs Beat',
+    55: 'Auditory Beat',
+    59: 'Auditory Interval',
+    63: 'Auditory Beat vs Auditory Interval',
+    67: 'Auditory Interval vs Auditory Beat',
+    71: 'Visual Beat',
+    75: 'Visual Interval',
+    79: 'Visual Beat vs Visual Interval',
+    83: 'Visual Interval vs Visual Beat',
+    87: 'Decision'
 }
 
-ALL_CONTRASTS_RAND = {
-    1: 'Encoding',
-    2: 'Auditory Encoding',
-    3: 'Visual Encoding',
-    4: 'Auditory vs Visual Encoding',
-    5: 'Visual vs Auditory Encoding',
-    6: 'Beat',
-    7: 'Interval',
-    8: 'Non-Random',
-    9: 'Random',
-    10: 'Beat vs Interval',
-    11: 'Interval vs Beat',
-    12: 'Beat vs Random',
-    13: 'Random vs Beat',
-    14: 'Interval vs Random',
-    15: 'Random vs Interval',
-    16: 'Non-Random vs Random',
-    17: 'Random vs Non-Random',
-    18: 'Auditory Beat',
-    19: 'Auditory Interval',
-    20: 'Auditory Non-Random',
-    21: 'Auditory Random',
-    22: 'Auditory Beat vs Auditory Interval',
-    23: 'Auditory Interval vs Auditory Beat',
-    24: 'Auditory Beat vs Auditory Random',
-    25: 'Auditory Random vs Auditory Beat',
-    26: 'Auditory Interval vs Auditory Random',
-    27: 'Auditory Random vs Auditory Interval',
-    28: 'Auditory Non-Random vs Auditory Random',
-    29: 'Auditory Random vs Auditory Non-Random',
-    30: 'Visual Beat',
-    31: 'Visual Interval',
-    32: 'Visual Non-Random',
-    33: 'Visual Random',
-    34: 'Visual Beat vs Visual Interval',
-    35: 'Visual Interval vs Visual Beat',
-    36: 'Visual Beat vs Visual Random',
-    37: 'Visual Random vs Visual Beat',
-    38: 'Visual Interval vs Visual Random',
-    39: 'Visual Random vs Visual Interval',
-    40: 'Visual Non-Random vs Visual Random',
-    41: 'Visual Random vs Visual Non-Random',
-    42: 'Decision'
+ALL_CONTRASTS_RAND_RUN1 = {
+    43: 'Encoding',
+    45: 'Auditory Encoding',
+    47: 'Visual Encoding',
+    49: 'Auditory vs Visual Encoding',
+    51: 'Visual vs Auditory Encoding',
+    53: 'Beat',
+    55: 'Interval',
+    57: 'Non-Random',
+    59: 'Random',
+    61: 'Beat vs Interval',
+    63: 'Interval vs Beat',
+    65: 'Beat vs Random',
+    67: 'Random vs Beat',
+    69: 'Interval vs Random',
+    71: 'Random vs Interval',
+    73: 'Non-Random vs Random',
+    75: 'Random vs Non-Random',
+    77: 'Auditory Beat',
+    79: 'Auditory Interval',
+    81: 'Auditory Non-Random',
+    83: 'Auditory Random',
+    85: 'Auditory Beat vs Auditory Interval',
+    87: 'Auditory Interval vs Auditory Beat',
+    89: 'Auditory Beat vs Auditory Random',
+    91: 'Auditory Random vs Auditory Beat',
+    93: 'Auditory Interval vs Auditory Random',
+    95: 'Auditory Random vs Auditory Interval',
+    97: 'Auditory Non-Random vs Auditory Random',
+    99: 'Auditory Random vs Auditory Non-Random',
+    101: 'Visual Beat',
+    103: 'Visual Interval',
+    105: 'Visual Non-Random',
+    107: 'Visual Random',
+    109: 'Visual Beat vs Visual Interval',
+    111: 'Visual Interval vs Visual Beat',
+    113: 'Visual Beat vs Visual Random',
+    115: 'Visual Random vs Visual Beat',
+    117: 'Visual Interval vs Visual Random',
+    119: 'Visual Random vs Visual Interval',
+    121: 'Visual Non-Random vs Visual Random',
+    123: 'Visual Random vs Visual Non-Random',
+    125: 'Decision'
 }
 
 selected_contrasts_main = {
-    10: 'Auditory Beat',
-    11: 'Auditory Interval',
-    14: 'Visual Beat',
-    15: 'Visual Interval'
+    55: 'Auditory Beat',
+    59: 'Auditory Interval',
+    71: 'Visual Beat',
+    75: 'Visual Interval'
 }
 
 selected_contrasts_random = {
-    18: 'Auditory Beat',
-    19: 'Auditory Interval',
-    21: 'Auditory Random',
-    30: 'Visual Beat',
-    31: 'Visual Interval',
-    33: 'Visual Random'
+    77: 'Auditory Beat',
+    79: 'Auditory Interval',
+    83: 'Auditory Random',
+    101: 'Visual Beat',
+    103: 'Visual Interval',
+    107: 'Visual Random'
 }
 
 # ####################### ROIs ##############################
@@ -543,12 +458,12 @@ if __name__ == '__main__':
 
     # Paths of dataframes
     db_taskglm_path = os.path.join(reliability_folder,
-                                   'reliability_taskglm.tsv')
+                                   f'reliability_taskglm_{smooth}.tsv')
 
     # Create dataframes
     reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
                           selected_contrasts_main, selected_contrasts_random, 
-                          db_taskglm_path, derivative_type, mask_type)
+                          db_taskglm_path, derivative_type, mask_type, smooth)
 
     # Open dataframes
     # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
