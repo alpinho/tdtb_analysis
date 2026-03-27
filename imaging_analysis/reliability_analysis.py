@@ -154,6 +154,8 @@ def taskglm_roi_extraction(df_input, base_dir, tags,
     n_runs = len(run_numbers)
     n_subjects = len(subjects)
 
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
     for region, atlas, roi in zip(regions, atlases, rois):
         for tag in tags:
             print(f"Processing tag: {tag}")
@@ -173,49 +175,73 @@ def taskglm_roi_extraction(df_input, base_dir, tags,
                     c = condition_to_idx[condition]
                     r = run_to_idx[run_number]
 
-                    if region == 'dorsal_striatum':
-                        iroi_mask_path = os.path.join(
-                            os.path.dirname(os.path.abspath(__file__)),
-                            iroi_mask_dir,
-                            'bothmod_allmain_tasks',
-                            'main_tasks',
-                            region,
-                            atlas,
-                            'individual_roi_masks',
-                            (f'{tag}_sub-{subject:02d}_'
-                             f'{roi}_{hem}_mask.nii.gz')
-                        )
+                    if tag == 'g':
+                        if region == 'dorsal_striatum':
+                            iroi_mask_path = os.path.join(
+                                script_dir,
+                                iroi_mask_dir,
+                                'bothmod_allmain_tasks',
+                                'main_tasks',
+                                region,
+                                atlas,
+                                'group_roi_masks',
+                                (f'{tag}_msdtb_{atlas}_{roi}_{hem}_'
+                                 f'mask.nii.gz')
+                            )
+                        else:
+                            iroi_mask_path = os.path.join(
+                                script_dir,
+                                iroi_mask_dir,
+                                'bothmod_allmain_tasks',
+                                'main_tasks',
+                                region,
+                                atlas,
+                                roi,
+                                'group_roi_masks',
+                                (f'{tag}_msdtb_{atlas}_{roi}_{hem}_'
+                                 f'mask.nii.gz')
+                            )
                     else:
-                        iroi_mask_path = os.path.join(
-                            os.path.dirname(os.path.abspath(__file__)),
-                            iroi_mask_dir,
-                            'bothmod_allmain_tasks',
-                            'main_tasks',
-                            region,
-                            atlas,
-                            roi,
-                            'individual_roi_masks',
-                            (f'{tag}_sub-{subject:02d}_'
-                             f'{roi}_{hem}_mask.nii.gz')
-                        )
+                        if region == 'dorsal_striatum':
+                            iroi_mask_path = os.path.join(
+                                script_dir,
+                                iroi_mask_dir,
+                                'bothmod_allmain_tasks',
+                                'main_tasks',
+                                region,
+                                atlas,
+                                'individual_roi_masks',
+                                (f'{tag}_sub-{subject:02d}_'
+                                 f'{roi}_{hem}_mask.nii.gz')
+                            )
+                        else:
+                            iroi_mask_path = os.path.join(
+                                script_dir,
+                                iroi_mask_dir,
+                                'bothmod_allmain_tasks',
+                                'main_tasks',
+                                region,
+                                atlas,
+                                roi,
+                                'individual_roi_masks',
+                                (f'{tag}_sub-{subject:02d}_'
+                                 f'{roi}_{hem}_mask.nii.gz')
+                            )
 
                     masker = NiftiLabelsMasker(
                         labels_img=iroi_mask_path
                     )
 
-                    map_path = os.path.join(
-                        base_dir, row[path_col]
-                    )
+                    map_path = os.path.join(base_dir, row[path_col])
                     print(map_path)
 
                     img = image.load_img(map_path)
                     val = masker.fit_transform(img)
 
-                    # extract scalar explicitly
                     data_array[h, c, r, s] = val[0, 0]
 
             output_folder = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
+                script_dir,
                 'results',
                 'reliability',
                 f'taskglm_roi_signals_{smoothing}'
@@ -351,30 +377,36 @@ selected_contrasts_random = {
 }
 
 # ####################### ROIs ##############################
-# atlas_names = ['hos',
-#                'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat', 'hmat',
+atlas_names = ['hos',
+               'ntk_symmni128',
+               'hmat', 'hmat', 'hmat', 'hmat',
+               'hos',
+               'hos']
+region_names = ['dorsal_striatum',
+                'cerebellum',
+                'motor_area', 'motor_area', 'motor_area', 'motor_area',
+                'heschl_gyrus',
+                'occipital_lobe']
+roi_names = ['dstr',
+             'cereb',
+             'pmd', 'pmv', 'sma', 'presma',
+             'heschl',
+             'occipital']
+
+# atlas_names = ['hmat', 'hmat', 'hmat', 'hmat',
 #                'hos',
 #                'hos']
-# region_names = ['dorsal_striatum',
-#                 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area', 'motor_area',
+# region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area',
 #                 'heschl_gyrus',
 #                 'occipital_lobe']
-# roi_names = ['dstr',
-#              'cereb',
-#              'pmd', 'pmv', 'sma', 'presma',
+# roi_names = ['pmd', 'pmv', 'sma', 'presma',
 #              'heschl',
 #              'occipital']
-
-atlas_names = ['hos']
-region_names = ['dorsal_striatum']
-roi_names = ['dstr']
 
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 
 #          'g']
 # itags = ['i', 'g']
-itags = ['i']
+itags = ['g']
 
 hemispheres = ['bh']  # Both hemispheres
 
