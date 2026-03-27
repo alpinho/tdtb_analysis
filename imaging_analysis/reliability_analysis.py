@@ -11,12 +11,15 @@ Compatibility: Python 3.10.16
 """
 
 import os
-import pandas as pd
-import numpy as np
-
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pingouin as pg
 from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
+
+from roi_similarity_encoding import plot_matrix
 
 # Prevent DataFrame truncation when printing
 pd.set_option('display.max_rows', None)
@@ -44,7 +47,7 @@ def reliability_dataframe(
                 contrasts_mapping = contrasts_main
             else:
                 assert model == 'rand_ntfd'
-                contrasts_mapping = contrasts_random        
+                contrasts_mapping = contrasts_random
 
             masked_derivatives_dir = os.path.join(
                 derivatives_dir, subj_str, 'estimates', model,
@@ -60,18 +63,26 @@ def reliability_dataframe(
                 for rn in np.arange(n_runs):
 
                     if smoothing == 'unsmoothed':
-                        psc_fname = f'{prefix}_{key + rn:04d}_' + \
-                                    f'desc-{masking}masked.nii'
+                        psc_fname = (
+                            f'{prefix}_{key + rn:04d}_'
+                            f'desc-{masking}masked.nii'
+                        )
                         pscpath_colname = 'wmasked_pscmap_path'
                     else:
                         assert smoothing == 'smoothed'
-                        psc_fname = f'{prefix}_{key + rn:04d}_' + \
-                                    f'desc-sm8{masking}masked.nii'
+                        psc_fname = (
+                            f'{prefix}_{key + rn:04d}_'
+                            f'desc-sm8{masking}masked.nii'
+                        )
                         pscpath_colname = 'swmasked_pscmap_path'
-                    pscmap_path = os.path.join(masked_derivatives_dir,
-                                               psc_fname)
-                    relative_pscmap_path = os.path.relpath(pscmap_path,
-                                                           base_dir)
+                    pscmap_path = os.path.join(
+                        masked_derivatives_dir,
+                        psc_fname,
+                    )
+                    relative_pscmap_path = os.path.relpath(
+                        pscmap_path,
+                        base_dir,
+                    )
                     rows.append({
                         'subject': subj,
                         'task_id': model,
@@ -269,16 +280,7 @@ def load_roi_signal_arrays(input_dir, indiv):
     """
     input_dir = Path(input_dir)
 
-    roi_names = [
-        'dstr',
-        'cereb',
-        'presma',
-        'sma',
-        'pmd',
-        'pmv',
-        'heschl',
-        'occipital',
-    ]
+    roi_names = ROI_NAMES
 
     data_by_roi = {}
 
@@ -296,7 +298,7 @@ def split_half_roi_profile_reliability(
     data_by_roi,
     condition_names,
     output_dir,
-    hemi_labels, 
+    hemi_labels,
     tag
 ):
     """
@@ -441,6 +443,223 @@ def split_half_roi_profile_reliability(
     return results
 
 
+def split_half_rm_profile_reliability(
+    data_by_roi,
+    condition_names,
+    output_dir,
+    hemi_labels,
+    tag,
+):
+    """
+    Compute split-half reliability of the ROI correlation profile itself.
+
+    Parameters
+    ----------
+    data_by_roi : dict
+        Maps ROI name to an array with shape
+        (n_hemi, n_cond, n_run, n_subj).
+    condition_names : list of str
+        Names of the 18 non-rest conditions, in array order.
+    output_dir : str
+        Directory where outputs will be saved.
+    hemi_labels : list of str
+        Hemisphere labels, e.g. ['bh'] or ['lh', 'rh', 'bh'].
+    tag : str
+        Individualization tag, e.g. 'i' or 'g'.
+
+    Returns
+    -------
+    results : dict
+        One entry per hemisphere label. Each entry contains:
+            - 'diag_rm_profile_reliability_<hemi>'
+    """
+    roi_names = list(data_by_roi.keys())
+    first = np.asarray(data_by_roi[roi_names[0]], dtype=float)
+
+    n_hemi, n_cond, _, n_subj = first.shape
+    if len(hemi_labels) != n_hemi:
+        raise ValueError(
+            f"len(hemi_labels)={len(hemi_labels)} does not match "
+            f"n_hemi={n_hemi}."
+        )
+
+    full_conditions = condition_names + ['rest']
+    n_full = len(full_conditions)
+    n_roi = len(roi_names)
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    schemes = [
+        {'part4': ((0, 1), (2, 3)), 'part2': ((0,), (1,))},
+        {'part4': ((0, 1), (2, 3)), 'part2': ((1,), (0,))},
+        {'part4': ((0, 2), (1, 3)), 'part2': ((0,), (1,))},
+        {'part4': ((0, 2), (1, 3)), 'part2': ((1,), (0,))},
+        {'part4': ((1, 2), (0, 3)), 'part2': ((0,), (1,))},
+        {'part4': ((1, 2), (0, 3)), 'part2': ((1,), (0,))},
+    ]
+
+    results = {}
+
+    for h, hemi_label in enumerate(hemi_labels):
+        cond_valid_runs = []
+
+        # Check available runs for each condition across all ROIs.
+        for c in range(n_cond):
+            runs_ref = None
+
+            for roi in roi_names:
+                arr = np.asarray(data_by_roi[roi], dtype=float)
+                vals = arr[h, c, :, :]
+                avail = np.any(np.isfinite(vals), axis=-1)
+                runs = np.where(avail)[0]
+
+                if runs_ref is None:
+                    runs_ref = runs
+                elif not np.array_equal(runs, runs_ref):
+                    raise ValueError(
+                        f"Mismatch in available runs for condition "
+                        f"{condition_names[c]!r} in hemisphere "
+                        f"{hemi_label!r}."
+                    )
+
+            cond_valid_runs.append(runs_ref)
+
+        diag_vals = []
+
+        base_df = pd.DataFrame({
+            'Condition': np.tile(full_conditions, n_subj),
+            'Subject': np.repeat(np.arange(n_subj), n_full),
+        })
+
+        for scheme_idx, scheme in enumerate(schemes, start=1):
+            df1 = base_df.copy()
+            df2 = base_df.copy()
+
+            # Build Arr1 and Arr2 for each ROI.
+            for roi in roi_names:
+                arr = np.asarray(data_by_roi[roi], dtype=float)
+                x1 = np.full((n_cond + 1, n_subj), np.nan)
+                x2 = np.full((n_cond + 1, n_subj), np.nan)
+
+                for c, valid_runs in enumerate(cond_valid_runs):
+                    vals = arr[h, c, :, :]
+
+                    if len(valid_runs) == 4:
+                        idx1 = valid_runs[list(scheme['part4'][0])]
+                        idx2 = valid_runs[list(scheme['part4'][1])]
+                    elif len(valid_runs) == 2:
+                        idx1 = valid_runs[list(scheme['part2'][0])]
+                        idx2 = valid_runs[list(scheme['part2'][1])]
+                    else:
+                        raise ValueError(
+                            f"Condition {condition_names[c]!r} in "
+                            f"hemisphere {hemi_label!r} has "
+                            f"{len(valid_runs)} valid runs; "
+                            f"expected 2 or 4."
+                        )
+
+                    x1[c, :] = np.nanmean(vals[idx1, :], axis=0)
+                    x2[c, :] = np.nanmean(vals[idx2, :], axis=0)
+
+                x1[-1, :] = 0.0
+                x2[-1, :] = 0.0
+
+                df1[roi] = x1.T.reshape(-1)
+                df2[roi] = x2.T.reshape(-1)
+
+            # Compute one rm-corr matrix per half.
+            m1 = np.eye(n_roi)
+            m2 = np.eye(n_roi)
+
+            for i, roi1 in enumerate(roi_names):
+                for j in range(i + 1, n_roi):
+                    roi2 = roi_names[j]
+
+                    sub1 = df1[['Subject', roi1, roi2]]
+                    sub2 = df2[['Subject', roi1, roi2]]
+
+                    r1 = pg.rm_corr(
+                        data=sub1,
+                        x=roi1,
+                        y=roi2,
+                        subject='Subject',
+                    )['r'].iloc[0]
+
+                    r2 = pg.rm_corr(
+                        data=sub2,
+                        x=roi1,
+                        y=roi2,
+                        subject='Subject',
+                    )['r'].iloc[0]
+
+                    m1[i, j] = m1[j, i] = r1
+                    m2[i, j] = m2[j, i] = r2
+
+            m1_df = pd.DataFrame(
+                m1,
+                index=roi_names,
+                columns=roi_names,
+            )
+            m2_df = pd.DataFrame(
+                m2,
+                index=roi_names,
+                columns=roi_names,
+            )
+
+            m1_tsv = Path(output_dir) / (
+                f"rmcorr_half1_{hemi_label}_{tag}_"
+                f"scheme{scheme_idx:02d}.tsv"
+            )
+            m2_tsv = Path(output_dir) / (
+                f"rmcorr_half2_{hemi_label}_{tag}_"
+                f"scheme{scheme_idx:02d}.tsv"
+            )
+            m1_png = Path(output_dir) / (
+                f"rmcorr_half1_{hemi_label}_{tag}_"
+                f"scheme{scheme_idx:02d}.png"
+            )
+            m2_png = Path(output_dir) / (
+                f"rmcorr_half2_{hemi_label}_{tag}_"
+                f"scheme{scheme_idx:02d}.png"
+            )
+
+            m1_df.to_csv(m1_tsv, sep='\t')
+            m2_df.to_csv(m2_tsv, sep='\t')
+            print(f"[SAVED] {m1_tsv}")
+            print(f"[SAVED] {m2_tsv}")
+
+            plot_matrix(m1_df, "", m1_png)
+            plot_matrix(m2_df, "", m2_png)
+
+            # Cross-validated matrix from the two half matrices.
+            mcv = 0.5 * (
+                (m1 @ m2.T) / n_roi +
+                (m2 @ m1.T) / n_roi
+            )
+
+            diag_vals.append(np.diag(mcv))
+
+        mean_diag = np.mean(np.stack(diag_vals, axis=0), axis=0)
+
+        np.save(
+            os.path.join(
+                output_dir,
+                f"rmcorr_profile_cv_{hemi_label}_{tag}.npy",
+            ),
+            mean_diag,
+        )
+
+        results[hemi_label] = {
+            f'diag_rm_profile_reliability_{hemi_label}': pd.Series(
+                mean_diag,
+                index=roi_names,
+                name=f'split_half_rm_profile_reliability_{hemi_label}',
+            ),
+        }
+
+    return results
+
+
 # =========================== INPUTS ===================================
 
 # Subjects without pilot
@@ -476,6 +695,8 @@ reliability_folder = os.path.join(
 roi_signals_folder = os.path.join(
     reliability_folder, f'taskglm_roi_signals_{smooth}')
 split_half_folder = os.path.join(reliability_folder, 'roi_profile_split_half')
+gcv_folder = os.path.join(split_half_folder, 'g_crossval')
+rmcorr_folder = os.path.join(split_half_folder, 'rmcorr')
 
 # -------- All contrast dictionaries --------
 
@@ -593,13 +814,13 @@ region_names = ['dorsal_striatum',
                 'motor_area', 'motor_area', 'motor_area', 'motor_area',
                 'heschl_gyrus',
                 'occipital_lobe']
-roi_names = ['dstr',
+ROI_NAMES = ['dstr',
              'cereb',
-             'pmd', 'pmv', 'sma', 'presma',
+             'presma', 'sma', 'pmd', 'pmv',
              'heschl',
              'occipital']
 
-# itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 
+# itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g',
 #          'g']
 # itags = ['i', 'g']
 itags = ['i', 'g']
@@ -615,6 +836,8 @@ iroi_main_dir = os.path.join(
 if __name__ == '__main__':
     # Create output folder if it does not exist
     os.makedirs(reliability_folder, exist_ok=True)
+    os.makedirs(gcv_folder, exist_ok=True)
+    os.makedirs(rmcorr_folder, exist_ok=True)
 
     # Paths of dataframe
     db_taskglm_path = os.path.join(reliability_folder,
@@ -622,42 +845,57 @@ if __name__ == '__main__':
 
     # Create dataframes
     # reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
-    #                       selected_contrasts_main, selected_contrasts_random, 
+    #                       selected_contrasts_main, selected_contrasts_random,
     #                       db_taskglm_path, derivative_type, mask_type, smooth)
 
     # Open dataframe
     # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
 
     # Extract signals from derivatives using individualized ROIs
-    # Order of conditions: 
-    #   'auditory_beat_prod', 'auditory_interval_prod', 
+    # Order of conditions:
+    #   'auditory_beat_prod', 'auditory_interval_prod',
     #   'visual_beat_prod', 'visual_interval_prod',
-    #   'auditory_beat_percep', 'auditory_interval_percep', 
+    #   'auditory_beat_percep', 'auditory_interval_percep',
     #   'visual_beat_percep', 'visual_interval_percep',
-    #   'auditory_beat_ntfd', 'auditory_interval_ntfd', 
+    #   'auditory_beat_ntfd', 'auditory_interval_ntfd',
     #   'visual_beat_ntfd', 'visual_interval_ntfd',
-    #   'auditory_beat_rand_ntfd', 'auditory_interval_rand_ntfd', 
+    #   'auditory_beat_rand_ntfd', 'auditory_interval_rand_ntfd',
     #   'auditory_random_rand_ntfd',
-    #   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd', 
+    #   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd',
     #   'visual_random_rand_ntfd'
-    # taskglm_roi_extraction(db_taskglm_path, data_storage, itags, 
-    #                        region_names, atlas_names, roi_names, hemispheres, 
-    #                        iroi_main_dir, smooth, roi_signals_folder)
-    
+    # taskglm_roi_extraction(db_taskglm_path, data_storage, itags,
+    #                        region_names, atlas_names, roi_names,
+    #                        hemispheres, iroi_main_dir, smooth,
+    #                        roi_signals_folder)
+
     # Compute the relibility analysis
     for itag in itags:
         data_by_roi = load_roi_signal_arrays(
             roi_signals_folder,
             indiv=itag,
         )
-        results = split_half_roi_profile_reliability(
+
+        profile_results = split_half_roi_profile_reliability(
             data_by_roi,
             condition_names,
-            split_half_folder,
+            gcv_folder,
+            hemispheres,
+            itag,
+        )
+
+        rm_profile_results = split_half_rm_profile_reliability(
+            data_by_roi,
+            condition_names,
+            rmcorr_folder,
             hemispheres,
             itag,
         )
 
         for hemi in hemispheres:
             print(f"\nTag: {itag} | Hemisphere: {hemi}")
-            print(results[hemi][f'diag_reliability_{hemi}'])
+            print(profile_results[hemi][f'diag_reliability_{hemi}'])
+            print(
+                rm_profile_results[hemi][
+                    f'diag_rm_profile_reliability_{hemi}'
+                ]
+            )
