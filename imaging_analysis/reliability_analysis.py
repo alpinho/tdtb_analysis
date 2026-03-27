@@ -393,20 +393,10 @@ roi_names = ['dstr',
              'heschl',
              'occipital']
 
-# atlas_names = ['hmat', 'hmat', 'hmat', 'hmat',
-#                'hos',
-#                'hos']
-# region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area',
-#                 'heschl_gyrus',
-#                 'occipital_lobe']
-# roi_names = ['pmd', 'pmv', 'sma', 'presma',
-#              'heschl',
-#              'occipital']
-
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 
 #          'g']
 # itags = ['i', 'g']
-itags = ['g']
+itags = ['i']
 
 hemispheres = ['bh']  # Both hemispheres
 
