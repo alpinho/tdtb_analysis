@@ -14,7 +14,7 @@ import os
 import pandas as pd
 import numpy as np
 
-
+from pathlib import Path
 from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
 
@@ -93,7 +93,7 @@ def reliability_dataframe(
 
 def taskglm_roi_extraction(df_input, base_dir, tags,
                            regions, atlases, rois, hems, iroi_mask_dir,
-                           smoothing):
+                           smoothing, output_folder):
     """
     Extract mean PSC within an ROI for each contrast.
 
@@ -153,8 +153,6 @@ def taskglm_roi_extraction(df_input, base_dir, tags,
     n_conditions = len(condition_names)
     n_runs = len(run_numbers)
     n_subjects = len(subjects)
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
 
     for region, atlas, roi in zip(regions, atlases, rois):
         for tag in tags:
@@ -240,14 +238,7 @@ def taskglm_roi_extraction(df_input, base_dir, tags,
 
                     data_array[h, c, r, s] = val[0, 0]
 
-            output_folder = os.path.join(
-                script_dir,
-                'results',
-                'reliability',
-                f'taskglm_roi_signals_{smoothing}'
-            )
             os.makedirs(output_folder, exist_ok=True)
-
             output_path = os.path.join(
                 output_folder,
                 f'taskglm_roi_signals_{roi}_{tag}_{smoothing}.npy'
@@ -257,6 +248,197 @@ def taskglm_roi_extraction(df_input, base_dir, tags,
             print(
                 f"Saved 4D voxel array for tag '{tag}' to {output_path}"
             )
+
+
+def load_roi_signal_arrays(input_dir, indiv):
+    """
+    Load ROI signal arrays for one individualization level.
+
+    Parameters
+    ----------
+    input_dir : str or Path
+        Directory containing the .npy files.
+    indiv : str
+        Individualization label, e.g. 'i' or 'g'.
+
+    Returns
+    -------
+    data_by_roi : dict
+        Maps ROI name to array of shape
+        (n_hemi, n_cond, n_run, n_subj).
+    """
+    input_dir = Path(input_dir)
+
+    roi_names = [
+        'dstr',
+        'cereb',
+        'presma',
+        'sma',
+        'pmd',
+        'pmv',
+        'heschl',
+        'occipital',
+    ]
+
+    data_by_roi = {}
+
+    for roi in roi_names:
+        fname = (
+            f'taskglm_roi_signals_{roi}_{indiv}_unsmoothed.npy'
+        )
+        fpath = input_dir / fname
+        data_by_roi[roi] = np.load(fpath)
+
+    return data_by_roi
+
+
+def split_half_roi_profile_reliability(
+    data_by_roi,
+    condition_names,
+    output_dir,
+    hemi_labels, 
+    tag
+):
+    """
+    Compute split-half reliability of ROI profiles.
+
+    Parameters
+    ----------
+    data_by_roi : dict
+        Maps ROI name to an array with shape
+        (n_hemi, n_cond, n_run, n_subj).
+    condition_names : list of str
+        Names of the 18 non-rest conditions, in array order.
+    output_dir : str
+        Directory where cross-validated matrices will be saved as
+        .npy files.
+
+    Returns
+    -------
+    results : dict
+        One entry per hemisphere label. Each entry contains:
+            - 'diag_reliability_<hemi>'
+    """
+    roi_names = list(data_by_roi.keys())
+    first = np.asarray(data_by_roi[roi_names[0]], dtype=float)
+
+    n_hemi, n_cond, _, n_subj = first.shape
+    if len(hemi_labels) != n_hemi:
+        raise ValueError(
+            f"len(hemi_labels)={len(hemi_labels)} does not match "
+            f"n_hemi={n_hemi}."
+        )
+    n_roi = len(roi_names)
+    full_conditions = condition_names + ['rest']
+    n_full = len(full_conditions)
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Six global split schemes:
+    # 4-run partitions:
+    # 1+2 x 3+4, 1+3 x 2+4, 2+3 x 1+4
+    # 2-run partitions:
+    # 1 x 2, 2 x 1
+    schemes = [
+        {'part4': ((0, 1), (2, 3)), 'part2': ((0,), (1,))},
+        {'part4': ((0, 1), (2, 3)), 'part2': ((1,), (0,))},
+        {'part4': ((0, 2), (1, 3)), 'part2': ((0,), (1,))},
+        {'part4': ((0, 2), (1, 3)), 'part2': ((1,), (0,))},
+        {'part4': ((1, 2), (0, 3)), 'part2': ((0,), (1,))},
+        {'part4': ((1, 2), (0, 3)), 'part2': ((1,), (0,))},
+    ]
+
+    results = {}
+
+    for h, hemi_label in enumerate(hemi_labels):
+        # Check available runs for each condition across all ROIs.
+        cond_valid_runs = []
+
+        for c in range(n_cond):
+            runs_ref = None
+
+            for roi in roi_names:
+                arr = np.asarray(data_by_roi[roi], dtype=float)
+                vals = arr[h, c, :, :]
+                avail = np.any(np.isfinite(vals), axis=-1)
+                runs = np.where(avail)[0]
+
+                if runs_ref is None:
+                    runs_ref = runs
+                elif not np.array_equal(runs, runs_ref):
+                    raise ValueError(
+                        f"Mismatch in available runs for condition "
+                        f"{condition_names[c]!r} in hemisphere "
+                        f"{hemi_label!r}."
+                    )
+
+            cond_valid_runs.append(runs_ref)
+
+        gcv_all = []
+
+        for scheme in schemes:
+            gcv_subj = []
+
+            for s in range(n_subj):
+                # Y1 and Y2 have shape:
+                # n_roi x (n_cond + 1), where the last column is Rest.
+                y1 = np.full((n_roi, n_full), np.nan)
+                y2 = np.full((n_roi, n_full), np.nan)
+
+                for r, roi in enumerate(roi_names):
+                    arr = np.asarray(data_by_roi[roi], dtype=float)
+
+                    for c, valid_runs in enumerate(cond_valid_runs):
+                        vals = arr[h, c, :, s]
+
+                        if len(valid_runs) == 4:
+                            idx1 = valid_runs[list(scheme['part4'][0])]
+                            idx2 = valid_runs[list(scheme['part4'][1])]
+                        elif len(valid_runs) == 2:
+                            idx1 = valid_runs[list(scheme['part2'][0])]
+                            idx2 = valid_runs[list(scheme['part2'][1])]
+                        else:
+                            raise ValueError(
+                                f"Condition {condition_names[c]!r} in "
+                                f"hemisphere {hemi_label!r} has "
+                                f"{len(valid_runs)} valid runs; "
+                                f"expected 2 or 4."
+                            )
+
+                        y1[r, c] = np.nanmean(vals[idx1])
+                        y2[r, c] = np.nanmean(vals[idx2])
+
+                    # Add Rest = 0 x 0 as the final condition.
+                    y1[r, -1] = 0.0
+                    y2[r, -1] = 0.0
+
+                # Cross-validated ROI-profile similarity matrix.
+                g12 = (y1 @ y2.T) / n_full
+                g21 = (y2 @ y1.T) / n_full
+                gcv = 0.5 * (g12 + g21)
+
+                gcv_subj.append(gcv)
+
+            # Average across subjects for this split scheme.
+            gcv_all.append(np.mean(np.stack(gcv_subj, axis=0), axis=0))
+
+        # Average across the 6 split schemes.
+        mean_gcv = np.mean(np.stack(gcv_all, axis=0), axis=0)
+
+        np.save(
+            os.path.join(output_dir, f"g_crossval_{hemi_label}_{tag}.npy"),
+            mean_gcv,
+        )
+
+        results[hemi_label] = {
+            f'diag_reliability_{hemi_label}': pd.Series(
+                np.diag(mean_gcv),
+                index=roi_names,
+                name=f'split_half_reliability_{hemi_label}_{tag}',
+            ),
+        }
+
+    return results
 
 
 # =========================== INPUTS ===================================
@@ -279,10 +461,6 @@ else:
 glm_tasks = ['prod', 'percep', 'ntfd', 'rand_ntfd']
 # glm_tasks = ['rand_ntfd']
 
-# Path for output folders
-reliability_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'results', 'reliability')
-
 # Threshold of group-level contrast ued to generate ROI
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
 # Derivatives used are smoothed or unsmoothed?
@@ -291,6 +469,13 @@ smooth = 'unsmoothed'  # 'smoothed'
 derivative_type = 'wpsc'
 # Whole-brain (wb) mask or gray-matter (gm) mask?
 mask_type = 'wb'
+
+# Path for output folders
+reliability_folder = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'results', 'reliability')
+roi_signals_folder = os.path.join(
+    reliability_folder, f'taskglm_roi_signals_{smooth}')
+split_half_folder = os.path.join(reliability_folder, 'roi_profile_split_half')
 
 # -------- All contrast dictionaries --------
 
@@ -376,6 +561,27 @@ selected_contrasts_random = {
     107: 'Visual Random'
 }
 
+condition_names = [
+    'auditory_beat_prod',
+    'auditory_interval_prod',
+    'visual_beat_prod',
+    'visual_interval_prod',
+    'auditory_beat_percep',
+    'auditory_interval_percep',
+    'visual_beat_percep',
+    'visual_interval_percep',
+    'auditory_beat_ntfd',
+    'auditory_interval_ntfd',
+    'visual_beat_ntfd',
+    'visual_interval_ntfd',
+    'auditory_beat_rand_ntfd',
+    'auditory_interval_rand_ntfd',
+    'auditory_random_rand_ntfd',
+    'visual_beat_rand_ntfd',
+    'visual_interval_rand_ntfd',
+    'visual_random_rand_ntfd',
+]
+
 # ####################### ROIs ##############################
 atlas_names = ['hos',
                'ntk_symmni128',
@@ -396,7 +602,7 @@ roi_names = ['dstr',
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 
 #          'g']
 # itags = ['i', 'g']
-itags = ['i']
+itags = ['i', 'g']
 
 hemispheres = ['bh']  # Both hemispheres
 
@@ -434,8 +640,24 @@ if __name__ == '__main__':
     #   'auditory_random_rand_ntfd',
     #   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd', 
     #   'visual_random_rand_ntfd'
-    taskglm_roi_extraction(db_taskglm_path, data_storage, itags, 
-                           region_names, atlas_names, roi_names, hemispheres, 
-                           iroi_main_dir, smooth)
+    # taskglm_roi_extraction(db_taskglm_path, data_storage, itags, 
+    #                        region_names, atlas_names, roi_names, hemispheres, 
+    #                        iroi_main_dir, smooth, roi_signals_folder)
     
     # Compute the relibility analysis
+    for itag in itags:
+        data_by_roi = load_roi_signal_arrays(
+            roi_signals_folder,
+            indiv=itag,
+        )
+        results = split_half_roi_profile_reliability(
+            data_by_roi,
+            condition_names,
+            split_half_folder,
+            hemispheres,
+            itag,
+        )
+
+        for hemi in hemispheres:
+            print(f"\nTag: {itag} | Hemisphere: {hemi}")
+            print(results[hemi][f'diag_reliability_{hemi}'])
