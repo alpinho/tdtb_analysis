@@ -91,11 +91,19 @@ def reliability_dataframe(
     return df
 
 
-def taskglm_roi_extraction(df_input, base_dir, tags, 
-                           regions, atlases, rois, hems, iroi_mask_dir, 
-                           thresh, smoothing):
+def taskglm_roi_extraction(df_input, base_dir, tags,
+                           regions, atlases, rois, hems, iroi_mask_dir,
+                           smoothing):
     """
     Extract mean PSC within an ROI for each contrast.
+
+    Input table is read row-by-row. Each row must contain at least:
+        - subject
+        - condition_name
+        - run_number
+        - wmasked_pscmap_path   (for smoothing='unsmoothed')
+    or:
+        - swmasked_pscmap_path  (for smoothing='smoothed')
 
     Output array shape:
     (hemisphere, conditions, runs, subjects)
@@ -108,95 +116,109 @@ def taskglm_roi_extraction(df_input, base_dir, tags,
     else:
         raise ValueError("df_input must be a path or a pandas DataFrame.")
 
+    if smoothing == 'unsmoothed':
+        path_col = 'wmasked_pscmap_path'
+    elif smoothing == 'smoothed':
+        path_col = 'swmasked_pscmap_path'
+    else:
+        raise ValueError(
+            "smoothing must be either 'unsmoothed' or 'smoothed'."
+        )
+
+    if path_col not in df_unfiltered.columns:
+        raise ValueError(
+            f"Column '{path_col}' was not found in the input table."
+        )
+
+    required_cols = ['subject', 'condition_name',
+                     'run_number', path_col]
+    missing_cols = [col for col in required_cols
+                    if col not in df_unfiltered.columns]
+    if missing_cols:
+        raise ValueError(
+            f"Missing required columns in input table: {missing_cols}"
+        )
+
+    subjects = sorted(df_unfiltered['subject'].unique())
+    condition_names = list(df_unfiltered['condition_name'].unique())
+    run_numbers = sorted(df_unfiltered['run_number'].unique())
+
+    subject_to_idx = {sub: i for i, sub in enumerate(subjects)}
+    condition_to_idx = {
+        cond: i for i, cond in enumerate(condition_names)
+    }
+    run_to_idx = {rn: i for i, rn in enumerate(run_numbers)}
+
+    n_hems = len(hems)
+    n_conditions = len(condition_names)
+    n_runs = len(run_numbers)
+    n_subjects = len(subjects)
+
     for region, atlas, roi in zip(regions, atlases, rois):
         for tag in tags:
             print(f"Processing tag: {tag}")
 
-            subjects = [s for s in df_unfiltered['subject'].unique()]
-            condition_names = [
-                c for c in df_unfiltered['condition_name'].unique()]
-            run_numbers = [r for r in df_unfiltered['run_number'].unique()]
-
-            n_hems = len(hems)
-            n_conditions = len(condition_names)
-            n_runs = len(run_numbers)
-            n_subjects = len(subjects)
-
-            # Initialize the 4D array
-            # Shape = (hemispheres, conditions, runs, subjects)
             data_array = np.full(
                 (n_hems, n_conditions, n_runs, n_subjects),
                 np.nan
             )
 
-            # Loop over all combinations according to the user-specified order
             for h, hem in enumerate(hems):
-                for c, condition in enumerate(condition_names):
-                    for r, run in enumerate(run_numbers):
-                        for s, subject in enumerate(subjects):
-                            if region == 'dorsal_striatum':
-                                iroi_mask_path = os.path.join(
-                                    os.path.dirname(
-                                        os.path.abspath(__file__)),
-                                    iroi_mask_dir, 'bothmod_allmain_tasks', 
-                                    'main_tasks', region, atlas,
-                                    'individual_roi_masks',
-                                    (f'{tag}_sub-{subject:02d}_'
-                                     f'{roi}_{hem}_mask.nii.gz')
-                                )
-                            else:
-                                iroi_mask_path = os.path.join(
-                                    os.path.dirname(
-                                        os.path.abspath(__file__)),
-                                    iroi_mask_dir, 'bothmod_allmain_tasks', 
-                                    'main_tasks', region, atlas, roi,
-                                    'individual_roi_masks',
-                                    (f'{tag}_sub-{subject:02d}_'
-                                     f'{roi}_{hem}_mask.nii.gz')
-                                )
+                for _, row in df_unfiltered.iterrows():
+                    subject = row['subject']
+                    condition = row['condition_name']
+                    run_number = row['run_number']
 
-                            masker = NiftiLabelsMasker(
-                                labels_img=iroi_mask_path)
+                    s = subject_to_idx[subject]
+                    c = condition_to_idx[condition]
+                    r = run_to_idx[run_number]
 
-                            # Find the derivative map row matching subject,
-                            # condition, run
-                            row_match = df_unfiltered[
-                                (df_unfiltered['subject'] == subject)
-                                &
-                                (df_unfiltered['condition_name'] == condition)
-                                &
-                                (df_unfiltered['run_number'] == run)
-                            ]
-                            if len(row_match) != 1:
-                                raise ValueError(
-                                    f"Expected 1 matching row, "
-                                    f"but found {len(row_match)} "
-                                    f"for subject={subject}, "
-                                    f"condition='{condition}', run={run}."
-                                )
-                            if smoothing == 'unsmoothed':
-                                map_path = os.path.join(
-                                    base_dir, 
-                                    row_match.iloc[0][
-                                        'wmasked_pscmap_path']
-                                )
-                            else:
-                                assert smoothing == 'smoothed'
-                                map_path = os.path.join(
-                                    base_dir,
-                                    row_match.iloc[0][
-                                        'swmasked_pscmap_path']
-                                )
-                            print(map_path)
-                            map = image.load_img(map_path)
-                            val = masker.fit_transform(map)
-                            data_array[h, c, r, s] = val
+                    if region == 'dorsal_striatum':
+                        iroi_mask_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)),
+                            iroi_mask_dir,
+                            'bothmod_allmain_tasks',
+                            'main_tasks',
+                            region,
+                            atlas,
+                            'individual_roi_masks',
+                            (f'{tag}_sub-{subject:02d}_'
+                             f'{roi}_{hem}_mask.nii.gz')
+                        )
+                    else:
+                        iroi_mask_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)),
+                            iroi_mask_dir,
+                            'bothmod_allmain_tasks',
+                            'main_tasks',
+                            region,
+                            atlas,
+                            roi,
+                            'individual_roi_masks',
+                            (f'{tag}_sub-{subject:02d}_'
+                             f'{roi}_{hem}_mask.nii.gz')
+                        )
 
-            # Save array to disk
+                    masker = NiftiLabelsMasker(
+                        labels_img=iroi_mask_path
+                    )
+
+                    map_path = os.path.join(
+                        base_dir, row[path_col]
+                    )
+                    print(map_path)
+
+                    img = image.load_img(map_path)
+                    val = masker.fit_transform(img)
+
+                    # extract scalar explicitly
+                    data_array[h, c, r, s] = val[0, 0]
+
             output_folder = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
-                'results', 'reliability', 
-                f'taskglm_roi_signals_{smoothing}', region
+                'results',
+                'reliability',
+                f'taskglm_roi_signals_{smoothing}'
             )
             os.makedirs(output_folder, exist_ok=True)
 
@@ -205,6 +227,7 @@ def taskglm_roi_extraction(df_input, base_dir, tags,
                 f'taskglm_roi_signals_{roi}_{tag}_{smoothing}.npy'
             )
             np.save(output_path, data_array)
+
             print(
                 f"Saved 4D voxel array for tag '{tag}' to {output_path}"
             )
@@ -391,4 +414,6 @@ if __name__ == '__main__':
     #   'visual_random_rand_ntfd'
     taskglm_roi_extraction(db_taskglm_path, data_storage, itags, 
                            region_names, atlas_names, roi_names, hemispheres, 
-                           iroi_main_dir, thresh_type, smooth)
+                           iroi_main_dir, smooth)
+    
+    # Compute the relibility analysis
