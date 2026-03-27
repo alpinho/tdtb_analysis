@@ -87,7 +87,7 @@ wb_dir   = 'surfaceWB';
 subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-% subj_n = [3];
+% subj_n = [22]
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -2193,8 +2193,8 @@ switch what
         sn = subj_id; % subject list
 
         % design = {'prod', 'percep', 'ntfd'}; % do not include "allmain_tasks"
-        % design = {'ntfd'}
-        design = {'rand_ntfd'};
+        design = {'percep'}
+        % design = {'rand_ntfd'};
 
         model_derivatives = 'no_deriv';
         % model_derivatives = 'time';
@@ -2349,8 +2349,8 @@ switch what
 
         % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'prod', 'percep', 'ntfd'};
-        % design = {'ntfd'};
-        design = {'rand_ntfd'};
+        design = {'prod', 'percep'};
+        % design = {'rand_ntfd'};
 
         input_folder = 'ffx_rwls_dbb_hrf128';
 
@@ -2657,8 +2657,9 @@ switch what
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
 
         % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        design = {'prod', 'percep', 'ntfd'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep', 'ntfd'};
+        % design = {'percep'};
+        design = {'rand_ntfd'};
 
         input_folder = 'ffx_rwls_dbb_hrf128';
         output_folder = 'masked_derivatives_rwls_dbb_hrf128';
@@ -2797,6 +2798,21 @@ switch what
                                 {swsource_list.name})';
                         end
                     end
+                end
+
+                % ---------------------------------------------------------
+                % Check that input files exist
+                % ---------------------------------------------------------
+                if isempty(wsource_files)
+                    error(['No normalized files found for masking: ' ...
+                        '%s | %s | %s | scope=%s'], ...
+                        subj_str{s}, design{dg}, file_type, contrast_scope);
+                end
+                
+                if mask_smoothed && isempty(swsource_files)
+                    error(['mask_smoothed=1 but no smoothed files found: ' ...
+                        '%s | %s | %s | scope=%s'], ...
+                        subj_str{s}, design{dg}, file_type, contrast_scope);
                 end
 
                 % ---------------------------------------------------------
