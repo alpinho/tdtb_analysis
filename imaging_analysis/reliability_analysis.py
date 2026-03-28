@@ -12,6 +12,7 @@ Compatibility: Python 3.10.16
 
 import os
 from pathlib import Path
+import pypandoc
 
 import numpy as np
 import pandas as pd
@@ -294,15 +295,22 @@ def load_roi_signal_arrays(input_dir, indiv):
     return data_by_roi
 
 
-def split_half_roi_profile_reliability(
+def compute_roi_reliability_pipeline(
     data_by_roi,
     condition_names,
     output_dir,
     hemi_labels,
-    tag
+    tag,
 ):
     """
-    Compute split-half reliability of ROI profiles.
+    Compute reliability-aware ROI similarity measures.
+
+    This pipeline implements:
+    - within-ROI split-half reliability across condition profiles
+    - Spearman-Brown correction
+    - crossed cross-validated ROI-ROI correlations
+    - pairwise reliability ceilings
+    - attenuation-corrected ROI-ROI similarity
 
     Parameters
     ----------
@@ -310,16 +318,22 @@ def split_half_roi_profile_reliability(
         Maps ROI name to an array with shape
         (n_hemi, n_cond, n_run, n_subj).
     condition_names : list of str
-        Names of the 18 non-rest conditions, in array order.
+        Names of the non-rest conditions, in array order.
     output_dir : str
-        Directory where cross-validated matrices will be saved as
-        .npy files.
+        Directory where outputs will be saved.
+    hemi_labels : list of str
+        Hemisphere labels, e.g. ['bh'] or ['lh', 'rh', 'bh'].
+    tag : str
+        Individualization tag, e.g. 'i' or 'g'.
 
     Returns
     -------
     results : dict
         One entry per hemisphere label. Each entry contains:
-            - 'diag_reliability_<hemi>'
+            - 'roi_reliability'
+            - 'cv_similarity'
+            - 'ceiling'
+            - 'corrected_similarity'
     """
     roi_names = list(data_by_roi.keys())
     first = np.asarray(data_by_roi[roi_names[0]], dtype=float)
@@ -330,17 +344,13 @@ def split_half_roi_profile_reliability(
             f"len(hemi_labels)={len(hemi_labels)} does not match "
             f"n_hemi={n_hemi}."
         )
+
     n_roi = len(roi_names)
     full_conditions = condition_names + ['rest']
     n_full = len(full_conditions)
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # Six global split schemes:
-    # 4-run partitions:
-    # 1+2 x 3+4, 1+3 x 2+4, 2+3 x 1+4
-    # 2-run partitions:
-    # 1 x 2, 2 x 1
     schemes = [
         {'part4': ((0, 1), (2, 3)), 'part2': ((0,), (1,))},
         {'part4': ((0, 1), (2, 3)), 'part2': ((1,), (0,))},
@@ -350,12 +360,24 @@ def split_half_roi_profile_reliability(
         {'part4': ((1, 2), (0, 3)), 'part2': ((1,), (0,))},
     ]
 
+    def safe_corr(x, y):
+        """Return Pearson correlation or NaN if undefined."""
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+
+        if not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+            return np.nan
+        if np.std(x) == 0 or np.std(y) == 0:
+            return np.nan
+
+        return np.corrcoef(x, y)[0, 1]
+
     results = {}
 
     for h, hemi_label in enumerate(hemi_labels):
-        # Check available runs for each condition across all ROIs.
         cond_valid_runs = []
 
+        # Check available runs for each condition across all ROIs.
         for c in range(n_cond):
             runs_ref = None
 
@@ -376,14 +398,20 @@ def split_half_roi_profile_reliability(
 
             cond_valid_runs.append(runs_ref)
 
-        gcv_all = []
+        # Subject-level outputs after averaging across schemes.
+        rel_subj = np.full((n_subj, n_roi), np.nan)
+        cv_subj = np.full((n_subj, n_roi, n_roi), np.nan)
+        ceil_subj = np.full((n_subj, n_roi, n_roi), np.nan)
+        corr_subj = np.full((n_subj, n_roi, n_roi), np.nan)
 
-        for scheme in schemes:
-            gcv_subj = []
+        for s in range(n_subj):
+            rel_schemes = []
+            cv_schemes = []
+            ceil_schemes = []
+            corr_schemes = []
 
-            for s in range(n_subj):
-                # Y1 and Y2 have shape:
-                # n_roi x (n_cond + 1), where the last column is Rest.
+            for scheme in schemes:
+                # Half profiles: shape = n_roi x (n_cond + 1)
                 y1 = np.full((n_roi, n_full), np.nan)
                 y2 = np.full((n_roi, n_full), np.nan)
 
@@ -410,254 +438,181 @@ def split_half_roi_profile_reliability(
                         y1[r, c] = np.nanmean(vals[idx1])
                         y2[r, c] = np.nanmean(vals[idx2])
 
-                    # Add Rest = 0 x 0 as the final condition.
+                    # Add Rest = 0 as the final condition.
                     y1[r, -1] = 0.0
                     y2[r, -1] = 0.0
 
-                # Cross-validated ROI-profile similarity matrix.
-                g12 = (y1 @ y2.T) / n_full
-                g21 = (y2 @ y1.T) / n_full
-                gcv = 0.5 * (g12 + g21)
+                # Step 6-7: within-ROI split-half reliability
+                rel_vec = np.full(n_roi, np.nan)
+                for r in range(n_roi):
+                    r_half = safe_corr(y1[r, :], y2[r, :])
+                    if np.isfinite(r_half) and r_half > -1:
+                        rel_vec[r] = (2 * r_half) / (1 + r_half)
 
-                gcv_subj.append(gcv)
+                # Step 8: crossed ROI-ROI correlations
+                cv_mat = np.full((n_roi, n_roi), np.nan)
+                for i in range(n_roi):
+                    for j in range(n_roi):
+                        c12 = safe_corr(y1[i, :], y2[j, :])
+                        c21 = safe_corr(y2[i, :], y1[j, :])
+                        cv_mat[i, j] = np.nanmean([c12, c21])
 
-            # Average across subjects for this split scheme.
-            gcv_all.append(np.mean(np.stack(gcv_subj, axis=0), axis=0))
+                # Step 9: ceilings
+                ceil_mat = np.full((n_roi, n_roi), np.nan)
+                for i in range(n_roi):
+                    for j in range(n_roi):
+                        if (
+                            np.isfinite(rel_vec[i])
+                            and np.isfinite(rel_vec[j])
+                            and rel_vec[i] >= 0
+                            and rel_vec[j] >= 0
+                        ):
+                            ceil_mat[i, j] = np.sqrt(
+                                rel_vec[i] * rel_vec[j]
+                            )
 
-        # Average across the 6 split schemes.
-        mean_gcv = np.mean(np.stack(gcv_all, axis=0), axis=0)
+                # Step 10: corrected similarity
+                corr_mat = np.full((n_roi, n_roi), np.nan)
+                valid = np.isfinite(ceil_mat) & (ceil_mat > 0)
+                corr_mat[valid] = cv_mat[valid] / ceil_mat[valid]
 
+                rel_schemes.append(rel_vec)
+                cv_schemes.append(cv_mat)
+                ceil_schemes.append(ceil_mat)
+                corr_schemes.append(corr_mat)
+
+            # Step 11: average across schemes within subject
+            rel_subj[s, :] = np.nanmean(np.stack(rel_schemes, axis=0), axis=0)
+            cv_subj[s, :, :] = np.nanmean(
+                np.stack(cv_schemes, axis=0),
+                axis=0,
+            )
+            ceil_subj[s, :, :] = np.nanmean(
+                np.stack(ceil_schemes, axis=0),
+                axis=0,
+            )
+            corr_subj[s, :, :] = np.nanmean(
+                np.stack(corr_schemes, axis=0),
+                axis=0,
+            )
+
+        # Step 12: average across subjects
+        rel_group = np.nanmean(rel_subj, axis=0)
+        cv_group = np.nanmean(cv_subj, axis=0)
+        ceil_group = np.nanmean(ceil_subj, axis=0)
+        corr_group = np.nanmean(corr_subj, axis=0)
+
+        # Save subject-level outputs
         np.save(
-            os.path.join(output_dir, f"g_crossval_{hemi_label}_{tag}.npy"),
-            mean_gcv,
+            os.path.join(output_dir, f"roi_reliability_subj_{hemi_label}_{tag}.npy"),
+            rel_subj,
         )
-
-        results[hemi_label] = {
-            f'diag_reliability_{hemi_label}': pd.Series(
-                np.diag(mean_gcv),
-                index=roi_names,
-                name=f'split_half_reliability_{hemi_label}_{tag}',
-            ),
-        }
-
-    return results
-
-
-def split_half_rm_profile_reliability(
-    data_by_roi,
-    condition_names,
-    output_dir,
-    hemi_labels,
-    tag,
-):
-    """
-    Compute split-half reliability of the ROI correlation profile itself.
-
-    Parameters
-    ----------
-    data_by_roi : dict
-        Maps ROI name to an array with shape
-        (n_hemi, n_cond, n_run, n_subj).
-    condition_names : list of str
-        Names of the 18 non-rest conditions, in array order.
-    output_dir : str
-        Directory where outputs will be saved.
-    hemi_labels : list of str
-        Hemisphere labels, e.g. ['bh'] or ['lh', 'rh', 'bh'].
-    tag : str
-        Individualization tag, e.g. 'i' or 'g'.
-
-    Returns
-    -------
-    results : dict
-        One entry per hemisphere label. Each entry contains:
-            - 'diag_rm_profile_reliability_<hemi>'
-    """
-    roi_names = list(data_by_roi.keys())
-    first = np.asarray(data_by_roi[roi_names[0]], dtype=float)
-
-    n_hemi, n_cond, _, n_subj = first.shape
-    if len(hemi_labels) != n_hemi:
-        raise ValueError(
-            f"len(hemi_labels)={len(hemi_labels)} does not match "
-            f"n_hemi={n_hemi}."
+        np.save(
+            os.path.join(output_dir, f"cv_similarity_subj_{hemi_label}_{tag}.npy"),
+            cv_subj,
         )
-
-    full_conditions = condition_names + ['rest']
-    n_full = len(full_conditions)
-    n_roi = len(roi_names)
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    schemes = [
-        {'part4': ((0, 1), (2, 3)), 'part2': ((0,), (1,))},
-        {'part4': ((0, 1), (2, 3)), 'part2': ((1,), (0,))},
-        {'part4': ((0, 2), (1, 3)), 'part2': ((0,), (1,))},
-        {'part4': ((0, 2), (1, 3)), 'part2': ((1,), (0,))},
-        {'part4': ((1, 2), (0, 3)), 'part2': ((0,), (1,))},
-        {'part4': ((1, 2), (0, 3)), 'part2': ((1,), (0,))},
-    ]
-
-    results = {}
-
-    for h, hemi_label in enumerate(hemi_labels):
-        cond_valid_runs = []
-
-        # Check available runs for each condition across all ROIs.
-        for c in range(n_cond):
-            runs_ref = None
-
-            for roi in roi_names:
-                arr = np.asarray(data_by_roi[roi], dtype=float)
-                vals = arr[h, c, :, :]
-                avail = np.any(np.isfinite(vals), axis=-1)
-                runs = np.where(avail)[0]
-
-                if runs_ref is None:
-                    runs_ref = runs
-                elif not np.array_equal(runs, runs_ref):
-                    raise ValueError(
-                        f"Mismatch in available runs for condition "
-                        f"{condition_names[c]!r} in hemisphere "
-                        f"{hemi_label!r}."
-                    )
-
-            cond_valid_runs.append(runs_ref)
-
-        diag_vals = []
-
-        base_df = pd.DataFrame({
-            'Condition': np.tile(full_conditions, n_subj),
-            'Subject': np.repeat(np.arange(n_subj), n_full),
-        })
-
-        for scheme_idx, scheme in enumerate(schemes, start=1):
-            df1 = base_df.copy()
-            df2 = base_df.copy()
-
-            # Build Arr1 and Arr2 for each ROI.
-            for roi in roi_names:
-                arr = np.asarray(data_by_roi[roi], dtype=float)
-                x1 = np.full((n_cond + 1, n_subj), np.nan)
-                x2 = np.full((n_cond + 1, n_subj), np.nan)
-
-                for c, valid_runs in enumerate(cond_valid_runs):
-                    vals = arr[h, c, :, :]
-
-                    if len(valid_runs) == 4:
-                        idx1 = valid_runs[list(scheme['part4'][0])]
-                        idx2 = valid_runs[list(scheme['part4'][1])]
-                    elif len(valid_runs) == 2:
-                        idx1 = valid_runs[list(scheme['part2'][0])]
-                        idx2 = valid_runs[list(scheme['part2'][1])]
-                    else:
-                        raise ValueError(
-                            f"Condition {condition_names[c]!r} in "
-                            f"hemisphere {hemi_label!r} has "
-                            f"{len(valid_runs)} valid runs; "
-                            f"expected 2 or 4."
-                        )
-
-                    x1[c, :] = np.nanmean(vals[idx1, :], axis=0)
-                    x2[c, :] = np.nanmean(vals[idx2, :], axis=0)
-
-                x1[-1, :] = 0.0
-                x2[-1, :] = 0.0
-
-                df1[roi] = x1.T.reshape(-1)
-                df2[roi] = x2.T.reshape(-1)
-
-            # Compute one rm-corr matrix per half.
-            m1 = np.eye(n_roi)
-            m2 = np.eye(n_roi)
-
-            for i, roi1 in enumerate(roi_names):
-                for j in range(i + 1, n_roi):
-                    roi2 = roi_names[j]
-
-                    sub1 = df1[['Subject', roi1, roi2]]
-                    sub2 = df2[['Subject', roi1, roi2]]
-
-                    r1 = pg.rm_corr(
-                        data=sub1,
-                        x=roi1,
-                        y=roi2,
-                        subject='Subject',
-                    )['r'].iloc[0]
-
-                    r2 = pg.rm_corr(
-                        data=sub2,
-                        x=roi1,
-                        y=roi2,
-                        subject='Subject',
-                    )['r'].iloc[0]
-
-                    m1[i, j] = m1[j, i] = r1
-                    m2[i, j] = m2[j, i] = r2
-
-            m1_df = pd.DataFrame(
-                m1,
-                index=roi_names,
-                columns=roi_names,
-            )
-            m2_df = pd.DataFrame(
-                m2,
-                index=roi_names,
-                columns=roi_names,
-            )
-
-            m1_tsv = Path(output_dir) / (
-                f"rmcorr_half1_{hemi_label}_{tag}_"
-                f"scheme{scheme_idx:02d}.tsv"
-            )
-            m2_tsv = Path(output_dir) / (
-                f"rmcorr_half2_{hemi_label}_{tag}_"
-                f"scheme{scheme_idx:02d}.tsv"
-            )
-            m1_png = Path(output_dir) / (
-                f"rmcorr_half1_{hemi_label}_{tag}_"
-                f"scheme{scheme_idx:02d}.png"
-            )
-            m2_png = Path(output_dir) / (
-                f"rmcorr_half2_{hemi_label}_{tag}_"
-                f"scheme{scheme_idx:02d}.png"
-            )
-
-            m1_df.to_csv(m1_tsv, sep='\t')
-            m2_df.to_csv(m2_tsv, sep='\t')
-            print(f"[SAVED] {m1_tsv}")
-            print(f"[SAVED] {m2_tsv}")
-
-            plot_matrix(m1_df, "", m1_png)
-            plot_matrix(m2_df, "", m2_png)
-
-            # Cross-validated matrix from the two half matrices.
-            mcv = 0.5 * (
-                (m1 @ m2.T) / n_roi +
-                (m2 @ m1.T) / n_roi
-            )
-
-            diag_vals.append(np.diag(mcv))
-
-        mean_diag = np.mean(np.stack(diag_vals, axis=0), axis=0)
-
+        np.save(
+            os.path.join(output_dir, f"ceiling_subj_{hemi_label}_{tag}.npy"),
+            ceil_subj,
+        )
         np.save(
             os.path.join(
                 output_dir,
-                f"rmcorr_profile_cv_{hemi_label}_{tag}.npy",
+                f"corrected_similarity_subj_{hemi_label}_{tag}.npy",
             ),
-            mean_diag,
+            corr_subj,
+        )
+
+        # Save group-level outputs
+        np.save(
+            os.path.join(output_dir, f"roi_reliability_{hemi_label}_{tag}.npy"),
+            rel_group,
+        )
+        np.save(
+            os.path.join(output_dir, f"cv_similarity_{hemi_label}_{tag}.npy"),
+            cv_group,
+        )
+        np.save(
+            os.path.join(output_dir, f"ceiling_{hemi_label}_{tag}.npy"),
+            ceil_group,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"corrected_similarity_{hemi_label}_{tag}.npy",
+            ),
+            corr_group,
         )
 
         results[hemi_label] = {
-            f'diag_rm_profile_reliability_{hemi_label}': pd.Series(
-                mean_diag,
+            'roi_reliability': pd.Series(
+                rel_group,
                 index=roi_names,
-                name=f'split_half_rm_profile_reliability_{hemi_label}',
+                name=f'roi_reliability_{hemi_label}_{tag}',
+            ),
+            'cv_similarity': pd.DataFrame(
+                cv_group,
+                index=roi_names,
+                columns=roi_names,
+            ),
+            'ceiling': pd.DataFrame(
+                ceil_group,
+                index=roi_names,
+                columns=roi_names,
+            ),
+            'corrected_similarity': pd.DataFrame(
+                corr_group,
+                index=roi_names,
+                columns=roi_names,
             ),
         }
 
     return results
+
+
+import pypandoc
+
+
+def save_results_to_rtf(results, output_path):
+    """
+    Save reliability results into an RTF file with proper tables.
+    """
+
+    sections = []
+
+    for hemi, res in results.items():
+        sections.append(f"# Hemisphere: {hemi}\n")
+
+        # ROI reliability (convert Series to DataFrame for table format)
+        rel_df = res["roi_reliability"].to_frame(name="Reliability")
+        sections.append("## ROI reliability\n")
+        sections.append(rel_df.round(3).to_markdown())
+        sections.append("\n")
+
+        # Cross-validated similarity
+        sections.append("## Cross-validated ROI–ROI similarity\n")
+        sections.append(res["cv_similarity"].round(3).to_markdown())
+        sections.append("\n")
+
+        # Ceiling
+        sections.append("## Reliability ceiling\n")
+        sections.append(res["ceiling"].round(3).to_markdown())
+        sections.append("\n")
+
+        # Corrected similarity
+        sections.append("## Corrected similarity\n")
+        sections.append(res["corrected_similarity"].round(3).to_markdown())
+        sections.append("\n\n")
+
+    text = "\n".join(sections)
+
+    pypandoc.convert_text(
+        text,
+        'rtf',
+        format='md',
+        outputfile=output_path,
+        extra_args=['--standalone']
+    )
 
 
 # =========================== INPUTS ===================================
@@ -689,14 +644,13 @@ derivative_type = 'wpsc'
 # Whole-brain (wb) mask or gray-matter (gm) mask?
 mask_type = 'wb'
 
+
 # Path for output folders
 reliability_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'reliability')
 roi_signals_folder = os.path.join(
     reliability_folder, f'taskglm_roi_signals_{smooth}')
 split_half_folder = os.path.join(reliability_folder, 'roi_profile_split_half')
-gcv_folder = os.path.join(split_half_folder, 'g_crossval')
-rmcorr_folder = os.path.join(split_half_folder, 'rmcorr')
 
 # -------- All contrast dictionaries --------
 
@@ -836,12 +790,12 @@ iroi_main_dir = os.path.join(
 if __name__ == '__main__':
     # Create output folder if it does not exist
     os.makedirs(reliability_folder, exist_ok=True)
-    os.makedirs(gcv_folder, exist_ok=True)
-    os.makedirs(rmcorr_folder, exist_ok=True)
 
     # Paths of dataframe
-    db_taskglm_path = os.path.join(reliability_folder,
-                                   f'reliability_taskglm_{smooth}.tsv')
+    db_taskglm_path = os.path.join(
+        reliability_folder,
+        f'reliability_taskglm_{smooth}.tsv',
+    )
 
     # Create dataframes
     # reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
@@ -868,34 +822,36 @@ if __name__ == '__main__':
     #                        hemispheres, iroi_main_dir, smooth,
     #                        roi_signals_folder)
 
-    # Compute the relibility analysis
+    # Compute the reliability analysis
     for itag in itags:
         data_by_roi = load_roi_signal_arrays(
             roi_signals_folder,
             indiv=itag,
         )
 
-        profile_results = split_half_roi_profile_reliability(
+        results = compute_roi_reliability_pipeline(
             data_by_roi,
             condition_names,
-            gcv_folder,
-            hemispheres,
-            itag,
-        )
-
-        rm_profile_results = split_half_rm_profile_reliability(
-            data_by_roi,
-            condition_names,
-            rmcorr_folder,
+            split_half_folder,
             hemispheres,
             itag,
         )
 
         for hemi in hemispheres:
             print(f"\nTag: {itag} | Hemisphere: {hemi}")
-            print(profile_results[hemi][f'diag_reliability_{hemi}'])
-            print(
-                rm_profile_results[hemi][
-                    f'diag_rm_profile_reliability_{hemi}'
-                ]
-            )
+
+            print("\nROI reliability")
+            print(results[hemi]['roi_reliability'])
+
+            print("\nCross-validated ROI-ROI similarity")
+            print(results[hemi]['cv_similarity'])
+
+            print("\nReliability ceiling")
+            print(results[hemi]['ceiling'])
+
+            print("\nCorrected similarity")
+            print(results[hemi]['corrected_similarity'])
+
+        rtf_path = os.path.join(split_half_folder,
+                                f"reliability_report_{itag}.rtf")
+        save_results_to_rtf(results, rtf_path)
