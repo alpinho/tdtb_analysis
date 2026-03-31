@@ -393,6 +393,134 @@ def plot_reliability_distributions(
     plt.close()
 
 
+def summarize_negative_reliabilities(
+    rel_scheme_subj_raw,
+    roi_names,
+    output_dir,
+    hemi_label,
+    tag,
+):
+    """
+    Compute and save the percentage of negative reliabilities per ROI.
+
+    Parameters
+    ----------
+    rel_scheme_subj_raw : np.ndarray
+        Array of shape (n_subj, n_schemes, n_roi) with raw reliabilities.
+    roi_names : list of str
+        ROI labels.
+    output_dir : str
+        Directory where outputs will be saved.
+    hemi_label : str
+        Hemisphere label.
+    tag : str
+        Individualization tag.
+
+    Returns
+    -------
+    pd.Series
+        Percentage of negative reliabilities per ROI.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    perc_neg = []
+    for i, roi in enumerate(roi_names):
+        vals = rel_scheme_subj_raw[:, :, i]
+        vals = vals[np.isfinite(vals)]
+
+        if len(vals) == 0:
+            perc_neg.append(np.nan)
+        else:
+            perc_neg.append(100 * np.mean(vals < 0))
+
+    perc_neg = pd.Series(
+        perc_neg,
+        index=roi_names,
+        name=f'perc_negative_reliability_{hemi_label}_{tag}',
+    )
+
+    out_path = os.path.join(
+        output_dir,
+        f'perc_negative_reliability_{hemi_label}_{tag}.tsv',
+    )
+    perc_neg.to_csv(out_path, sep='\t', header=True)
+
+    return perc_neg
+
+
+def plot_reliability_vs_corrected_similarity(
+    ceiling_mat,
+    corrected_mat,
+    roi_names,
+    output_dir,
+    hemi_label,
+    tag,
+):
+    """
+    Plot pairwise reliability ceiling vs corrected similarity,
+    restricted to pairs involving dstr and/or cerebellum.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    xs = []
+    ys = []
+    labels = []
+
+    n_roi = len(roi_names)
+
+    # Target ROIs
+    target_rois = {'dstr', 'cereb'}
+
+    for i in range(n_roi):
+        for j in range(i + 1, n_roi):
+
+            roi_i = roi_names[i]
+            roi_j = roi_names[j]
+
+            # FILTER HERE
+            if not (roi_i in target_rois or roi_j in target_rois):
+                continue
+
+            x = ceiling_mat[i, j]
+            y = corrected_mat[i, j]
+
+            if np.isfinite(x) and np.isfinite(y):
+                xs.append(x)
+                ys.append(y)
+                labels.append(f'{roi_i}-{roi_j}')
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    ax.plot(xs, ys, 'o')
+
+    for x, y, label in zip(xs, ys, labels):
+        ax.annotate(
+            label,
+            (x, y),
+            xytext=(3, 3),
+            textcoords='offset points',
+            fontsize=8,
+        )
+
+    ax.axhline(0, linestyle='--', linewidth=1)
+    ax.set_xlabel('Reliability ceiling')
+    ax.set_ylabel('Corrected similarity')
+    ax.set_title(
+        f'Reliability ceiling vs corrected similarity\n'
+        f'(dstr / cereb pairs only)\n'
+        f'Hemisphere: {hemi_label} | Tag: {tag}'
+    )
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(
+            output_dir,
+            f'reliability_vs_corrected_similarity_{hemi_label}_{tag}.png',
+        ),
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+
 def compute_roi_reliability_pipeline(
     data_by_roi,
     condition_names,
@@ -432,6 +560,7 @@ def compute_roi_reliability_pipeline(
             - 'cv_similarity'
             - 'ceiling'
             - 'corrected_similarity'
+            - 'perc_negative_reliability'
     """
     roi_names = list(data_by_roi.keys())
     first = np.asarray(data_by_roi[roi_names[0]], dtype=float)
@@ -711,6 +840,28 @@ def compute_roi_reliability_pipeline(
             tag,
         )
 
+        neg_dir = os.path.join(output_dir, 'negative_reliability_summary')
+        perc_neg = summarize_negative_reliabilities(
+            rel_scheme_subj_raw,
+            roi_names,
+            neg_dir,
+            hemi_label,
+            tag,
+        )
+
+        relcorr_dir = os.path.join(
+            output_dir,
+            'reliability_vs_corrected_similarity'
+        )
+        plot_reliability_vs_corrected_similarity(
+            ceil_group,
+            corr_group,
+            roi_names,
+            relcorr_dir,
+            hemi_label,
+            tag,
+        )
+
         results[hemi_label] = {
             'roi_reliability': pd.Series(
                 rel_group,
@@ -732,6 +883,7 @@ def compute_roi_reliability_pipeline(
                 index=roi_names,
                 columns=roi_names,
             ),
+            'perc_negative_reliability': perc_neg,
         }
 
     return results
@@ -751,6 +903,13 @@ def save_results_to_rtf(results, output_path):
         rel_df = res["roi_reliability"].to_frame(name="Reliability")
         sections.append("## ROI reliability\n")
         sections.append(rel_df.round(3).to_markdown())
+        sections.append("\n")
+
+        sections.append("## Percentage of negative reliabilities\n")
+        neg_df = res["perc_negative_reliability"].to_frame(
+            name="Percentage"
+        )
+        sections.append(neg_df.round(3).to_markdown())
         sections.append("\n")
 
         # Cross-validated similarity
@@ -1006,6 +1165,9 @@ if __name__ == '__main__':
 
             print("\nROI reliability")
             print(results[hemi]['roi_reliability'])
+
+            print("\nPercentage of negative reliabilities")
+            print(results[hemi]['perc_negative_reliability'])
 
             print("\nCross-validated ROI-ROI similarity")
             print(results[hemi]['cv_similarity'])
