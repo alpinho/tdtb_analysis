@@ -474,7 +474,7 @@ def compute_roi_reliability_pipeline(
 
                         y1[r, c] = np.nanmean(vals[idx1])
                         y2[r, c] = np.nanmean(vals[idx2])
-                        0/0
+                   
                     # Add Rest = 0 as the final condition.
                     y1[r, -1] = 0.0
                     y2[r, -1] = 0.0
@@ -484,7 +484,9 @@ def compute_roi_reliability_pipeline(
                 for r in range(n_roi):
                     r_half = safe_corr(y1[r, :], y2[r, :])
                     if np.isfinite(r_half) and r_half > -1:
-                        rel_vec[r] = (2 * r_half) / (1 + r_half)
+                        rel_val = (2 * r_half) / (1 + r_half)
+                        if rel_val >= 0:
+                            rel_vec[r] = rel_val
 
                 # Step 8: crossed ROI-ROI correlations
                 cv_mat = np.full((n_roi, n_roi), np.nan)
