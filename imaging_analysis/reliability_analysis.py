@@ -375,11 +375,12 @@ def compute_roi_reliability_pipeline(
     results = {}
 
     for h, hemi_label in enumerate(hemi_labels):
-        cond_valid_runs = []
+        cond_n_runs = []
 
-        # Check available runs for each condition across all ROIs.
+        # Check only the number of available runs for each condition
+        # across all ROIs, irrespective of subject.
         for c in range(n_cond):
-            runs_ref = None
+            n_runs_ref = None
 
             for roi in roi_names:
                 arr = np.asarray(data_by_roi[roi], dtype=float)
@@ -387,16 +388,22 @@ def compute_roi_reliability_pipeline(
                 avail = np.any(np.isfinite(vals), axis=-1)
                 runs = np.where(avail)[0]
 
-                if runs_ref is None:
-                    runs_ref = runs
-                elif not np.array_equal(runs, runs_ref):
+                if n_runs_ref is None:
+                    n_runs_ref = len(runs)
+                elif len(runs) != n_runs_ref:
                     raise ValueError(
-                        f"Mismatch in available runs for condition "
-                        f"{condition_names[c]!r} in hemisphere "
+                        f"Mismatch in number of available runs for "
+                        f"condition {condition_names[c]!r} in hemisphere "
                         f"{hemi_label!r}."
                     )
 
-            cond_valid_runs.append(runs_ref)
+            if n_runs_ref not in [2, 4]:
+                raise ValueError(
+                    f"Condition {condition_names[c]!r} in hemisphere "
+                    f"{hemi_label!r} has {n_runs_ref} runs; expected 2 or 4."
+                )
+
+            cond_n_runs.append(n_runs_ref)
 
         # Subject-level outputs after averaging across schemes.
         rel_subj = np.full((n_subj, n_roi), np.nan)
@@ -405,6 +412,36 @@ def compute_roi_reliability_pipeline(
         corr_subj = np.full((n_subj, n_roi, n_roi), np.nan)
 
         for s in range(n_subj):
+            cond_valid_runs_subj = []
+
+            for c in range(n_cond):
+                runs_ref = None
+
+                for roi in roi_names:
+                    arr = np.asarray(data_by_roi[roi], dtype=float)
+                    vals = arr[h, c, :, s]
+                    runs = np.where(np.isfinite(vals))[0]
+
+                    if runs_ref is None:
+                        runs_ref = runs
+                    elif not np.array_equal(runs, runs_ref):
+                        raise ValueError(
+                            f"Subject-level mismatch in available runs for "
+                            f"condition {condition_names[c]!r}, hemisphere "
+                            f"{hemi_label!r}, subject index {s}, ROI "
+                            f"{roi!r}. Expected {runs_ref}, got {runs}."
+                        )
+
+                if len(runs_ref) != cond_n_runs[c]:
+                    raise ValueError(
+                        f"Unexpected number of runs for condition "
+                        f"{condition_names[c]!r}, hemisphere "
+                        f"{hemi_label!r}, subject index {s}. "
+                        f"Expected {cond_n_runs[c]}, got {len(runs_ref)}."
+                    )
+
+                cond_valid_runs_subj.append(runs_ref)
+
             rel_schemes = []
             cv_schemes = []
             ceil_schemes = []
@@ -418,7 +455,7 @@ def compute_roi_reliability_pipeline(
                 for r, roi in enumerate(roi_names):
                     arr = np.asarray(data_by_roi[roi], dtype=float)
 
-                    for c, valid_runs in enumerate(cond_valid_runs):
+                    for c, valid_runs in enumerate(cond_valid_runs_subj):
                         vals = arr[h, c, :, s]
 
                         if len(valid_runs) == 4:
@@ -437,7 +474,7 @@ def compute_roi_reliability_pipeline(
 
                         y1[r, c] = np.nanmean(vals[idx1])
                         y2[r, c] = np.nanmean(vals[idx2])
-
+                        0/0
                     # Add Rest = 0 as the final condition.
                     y1[r, -1] = 0.0
                     y2[r, -1] = 0.0
@@ -568,9 +605,6 @@ def compute_roi_reliability_pipeline(
         }
 
     return results
-
-
-import pypandoc
 
 
 def save_results_to_rtf(results, output_path):
