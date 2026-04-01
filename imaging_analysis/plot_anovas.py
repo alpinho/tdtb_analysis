@@ -493,7 +493,7 @@ def plot_psc_boxplots(
     n_rows = len(rois)
 
     # ------------------------ style params -------------------------
-    POOLED_BASE = ["steelblue", "darkturquoise", "turquoise", "cyan"]
+    POOLED_BASE = ["steelblue", "darkturquoise", "aquamarine", "cyan"]
     AUD_BASE = ["saddlebrown", "chocolate", "orange", "gold"]
     VIS_BASE = ["rebeccapurple", "darkorchid", "violet", "pink"]
 
@@ -2066,7 +2066,7 @@ if __name__ == "__main__":
         show_yaxis={
             "heschl": True,
             "occipital": False,
-            "dstr": False,
+            "dstr": True,
             "cereb": False,
             "presma": True,
             "sma": False,
@@ -2099,7 +2099,7 @@ if __name__ == "__main__":
         show_yaxis={
             "heschl": True,
             "occipital": False,
-            "dstr": False,
+            "dstr": True,
             "cereb": False,
             "presma": True,
             "sma": False,
