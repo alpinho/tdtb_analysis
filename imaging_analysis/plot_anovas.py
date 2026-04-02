@@ -2056,8 +2056,8 @@ if __name__ == "__main__":
         include_ntfd_random=False,
         y_limits={
             "occipital": (-0.6, 2.2),
-            "dstr": (-0.6, 2.2),
-            "cereb": (-0.6, 2.2),
+            "dstr": (-0.2, 1.4),
+            "cereb": (-0.2, 1.4),
             "presma": (-0.4, 1.2),
             "sma": (-0.4, 1.2),
             "pmd": (-0.4, 1.2),
