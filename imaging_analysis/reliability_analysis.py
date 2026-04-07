@@ -21,8 +21,6 @@ import pingouin as pg
 from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
 
-from roi_similarity_encoding import plot_matrix
-
 # Prevent DataFrame truncation when printing
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
