@@ -594,6 +594,71 @@ def compute_spearman_brown(split_half_subj):
     return sb_raw_subj, sb_subj
 
 
+def compute_subject_ceiling(sb_subj):
+    """
+    Compute subject-level reliability ceiling matrices.
+
+    A ceiling entry is set to zero whenever one of the two
+    Spearman-Brown values is negative or non-finite. Otherwise it is
+    computed as the square root of the product of the two values.
+    """
+    n_subj, n_roi = sb_subj.shape
+    ceil_subj = np.full((n_subj, n_roi, n_roi), np.nan)
+
+    for s in range(n_subj):
+        for i in range(n_roi):
+            for j in range(n_roi):
+                sb_i = sb_subj[s, i]
+                sb_j = sb_subj[s, j]
+
+                if (
+                    np.isfinite(sb_i)
+                    and np.isfinite(sb_j)
+                    and sb_i >= 0
+                    and sb_j >= 0
+                ):
+                    ceil_subj[s, i, j] = np.sqrt(sb_i * sb_j)
+                else:
+                    ceil_subj[s, i, j] = 0.0
+
+    return ceil_subj
+
+
+def compute_corrected_similarity(cv_subj, ceil_subj):
+    """
+    Compute subject-level corrected similarity matrices.
+
+    If the ceiling is positive, corrected similarity is obtained by
+    division. If the ceiling is zero, the corrected value is set to 1,
+    -1, or 0 depending on the sign of the numerator. Final values are
+    clipped to [-1, 1].
+    """
+    n_subj, n_roi, _ = cv_subj.shape
+    corr_subj = np.full((n_subj, n_roi, n_roi), np.nan)
+
+    for s in range(n_subj):
+        for i in range(n_roi):
+            for j in range(n_roi):
+                num = cv_subj[s, i, j]
+                den = ceil_subj[s, i, j]
+
+                if not np.isfinite(num) or not np.isfinite(den):
+                    corr_subj[s, i, j] = np.nan
+                elif den > 0:
+                    corr_subj[s, i, j] = num / den
+                else:
+                    if num > 0:
+                        corr_subj[s, i, j] = 1.0
+                    elif num < 0:
+                        corr_subj[s, i, j] = -1.0
+                    else:
+                        corr_subj[s, i, j] = 0.0
+
+        corr_subj[s, :, :] = np.clip(corr_subj[s, :, :], -1.0, 1.0)
+
+    return corr_subj
+
+
 def compute_split_half_pipeline(
     data_by_roi,
     condition_names,
@@ -602,7 +667,8 @@ def compute_split_half_pipeline(
     tag,
 ):
     """
-    Compute split-half, Spearman-Brown, and CV ROI-ROI similarity.
+    Compute split-half, Spearman-Brown, CV similarity, ceiling, and
+    corrected similarity.
 
     Recipe
     ------
@@ -631,6 +697,18 @@ def compute_split_half_pipeline(
        similarity matrix as Y1 @ Y2.T divided by the number of full
        conditions (including Rest). Summarize within subject using the
        median across schemes, and across subjects using the median.
+    7. Compute the subject-level reliability ceiling from the clipped
+       Spearman-Brown values. If either ROI in a pair has a negative or
+       non-finite Spearman-Brown value, set that subject-level ceiling
+       entry to 0. Otherwise compute the square root of the product of
+       the two subject-level Spearman-Brown values. Summarize across
+       subjects using the median.
+    8. Compute corrected similarity at the subject level. If the
+       subject-level ceiling is positive, divide CV similarity by the
+       ceiling. If the ceiling is 0, assign 1, -1, or 0 according to
+       the sign of the subject-level CV similarity. Clip final corrected
+       similarities to [-1, 1]. Summarize across subjects using the
+       median.
 
     Parameters
     ----------
@@ -650,8 +728,9 @@ def compute_split_half_pipeline(
     -------
     results : dict
         One entry per hemisphere label with split-half,
-        Spearman-Brown, cross-validated similarity, and percentages of
-        negative schemes and Spearman-Brown capping.
+        Spearman-Brown, cross-validated similarity, reliability
+        ceiling, corrected similarity, and percentages of negative
+        schemes and Spearman-Brown capping.
     """
     roi_names = list(data_by_roi.keys())
     first = np.asarray(data_by_roi[roi_names[0]], dtype=float)
@@ -794,10 +873,14 @@ def compute_split_half_pipeline(
 
         sb_raw_subj, sb_subj = compute_spearman_brown(split_half_subj)
         cv_subj = np.nanmedian(cv_scheme_subj, axis=1)
+        ceil_subj = compute_subject_ceiling(sb_subj)
+        corr_subj = compute_corrected_similarity(cv_subj, ceil_subj)
 
         split_half_group = np.nanmedian(split_half_subj, axis=0)
         sb_group = np.nanmedian(sb_subj, axis=0)
         cv_group = np.nanmedian(cv_subj, axis=0)
+        ceil_group = np.nanmedian(ceil_subj, axis=0)
+        corr_group = np.nanmedian(corr_subj, axis=0)
 
         np.save(
             os.path.join(
@@ -862,6 +945,34 @@ def compute_split_half_pipeline(
             ),
             cv_group,
         )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"ceiling_subj_{hemi_label}_{tag}.npy",
+            ),
+            ceil_subj,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"ceiling_{hemi_label}_{tag}.npy",
+            ),
+            ceil_group,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"corrected_similarity_subj_{hemi_label}_{tag}.npy",
+            ),
+            corr_subj,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"corrected_similarity_{hemi_label}_{tag}.npy",
+            ),
+            corr_group,
+        )
 
         plot_dir = os.path.join(output_dir, 'split_half_distributions')
         plot_split_half_distributions(
@@ -915,6 +1026,16 @@ def compute_split_half_pipeline(
             ),
             'cv_similarity': pd.DataFrame(
                 cv_group,
+                index=roi_names,
+                columns=roi_names,
+            ),
+            'ceiling': pd.DataFrame(
+                ceil_group,
+                index=roi_names,
+                columns=roi_names,
+            ),
+            'corrected_similarity': pd.DataFrame(
+                corr_group,
                 index=roi_names,
                 columns=roi_names,
             ),
@@ -1179,3 +1300,9 @@ if __name__ == '__main__':
 
             print("\nCross-validated ROI-ROI similarity")
             print(results[hemi]['cv_similarity'])
+
+            print("\nReliability ceiling")
+            print(results[hemi]['ceiling'])
+
+            print("\nCorrected similarity")
+            print(results[hemi]['corrected_similarity'])
