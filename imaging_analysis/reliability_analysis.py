@@ -12,12 +12,10 @@ Compatibility: Python 3.10.16
 
 import os
 from pathlib import Path
-import pypandoc
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pingouin as pg
 from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
 
@@ -32,14 +30,13 @@ def reliability_dataframe(
         subjects, task_models, base_dir,
         contrasts_main, contrasts_random,
         output_path, prefix, masking, smoothing):
-    """Builds the inputs DataFrame, saves it, and returns it."""
+    """Build the inputs DataFrame, save it, and return it."""
 
     derivatives_dir = os.path.join(
         base_dir, 'data', 'Cerebellum', 'music-sdtb', 'derivatives')
 
     rows = []
     for subj in subjects:
-        # Format subject with leading zero if needed, e.g., "sub-03"
         subj_str = f"sub-{subj:02d}"
         for model in task_models:
 
@@ -75,6 +72,7 @@ def reliability_dataframe(
                             f'desc-sm8{masking}masked.nii'
                         )
                         pscpath_colname = 'swmasked_pscmap_path'
+
                     pscmap_path = os.path.join(
                         masked_derivatives_dir,
                         psc_fname,
@@ -92,11 +90,8 @@ def reliability_dataframe(
                         pscpath_colname: relative_pscmap_path,
                     })
 
-    # Create the DataFrame
     df = pd.DataFrame(rows)
     print(df)
-
-    # Save the DataFrame in the rsa_folder
     df.to_csv(output_path, index=False, sep='\t')
 
     return df
@@ -280,11 +275,9 @@ def load_roi_signal_arrays(input_dir, indiv):
     """
     input_dir = Path(input_dir)
 
-    roi_names = ROI_NAMES
-
     data_by_roi = {}
 
-    for roi in roi_names:
+    for roi in ROI_NAMES:
         fname = (
             f'taskglm_roi_signals_{roi}_{indiv}_unsmoothed.npy'
         )
@@ -294,19 +287,19 @@ def load_roi_signal_arrays(input_dir, indiv):
     return data_by_roi
 
 
-def plot_reliability_distributions(
-    rel_scheme_subj,
+def plot_split_half_distributions(
+    split_half_scheme_subj,
     roi_names,
     output_dir,
     hemi_label,
     tag,
 ):
     """
-    Plot scheme-level and subject-mean reliability distributions per ROI.
+    Plot scheme-level and subject-median split-half correlations per ROI.
 
     Parameters
     ----------
-    rel_scheme_subj : np.ndarray
+    split_half_scheme_subj : np.ndarray
         Array of shape (n_subj, n_schemes, n_roi).
     roi_names : list of str
         ROI labels.
@@ -319,28 +312,28 @@ def plot_reliability_distributions(
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    n_subj, n_schemes, n_roi = rel_scheme_subj.shape
+    n_subj, n_schemes, n_roi = split_half_scheme_subj.shape
 
-    # Plot 1: all subject x scheme reliabilities per ROI
-    rel_all = rel_scheme_subj.reshape(n_subj * n_schemes, n_roi)
+    # Plot 1: all subject x scheme split-half correlations per ROI
+    corr_all = split_half_scheme_subj.reshape(n_subj * n_schemes, n_roi)
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.boxplot(
-        [rel_all[:, i][np.isfinite(rel_all[:, i])] for i in range(n_roi)],
+        [corr_all[:, i][np.isfinite(corr_all[:, i])] for i in range(n_roi)],
         tick_labels=roi_names,
         patch_artist=False,
     )
 
     for i in range(n_roi):
-        y = rel_all[:, i]
+        y = corr_all[:, i]
         y = y[np.isfinite(y)]
         x = np.random.normal(i + 1, 0.04, size=len(y))
         ax.plot(x, y, 'o', alpha=0.5)
 
     ax.axhline(0, linestyle='--', linewidth=1)
-    ax.set_ylabel('Scheme-level reliability')
+    ax.set_ylabel('Scheme-level split-half correlation')
     ax.set_title(
-        f'Reliability distribution across subjects and schemes\n'
+        f'Split-half correlation across subjects and schemes\n'
         f'Hemisphere: {hemi_label} | Tag: {tag}'
     )
     plt.xticks(rotation=45)
@@ -348,34 +341,34 @@ def plot_reliability_distributions(
     plt.savefig(
         os.path.join(
             output_dir,
-            f'reliability_distribution_all_{hemi_label}_{tag}.png',
+            f'split_half_distribution_all_{hemi_label}_{tag}.png',
         ),
         dpi=300,
         bbox_inches='tight',
     )
     plt.close()
 
-    # Plot 2: subject means across schemes per ROI
-    rel_subj_mean = np.nanmean(rel_scheme_subj, axis=1)
+    # Plot 2: subject medians across schemes per ROI
+    corr_subj_median = np.nanmedian(split_half_scheme_subj, axis=1)
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.boxplot(
-        [rel_subj_mean[:, i][np.isfinite(rel_subj_mean[:, i])]
+        [corr_subj_median[:, i][np.isfinite(corr_subj_median[:, i])]
          for i in range(n_roi)],
         tick_labels=roi_names,
         patch_artist=False,
     )
 
     for i in range(n_roi):
-        y = rel_subj_mean[:, i]
+        y = corr_subj_median[:, i]
         y = y[np.isfinite(y)]
         x = np.random.normal(i + 1, 0.04, size=len(y))
         ax.plot(x, y, 'o', alpha=0.6)
 
     ax.axhline(0, linestyle='--', linewidth=1)
-    ax.set_ylabel('Subject-mean reliability')
+    ax.set_ylabel('Subject-median split-half correlation')
     ax.set_title(
-        f'Subject-level reliability across schemes\n'
+        f'Subject-level median split-half correlation across schemes\n'
         f'Hemisphere: {hemi_label} | Tag: {tag}'
     )
     plt.xticks(rotation=45)
@@ -383,7 +376,7 @@ def plot_reliability_distributions(
     plt.savefig(
         os.path.join(
             output_dir,
-            f'reliability_distribution_subjectmean_{hemi_label}_{tag}.png',
+            f'split_half_distribution_subjectmedian_{hemi_label}_{tag}.png',
         ),
         dpi=300,
         bbox_inches='tight',
@@ -391,20 +384,20 @@ def plot_reliability_distributions(
     plt.close()
 
 
-def summarize_negative_reliabilities(
-    rel_scheme_subj_raw,
+def summarize_negative_schemes(
+    split_half_scheme_subj,
     roi_names,
     output_dir,
     hemi_label,
     tag,
 ):
     """
-    Compute and save the percentage of negative reliabilities per ROI.
+    Compute and save the percentage of negative split-half schemes per ROI.
 
     Parameters
     ----------
-    rel_scheme_subj_raw : np.ndarray
-        Array of shape (n_subj, n_schemes, n_roi) with raw reliabilities.
+    split_half_scheme_subj : np.ndarray
+        Array of shape (n_subj, n_schemes, n_roi).
     roi_names : list of str
         ROI labels.
     output_dir : str
@@ -417,13 +410,13 @@ def summarize_negative_reliabilities(
     Returns
     -------
     pd.Series
-        Percentage of negative reliabilities per ROI.
+        Percentage of negative scheme-level correlations per ROI.
     """
     os.makedirs(output_dir, exist_ok=True)
 
     perc_neg = []
     for i, roi in enumerate(roi_names):
-        vals = rel_scheme_subj_raw[:, :, i]
+        vals = split_half_scheme_subj[:, :, i]
         vals = vals[np.isfinite(vals)]
 
         if len(vals) == 0:
@@ -434,92 +427,19 @@ def summarize_negative_reliabilities(
     perc_neg = pd.Series(
         perc_neg,
         index=roi_names,
-        name=f'perc_negative_reliability_{hemi_label}_{tag}',
+        name=f'perc_negative_schemes_{hemi_label}_{tag}',
     )
 
     out_path = os.path.join(
         output_dir,
-        f'perc_negative_reliability_{hemi_label}_{tag}.tsv',
+        f'perc_negative_schemes_{hemi_label}_{tag}.tsv',
     )
     perc_neg.to_csv(out_path, sep='\t', header=True)
 
     return perc_neg
 
 
-def plot_reliability_vs_corrected_similarity(
-    ceiling_mat,
-    corrected_mat,
-    roi_names,
-    output_dir,
-    hemi_label,
-    tag,
-):
-    """
-    Plot pairwise reliability ceiling vs corrected similarity,
-    restricted to pairs involving dstr and/or cerebellum.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-
-    xs = []
-    ys = []
-    labels = []
-
-    n_roi = len(roi_names)
-
-    # Target ROIs
-    target_rois = {'dstr', 'cereb'}
-
-    for i in range(n_roi):
-        for j in range(i + 1, n_roi):
-
-            roi_i = roi_names[i]
-            roi_j = roi_names[j]
-
-            # FILTER HERE
-            if not (roi_i in target_rois or roi_j in target_rois):
-                continue
-
-            x = ceiling_mat[i, j]
-            y = corrected_mat[i, j]
-
-            if np.isfinite(x) and np.isfinite(y):
-                xs.append(x)
-                ys.append(y)
-                labels.append(f'{roi_i}-{roi_j}')
-
-    fig, ax = plt.subplots(figsize=(7, 6))
-    ax.plot(xs, ys, 'o')
-
-    for x, y, label in zip(xs, ys, labels):
-        ax.annotate(
-            label,
-            (x, y),
-            xytext=(3, 3),
-            textcoords='offset points',
-            fontsize=8,
-        )
-
-    ax.axhline(0, linestyle='--', linewidth=1)
-    ax.set_xlabel('Reliability ceiling')
-    ax.set_ylabel('Corrected similarity')
-    ax.set_title(
-        f'Reliability ceiling vs corrected similarity\n'
-        f'(dstr / cereb pairs only)\n'
-        f'Hemisphere: {hemi_label} | Tag: {tag}'
-    )
-    plt.tight_layout()
-    plt.savefig(
-        os.path.join(
-            output_dir,
-            f'reliability_vs_corrected_similarity_{hemi_label}_{tag}.png',
-        ),
-        dpi=300,
-        bbox_inches='tight',
-    )
-    plt.close()
-
-
-def compute_roi_reliability_pipeline(
+def compute_split_half_pipeline(
     data_by_roi,
     condition_names,
     output_dir,
@@ -527,38 +447,22 @@ def compute_roi_reliability_pipeline(
     tag,
 ):
     """
-    Compute reliability-aware ROI similarity measures.
+    Compute split-half correlations across condition profiles.
 
-    This pipeline implements:
-    - within-ROI split-half reliability across condition profiles
-    - Spearman-Brown correction
-    - crossed cross-validated ROI-ROI correlations
-    - pairwise reliability ceilings
-    - attenuation-corrected ROI-ROI similarity
+    This version includes both:
+    - 4-run conditions: split as 2 vs 2
+    - 2-run conditions: split as 1 vs 1
 
-    Parameters
-    ----------
-    data_by_roi : dict
-        Maps ROI name to an array with shape
-        (n_hemi, n_cond, n_run, n_subj).
-    condition_names : list of str
-        Names of the non-rest conditions, in array order.
-    output_dir : str
-        Directory where outputs will be saved.
-    hemi_labels : list of str
-        Hemisphere labels, e.g. ['bh'] or ['lh', 'rh', 'bh'].
-    tag : str
-        Individualization tag, e.g. 'i' or 'g'.
+    For each ROI, subject, and scheme:
+    - build two half-profiles across all conditions
+    - append Rest = 0
+    - compute Pearson correlation between halves
 
-    Returns
-    -------
-    results : dict
-        One entry per hemisphere label. Each entry contains:
-            - 'roi_reliability'
-            - 'cv_similarity'
-            - 'ceiling'
-            - 'corrected_similarity'
-            - 'perc_negative_reliability'
+    Subject-level summary:
+    - median across schemes
+
+    Group-level summary:
+    - median across subjects
     """
     roi_names = list(data_by_roi.keys())
     first = np.asarray(data_by_roi[roi_names[0]], dtype=float)
@@ -602,8 +506,8 @@ def compute_roi_reliability_pipeline(
     for h, hemi_label in enumerate(hemi_labels):
         cond_n_runs = []
 
-        # Check only the number of available runs for each condition
-        # across all ROIs, irrespective of subject.
+        # Check the number of available runs for each condition across
+        # all ROIs, irrespective of subject.
         for c in range(n_cond):
             n_runs_ref = None
 
@@ -630,13 +534,11 @@ def compute_roi_reliability_pipeline(
 
             cond_n_runs.append(n_runs_ref)
 
-        # Subject-level outputs after averaging across schemes.
-        rel_subj = np.full((n_subj, n_roi), np.nan)
-        rel_scheme_subj_raw = np.full((n_subj, len(schemes), n_roi), np.nan)
-        rel_scheme_subj = np.full((n_subj, len(schemes), n_roi), np.nan)
-        cv_subj = np.full((n_subj, n_roi, n_roi), np.nan)
-        ceil_subj = np.full((n_subj, n_roi, n_roi), np.nan)
-        corr_subj = np.full((n_subj, n_roi, n_roi), np.nan)
+        split_half_subj = np.full((n_subj, n_roi), np.nan)
+        split_half_scheme_subj = np.full(
+            (n_subj, len(schemes), n_roi),
+            np.nan,
+        )
 
         for s in range(n_subj):
             cond_valid_runs_subj = []
@@ -668,11 +570,6 @@ def compute_roi_reliability_pipeline(
                     )
 
                 cond_valid_runs_subj.append(runs_ref)
-
-            rel_schemes = []
-            cv_schemes = []
-            ceil_schemes = []
-            corr_schemes = []
 
             for k, scheme in enumerate(schemes):
                 # Half profiles: shape = n_roi x (n_cond + 1)
@@ -706,237 +603,73 @@ def compute_roi_reliability_pipeline(
                     y1[r, -1] = 0.0
                     y2[r, -1] = 0.0
 
-                # Step 6-7: within-ROI split-half reliability
-                rel_vec_raw = np.full(n_roi, np.nan)
-                rel_vec = np.full(n_roi, np.nan)
+                split_half_vec = np.full(n_roi, np.nan)
                 for r in range(n_roi):
-                    r_half = safe_corr(y1[r, :], y2[r, :])
-                    if np.isfinite(r_half) and r_half > -1:
-                        rel_val = (2 * r_half) / (1 + r_half)
-                        rel_vec_raw[r] = rel_val
-                        if rel_val >= 0:
-                            rel_vec[r] = rel_val
+                    split_half_vec[r] = safe_corr(y1[r, :], y2[r, :])
 
-                rel_scheme_subj_raw[s, k, :] = rel_vec_raw
-                rel_scheme_subj[s, k, :] = rel_vec
+                split_half_scheme_subj[s, k, :] = split_half_vec
 
-                # Step 8: crossed ROI-ROI correlations
-                cv_mat = np.full((n_roi, n_roi), np.nan)
-                for i in range(n_roi):
-                    for j in range(n_roi):
-                        c12 = safe_corr(y1[i, :], y2[j, :])
-                        c21 = safe_corr(y2[i, :], y1[j, :])
-                        cv_mat[i, j] = np.nanmean([c12, c21])
-
-                # Step 9: ceilings
-                ceil_mat = np.full((n_roi, n_roi), np.nan)
-                for i in range(n_roi):
-                    for j in range(n_roi):
-                        if (
-                            np.isfinite(rel_vec[i])
-                            and np.isfinite(rel_vec[j])
-                            and rel_vec[i] >= 0
-                            and rel_vec[j] >= 0
-                        ):
-                            ceil_mat[i, j] = np.sqrt(
-                                rel_vec[i] * rel_vec[j]
-                            )
-
-                # Step 10: corrected similarity
-                corr_mat = np.full((n_roi, n_roi), np.nan)
-                valid = np.isfinite(ceil_mat) & (ceil_mat > 0)
-                corr_mat[valid] = cv_mat[valid] / ceil_mat[valid]
-
-                rel_schemes.append(rel_vec)
-                cv_schemes.append(cv_mat)
-                ceil_schemes.append(ceil_mat)
-                corr_schemes.append(corr_mat)
-
-            # Step 11: average across schemes within subject
-            rel_subj[s, :] = np.nanmean(np.stack(rel_schemes, axis=0), axis=0)
-            cv_subj[s, :, :] = np.nanmean(
-                np.stack(cv_schemes, axis=0),
-                axis=0,
-            )
-            ceil_subj[s, :, :] = np.nanmean(
-                np.stack(ceil_schemes, axis=0),
-                axis=0,
-            )
-            corr_subj[s, :, :] = np.nanmean(
-                np.stack(corr_schemes, axis=0),
+            split_half_subj[s, :] = np.nanmedian(
+                split_half_scheme_subj[s, :, :],
                 axis=0,
             )
 
-        # Step 12: average across subjects
-        rel_group = np.nanmean(rel_subj, axis=0)
-        cv_group = np.nanmean(cv_subj, axis=0)
-        ceil_group = np.nanmean(ceil_subj, axis=0)
-        corr_group = np.nanmean(corr_subj, axis=0)
+        split_half_group = np.nanmedian(split_half_subj, axis=0)
 
-        # Save subject-level outputs
         np.save(
-            os.path.join(output_dir, 
-                         f"roi_reliability_subj_{hemi_label}_{tag}.npy"),
-            rel_subj,
+            os.path.join(
+                output_dir,
+                f"split_half_corr_scheme_subj_{hemi_label}_{tag}.npy",
+            ),
+            split_half_scheme_subj,
         )
         np.save(
             os.path.join(
                 output_dir,
-                f"roi_reliability_scheme_subj_raw_{hemi_label}_{tag}.npy",
+                f"split_half_corr_subj_{hemi_label}_{tag}.npy",
             ),
-            rel_scheme_subj_raw,
+            split_half_subj,
         )
         np.save(
             os.path.join(
                 output_dir,
-                f"roi_reliability_scheme_subj_{hemi_label}_{tag}.npy",
+                f"split_half_corr_{hemi_label}_{tag}.npy",
             ),
-            rel_scheme_subj,
-        )
-        np.save(
-            os.path.join(output_dir, 
-                         f"cv_similarity_subj_{hemi_label}_{tag}.npy"),
-            cv_subj,
-        )
-        np.save(
-            os.path.join(output_dir, f"ceiling_subj_{hemi_label}_{tag}.npy"),
-            ceil_subj,
-        )
-        np.save(
-            os.path.join(
-                output_dir,
-                f"corrected_similarity_subj_{hemi_label}_{tag}.npy",
-            ),
-            corr_subj,
+            split_half_group,
         )
 
-        # Save group-level outputs
-        np.save(
-            os.path.join(output_dir, 
-                         f"roi_reliability_{hemi_label}_{tag}.npy"),
-            rel_group,
-        )
-        np.save(
-            os.path.join(output_dir, f"cv_similarity_{hemi_label}_{tag}.npy"),
-            cv_group,
-        )
-        np.save(
-            os.path.join(output_dir, f"ceiling_{hemi_label}_{tag}.npy"),
-            ceil_group,
-        )
-        np.save(
-            os.path.join(
-                output_dir,
-                f"corrected_similarity_{hemi_label}_{tag}.npy",
-            ),
-            corr_group,
-        )
-
-        plot_dir = os.path.join(output_dir, 'reliability_distributions')
-        plot_reliability_distributions(
-            rel_scheme_subj_raw,
+        plot_dir = os.path.join(output_dir, 'split_half_distributions')
+        plot_split_half_distributions(
+            split_half_scheme_subj,
             roi_names,
             plot_dir,
             hemi_label,
             tag,
         )
 
-        neg_dir = os.path.join(output_dir, 'negative_reliability_summary')
-        perc_neg = summarize_negative_reliabilities(
-            rel_scheme_subj_raw,
+        neg_dir = os.path.join(output_dir, 'negative_scheme_summary')
+        perc_neg = summarize_negative_schemes(
+            split_half_scheme_subj,
             roi_names,
             neg_dir,
             hemi_label,
             tag,
         )
 
-        relcorr_dir = os.path.join(
-            output_dir,
-            'reliability_vs_corrected_similarity'
-        )
-        plot_reliability_vs_corrected_similarity(
-            ceil_group,
-            corr_group,
-            roi_names,
-            relcorr_dir,
-            hemi_label,
-            tag,
-        )
-
         results[hemi_label] = {
-            'roi_reliability': pd.Series(
-                rel_group,
+            'split_half_corr': pd.Series(
+                split_half_group,
                 index=roi_names,
-                name=f'roi_reliability_{hemi_label}_{tag}',
+                name=f'split_half_corr_{hemi_label}_{tag}',
             ),
-            'cv_similarity': pd.DataFrame(
-                cv_group,
-                index=roi_names,
+            'split_half_corr_subj': pd.DataFrame(
+                split_half_subj,
                 columns=roi_names,
             ),
-            'ceiling': pd.DataFrame(
-                ceil_group,
-                index=roi_names,
-                columns=roi_names,
-            ),
-            'corrected_similarity': pd.DataFrame(
-                corr_group,
-                index=roi_names,
-                columns=roi_names,
-            ),
-            'perc_negative_reliability': perc_neg,
+            'perc_negative_schemes': perc_neg,
         }
 
     return results
-
-
-def save_results_to_rtf(results, output_path):
-    """
-    Save reliability results into an RTF file with proper tables.
-    """
-
-    sections = []
-
-    for hemi, res in results.items():
-        sections.append(f"# Hemisphere: {hemi}\n")
-
-        # ROI reliability (convert Series to DataFrame for table format)
-        rel_df = res["roi_reliability"].to_frame(name="Reliability")
-        sections.append("## ROI reliability\n")
-        sections.append(rel_df.round(3).to_markdown())
-        sections.append("\n")
-
-        sections.append("## Percentage of negative reliabilities\n")
-        neg_df = res["perc_negative_reliability"].to_frame(
-            name="Percentage"
-        )
-        sections.append(neg_df.round(3).to_markdown())
-        sections.append("\n")
-
-        # Cross-validated similarity
-        sections.append("## Cross-validated ROI–ROI similarity\n")
-        sections.append(res["cv_similarity"].round(3).to_markdown())
-        sections.append("\n")
-
-        # Ceiling
-        sections.append("## Reliability ceiling\n")
-        sections.append(res["ceiling"].round(3).to_markdown())
-        sections.append("\n")
-
-        # Corrected similarity
-        sections.append("## Corrected similarity\n")
-        sections.append(res["corrected_similarity"].round(3).to_markdown())
-        sections.append("\n\n")
-
-    text = "\n".join(sections)
-
-    pypandoc.convert_text(
-        text,
-        'rtf',
-        format='md',
-        outputfile=output_path,
-        extra_args=['--standalone']
-    )
 
 
 # =========================== INPUTS ===================================
@@ -959,7 +692,7 @@ else:
 glm_tasks = ['prod', 'percep', 'ntfd', 'rand_ntfd']
 # glm_tasks = ['rand_ntfd']
 
-# Threshold of group-level contrast ued to generate ROI
+# Threshold of group-level contrast used to generate ROI
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
 # Derivatives used are smoothed or unsmoothed?
 smooth = 'unsmoothed'  # 'smoothed'
@@ -972,7 +705,7 @@ mask_type = 'wb'
 # Path for output folders
 main_dir = os.path.dirname(os.path.abspath(__file__))
 reliability_folder = os.path.join(main_dir, 'results', 'reliability')
-roi_signals_folder = os.path.join(reliability_folder, 
+roi_signals_folder = os.path.join(reliability_folder,
                                   f'taskglm_roi_signals_{smooth}')
 split_half_folder = os.path.join(reliability_folder, 'roi_profile_split_half')
 
@@ -1143,18 +876,18 @@ if __name__ == '__main__':
     #   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd',
     #   'visual_random_rand_ntfd'
     # taskglm_roi_extraction(db_taskglm_path, data_storage, main_dir, itags,
-    #                        region_names, atlas_names, roi_names,
+    #                        region_names, atlas_names, ROI_NAMES,
     #                        hemispheres, iroi_main_dir, smooth,
     #                        roi_signals_folder)
 
-    # Compute the reliability analysis
+    # Compute split-half correlations only
     for itag in itags:
         data_by_roi = load_roi_signal_arrays(
             roi_signals_folder,
             indiv=itag,
         )
 
-        results = compute_roi_reliability_pipeline(
+        results = compute_split_half_pipeline(
             data_by_roi,
             condition_names,
             split_half_folder,
@@ -1165,23 +898,8 @@ if __name__ == '__main__':
         for hemi in hemispheres:
             print(f"\nTag: {itag} | Hemisphere: {hemi}")
 
-            print("\nROI reliability")
-            print(results[hemi]['roi_reliability'])
+            print("\nSplit-half correlations")
+            print(results[hemi]['split_half_corr'])
 
-            print("\nPercentage of negative reliabilities")
-            print(results[hemi]['perc_negative_reliability'])
-
-            print("\nCross-validated ROI-ROI similarity")
-            print(results[hemi]['cv_similarity'])
-
-            print("\nReliability ceiling")
-            print(results[hemi]['ceiling'])
-
-            print("\nCorrected similarity")
-            print(results[hemi]['corrected_similarity'])
-
-        rtf_path = os.path.join(
-            split_half_folder,
-            f"reliability_report_{itag}.rtf"
-        )
-        save_results_to_rtf(results, rtf_path)
+            print("\nPercentage of negative schemes")
+            print(results[hemi]['perc_negative_schemes'])
