@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 23rd of March 2026
-Last Update: March 2026
+Last Update: April 2026
 
 Compatibility: Python 3.10.16
 """
@@ -104,7 +104,7 @@ def reliability_dataframe(
     return df
 
 
-def taskglm_roi_extraction(df_input, base_dir, tags,
+def taskglm_roi_extraction(df_input, base_dir, script_dir, tags,
                            regions, atlases, rois, hems, iroi_mask_dir,
                            smoothing, output_folder):
     """
@@ -777,7 +777,8 @@ def compute_roi_reliability_pipeline(
 
         # Save subject-level outputs
         np.save(
-            os.path.join(output_dir, f"roi_reliability_subj_{hemi_label}_{tag}.npy"),
+            os.path.join(output_dir, 
+                         f"roi_reliability_subj_{hemi_label}_{tag}.npy"),
             rel_subj,
         )
         np.save(
@@ -795,7 +796,8 @@ def compute_roi_reliability_pipeline(
             rel_scheme_subj,
         )
         np.save(
-            os.path.join(output_dir, f"cv_similarity_subj_{hemi_label}_{tag}.npy"),
+            os.path.join(output_dir, 
+                         f"cv_similarity_subj_{hemi_label}_{tag}.npy"),
             cv_subj,
         )
         np.save(
@@ -812,7 +814,8 @@ def compute_roi_reliability_pipeline(
 
         # Save group-level outputs
         np.save(
-            os.path.join(output_dir, f"roi_reliability_{hemi_label}_{tag}.npy"),
+            os.path.join(output_dir, 
+                         f"roi_reliability_{hemi_label}_{tag}.npy"),
             rel_group,
         )
         np.save(
@@ -969,10 +972,10 @@ mask_type = 'wb'
 
 
 # Path for output folders
-reliability_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'results', 'reliability')
-roi_signals_folder = os.path.join(
-    reliability_folder, f'taskglm_roi_signals_{smooth}')
+main_dir = os.path.dirname(os.path.abspath(__file__))
+reliability_folder = os.path.join(main_dir, 'results', 'reliability')
+roi_signals_folder = os.path.join(reliability_folder, 
+                                  f'taskglm_roi_signals_{smooth}')
 split_half_folder = os.path.join(reliability_folder, 'roi_profile_split_half')
 
 # -------- All contrast dictionaries --------
@@ -1121,9 +1124,10 @@ if __name__ == '__main__':
     )
 
     # Create dataframes
-    # reliability_dataframe(SUBJECTS, glm_tasks, data_storage,
-    #                       selected_contrasts_main, selected_contrasts_random,
-    #                       db_taskglm_path, derivative_type, mask_type, smooth)
+    # reliability_dataframe(
+    #     SUBJECTS, glm_tasks, data_storage,
+    #     selected_contrasts_main, selected_contrasts_random,
+    #     db_taskglm_path, derivative_type, mask_type, smooth)
 
     # Open dataframe
     # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
@@ -1140,7 +1144,7 @@ if __name__ == '__main__':
     #   'auditory_random_rand_ntfd',
     #   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd',
     #   'visual_random_rand_ntfd'
-    # taskglm_roi_extraction(db_taskglm_path, data_storage, itags,
+    # taskglm_roi_extraction(db_taskglm_path, data_storage, main_dir, itags,
     #                        region_names, atlas_names, roi_names,
     #                        hemispheres, iroi_main_dir, smooth,
     #                        roi_signals_folder)
