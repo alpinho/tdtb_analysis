@@ -472,7 +472,7 @@ def summarize_negative_schemes(
     os.makedirs(output_dir, exist_ok=True)
 
     perc_neg = []
-    for i, roi in enumerate(roi_names):
+    for i in np.arange(len(roi_names)):
         vals = split_half_scheme_subj[:, :, i]
         vals = vals[np.isfinite(vals)]
 
@@ -530,7 +530,7 @@ def summarize_spearman_brown_capping(
     perc_below = []
     perc_above = []
 
-    for i, roi in enumerate(roi_names):
+    for i in np.arange(len(roi_names)):
         vals = sb_raw_subj[:, i]
         vals = vals[np.isfinite(vals)]
 
@@ -565,6 +565,33 @@ def summarize_spearman_brown_capping(
     perc_above.to_csv(out_path_above, sep='\t', header=True)
 
     return perc_below, perc_above
+
+
+def safe_corr(x, y):
+    """Return Pearson correlation or NaN if undefined."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+
+    if not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
+        return np.nan
+    if np.std(x) == 0 or np.std(y) == 0:
+        return np.nan
+
+    return np.corrcoef(x, y)[0, 1]
+
+
+def compute_spearman_brown(split_half_subj):
+    """Apply Spearman-Brown and clip to [-1, 1]."""
+    sb_raw_subj = np.full_like(split_half_subj, np.nan, dtype=float)
+
+    valid = np.isfinite(split_half_subj) & (split_half_subj > -1)
+    sb_raw_subj[valid] = (
+        2 * split_half_subj[valid] /
+        (1 + split_half_subj[valid])
+    )
+    sb_subj = np.clip(sb_raw_subj, -1.0, 1.0)
+
+    return sb_raw_subj, sb_subj
 
 
 def compute_split_half_pipeline(
@@ -650,31 +677,6 @@ def compute_split_half_pipeline(
         {'part4': ((1, 2), (0, 3)), 'part2': ((0,), (1,))},
         {'part4': ((1, 2), (0, 3)), 'part2': ((1,), (0,))},
     ]
-
-    def safe_corr(x, y):
-        """Return Pearson correlation or NaN if undefined."""
-        x = np.asarray(x, dtype=float)
-        y = np.asarray(y, dtype=float)
-
-        if not np.all(np.isfinite(x)) or not np.all(np.isfinite(y)):
-            return np.nan
-        if np.std(x) == 0 or np.std(y) == 0:
-            return np.nan
-
-        return np.corrcoef(x, y)[0, 1]
-
-    def compute_spearman_brown(split_half_subj):
-        """Apply Spearman-Brown and clip to [-1, 1]."""
-        sb_raw_subj = np.full_like(split_half_subj, np.nan, dtype=float)
-
-        valid = np.isfinite(split_half_subj) & (split_half_subj > -1)
-        sb_raw_subj[valid] = (
-            2 * split_half_subj[valid] /
-            (1 + split_half_subj[valid])
-        )
-        sb_subj = np.clip(sb_raw_subj, -1.0, 1.0)
-
-        return sb_raw_subj, sb_subj
 
     results = {}
 
