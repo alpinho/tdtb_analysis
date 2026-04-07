@@ -314,7 +314,6 @@ def plot_split_half_distributions(
 
     n_subj, n_schemes, n_roi = split_half_scheme_subj.shape
 
-    # Plot 1: all subject x scheme split-half correlations per ROI
     corr_all = split_half_scheme_subj.reshape(n_subj * n_schemes, n_roi)
 
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -348,7 +347,6 @@ def plot_split_half_distributions(
     )
     plt.close()
 
-    # Plot 2: subject medians across schemes per ROI
     corr_subj_median = np.nanmedian(split_half_scheme_subj, axis=1)
 
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -377,6 +375,65 @@ def plot_split_half_distributions(
         os.path.join(
             output_dir,
             f'split_half_distribution_subjectmedian_{hemi_label}_{tag}.png',
+        ),
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+
+def plot_spearman_brown_distributions(
+    sb_subj,
+    roi_names,
+    output_dir,
+    hemi_label,
+    tag,
+):
+    """
+    Plot subject-level Spearman-Brown values per ROI.
+
+    Parameters
+    ----------
+    sb_subj : np.ndarray
+        Array of shape (n_subj, n_roi).
+    roi_names : list of str
+        ROI labels.
+    output_dir : str
+        Directory where plots will be saved.
+    hemi_label : str
+        Hemisphere label.
+    tag : str
+        Individualization tag.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    _, n_roi = sb_subj.shape
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.boxplot(
+        [sb_subj[:, i][np.isfinite(sb_subj[:, i])] for i in range(n_roi)],
+        tick_labels=roi_names,
+        patch_artist=False,
+    )
+
+    for i in range(n_roi):
+        y = sb_subj[:, i]
+        y = y[np.isfinite(y)]
+        x = np.random.normal(i + 1, 0.04, size=len(y))
+        ax.plot(x, y, 'o', alpha=0.6)
+
+    ax.axhline(0, linestyle='--', linewidth=1)
+    ax.set_ylabel('Subject-level Spearman-Brown')
+    ax.set_title(
+        f'Spearman-Brown across subjects\n'
+        f'Hemisphere: {hemi_label} | Tag: {tag}'
+    )
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(
+            output_dir,
+            f'spearman_brown_distribution_subject_{hemi_label}_{tag}.png',
         ),
         dpi=300,
         bbox_inches='tight',
@@ -439,6 +496,77 @@ def summarize_negative_schemes(
     return perc_neg
 
 
+def summarize_spearman_brown_capping(
+    sb_raw_subj,
+    roi_names,
+    output_dir,
+    hemi_label,
+    tag,
+):
+    """
+    Compute and save percentages capped below -1 and above 1 per ROI.
+
+    Parameters
+    ----------
+    sb_raw_subj : np.ndarray
+        Array of shape (n_subj, n_roi) with unclipped values.
+    roi_names : list of str
+        ROI labels.
+    output_dir : str
+        Directory where outputs will be saved.
+    hemi_label : str
+        Hemisphere label.
+    tag : str
+        Individualization tag.
+
+    Returns
+    -------
+    tuple of pd.Series
+        Percentage capped below -1 per ROI and percentage capped above
+        1 per ROI.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    perc_below = []
+    perc_above = []
+
+    for i, roi in enumerate(roi_names):
+        vals = sb_raw_subj[:, i]
+        vals = vals[np.isfinite(vals)]
+
+        if len(vals) == 0:
+            perc_below.append(np.nan)
+            perc_above.append(np.nan)
+        else:
+            perc_below.append(100 * np.mean(vals < -1))
+            perc_above.append(100 * np.mean(vals > 1))
+
+    perc_below = pd.Series(
+        perc_below,
+        index=roi_names,
+        name=f'perc_sb_capped_below_m1_{hemi_label}_{tag}',
+    )
+    perc_above = pd.Series(
+        perc_above,
+        index=roi_names,
+        name=f'perc_sb_capped_above_p1_{hemi_label}_{tag}',
+    )
+
+    out_path_below = os.path.join(
+        output_dir,
+        f'perc_sb_capped_below_m1_{hemi_label}_{tag}.tsv',
+    )
+    out_path_above = os.path.join(
+        output_dir,
+        f'perc_sb_capped_above_p1_{hemi_label}_{tag}.tsv',
+    )
+
+    perc_below.to_csv(out_path_below, sep='\t', header=True)
+    perc_above.to_csv(out_path_above, sep='\t', header=True)
+
+    return perc_below, perc_above
+
+
 def compute_split_half_pipeline(
     data_by_roi,
     condition_names,
@@ -447,22 +575,56 @@ def compute_split_half_pipeline(
     tag,
 ):
     """
-    Compute split-half correlations across condition profiles.
+    Compute split-half, Spearman-Brown, and CV ROI-ROI similarity.
 
-    This version includes both:
-    - 4-run conditions: split as 2 vs 2
-    - 2-run conditions: split as 1 vs 1
+    Recipe
+    ------
+    1. For each hemisphere, determine for every condition whether it has
+       4 valid runs or 2 valid runs, and verify that run availability is
+       consistent across ROIs and within subjects.
+    2. For each subject and each of the 6 mixed split schemes, build two
+       half-profiles per ROI across all conditions:
+       - 4-run conditions contribute as 2 runs vs 2 runs;
+       - 2-run conditions contribute as 1 run vs 1 run.
+       Rest is appended as a final condition with value 0 in both halves.
+    3. For each ROI and scheme, compute the raw split-half correlation
+       between the two half-profiles. Keep all scheme-level values.
+    4. Summarize raw split-half correlations within subject using the
+       median across the 6 schemes. Save scheme-level, subject-level,
+       and group-level summaries. Plot all scheme-level values and the
+       subject medians. Report the percentage of negative schemes.
+    5. Apply the Spearman-Brown correction to the subject-level median
+       split-half values as 2r / (1 + r). Keep the raw transformed
+       values to quantify how often they would fall below -1 or above 1,
+       then clip the final Spearman-Brown values to [-1, 1]. Save
+       subject-level and group-level summaries, plot the subject-level
+       distributions, and report percentages capped below -1 and above
+       1 per ROI.
+    6. For each subject and scheme, compute the cross-validated ROI-ROI
+       similarity matrix as Y1 @ Y2.T divided by the number of full
+       conditions (including Rest). Summarize within subject using the
+       median across schemes, and across subjects using the median.
 
-    For each ROI, subject, and scheme:
-    - build two half-profiles across all conditions
-    - append Rest = 0
-    - compute Pearson correlation between halves
+    Parameters
+    ----------
+    data_by_roi : dict
+        Maps ROI name to an array with shape
+        (n_hemi, n_cond, n_run, n_subj).
+    condition_names : list of str
+        Condition names in array order.
+    output_dir : str
+        Directory where outputs will be saved.
+    hemi_labels : list of str
+        Hemisphere labels.
+    tag : str
+        Individualization tag.
 
-    Subject-level summary:
-    - median across schemes
-
-    Group-level summary:
-    - median across subjects
+    Returns
+    -------
+    results : dict
+        One entry per hemisphere label with split-half,
+        Spearman-Brown, cross-validated similarity, and percentages of
+        negative schemes and Spearman-Brown capping.
     """
     roi_names = list(data_by_roi.keys())
     first = np.asarray(data_by_roi[roi_names[0]], dtype=float)
@@ -501,13 +663,24 @@ def compute_split_half_pipeline(
 
         return np.corrcoef(x, y)[0, 1]
 
+    def compute_spearman_brown(split_half_subj):
+        """Apply Spearman-Brown and clip to [-1, 1]."""
+        sb_raw_subj = np.full_like(split_half_subj, np.nan, dtype=float)
+
+        valid = np.isfinite(split_half_subj) & (split_half_subj > -1)
+        sb_raw_subj[valid] = (
+            2 * split_half_subj[valid] /
+            (1 + split_half_subj[valid])
+        )
+        sb_subj = np.clip(sb_raw_subj, -1.0, 1.0)
+
+        return sb_raw_subj, sb_subj
+
     results = {}
 
     for h, hemi_label in enumerate(hemi_labels):
         cond_n_runs = []
 
-        # Check the number of available runs for each condition across
-        # all ROIs, irrespective of subject.
         for c in range(n_cond):
             n_runs_ref = None
 
@@ -537,6 +710,10 @@ def compute_split_half_pipeline(
         split_half_subj = np.full((n_subj, n_roi), np.nan)
         split_half_scheme_subj = np.full(
             (n_subj, len(schemes), n_roi),
+            np.nan,
+        )
+        cv_scheme_subj = np.full(
+            (n_subj, len(schemes), n_roi, n_roi),
             np.nan,
         )
 
@@ -572,7 +749,6 @@ def compute_split_half_pipeline(
                 cond_valid_runs_subj.append(runs_ref)
 
             for k, scheme in enumerate(schemes):
-                # Half profiles: shape = n_roi x (n_cond + 1)
                 y1 = np.full((n_roi, n_full), np.nan)
                 y2 = np.full((n_roi, n_full), np.nan)
 
@@ -599,7 +775,6 @@ def compute_split_half_pipeline(
                         y1[r, c] = np.nanmean(vals[idx1])
                         y2[r, c] = np.nanmean(vals[idx2])
 
-                    # Add Rest = 0 as the final condition.
                     y1[r, -1] = 0.0
                     y2[r, -1] = 0.0
 
@@ -608,13 +783,19 @@ def compute_split_half_pipeline(
                     split_half_vec[r] = safe_corr(y1[r, :], y2[r, :])
 
                 split_half_scheme_subj[s, k, :] = split_half_vec
+                cv_scheme_subj[s, k, :, :] = (y1 @ y2.T) / n_full
 
             split_half_subj[s, :] = np.nanmedian(
                 split_half_scheme_subj[s, :, :],
                 axis=0,
             )
 
+        sb_raw_subj, sb_subj = compute_spearman_brown(split_half_subj)
+        cv_subj = np.nanmedian(cv_scheme_subj, axis=1)
+
         split_half_group = np.nanmedian(split_half_subj, axis=0)
+        sb_group = np.nanmedian(sb_subj, axis=0)
+        cv_group = np.nanmedian(cv_subj, axis=0)
 
         np.save(
             os.path.join(
@@ -637,12 +818,66 @@ def compute_split_half_pipeline(
             ),
             split_half_group,
         )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"spearman_brown_raw_subj_{hemi_label}_{tag}.npy",
+            ),
+            sb_raw_subj,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"spearman_brown_subj_{hemi_label}_{tag}.npy",
+            ),
+            sb_subj,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"spearman_brown_{hemi_label}_{tag}.npy",
+            ),
+            sb_group,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"cv_similarity_scheme_subj_{hemi_label}_{tag}.npy",
+            ),
+            cv_scheme_subj,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"cv_similarity_subj_{hemi_label}_{tag}.npy",
+            ),
+            cv_subj,
+        )
+        np.save(
+            os.path.join(
+                output_dir,
+                f"cv_similarity_{hemi_label}_{tag}.npy",
+            ),
+            cv_group,
+        )
 
         plot_dir = os.path.join(output_dir, 'split_half_distributions')
         plot_split_half_distributions(
             split_half_scheme_subj,
             roi_names,
             plot_dir,
+            hemi_label,
+            tag,
+        )
+
+        sb_plot_dir = os.path.join(
+            output_dir,
+            'spearman_brown_distributions'
+        )
+        plot_spearman_brown_distributions(
+            sb_subj,
+            roi_names,
+            sb_plot_dir,
             hemi_label,
             tag,
         )
@@ -656,17 +891,42 @@ def compute_split_half_pipeline(
             tag,
         )
 
+        cap_dir = os.path.join(output_dir, 'spearman_brown_capping_summary')
+        perc_sb_below, perc_sb_above = summarize_spearman_brown_capping(
+            sb_raw_subj,
+            roi_names,
+            cap_dir,
+            hemi_label,
+            tag,
+        )
+
         results[hemi_label] = {
             'split_half_corr': pd.Series(
                 split_half_group,
                 index=roi_names,
                 name=f'split_half_corr_{hemi_label}_{tag}',
             ),
+            'spearman_brown': pd.Series(
+                sb_group,
+                index=roi_names,
+                name=f'spearman_brown_{hemi_label}_{tag}',
+            ),
+            'cv_similarity': pd.DataFrame(
+                cv_group,
+                index=roi_names,
+                columns=roi_names,
+            ),
             'split_half_corr_subj': pd.DataFrame(
                 split_half_subj,
                 columns=roi_names,
             ),
+            'spearman_brown_subj': pd.DataFrame(
+                sb_subj,
+                columns=roi_names,
+            ),
             'perc_negative_schemes': perc_neg,
+            'perc_sb_capped_below_m1': perc_sb_below,
+            'perc_sb_capped_above_p1': perc_sb_above,
         }
 
     return results
@@ -705,8 +965,10 @@ mask_type = 'wb'
 # Path for output folders
 main_dir = os.path.dirname(os.path.abspath(__file__))
 reliability_folder = os.path.join(main_dir, 'results', 'reliability')
-roi_signals_folder = os.path.join(reliability_folder,
-                                  f'taskglm_roi_signals_{smooth}')
+roi_signals_folder = os.path.join(
+    reliability_folder,
+    f'taskglm_roi_signals_{smooth}'
+)
 split_half_folder = os.path.join(reliability_folder, 'roi_profile_split_half')
 
 # -------- All contrast dictionaries --------
@@ -840,7 +1102,8 @@ hemispheres = ['bh']  # Both hemispheres
 
 iroi_main_dir = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    f'roi_analyses_rwls_hrf128_wb_{thresh_type}_{smooth}')
+    f'roi_analyses_rwls_hrf128_wb_{thresh_type}_{smooth}'
+)
 
 # ============================ RUN =====================================
 
@@ -880,7 +1143,6 @@ if __name__ == '__main__':
     #                        hemispheres, iroi_main_dir, smooth,
     #                        roi_signals_folder)
 
-    # Compute split-half correlations only
     for itag in itags:
         data_by_roi = load_roi_signal_arrays(
             roi_signals_folder,
@@ -901,5 +1163,17 @@ if __name__ == '__main__':
             print("\nSplit-half correlations")
             print(results[hemi]['split_half_corr'])
 
+            print("\nSpearman-Brown")
+            print(results[hemi]['spearman_brown'])
+
             print("\nPercentage of negative schemes")
             print(results[hemi]['perc_negative_schemes'])
+
+            print("\nPercentage of Spearman-Brown capped below -1")
+            print(results[hemi]['perc_sb_capped_below_m1'])
+
+            print("\nPercentage of Spearman-Brown capped above 1")
+            print(results[hemi]['perc_sb_capped_above_p1'])
+
+            print("\nCross-validated ROI-ROI similarity")
+            print(results[hemi]['cv_similarity'])
