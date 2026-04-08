@@ -734,6 +734,76 @@ def save_results_to_rtf(results, output_path):
     )
 
 
+def plot_reliability_vs_corrected_similarity(
+    ceiling_mat,
+    corrected_mat,
+    roi_names,
+    output_dir,
+    hemi_label,
+    tag,
+):
+    """
+    Plot reliability ceiling vs corrected similarity,
+    restricted to pairs involving dstr and/or cereb.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    xs = []
+    ys = []
+    labels = []
+
+    n_roi = len(roi_names)
+    target_rois = {'dstr', 'cereb'}
+
+    for i in range(n_roi):
+        for j in range(i + 1, n_roi):
+            roi_i = roi_names[i]
+            roi_j = roi_names[j]
+
+            if not (roi_i in target_rois or roi_j in target_rois):
+                continue
+
+            x = ceiling_mat[i, j]
+            y = corrected_mat[i, j]
+
+            if np.isfinite(x) and np.isfinite(y):
+                xs.append(x)
+                ys.append(y)
+                labels.append(f'{roi_i}-{roi_j}')
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    ax.plot(xs, ys, 'o')
+
+    for x, y, label in zip(xs, ys, labels):
+        ax.annotate(
+            label,
+            (x, y),
+            xytext=(3, 3),
+            textcoords='offset points',
+            fontsize=8,
+        )
+
+    ax.axhline(0, linestyle='--', linewidth=1)
+    ax.axvline(0, linestyle='--', linewidth=1)
+    ax.set_xlabel('Reliability ceiling')
+    ax.set_ylabel('Corrected similarity')
+    ax.set_title(
+        f'Reliability ceiling vs corrected similarity\n'
+        f'(pairs with dstr and/or cereb)\n'
+        f'Hemisphere: {hemi_label} | Tag: {tag}'
+    )
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(
+            output_dir,
+            f'reliability_vs_corrected_similarity_{hemi_label}_{tag}.png',
+        ),
+        dpi=300,
+        bbox_inches='tight',
+    )
+    plt.close()
+
+
 def compute_split_half_pipeline(
     data_by_roi,
     condition_names,
@@ -1089,6 +1159,19 @@ def compute_split_half_pipeline(
             sb_raw_subj,
             roi_names,
             cap_dir,
+            hemi_label,
+            tag,
+        )
+
+        relcorr_dir = os.path.join(
+            output_dir,
+            'reliability_vs_corrected_similarity'
+        )
+        plot_reliability_vs_corrected_similarity(
+            ceil_group,
+            corr_group,
+            roi_names,
+            relcorr_dir,
             hemi_label,
             tag,
         )
