@@ -367,7 +367,7 @@ def plot_split_half_distributions(
     ax.axhline(0, linestyle='--', linewidth=1)
     ax.set_ylabel('Subject-median split-half correlation')
     ax.set_title(
-        f'Subject-level median split-half correlation across schemes\n'
+        f'Individual-level median split-half correlation across schemes\n'
         f'Hemisphere: {hemi_label} | Tag: {tag}'
     )
     plt.xticks(rotation=45)
@@ -391,7 +391,7 @@ def plot_spearman_brown_distributions(
     tag,
 ):
     """
-    Plot subject-level Spearman-Brown values per ROI.
+    Plot individual-level Spearman-Brown values per ROI.
 
     Parameters
     ----------
@@ -424,7 +424,7 @@ def plot_spearman_brown_distributions(
         ax.plot(x, y, 'o', alpha=0.6)
 
     ax.axhline(0, linestyle='--', linewidth=1)
-    ax.set_ylabel('Subject-level Spearman-Brown')
+    ax.set_ylabel('Individual-level Spearman-Brown')
     ax.set_title(
         f'Spearman-Brown across subjects\n'
         f'Hemisphere: {hemi_label} | Tag: {tag}'
@@ -523,7 +523,7 @@ def summarize_spearman_brown_capping(
     Returns
     -------
     tuple of pd.Series
-        Percentage capped below -1 per ROI and percentage capped above
+        Percentage capped below 0 per ROI and percentage capped above
         1 per ROI.
     """
     os.makedirs(output_dir, exist_ok=True)
@@ -539,13 +539,13 @@ def summarize_spearman_brown_capping(
             perc_below.append(np.nan)
             perc_above.append(np.nan)
         else:
-            perc_below.append(100 * np.mean(vals < -1))
+            perc_below.append(100 * np.mean(vals < 0))
             perc_above.append(100 * np.mean(vals > 1))
 
     perc_below = pd.Series(
         perc_below,
         index=roi_names,
-        name=f'perc_sb_capped_below_m1_{hemi_label}_{tag}',
+        name=f'perc_sb_capped_below_m0_{hemi_label}_{tag}',
     )
     perc_above = pd.Series(
         perc_above,
@@ -555,7 +555,7 @@ def summarize_spearman_brown_capping(
 
     out_path_below = os.path.join(
         output_dir,
-        f'perc_sb_capped_below_m1_{hemi_label}_{tag}.tsv',
+        f'perc_sb_capped_below_m0_{hemi_label}_{tag}.tsv',
     )
     out_path_above = os.path.join(
         output_dir,
@@ -582,7 +582,7 @@ def safe_corr(x, y):
 
 
 def compute_spearman_brown(split_half_subj):
-    """Apply Spearman-Brown and clip to [-1, 1]."""
+    """Apply Spearman-Brown and clip to [0., 1]."""
     sb_raw_subj = np.full_like(split_half_subj, np.nan, dtype=float)
 
     valid = np.isfinite(split_half_subj) & (split_half_subj > -1)
@@ -590,14 +590,14 @@ def compute_spearman_brown(split_half_subj):
         2 * split_half_subj[valid] /
         (1 + split_half_subj[valid])
     )
-    sb_subj = np.clip(sb_raw_subj, -1.0, 1.0)
+    sb_subj = np.clip(sb_raw_subj, 0., 1.)
 
     return sb_raw_subj, sb_subj
 
 
 def compute_subject_ceiling(sb_subj):
     """
-    Compute subject-level reliability ceiling matrices.
+    Compute individual-level reliability ceiling matrices.
 
     A ceiling entry is set to zero whenever one of the two
     Spearman-Brown values is negative or non-finite. Otherwise it is
@@ -627,7 +627,7 @@ def compute_subject_ceiling(sb_subj):
 
 def compute_corrected_similarity(cv_subj, ceil_subj):
     """
-    Compute subject-level corrected similarity matrices.
+    Compute individual-level corrected similarity matrices.
 
     If the ceiling is positive, corrected similarity is obtained by
     division. If the ceiling is zero, the corrected value is set to 1,
@@ -828,14 +828,14 @@ def compute_split_half_pipeline(
     3. For each ROI and scheme, compute the raw split-half correlation
        between the two half-profiles. Keep all scheme-level values.
     4. Summarize raw split-half correlations within subject using the
-       median across the 6 schemes. Save scheme-level, subject-level,
+       median across the 6 schemes. Save scheme-level, individual-level,
        and group-level summaries. Plot all scheme-level values and the
        subject medians. Report the percentage of negative schemes.
-    5. Apply the Spearman-Brown correction to the subject-level median
+    5. Apply the Spearman-Brown correction to the individual-level median
        split-half values as 2r / (1 + r). Keep the raw transformed
        values to quantify how often they would fall below -1 or above 1,
        then clip the final Spearman-Brown values to [-1, 1]. Save
-       subject-level and group-level summaries, plot the subject-level
+       individual-level and group-level summaries, plot the individual-level
        distributions, and report percentages capped below -1 and above
        1 per ROI.
     6. For each subject and scheme, compute the cross-validated ROI-ROI
@@ -845,16 +845,16 @@ def compute_split_half_pipeline(
            ]
        Summarize within subject using the median across schemes, and
        across subjects using the median.
-    7. Compute the subject-level reliability ceiling from the clipped
+    7. Compute the individual-level reliability ceiling from the clipped
        Spearman-Brown values. If either ROI in a pair has a negative or
-       non-finite Spearman-Brown value, set that subject-level ceiling
+       non-finite Spearman-Brown value, set that individual-level ceiling
        entry to 0. Otherwise compute the square root of the product of
-       the two subject-level Spearman-Brown values. Summarize across
+       the two individual-level Spearman-Brown values. Summarize across
        subjects using the median.
     8. Compute corrected similarity at the subject level. If the
-       subject-level ceiling is positive, divide CV similarity by the
+       individual-level ceiling is positive, divide CV similarity by the
        ceiling. If the ceiling is 0, assign 1, -1, or 0 according to
-       the sign of the subject-level CV similarity. Clip final corrected
+       the sign of the individual-level CV similarity. Clip final corrected
        similarities to [-1, 1]. Summarize across subjects using the
        median.
 
@@ -961,7 +961,7 @@ def compute_split_half_pipeline(
                         runs_ref = runs
                     elif not np.array_equal(runs, runs_ref):
                         raise ValueError(
-                            f"Subject-level mismatch in available runs for "
+                            f"Individual-level mismatch in available runs for "
                             f"condition {condition_names[c]!r}, hemisphere "
                             f"{hemi_label!r}, subject index {s}, ROI "
                             f"{roi!r}. Expected {runs_ref}, got {runs}."
@@ -1211,7 +1211,7 @@ def compute_split_half_pipeline(
                 columns=roi_names,
             ),
             'perc_negative_schemes': perc_neg,
-            'perc_sb_capped_below_m1': perc_sb_below,
+            'perc_sb_capped_below_m0': perc_sb_below,
             'perc_sb_capped_above_p1': perc_sb_above,
         }
 
@@ -1455,8 +1455,8 @@ if __name__ == '__main__':
             print("\nPercentage of negative schemes")
             print(results[hemi]['perc_negative_schemes'])
 
-            print("\nPercentage of Spearman-Brown capped below -1")
-            print(results[hemi]['perc_sb_capped_below_m1'])
+            print("\nPercentage of Spearman-Brown capped below 0")
+            print(results[hemi]['perc_sb_capped_below_m0'])
 
             print("\nPercentage of Spearman-Brown capped above 1")
             print(results[hemi]['perc_sb_capped_above_p1'])
