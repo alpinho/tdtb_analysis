@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 28th of January, 2026
-Last update: March 2026
+Last update: April 2026
 
 Compatibility: Python 3.10.14
 """
@@ -2066,7 +2066,7 @@ if __name__ == "__main__":
         show_yaxis={
             "heschl": True,
             "occipital": False,
-            "dstr": True,
+            "dstr": False,
             "cereb": False,
             "presma": True,
             "sma": False,
@@ -2099,7 +2099,7 @@ if __name__ == "__main__":
         show_yaxis={
             "heschl": True,
             "occipital": False,
-            "dstr": True,
+            "dstr": False,
             "cereb": False,
             "presma": True,
             "sma": False,
