@@ -16,6 +16,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pypandoc
 from nilearn import image
 from nilearn.input_data import NiftiLabelsMasker
 
@@ -657,6 +658,54 @@ def compute_corrected_similarity(cv_subj, ceil_subj):
         corr_subj[s, :, :] = np.clip(corr_subj[s, :, :], -1.0, 1.0)
 
     return corr_subj
+
+
+def save_results_to_rtf(results, output_path):
+    """
+    Save selected reliability results into an RTF file.
+
+    Includes:
+    - Spearman-Brown corrected ROI reliability
+    - Cross-validated ROI–ROI similarity
+    - Reliability ceiling
+    - Corrected similarity
+
+    Formulas are intentionally omitted for compatibility with
+    LibreOffice RTF rendering.
+    """
+    sections = []
+
+    for hemi, res in results.items():
+        sections.append(f"# Hemisphere: {hemi}\n")
+
+        sections.append("## Spearman-Brown corrected ROI reliability\n")
+        sb_df = res["spearman_brown"].to_frame(name="Reliability")
+        sections.append(sb_df.round(3).to_markdown())
+        sections.append("\n")
+
+        sections.append("## Cross-validated ROI-ROI similarity\n")
+        sections.append(res["cv_similarity"].round(3).to_markdown())
+        sections.append("\n")
+
+        sections.append("## Reliability ceiling\n")
+        sections.append(res["ceiling"].round(3).to_markdown())
+        sections.append("\n")
+
+        sections.append("## Corrected similarity\n")
+        sections.append(
+            res["corrected_similarity"].round(3).to_markdown()
+        )
+        sections.append("\n\n")
+
+    text = "\n".join(sections)
+
+    pypandoc.convert_text(
+        text,
+        "rtf",
+        format="md",
+        outputfile=output_path,
+        extra_args=["--standalone"],
+    )
 
 
 def compute_split_half_pipeline(
@@ -1306,3 +1355,9 @@ if __name__ == '__main__':
 
             print("\nCorrected similarity")
             print(results[hemi]['corrected_similarity'])
+
+        rtf_path = os.path.join(
+            split_half_folder,
+            f"reliability_report_{itag}.rtf"
+        )
+        save_results_to_rtf(results, rtf_path)
