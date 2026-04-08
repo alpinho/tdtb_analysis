@@ -660,18 +660,44 @@ def compute_corrected_similarity(cv_subj, ceil_subj):
     return corr_subj
 
 
+def compute_cv_similarity_matrix(y1, y2):
+    """
+    Compute a symmetric cross-validated ROI-ROI similarity matrix.
+
+    Formula:
+        r_xy^CV = 1/2 * [
+            corr(x^(1), y^(2)) + corr(x^(2), y^(1))
+        ]
+    """
+    n_roi = y1.shape[0]
+    cv_mat = np.full((n_roi, n_roi), np.nan)
+
+    for i in range(n_roi):
+        for j in range(n_roi):
+            corr_12 = safe_corr(y1[i, :], y2[j, :])
+            corr_21 = safe_corr(y2[i, :], y1[j, :])
+
+            if np.isfinite(corr_12) and np.isfinite(corr_21):
+                cv_mat[i, j] = 0.5 * (corr_12 + corr_21)
+            elif np.isfinite(corr_12):
+                cv_mat[i, j] = corr_12
+            elif np.isfinite(corr_21):
+                cv_mat[i, j] = corr_21
+            else:
+                cv_mat[i, j] = np.nan
+
+    return cv_mat
+
+
 def save_results_to_rtf(results, output_path):
     """
     Save selected reliability results into an RTF file.
 
-    Includes:
+    Includes only:
     - Spearman-Brown corrected ROI reliability
-    - Cross-validated ROI–ROI similarity
+    - Cross-validated ROI-ROI similarity
     - Reliability ceiling
     - Corrected similarity
-
-    Formulas are intentionally omitted for compatibility with
-    LibreOffice RTF rendering.
     """
     sections = []
 
@@ -743,9 +769,12 @@ def compute_split_half_pipeline(
        distributions, and report percentages capped below -1 and above
        1 per ROI.
     6. For each subject and scheme, compute the cross-validated ROI-ROI
-       similarity matrix as Y1 @ Y2.T divided by the number of full
-       conditions (including Rest). Summarize within subject using the
-       median across schemes, and across subjects using the median.
+       similarity matrix using:
+           r_xy^CV = 1/2 * [
+               corr(x^(1), y^(2)) + corr(x^(2), y^(1))
+           ]
+       Summarize within subject using the median across schemes, and
+       across subjects using the median.
     7. Compute the subject-level reliability ceiling from the clipped
        Spearman-Brown values. If either ROI in a pair has a negative or
        non-finite Spearman-Brown value, set that subject-level ceiling
@@ -913,7 +942,9 @@ def compute_split_half_pipeline(
                     split_half_vec[r] = safe_corr(y1[r, :], y2[r, :])
 
                 split_half_scheme_subj[s, k, :] = split_half_vec
-                cv_scheme_subj[s, k, :, :] = (y1 @ y2.T) / n_full
+                cv_scheme_subj[s, k, :, :] = compute_cv_similarity_matrix(
+                    y1, y2
+                )
 
             split_half_subj[s, :] = np.nanmedian(
                 split_half_scheme_subj[s, :, :],
