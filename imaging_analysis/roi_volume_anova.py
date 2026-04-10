@@ -1774,9 +1774,9 @@ roi_names3 = ['dstr', 'cereb', 'sma']
 # roi_names2 = ['heschl', 'occipital']
 
 atlas_dirnames2 = [fsl_dir, hmat_dir]
-atlas_names2 = ['hos', 'hmat']
-region_names2 = ['dorsal_striatum', 'motor_area']
-roi_names2 = ['dstr', 'sma']
+atlas_names2 = ['hmat', 'hmat']
+region_names2 = ['motor_area', 'motor_area']
+roi_names2 = ['presma', 'sma']
 
 # ###### P-value to star map for posthoc annotations ######
 # Format: (Hemisphere, ROI, Task A, Task B) -> p-value
