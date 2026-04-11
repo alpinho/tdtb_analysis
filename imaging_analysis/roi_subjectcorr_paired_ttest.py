@@ -441,10 +441,18 @@ def plot_seed_vs_target_boxplots(
     # Match spacing of 6-target reference figure
     base_targets = 6
     base_width = 6.4
-    scale = len(targets) / base_targets
-    fig_width = base_width * scale
+    width_scale = len(targets) / base_targets
+    fig_width = base_width * width_scale
 
-    fig, ax = plt.subplots(figsize=(fig_width, 4.8))
+    # Keep constant pixels per y-unit across ylim choices
+    base_ylim = (-0.7, 1.0)
+    base_height = 4.8
+    y_range = ylim[1] - ylim[0]
+    base_y_range = base_ylim[1] - base_ylim[0]
+    height_scale = y_range / base_y_range
+    fig_height = base_height * height_scale
+
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
     dstr_color = '#E69F00'
     cereb_color = '#56B4E9'
@@ -584,7 +592,7 @@ def plot_seed_vs_target_boxplots(
 
         ax.text(
             centers[idx],
-            1.05,
+            ylim[1] + 0.05 * y_range,
             stars,
             ha='center',
             va='bottom',
@@ -613,14 +621,14 @@ def plot_seed_vs_target_boxplots(
             markersize=7,
         ),
     ]
-    ax.legend(
+    fig.legend(
         handles=handles,
         frameon=False,
         loc='upper right',
-        bbox_to_anchor=(1.0, 1.28),
+        bbox_to_anchor=(0.995, 1.02),
     )
 
-    fig.tight_layout()
+    fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.88])
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png, dpi=300, bbox_inches='tight')
     plt.close(fig)
