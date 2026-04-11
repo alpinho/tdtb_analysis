@@ -669,8 +669,8 @@ SEEDS: List[str] = ['cereb', 'dstr']
 
 # Set to None to include all cortical targets in the plot.
 # Example excluding heschl and occipital:
+PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv', 'heschl', 'occipital']
 # PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv']
-PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv']
 
 
 # =============================== PATHS ============================== #
@@ -720,6 +720,7 @@ if __name__ == '__main__':
             PLOT_TARGETS,
             cortical_targets
         )
+        n_plot_targets = len(plot_targets)
 
         indiv_root = OUT_ROOT / indiv
         os.makedirs(indiv_root, exist_ok=True)
@@ -788,7 +789,8 @@ if __name__ == '__main__':
                 paired_df['hemisphere'] = hemi
 
                 stem = (
-                    f'{indiv}_{modality}_{hemi}_{N_ROIS}-rois_{FILETAG}'
+                    f'{indiv}_{modality}_{hemi}_'
+                    f'{n_plot_targets}-targets_{FILETAG}'
                 )
 
                 out_corrs = indiv_root / f'subject_corrs_{stem}.tsv'
