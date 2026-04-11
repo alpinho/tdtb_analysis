@@ -9,7 +9,8 @@ roi_similarity_encoding.py, but replaces repeated-measures correlation by
 subject-wise Pearson correlations.
 
 For the selected individualization X modality X hemisphere:
-- Build Subject X Task X Category X Modality PSC vectors for each ROI pair.
+- Build Subject X Task X Category X Modality PSC vectors for each ROI
+  pair.
 - Optionally merge random-NTFD source.
 - Optionally add one synthetic Rest row (PSC=0) per Subject X ROI.
 - Compute Pearson correlations separately for each subject.
@@ -56,7 +57,6 @@ def _mod_mask(df: pd.DataFrame, modality: str) -> pd.Series:
     return df['Modality'] == modality
 
 
-
 def _add_rest_rows(sub: pd.DataFrame) -> pd.DataFrame:
     """
     Add one Rest row (PSC=0) per Subject X ROI. Tags set to 'Rest'.
@@ -76,7 +76,6 @@ def _add_rest_rows(sub: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-
 def p_to_stars(p_val: float) -> str:
     """
     Return significance stars for a p-value.
@@ -92,7 +91,6 @@ def p_to_stars(p_val: float) -> str:
     if p_val < 0.05:
         return '*'
     return ''
-
 
 
 def load_df(indiv: str) -> pd.DataFrame:
@@ -183,7 +181,6 @@ def load_df(indiv: str) -> pd.DataFrame:
     return df
 
 
-
 def wide_for_corr(
     df: pd.DataFrame,
     hemi: str,
@@ -259,7 +256,6 @@ def wide_for_corr(
     return wide
 
 
-
 def ordered_rois_in_df(df: pd.DataFrame) -> List[str]:
     """
     Return ROIs in the canonical paper order.
@@ -287,8 +283,33 @@ def ordered_rois_in_df(df: pd.DataFrame) -> List[str]:
     return ordered
 
 
+def validate_plot_targets(
+    plot_targets: List[str] | None,
+    cortical_targets: List[str],
+) -> List[str]:
+    """
+    Validate and return plot targets.
+    """
+    if plot_targets is None:
+        return cortical_targets
 
-def compute_subject_corrs(wide: pd.DataFrame, roi1: str, roi2: str) -> pd.DataFrame:
+    missing = [
+        roi for roi in plot_targets if roi not in cortical_targets
+    ]
+    if missing:
+        raise ValueError(
+            "[ERROR] invalid ROI(s) in PLOT_TARGETS: "
+            f"{missing}. Allowed values: {cortical_targets}"
+        )
+
+    return plot_targets
+
+
+def compute_subject_corrs(
+    wide: pd.DataFrame,
+    roi1: str,
+    roi2: str,
+) -> pd.DataFrame:
     """
     Compute one Pearson correlation per subject for a ROI pair.
     """
@@ -316,7 +337,6 @@ def compute_subject_corrs(wide: pd.DataFrame, roi1: str, roi2: str) -> pd.DataFr
     return out
 
 
-
 def summarize_pair(corrs: pd.DataFrame, indiv: str) -> Dict[str, object]:
     """
     Summarize subject-wise correlations for one ROI pair.
@@ -338,7 +358,6 @@ def summarize_pair(corrs: pd.DataFrame, indiv: str) -> Dict[str, object]:
         'n_subj': int(corrs['Subject'].nunique()),
         'n_points_per_subj': int(corrs['n_points'].iloc[0]),
     }
-
 
 
 def paired_tests_from_subject_corrs(
@@ -532,7 +551,7 @@ def plot_seed_vs_target_boxplots(
         linestyle='--',
         dashes=(4, 3),
     )
-    ax.set_ylim(-.7, 1.)
+    ax.set_ylim(-.7, 1.0)
     # ax.set_yticks(np.arange(-0.75, 1.01, 0.25))
 
     labels = [ROI_LABELS.get(t, t) for t in targets]
@@ -648,6 +667,11 @@ ROI_ORDER_GROUPS: List[List[str]] = [
 
 SEEDS: List[str] = ['cereb', 'dstr']
 
+# Set to None to include all cortical targets in the plot.
+# Example excluding heschl and occipital:
+# PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv']
+PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv']
+
 
 # =============================== PATHS ============================== #
 
@@ -692,6 +716,10 @@ if __name__ == '__main__':
         df_all = load_df(indiv)
         rois = ordered_rois_in_df(df_all)
         cortical_targets = [roi for roi in rois if roi not in SEEDS]
+        plot_targets = validate_plot_targets(
+            PLOT_TARGETS,
+            cortical_targets
+        )
 
         indiv_root = OUT_ROOT / indiv
         os.makedirs(indiv_root, exist_ok=True)
@@ -778,7 +806,7 @@ if __name__ == '__main__':
                 plot_seed_vs_target_boxplots(
                     all_corrs=all_corrs,
                     paired_df=paired_df,
-                    targets=cortical_targets,
+                    targets=plot_targets,
                     out_png=out_png,
                     indiv=indiv,
                     hemi=hemi,
