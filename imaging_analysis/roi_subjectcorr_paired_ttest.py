@@ -437,7 +437,13 @@ def plot_seed_vs_target_boxplots(
     """
     Paired boxplots with bootstrap notches and mean lines.
     """
-    fig, ax = plt.subplots(figsize=(6.4, 4.8))
+    # Match spacing of 6-target reference figure
+    base_targets = 6
+    base_width = 6.4
+    scale = len(targets) / base_targets
+    fig_width = base_width * scale
+
+    fig, ax = plt.subplots(figsize=(fig_width, 4.8))
 
     dstr_color = '#E69F00'
     cereb_color = '#56B4E9'
@@ -669,8 +675,9 @@ SEEDS: List[str] = ['cereb', 'dstr']
 
 # Set to None to include all cortical targets in the plot.
 # Example excluding heschl and occipital:
-PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv', 'heschl', 'occipital']
-# PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv']
+# PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv', 
+#                                   'heschl', 'occipital']
+PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv']
 
 
 # =============================== PATHS ============================== #
