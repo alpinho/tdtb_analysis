@@ -433,6 +433,7 @@ def plot_seed_vs_target_boxplots(
     indiv: str,
     hemi: str,
     modality: str,
+    ylim: tuple[float, float] = (-0.7, 1.0),
 ) -> None:
     """
     Paired boxplots with bootstrap notches and mean lines.
@@ -557,7 +558,7 @@ def plot_seed_vs_target_boxplots(
         linestyle='--',
         dashes=(4, 3),
     )
-    ax.set_ylim(-.7, 1.0)
+    ax.set_ylim(ylim)
     # ax.set_yticks(np.arange(-0.75, 1.01, 0.25))
 
     labels = [ROI_LABELS.get(t, t) for t in targets]
@@ -637,6 +638,7 @@ USE_RAND: bool = True
 INDIVID_LEVELS: List[str] = ['i']
 HEMIS: List[str] = ['bh']
 MODALITIES: List[str] = ['Both']
+YLIM: tuple[float, float] = (-0.2, 1.0)
 
 BASE_TASKS: List[str] = ['Production', 'Perception', 'NTFD']
 TASKS_NO_REST: List[str] = (
@@ -675,7 +677,7 @@ SEEDS: List[str] = ['cereb', 'dstr']
 
 # Set to None to include all cortical targets in the plot.
 # Example excluding heschl and occipital:
-# PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv', 
+# PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv',
 #                                   'heschl', 'occipital']
 PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv']
 
@@ -820,4 +822,5 @@ if __name__ == '__main__':
                     indiv=indiv,
                     hemi=hemi,
                     modality=modality,
+                    ylim=YLIM,
                 )
