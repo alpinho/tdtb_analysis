@@ -797,11 +797,8 @@ def twoway_rmanova_taskmod_perroi(
 
     df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
 
-    # Keep only real tasks
     df = df[df.Task != "All Tasks"].copy()
 
-    # If Category is present, collapse it 
-    # (we want Task × Modality only)
     if "Category" in df.columns:
         df = (
             df.groupby(
@@ -810,6 +807,10 @@ def twoway_rmanova_taskmod_perroi(
             )
             .agg({"PSC": "mean"})
         )
+
+    expected_tasks = ["Production", "Perception", "NTFD"]
+    if "NTFD Random" in df["Task"].unique():
+        expected_tasks.append("NTFD Random")
 
     os.makedirs(out_dir, exist_ok=True)
 
@@ -825,7 +826,7 @@ def twoway_rmanova_taskmod_perroi(
         _assert_expected_levels(
             db,
             "Task",
-            ["Production", "Perception", "NTFD"],
+            expected_tasks,
             where=f"2w_taskxmod {roi} {hem}",
         )
         _assert_expected_levels(
@@ -873,12 +874,21 @@ def twoway_rmanova_taskmod_perroi(
         )
 
         base = f"{prefix}_{roi}_{hem}_2w-"
-        anova.to_csv(os.path.join(out_dir, base + "modxtask_anova.tsv"),
-                     sep="\t", index=False)
-        post1.to_csv(os.path.join(out_dir, base + "modtask_posthoc.tsv"),
-                     sep="\t", index=False)
-        post2.to_csv(os.path.join(out_dir, base + "taskmod_posthoc.tsv"),
-                     sep="\t", index=False)
+        anova.to_csv(
+            os.path.join(out_dir, base + "modxtask_anova.tsv"),
+            sep="\t",
+            index=False,
+        )
+        post1.to_csv(
+            os.path.join(out_dir, base + "modtask_posthoc.tsv"),
+            sep="\t",
+            index=False,
+        )
+        post2.to_csv(
+            os.path.join(out_dir, base + "taskmod_posthoc.tsv"),
+            sep="\t",
+            index=False,
+        )
 
 
 def oneway_rmanova(df, tasks_dic, out_dir, prefix, roi,
@@ -1551,12 +1561,14 @@ SUBJECTS = [
 task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 
 # What task(s) used for the roi extraction and what ANOVA to do?
-# 'main_tasks' | 'rand_ntfd_pairs' | 'rand_ntfd_nonrandom'
+# 'main_tasks' | 'rand_ntfd_pairs' | 'rand_ntfd_nonrandom' |
+# 'all_tasks'
 # Modes via `folder_name`:
 #   • 'main_tasks'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
-folder_name = 'main_tasks'
+#   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
+folder_name = 'all_tasks'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1679,6 +1691,14 @@ elif folder_name == 'rand_ntfd_pairs':
         31: 'Visual Interval',
         33: 'Visual Random'
     }
+elif folder_name == 'all_tasks':
+    tasks = {
+        'prod': 'Production',
+        'percep': 'Perception',
+        'ntfd': 'NTFD',
+        'rand_ntfd': 'NTFD Random'
+    }
+    selected_contrasts = None
 else:
     assert folder_name == 'rand_ntfd_nonrandom'
     tasks = {'rand_ntfd': 'NTFD Random'}
@@ -1918,23 +1938,26 @@ if __name__ == '__main__':
         roi_dir, f"{encoding_type}_{task_roidef_id}", folder_name
     )
 
-    keys = list(selected_contrasts.keys())
-    if encoding_type == 'bothmod':
-        filtered_contrasts = selected_contrasts
-    elif encoding_type == 'auditory':
-        filtered_contrasts = {
-            k: v for k, v in selected_contrasts.items()
-            if v.startswith('Auditory ')
-        }
-    elif encoding_type == 'visual':
-        filtered_contrasts = {
-            k: v for k, v in selected_contrasts.items()
-            if v.startswith('Visual ')
-        }
+    if folder_name != 'all_tasks':
+        keys = list(selected_contrasts.keys())
+        if encoding_type == 'bothmod':
+            filtered_contrasts = selected_contrasts
+        elif encoding_type == 'auditory':
+            filtered_contrasts = {
+                k: v for k, v in selected_contrasts.items()
+                if v.startswith('Auditory ')
+            }
+        elif encoding_type == 'visual':
+            filtered_contrasts = {
+                k: v for k, v in selected_contrasts.items()
+                if v.startswith('Visual ')
+            }
+        else:
+            raise ValueError(
+                "encoding_type must be 'bothmod', 'auditory', or 'visual'."
+            )
     else:
-        raise ValueError(
-            "encoding_type must be 'bothmod', 'auditory', or 'visual'."
-        )
+        filtered_contrasts = None
 
     for tag, wpair in zip(tags, weights_list):
 
@@ -1950,42 +1973,71 @@ if __name__ == '__main__':
             else:
                 outdir = os.path.join(msdtb_dir, rname, aname, rlab)
 
-            rois_path = os.path.join(
-                outdir, 'rois_extraction', f"{tag}_{rlab}_psc.npy"
-            )
             anovas_dir = os.path.join(outdir, 'anovas')
             df_path = os.path.join(anovas_dir, f"{tag}_{rlab}_df.tsv")
             os.makedirs(anovas_dir, exist_ok=True)
 
-            dfroi = dataframe(
-                rois_path, ['lh', 'rh', 'bh'], list(tasks.values()),
-                list(filtered_contrasts.values()), SUBJECTS, df_path
-            )
+            if folder_name == 'all_tasks':
+                main_dir = os.path.join(
+                    roi_dir, f"{encoding_type}_{task_roidef_id}", 'main_tasks'
+                )
+                rand_dir = os.path.join(
+                    roi_dir,
+                    f"{encoding_type}_{task_roidef_id}",
+                    'rand_ntfd_pairs',
+                )
+
+                if rname == 'dorsal_striatum':
+                    outdir_main = os.path.join(main_dir, rname, aname)
+                    outdir_rand = os.path.join(rand_dir, rname, aname)
+                else:
+                    outdir_main = os.path.join(main_dir, rname, aname, rlab)
+                    outdir_rand = os.path.join(rand_dir, rname, aname, rlab)
+
+                df_path_main = os.path.join(
+                    outdir_main, 'anovas', f"{tag}_{rlab}_df.tsv"
+                )
+                df_path_rand = os.path.join(
+                    outdir_rand, 'anovas', f"{tag}_{rlab}_df.tsv"
+                )
+
+                dfroi_main = pd.read_csv(df_path_main, sep='\t')
+                dfroi_rand = pd.read_csv(df_path_rand, sep='\t')
+                dfroi_rand = dfroi_rand.copy()
+                dfroi_rand['Task'] = dfroi_rand['Task'].replace({
+                    'NTFD_Random': 'NTFD Random',
+                    'NTFD-Random': 'NTFD Random',
+                })
+                dfroi = pd.concat(
+                    [dfroi_main, dfroi_rand], ignore_index=True, axis=0
+                )
+                dfroi.to_csv(df_path, index=False, sep='\t')
+            else:
+                rois_path = os.path.join(
+                    outdir, 'rois_extraction', f"{tag}_{rlab}_psc.npy"
+                )
+                dfroi = dataframe(
+                    rois_path, ['lh', 'rh', 'bh'], list(tasks.values()),
+                    list(filtered_contrasts.values()), SUBJECTS, df_path
+                )
+
             dfroi['ROI'] = np.repeat(rlab, len(dfroi.index))
             dfrois = pd.concat([dfrois, dfroi], ignore_index=True)
 
             # Per-ROI analyses (and posthocs written to TSVs)
-            if n_rois in [4, 6, 10]:
-                if encoding_type == 'bothmod':
+            if n_rois in [4, 6, 10] and encoding_type == 'bothmod':
+                if folder_name == 'main_tasks':
+                    three_dir = os.path.join(anovas_dir, '3way-anova')
+                    threeway_rmanova(df_path, three_dir, tag, rlab)
 
-                    if folder_name == 'main_tasks':
-                        three_dir = os.path.join(anovas_dir, '3way-anova')
-                        threeway_rmanova(df_path, three_dir, tag, rlab)
-
-                        gt_dir = os.path.join(
-                            anovas_dir, '2way-anova_grouped-tasks'
-                        )
-                        twoway_rmanova_gtasks(df_path, gt_dir, tag, rlab)
+                    gt_dir = os.path.join(
+                        anovas_dir, '2way-anova_grouped-tasks'
+                    )
+                    twoway_rmanova_gtasks(df_path, gt_dir, tag, rlab)
 
                     t2_dir = os.path.join(anovas_dir, '2way-anova_task')
                     twoway_rmanova_task(
                         df_path, tasks, t2_dir, tag, rlab
-                    )
-
-                    # Task × Modality
-                    tm_dir = os.path.join(anovas_dir, '2way-anova_taskxmod')
-                    twoway_rmanova_taskmod_perroi(
-                        df_path, tm_dir, tag, rlab
                     )
 
                     ow_dir = os.path.join(anovas_dir, '1way-anova')
@@ -2003,6 +2055,12 @@ if __name__ == '__main__':
                             df_path, tasks, ow_dir, tag, rlab,
                             modalities=('Visual',)
                         )
+
+                if folder_name in ('main_tasks', 'all_tasks'):
+                    tm_dir = os.path.join(anovas_dir, '2way-anova_taskxmod')
+                    twoway_rmanova_taskmod_perroi(
+                        df_path, tm_dir, tag, rlab
+                    )
 
         # Save concatenated ROI dataframe
         df_dir = os.path.join(msdtb_dir, 'df_rois_volume')
