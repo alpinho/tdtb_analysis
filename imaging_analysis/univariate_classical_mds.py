@@ -8,7 +8,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 30th of October 2025
-Last Update: March 2026
+Last Update: April 2026
 
 Compatibility: Python 3.10.16
 """
@@ -160,7 +160,7 @@ def plot_mds_2d(
             alpha=0.8
         )
 
-        for x_val, y_val, name in zip(coords[:, c1], coords[:, c2], 
+        for x_val, y_val, name in zip(coords[:, c1], coords[:, c2],
                                       labels_disp):
             ax.annotate(
                 name,
@@ -508,7 +508,11 @@ def plot_mds_3d(
 
     labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
-    fig = plt.figure(figsize=(6, 5), dpi=150)
+    if tuple(comps) == (2, 3, 4):
+        fig = plt.figure(figsize=(8.5, 6.5), dpi=150)
+    else:
+        fig = plt.figure(figsize=(6, 5), dpi=150)
+
     ax = fig.add_subplot(111, projection="3d")
 
     ax.scatter(
@@ -647,11 +651,34 @@ def plot_mds_3d(
     )
     ax.zaxis.set_rotate_label(False)
 
-    ax.view_init(elev=15, azim=10)
+    if tuple(comps) == (1, 2, 3):
+        ax.view_init(elev=15, azim=10)
+    elif tuple(comps) == (2, 3, 4):
+        ax.view_init(elev=10, azim=50)
+    else:
+        ax.view_init(elev=15, azim=45)
 
-    ax.set_xlim(-0.35, 0.0)   # MDS1
-    ax.set_ylim(-0.35, 0.35)  # MDS2
-    ax.set_zlim(-0.30, 0.30)  # MDS3
+    axis_limits = {
+        0: (-0.35, 0.0),    # MDS1
+        1: (-0.35, 0.35),   # MDS2
+        2: (-0.30, 0.30),   # MDS3
+        3: (-0.15, 0.15),   # MDS4
+    }
+
+    def _lims_for_dim(dim_idx):
+        if dim_idx in axis_limits:
+            return axis_limits[dim_idx]
+
+        vals = coords[:, dim_idx]
+        vmin = float(vals.min())
+        vmax = float(vals.max())
+        vrng = vmax - vmin
+        pad = 0.05 * vrng if vrng > 0 else 0.01
+        return vmin - pad, vmax + pad
+
+    ax.set_xlim(*_lims_for_dim(c1))
+    ax.set_ylim(*_lims_for_dim(c2))
+    ax.set_zlim(*_lims_for_dim(c3))
 
     ax.xaxis.pane.set_alpha(0.0)
     ax.yaxis.pane.set_alpha(0.0)
@@ -726,20 +753,36 @@ def plot_mds_3d(
     ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.0)
     ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.0)
 
-    x_ticklabel_dx_px = 119.0
-    x_ticklabel_dy_px = -78.0
+    if tuple(comps) == (1, 2, 3):
+        x_ticklabel_dx_px = 119.0
+        x_ticklabel_dy_px = -78.0
+        x_ticklabel_spread_x_px = -3.75
+        x_ticklabel_spread_y_px = -15.0
+    else:
+        x_ticklabel_dx_px = 0.0
+        x_ticklabel_dy_px = 0.0
+        x_ticklabel_spread_x_px = 12.0
+        x_ticklabel_spread_y_px = 0.0
+
     _draw_custom_xticklabels_3d(
         fig=fig,
         ax=ax,
         fontsize=10,
         dy_px=x_ticklabel_dy_px,
         dx_px=x_ticklabel_dx_px,
-        spread_x_px=-3.75,
-        spread_y_px=-15.0,
+        spread_x_px=x_ticklabel_spread_x_px,
+        spread_y_px=x_ticklabel_spread_y_px,
     )
 
-    x_label_dx_px = 158.0
-    x_label_dy_px = -78.0
+    if tuple(comps) == (1, 2, 3):
+        x_label_dx_px = 158.0
+        x_label_dy_px = -78.0
+        x_label_rotation = 73.0
+    else:
+        x_label_dx_px = 0.0
+        x_label_dy_px = 0.0
+        x_label_rotation = 0.0
+
     _draw_custom_xlabel_3d(
         fig=fig,
         ax=ax,
@@ -747,7 +790,7 @@ def plot_mds_3d(
         fontsize=10,
         dx_px=x_label_dx_px,
         dy_px=x_label_dy_px,
-        rotation=73.0,
+        rotation=x_label_rotation,
     )
 
     # Black bounding box edges (unchanged).
@@ -874,17 +917,21 @@ def plot_mds_3d(
     inv_fig = fig.transFigure.inverted()
     label_fontsize = 10
 
-    label_offsets_px = {
-        "Dorsal Striatum": (-98, 130),
-        "Cerebellum": (-8, 44),
-        "PreSMA": (-4, 32),
-        "SMA": (-90, 38),
-        "PMD": (7, 8),
-        "PMV": (8, 18),
-        "Heschl's Gyrus": (-85, 4),
-        "Occipital\nLobe": (58, 40),
-        "Occipital Lobe": (8, 6),
+    label_offsets_by_triplet = {
+        (1, 2, 3): {
+            "Dorsal Striatum": (-98, 130),
+            "Cerebellum": (-8, 44),
+            "PreSMA": (-4, 32),
+            "SMA": (-90, 38),
+            "PMD": (7, 8),
+            "PMV": (8, 18),
+            "Heschl's Gyrus": (-85, 4),
+            "Occipital\nLobe": (58, 40),
+            "Occipital Lobe": (8, 6),
+        },
     }
+
+    label_offsets_px = label_offsets_by_triplet.get(tuple(comps), {})
 
     for x, y, z, name in zip(
         coords[:, c1], coords[:, c2], coords[:, c3], labels_disp
@@ -921,17 +968,24 @@ def plot_mds_3d(
             )
         t.set_in_layout(False)
 
-    fig.subplots_adjust(left=0.0, right=0.97, bottom=-0.05, top=1.10)
+    if tuple(comps) == (1, 2, 3):
+        fig.subplots_adjust(left=0.0, right=0.97, bottom=-0.05, top=1.10)
+    elif tuple(comps) == (2, 3, 4):
+        fig.subplots_adjust(left=0.03, right=0.98, bottom=0.02, top=0.98)
+    else:
+        fig.subplots_adjust(left=0.03, right=0.97, bottom=0.02, top=0.98)
+
     fig.savefig(out_path)
     plt.close(fig)
 
 
 # ============================= CONFIG ============================== #
 
-N_COMPONENTS = 3
+N_COMPONENTS = 4
 INDIVID_LEVEL = "i"
 
-USE_CUSTOM_PLOTTING = (N_COMPONENTS == 3)
+USE_CUSTOM_2D_PLOTTING = (N_COMPONENTS == 3)
+USE_CUSTOM_3D_PLOTTING = (N_COMPONENTS in (3, 4))
 
 ROI_LABELS = {
     "dstr": "Dorsal Striatum",
@@ -1007,7 +1061,7 @@ if __name__ == "__main__":
             explained_var=ev_ratio_full,
             out_path=out2d,
             comps=(a, b),
-            use_custom=USE_CUSTOM_PLOTTING,
+            use_custom=USE_CUSTOM_2D_PLOTTING,
         )
 
     if coords.shape[1] >= 3:
@@ -1023,5 +1077,5 @@ if __name__ == "__main__":
                 explained_var=ev_ratio_full,
                 out_path=out3d,
                 comps=(a, b, c),
-                use_custom=USE_CUSTOM_PLOTTING,
+                use_custom=USE_CUSTOM_3D_PLOTTING,
             )
