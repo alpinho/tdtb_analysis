@@ -23,7 +23,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Date of creation: 9th of March 2026
-Last update: March 2026
+Last update: April 2026
 
 Compatibility: Python 3.10+
 """
