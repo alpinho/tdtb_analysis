@@ -1095,7 +1095,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'all_tasks'
+folder_name = 'rand_ntfd_nonrandom'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1464,7 +1464,7 @@ if __name__ == '__main__':
             dfrois = pd.concat([dfrois, dfroi], ignore_index=True)
 
             # #### Per-ROI analyses (and posthocs written to TSVs) ####
-            if n_rois in [4, 6, 10] and encoding_type == 'bothmod':
+            if n_rois in [4, 6, 8, 10] and encoding_type == 'bothmod':
                 if folder_name == 'main_tasks':
 
                     # ######### One-way ANOVA #########
@@ -1500,7 +1500,7 @@ if __name__ == '__main__':
                     )
                     threeway_rm_catmodtask(df_path, three_dir, tag, rlab)
 
-                if folder_name == 'all_tasks':
+                if folder_name in ('all_tasks', 'rand_ntfd_nonrandom'):
 
                     # ######### Two-way ANOVA #########
                     t2_dir = os.path.join(anovas_dir, '2way-anova_modcat')

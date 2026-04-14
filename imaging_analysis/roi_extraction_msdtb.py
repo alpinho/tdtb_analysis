@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2023
-Last update: March 2026
+Last update: April 2026
 
 Compatibility: Python 3.10.14
 
@@ -518,10 +518,16 @@ contrast_type = 'wbmasked'  # or 'sm8wbmasked'
 #              'occipital']
 
 # Example: 4 ROIs
-atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
-atlas_names = ['hmat', 'hmat', 'hmat', 'hmat']
-region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
-roi_names = ['pmd', 'pmv', 'sma', 'presma']
+# atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
+# atlas_names = ['hmat', 'hmat', 'hmat', 'hmat']
+# region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
+# roi_names = ['pmd', 'pmv', 'sma', 'presma']
+
+# 2 ROIs
+atlas_dirnames = [fsl_dir, ntk_dir]
+atlas_names = ['hos', 'ntk_symmni128']
+region_names = ['dorsal_striatum', 'cerebellum']
+roi_names = ['dstr', 'cereb']
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
