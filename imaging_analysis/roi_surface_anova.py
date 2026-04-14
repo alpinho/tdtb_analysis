@@ -7,7 +7,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 24th of September 2025
-Last update: January 2026, 2025
+Last update: April 2026, 2025
 
 Compatibility: Python 3.10.14
 
@@ -17,11 +17,15 @@ import os
 import numpy as np
 import pandas as pd
 
-from roi_volume_anova import (dataframe, threeway_rmanova, 
-                              twoway_rmanova_task, oneway_rmanova,
-                              twoway_rmanova_catroi, posthoc_catroi,
-                              twoway_rmanova_timingroi, posthoc_timingroi,
-                              threeway_rmanova_timing)
+from roi_volume_anova import (
+    dataframe,
+    oneway_rm_cat,
+    twoway_rm_modtask,
+    threeway_rm_catmodtask,
+    twoway_rm_roicat,
+    twoway_rm_roitask,
+    threeway_rm_roimodtask
+)
 
 
 # ############################ FUNCTIONS ################################
@@ -165,21 +169,21 @@ if __name__ == '__main__':
 
             # # ############## Run ANOVAs per ROI #####################
 
-            # 3-way RM-ANOVA
-            three_anova_dir = os.path.join(roi_anovasurf_folder, '3way-anova')
-            threeway_rmanova(df_path, three_anova_dir, tag, roi_name)
-
-            # 2-way RM-ANOVA for modality and beat/interval
-            twoway_anova_task_dir = os.path.join(roi_anovasurf_folder, 
-                                                 '2way-anova_task')
-            twoway_rmanova_task(df_path, tasks, twoway_anova_task_dir, tag,
-                                roi_name)
-
             # 1-way RM-ANOVA for beat/interval
             oneway_anova_task_dir = os.path.join(
                 roi_anovasurf_folder, '1way-anova')
-            oneway_rmanova(df_path, tasks, oneway_anova_task_dir, tag,
+            oneway_rm_cat(df_path, tasks, oneway_anova_task_dir, tag,
                            roi_name)
+
+            # 2-way RM-ANOVA for modality and beat/interval
+            twoway_anova_task_dir = os.path.join(roi_anovasurf_folder,
+                                                 '2way-anova_task')
+            twoway_rm_modtask(df_path, tasks, twoway_anova_task_dir, tag,
+                              roi_name)
+            
+            # 3-way RM-ANOVA
+            three_anova_dir = os.path.join(roi_anovasurf_folder, '3way-anova')
+            threeway_rm_catmodtask(df_path, three_anova_dir, tag, roi_name)
             
         # Save dataframe with all ROIs
         dfrois_surf_folder = os.path.join(main_dir, 'df_rois_surface')
@@ -198,60 +202,44 @@ if __name__ == '__main__':
         # ... for both modalities
         twoway_anova_catroi_dir = os.path.join(
             main_dir, '2way-anova_surf_cat6rois')
-        twoway_rmanova_catroi(dfrois, tasks, twoway_anova_catroi_dir, tag)
-        posthoc_catroi(
-            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names)
+        twoway_rm_roicat(dfrois, tasks, twoway_anova_catroi_dir, tag)
         
         # ... for the auditory modality
         twoway_anova_catroi_dir = os.path.join(
             main_dir, '2way-anova_surf_cat6rois_auditory')
-        twoway_rmanova_catroi(
+        twoway_rm_roicat(
             dfrois, tasks, twoway_anova_catroi_dir, tag, modality='auditory')
-        posthoc_catroi(
-            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names,
-            modality='auditory')
         
         # ... for the visual modality
         twoway_anova_catroi_dir = os.path.join(
             main_dir, '2way-anova_surf_cat6rois_visual')
-        twoway_rmanova_catroi(
+        twoway_rm_roicat(
             dfrois, tasks, twoway_anova_catroi_dir, tag, modality='visual')
-        posthoc_catroi(
-            dfrois, tasks, twoway_anova_catroi_dir, tag, n_rois, roi_names,
-            modality='visual')
 
         # ##### EXPLICIT/IMPLICIT TIMING ROI ANALYSES ######
         # 2-way RM-ANOVA for roi and timing type tasks ...
         # ...for both modalities
         twoway_anova_timingroi_dir = os.path.join(
             main_dir, '2way-anova_surf_timing6rois')
-        twoway_rmanova_timingroi(
+        twoway_rm_roitask(
             dfrois, twoway_anova_timingroi_dir, tag)
-        posthoc_timingroi(
-            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names)
         
         # ... for the auditory modality
         twoway_anova_timingroi_dir = os.path.join(
             main_dir, '2way-anova_surf_timing6rois_auditory')
-        twoway_rmanova_timingroi(
+        twoway_rm_roitask(
             dfrois, twoway_anova_timingroi_dir, tag, modality='auditory')
-        posthoc_timingroi(
-            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names,
-            modality='auditory')
         
         # ... for the visual modality
         twoway_anova_timingroi_dir = os.path.join(
             main_dir, '2way-anova_surf_timing6rois_visual')
-        twoway_rmanova_timingroi(
+        twoway_rm_roitask(
             dfrois, twoway_anova_timingroi_dir, tag, modality='visual')
-        posthoc_timingroi(
-            dfrois, twoway_anova_timingroi_dir, tag, n_rois, roi_names,
-            modality='visual')
 
-        # ####### 3-WAY ROI × TASK × MODALITY ANOVA #######
+        # ####### 3-WAY ROI x MODALITY x TASK ANOVA #######
         threeway_anova_roi_task_modality_dir = os.path.join(
             main_dir, '3way-anova_surf_timing6rois')
 
-        threeway_rmanova_timing(
+        threeway_rm_roimodtask(
             dfrois, threeway_anova_roi_task_modality_dir, tag)
 
