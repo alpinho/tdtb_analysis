@@ -1095,7 +1095,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'main_tasks'
+folder_name = 'all_tasks'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1483,7 +1483,7 @@ if __name__ == '__main__':
                             df_path, tasks, ow_dir, tag, rlab,
                             modalities=('Visual',)
                         )
-                    
+
                     # ######### Two-way ANOVA #########
                     t2_dir = os.path.join(anovas_dir, '2way-anova_modcat')
                     twoway_rm_modcat(
@@ -1495,9 +1495,18 @@ if __name__ == '__main__':
                     twoway_rm_modcat_taskavg(df_path, gt_dir, tag, rlab)
 
                     # ######### Three-way ANOVA #########
-                    three_dir = os.path.join(anovas_dir, 
-                                             '3way-anova_catmodtask')
+                    three_dir = os.path.join(
+                        anovas_dir, '3way-anova_catmodtask'
+                    )
                     threeway_rm_catmodtask(df_path, three_dir, tag, rlab)
+
+                if folder_name == 'all_tasks':
+
+                    # ######### Two-way ANOVA #########
+                    t2_dir = os.path.join(anovas_dir, '2way-anova_modcat')
+                    twoway_rm_modcat(
+                        df_path, tasks, t2_dir, tag, rlab
+                    )
 
                 if folder_name in ('main_tasks', 'all_tasks'):
 
