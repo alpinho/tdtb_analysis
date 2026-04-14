@@ -355,10 +355,427 @@ def _ng2_threeway_within(df: pd.DataFrame,
     return out
 
 
-# =========================== ANOVAS ================================ #
+# ================== ANOVAS FUNCTIONS PER ROI ======================= #
 
-def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
-    """3-way RM-ANOVA: Category × Modality × Task."""
+def oneway_rm_cat(df, tasks_dic, out_dir, prefix, roi,
+                  hems=('lh', 'rh', 'bh'),
+                  modalities=('Auditory', 'Visual')):
+    """1-way RM-ANOVA on Category within Modality."""
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    df = df.drop(columns=['Contrast'])
+    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
+    os.makedirs(out_dir, exist_ok=True)
+
+    for ttag, task in zip(tasks_dic.keys(), tasks_dic.values()):
+        for mod in modalities:
+            for hem in hems:
+                db = df[
+                    (df.Task == task) &
+                    (df.Modality == mod) &
+                    (df.Hemisphere == hem)
+                ].copy()
+
+                anova = pg.rm_anova(
+                    data=db, dv='PSC', within='Category',
+                    subject='Subject', detailed=True, effsize='ng2'
+                )
+                post = pg.pairwise_tests(
+                    data=db, dv='PSC', within='Category',
+                    subject='Subject', return_desc=True,
+                    padjust='holm', effsize='cohen'
+                )
+
+                base = f"{prefix}_{roi}_{hem}_1w-{ttag}_{mod.lower()}_"
+                anova.to_csv(
+                    os.path.join(out_dir, base + 'anova.tsv'),
+                    sep='\t', index=False
+                )
+                post.to_csv(
+                    os.path.join(out_dir, base + 'posthoc.tsv'),
+                    sep='\t', index=False
+                )
+
+
+def twoway_rm_modcat(df, tasks_dic, out_dir, prefix, roi,
+                     alternative='two-sided',
+                     hems=('lh', 'rh', 'bh')):
+    """2-way RM-ANOVA per task: Modality x Category."""
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    df = df.drop(columns=['Contrast'])
+    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
+    os.makedirs(out_dir, exist_ok=True)
+
+    for ttag, task in zip(tasks_dic.keys(), tasks_dic.values()):
+        for hem in hems:
+            db = df[(df.Task == task) & (df.Hemisphere == hem)].copy()
+
+            _assert_no_nan_psc(db, where=f'2w_task {task} {hem}')
+            _assert_unique_cells(
+                db, ['Subject', 'Modality', 'Category'],
+                where=f'2w_task {task} {hem}'
+            )
+            _assert_complete_within(
+                db, 'Subject', ['Modality', 'Category'],
+                where=f'2w_task {task} {hem}'
+            )
+
+            anova = pg.rm_anova(
+                data=db, dv='PSC', within=['Modality', 'Category'],
+                subject='Subject', detailed=True, effsize='ng2'
+            )
+            post1 = pg.pairwise_tests(
+                data=db, dv='PSC', within=['Modality', 'Category'],
+                subject='Subject', alternative=alternative,
+                return_desc=True, padjust='holm',
+                effsize='cohen'
+            )
+            post2 = pg.pairwise_tests(
+                data=db, dv='PSC', within=['Category', 'Modality'],
+                subject='Subject', alternative=alternative,
+                return_desc=True, padjust='holm',
+                effsize='cohen'
+            )
+
+            base = f"{prefix}_{roi}_{hem}_2w-{ttag}_"
+            anova.to_csv(
+                os.path.join(out_dir, base + 'anova.tsv'),
+                sep='\t', index=False
+            )
+            post1.to_csv(
+                os.path.join(out_dir, base + 'modcat_posthoc.tsv'),
+                sep='\t', index=False
+            )
+            post2.to_csv(
+                os.path.join(out_dir, base + 'catmod_posthoc.tsv'),
+                sep='\t', index=False
+            )
+
+
+def twoway_rm_modcat_taskavg(df, out_dir, prefix, roi,
+                             hems=('lh', 'rh', 'bh')):
+    """
+    2-way RM-ANOVA across tasks: Modality x Category.
+
+    It takes all tasks (but allmain_tasks) and average them.
+    This was to check whether it delivers the same results as
+    allmain_tasks in 'twoway_rm_modcat' function,
+    where we do the ffx of all tasks and extract the psc's (and it does).
+    """
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    df = df[df.Task != 'All Tasks'].copy()
+    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
+    os.makedirs(out_dir, exist_ok=True)
+
+    for hem in hems:
+        db = df[df.Hemisphere == hem].copy()
+
+        exp_n_tasks = db['Task'].nunique()
+        counts = db.groupby(
+            ['Subject', 'Category', 'Modality']
+        )['Task'].nunique()
+        assert (counts == exp_n_tasks).all(), (
+            'Unequal task coverage before task-averaging in '
+            'twoway_rmanova_gtasks.'
+        )
+
+        db = db.drop(columns=['Hemisphere', 'Task', 'Contrast'])
+        db = db.groupby(
+            ['Category', 'Modality', 'Subject'],
+            as_index=False
+        ).agg({'PSC': 'mean'})
+
+        _assert_no_nan_psc(db, where=f'2w_gtasks {hem}')
+        _assert_unique_cells(
+            db, ['Subject', 'Category', 'Modality'],
+            where=f'2w_gtasks {hem}'
+        )
+        _assert_complete_within(
+            db, 'Subject', ['Category', 'Modality'],
+            where=f'2w_gtasks {hem}'
+        )
+
+        anova = pg.rm_anova(
+            data=db, dv='PSC', within=['Modality', 'Category'],
+            subject='Subject', detailed=True, effsize='ng2'
+        )
+        post = pg.pairwise_tests(
+            data=db, dv='PSC', within=['Category', 'Modality'],
+            subject='Subject', return_desc=True,
+            padjust='holm', effsize='cohen'
+        )
+
+        base = f"{prefix}_{roi}_{hem}_2w-taskavg_"
+        anova.to_csv(
+            os.path.join(out_dir, base + 'anova.tsv'),
+            sep='\t', index=False
+        )
+        post.to_csv(
+            os.path.join(out_dir, base + 'posthoc.tsv'),
+            sep='\t', index=False
+        )
+
+
+def twoway_rm_modtask(
+    df,
+    out_dir,
+    prefix,
+    roi,
+    alternative="two-sided",
+    hems=("lh", "rh", "bh"),
+):
+    """
+    2-way RM-ANOVA PER ROI: Modality x Task.
+
+    - Drops "All Tasks"
+    - If Category exists, averages PSC across Category first
+      so the design is Subject x Modality x Task (per hemisphere).
+    - Writes ANOVA + posthoc TSVs per hemisphere.
+    """
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep="\t")
+
+    if "Contrast" in df.columns:
+        df = df.drop(columns=["Contrast"])
+
+    df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
+
+    df = df[df.Task != "All Tasks"].copy()
+
+    if "Category" in df.columns:
+        df = (
+            df.groupby(
+                ["Subject", "Task", "Modality", "Hemisphere"],
+                as_index=False,
+            )
+            .agg({"PSC": "mean"})
+        )
+
+    expected_tasks = ["Production", "Perception", "NTFD"]
+    if "NTFD Random" in df["Task"].unique():
+        expected_tasks.append("NTFD Random")
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    for hem in hems:
+        db = df[df.Hemisphere == hem].copy()
+
+        _assert_no_nan_psc(db, where=f"2w_taskxmod {roi} {hem}")
+        _assert_unique_cells(
+            db,
+            ["Subject", "Task", "Modality", "Hemisphere"],
+            where=f"2w_taskxmod {roi} {hem}",
+        )
+        _assert_expected_levels(
+            db,
+            "Task",
+            expected_tasks,
+            where=f"2w_taskxmod {roi} {hem}",
+        )
+        _assert_expected_levels(
+            db,
+            "Modality",
+            ["Auditory", "Visual"],
+            where=f"2w_taskxmod {roi} {hem}",
+        )
+        _assert_complete_within(
+            db,
+            "Subject",
+            ["Task", "Modality"],
+            where=f"2w_taskxmod {roi} {hem}",
+        )
+
+        anova = pg.rm_anova(
+            data=db,
+            dv="PSC",
+            within=["Task", "Modality"],
+            subject="Subject",
+            detailed=True,
+            effsize="ng2",
+        )
+
+        post1 = pg.pairwise_tests(
+            data=db,
+            dv="PSC",
+            within=["Modality", "Task"],
+            subject="Subject",
+            alternative=alternative,
+            return_desc=True,
+            padjust="holm",
+            effsize="cohen",
+        )
+
+        post2 = pg.pairwise_tests(
+            data=db,
+            dv="PSC",
+            within=["Task", "Modality"],
+            subject="Subject",
+            alternative=alternative,
+            return_desc=True,
+            padjust="holm",
+            effsize="cohen",
+        )
+
+        base = f"{prefix}_{roi}_{hem}_2w-"
+        anova.to_csv(
+            os.path.join(out_dir, base + "modxtask_anova.tsv"),
+            sep="\t",
+            index=False,
+        )
+        post1.to_csv(
+            os.path.join(out_dir, base + "modtask_posthoc.tsv"),
+            sep="\t",
+            index=False,
+        )
+        post2.to_csv(
+            os.path.join(out_dir, base + "taskmod_posthoc.tsv"),
+            sep="\t",
+            index=False,
+        )
+
+
+# ================= ANOVAS FUNCTIONS ACROSS ROIS ==================== #
+
+def twoway_rm_roicat(df, tasks_dic, out_dir, prefix,
+                     alternative='two-sided',
+                     modality=None,
+                     hems=('lh', 'rh', 'bh')):
+    """2-way RM-ANOVA per task: ROI x Category."""
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    df = df.drop(columns=['Contrast'])
+    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
+
+    if modality is None:
+        if 'Modality' in df.columns:
+            df = df.drop(columns=['Modality'])
+            df = df.groupby(
+                ['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
+                as_index=False
+            ).agg({'PSC': 'mean'})
+    elif modality == 'auditory':
+        df = df[df.Modality == 'Auditory'].drop(columns=['Modality'])
+    else:
+        assert modality == 'visual'
+        df = df[df.Modality == 'Visual'].drop(columns=['Modality'])
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    for ttag, task in zip(tasks_dic.keys(), tasks_dic.values()):
+        for hem in hems:
+            db = df[
+                (df.Task == task) & (df.Hemisphere == hem)
+            ].copy()
+
+            _assert_no_nan_psc(db, where=f'catroi {task} {hem}')
+            _assert_unique_cells(
+                db, ['Subject', 'ROI', 'Category', 'Task', 'Hemisphere'],
+                where=f'catroi {task} {hem}'
+            )
+            _assert_complete_within(
+                db, 'Subject', ['ROI', 'Category'],
+                where=f'catroi {task} {hem}'
+            )
+
+            anova = pg.rm_anova(
+                data=db, dv='PSC', within=['ROI', 'Category'],
+                subject='Subject', detailed=True, effsize='ng2'
+            )
+            post = pg.pairwise_tests(
+                data=db, dv='PSC', within=['ROI', 'Category'],
+                subject='Subject', alternative=alternative,
+                return_desc=True, padjust='holm', effsize='cohen'
+            )
+
+            base = f"{prefix}_{hem}_2w-{ttag}_"
+            anova.to_csv(
+                os.path.join(out_dir, base + 'anova.tsv'),
+                sep='\t', index=False
+            )
+            post.to_csv(
+                os.path.join(out_dir, base + 'posthoc.tsv'),
+                sep='\t', index=False
+            )
+
+
+def twoway_rm_roitask(df, out_dir, prefix,
+                      alternative='two-sided',
+                      modality=None,
+                      hems=('lh', 'rh', 'bh')):
+    """2-way RM-ANOVA: ROI x Task (Category dropped)."""
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    df = df.drop(columns=['Contrast'])
+    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
+
+    if modality is None:
+        if 'Modality' in df.columns:
+            df = df.drop(columns=['Modality'])
+            df = df.groupby(
+                ['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
+                as_index=False
+            ).agg({'PSC': 'mean'})
+    elif modality == 'auditory':
+        df = df[df.Modality == 'Auditory'].drop(columns=['Modality'])
+    else:
+        assert modality == 'visual'
+        df = df[df.Modality == 'Visual'].drop(columns=['Modality'])
+
+    if 'Category' in df.columns:
+        df = df.groupby(
+            ['Task', 'Subject', 'ROI', 'Hemisphere'],
+            as_index=False
+        ).agg({'PSC': 'mean'})
+
+    df = df[df.Task != 'All Tasks'].copy()
+    os.makedirs(out_dir, exist_ok=True)
+
+    for hem in hems:
+        db = df[df.Hemisphere == hem].copy()
+        _assert_no_nan_psc(db, where=f'timingroi {hem}')
+        _assert_unique_cells(
+            db, ['Subject', 'ROI', 'Task', 'Hemisphere'],
+            where=f'timingroi {hem}'
+        )
+        _assert_expected_levels(
+            db, 'Task', ['Production', 'Perception', 'NTFD'],
+            where=f'timingroi {hem}'
+        )
+        _assert_complete_within(
+            db, 'Subject', ['ROI', 'Task'],
+            where=f'timingroi {hem}'
+        )
+
+        anova = pg.rm_anova(
+            data=db, dv='PSC', within=['ROI', 'Task'],
+            subject='Subject', detailed=True, effsize='ng2'
+        )
+        post = pg.pairwise_tests(
+            data=db, dv='PSC', within=['ROI', 'Task'],
+            subject='Subject', alternative=alternative,
+            return_desc=True, padjust='holm', effsize='cohen'
+        )
+
+        base = f"{prefix}_{hem}_2w_"
+        anova.to_csv(
+            os.path.join(out_dir, base + 'anova.tsv'),
+            sep='\t', index=False
+        )
+        post.to_csv(
+            os.path.join(out_dir, base + 'posthoc.tsv'),
+            sep='\t', index=False
+        )
+
+
+def threeway_rm_catmodtask(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
+    """3-way RM-ANOVA: Category x Modality x Task."""
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
@@ -463,17 +880,17 @@ def threeway_rmanova(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
         )
 
 
-def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
+def threeway_rm_roimodtask(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
     """
-    3-way RM-ANOVA (ROI × Task × Modality) via statsmodels.AnovaRM,
+    3-way RM-ANOVA (ROI x Modality x Task) via statsmodels.AnovaRM,
     then Holm-corrected paired t-tests:
      • mains: ROI, Task, Modality
-     • ROI×Modality: only Aud vs Vis within each ROI
-     • ROI×Task:     only each Task-pair within each ROI
-     • Modality×Task: only each Task-pair within each Modality
-     • 3-way:        only each Task-pair within each (ROI,Modality) cell
+     • ROI x Modality: only Aud vs Vis within each ROI
+     • ROI x Task:     only each Task-pair within each ROI
+     • Modality x Task: only each Task-pair within each Modality
+     • 3-way: only each Task-pair within each (ROI, Modality) cell
     All posthocs in one TSV per hemisphere, with the same columns
-    as your 2-way posthoc files.
+    as in the 2-way posthoc files.
     """
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
@@ -657,896 +1074,6 @@ def threeway_rmanova_timing(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
         )
 
 
-def twoway_rmanova_task(df, tasks_dic, out_dir, prefix, roi,
-                        alternative='two-sided',
-                        hems=('lh', 'rh', 'bh')):
-    """2-way RM-ANOVA per task: Modality × Category."""
-    if isinstance(df, str):
-        df = pd.read_csv(df, sep='\t')
-
-    df = df.drop(columns=['Contrast'])
-    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
-    os.makedirs(out_dir, exist_ok=True)
-
-    for ttag, task in zip(tasks_dic.keys(), tasks_dic.values()):
-        for hem in hems:
-            db = df[(df.Task == task) & (df.Hemisphere == hem)].copy()
-
-            _assert_no_nan_psc(db, where=f'2w_task {task} {hem}')
-            _assert_unique_cells(
-                db, ['Subject', 'Modality', 'Category'],
-                where=f'2w_task {task} {hem}'
-            )
-            _assert_complete_within(
-                db, 'Subject', ['Modality', 'Category'],
-                where=f'2w_task {task} {hem}'
-            )
-
-            anova = pg.rm_anova(
-                data=db, dv='PSC', within=['Modality', 'Category'],
-                subject='Subject', detailed=True, effsize='ng2'
-            )
-            post1 = pg.pairwise_tests(
-                data=db, dv='PSC', within=['Category', 'Modality'],
-                subject='Subject', alternative=alternative,
-                return_desc=True, padjust='holm',
-                effsize='cohen'
-            )
-            post2 = pg.pairwise_tests(
-                data=db, dv='PSC', within=['Modality', 'Category'],
-                subject='Subject', alternative=alternative,
-                return_desc=True, padjust='holm',
-                effsize='cohen'
-            )
-
-            base = f"{prefix}_{roi}_{hem}_2w-{ttag}_"
-            anova.to_csv(
-                os.path.join(out_dir, base + 'anova.tsv'),
-                sep='\t', index=False
-            )
-            post1.to_csv(
-                os.path.join(out_dir, base + 'catmod_posthoc.tsv'),
-                sep='\t', index=False
-            )
-            post2.to_csv(
-                os.path.join(out_dir, base + 'modcat_posthoc.tsv'),
-                sep='\t', index=False
-            )
-
-
-def twoway_rmanova_gtasks(df, out_dir, prefix, roi,
-                          hems=('lh', 'rh', 'bh')):
-    """2-way RM-ANOVA across tasks: Modality × Category."""
-    if isinstance(df, str):
-        df = pd.read_csv(df, sep='\t')
-
-    df = df[df.Task != 'All Tasks'].copy()
-    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
-    os.makedirs(out_dir, exist_ok=True)
-
-    for hem in hems:
-        db = df[df.Hemisphere == hem].copy()
-
-        exp_n_tasks = db['Task'].nunique()
-        counts = db.groupby(
-            ['Subject', 'Category', 'Modality']
-        )['Task'].nunique()
-        assert (counts == exp_n_tasks).all(), (
-            'Unequal task coverage before task-averaging in '
-            'twoway_rmanova_gtasks.'
-        )
-
-        db = db.drop(columns=['Hemisphere', 'Task', 'Contrast'])
-        db = db.groupby(
-            ['Category', 'Modality', 'Subject'],
-            as_index=False
-        ).agg({'PSC': 'mean'})
-
-        _assert_no_nan_psc(db, where=f'2w_gtasks {hem}')
-        _assert_unique_cells(
-            db, ['Subject', 'Category', 'Modality'],
-            where=f'2w_gtasks {hem}'
-        )
-        _assert_complete_within(
-            db, 'Subject', ['Category', 'Modality'],
-            where=f'2w_gtasks {hem}'
-        )
-
-        anova = pg.rm_anova(
-            data=db, dv='PSC', within=['Modality', 'Category'],
-            subject='Subject', detailed=True, effsize='ng2'
-        )
-        post = pg.pairwise_tests(
-            data=db, dv='PSC', within=['Category', 'Modality'],
-            subject='Subject', return_desc=True,
-            padjust='holm', effsize='cohen'
-        )
-
-        base = f"{prefix}_{roi}_{hem}_2w-taskavg_"
-        anova.to_csv(
-            os.path.join(out_dir, base + 'anova.tsv'),
-            sep='\t', index=False
-        )
-        post.to_csv(
-            os.path.join(out_dir, base + 'posthoc.tsv'),
-            sep='\t', index=False
-        )
-
-
-def twoway_rmanova_taskmod_perroi(
-    df,
-    out_dir,
-    prefix,
-    roi,
-    alternative="two-sided",
-    hems=("lh", "rh", "bh"),
-):
-    """
-    2-way RM-ANOVA PER ROI: Task × Modality.
-
-    - Drops "All Tasks"
-    - If Category exists, averages PSC across Category first
-      so the design is Subject × Task × Modality (per hemisphere).
-    - Writes ANOVA + posthoc TSVs per hemisphere.
-    """
-    if isinstance(df, str):
-        df = pd.read_csv(df, sep="\t")
-
-    if "Contrast" in df.columns:
-        df = df.drop(columns=["Contrast"])
-
-    df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
-
-    df = df[df.Task != "All Tasks"].copy()
-
-    if "Category" in df.columns:
-        df = (
-            df.groupby(
-                ["Subject", "Task", "Modality", "Hemisphere"],
-                as_index=False,
-            )
-            .agg({"PSC": "mean"})
-        )
-
-    expected_tasks = ["Production", "Perception", "NTFD"]
-    if "NTFD Random" in df["Task"].unique():
-        expected_tasks.append("NTFD Random")
-
-    os.makedirs(out_dir, exist_ok=True)
-
-    for hem in hems:
-        db = df[df.Hemisphere == hem].copy()
-
-        _assert_no_nan_psc(db, where=f"2w_taskxmod {roi} {hem}")
-        _assert_unique_cells(
-            db,
-            ["Subject", "Task", "Modality", "Hemisphere"],
-            where=f"2w_taskxmod {roi} {hem}",
-        )
-        _assert_expected_levels(
-            db,
-            "Task",
-            expected_tasks,
-            where=f"2w_taskxmod {roi} {hem}",
-        )
-        _assert_expected_levels(
-            db,
-            "Modality",
-            ["Auditory", "Visual"],
-            where=f"2w_taskxmod {roi} {hem}",
-        )
-        _assert_complete_within(
-            db,
-            "Subject",
-            ["Task", "Modality"],
-            where=f"2w_taskxmod {roi} {hem}",
-        )
-
-        anova = pg.rm_anova(
-            data=db,
-            dv="PSC",
-            within=["Task", "Modality"],
-            subject="Subject",
-            detailed=True,
-            effsize="ng2",
-        )
-
-        post1 = pg.pairwise_tests(
-            data=db,
-            dv="PSC",
-            within=["Modality", "Task"],
-            subject="Subject",
-            alternative=alternative,
-            return_desc=True,
-            padjust="holm",
-            effsize="cohen",
-        )
-
-        post2 = pg.pairwise_tests(
-            data=db,
-            dv="PSC",
-            within=["Task", "Modality"],
-            subject="Subject",
-            alternative=alternative,
-            return_desc=True,
-            padjust="holm",
-            effsize="cohen",
-        )
-
-        base = f"{prefix}_{roi}_{hem}_2w-"
-        anova.to_csv(
-            os.path.join(out_dir, base + "modxtask_anova.tsv"),
-            sep="\t",
-            index=False,
-        )
-        post1.to_csv(
-            os.path.join(out_dir, base + "modtask_posthoc.tsv"),
-            sep="\t",
-            index=False,
-        )
-        post2.to_csv(
-            os.path.join(out_dir, base + "taskmod_posthoc.tsv"),
-            sep="\t",
-            index=False,
-        )
-
-
-def oneway_rmanova(df, tasks_dic, out_dir, prefix, roi,
-                   hems=('lh', 'rh', 'bh'),
-                   modalities=('Auditory', 'Visual')):
-    """1-way RM-ANOVA on Category within Modality."""
-    if isinstance(df, str):
-        df = pd.read_csv(df, sep='\t')
-
-    df = df.drop(columns=['Contrast'])
-    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
-    os.makedirs(out_dir, exist_ok=True)
-
-    for ttag, task in zip(tasks_dic.keys(), tasks_dic.values()):
-        for mod in modalities:
-            for hem in hems:
-                db = df[
-                    (df.Task == task) &
-                    (df.Modality == mod) &
-                    (df.Hemisphere == hem)
-                ].copy()
-
-                anova = pg.rm_anova(
-                    data=db, dv='PSC', within='Category',
-                    subject='Subject', detailed=True, effsize='ng2'
-                )
-                post = pg.pairwise_tests(
-                    data=db, dv='PSC', within='Category',
-                    subject='Subject', return_desc=True,
-                    padjust='holm', effsize='cohen'
-                )
-
-                base = f"{prefix}_{roi}_{hem}_1w-{ttag}_{mod.lower()}_"
-                anova.to_csv(
-                    os.path.join(out_dir, base + 'anova.tsv'),
-                    sep='\t', index=False
-                )
-                post.to_csv(
-                    os.path.join(out_dir, base + 'posthoc.tsv'),
-                    sep='\t', index=False
-                )
-
-
-def twoway_rmanova_catroi(df, tasks_dic, out_dir, prefix,
-                          alternative='two-sided',
-                          modality=None,
-                          hems=('lh', 'rh', 'bh')):
-    """2-way RM-ANOVA per task: ROI × Category."""
-    if isinstance(df, str):
-        df = pd.read_csv(df, sep='\t')
-
-    df = df.drop(columns=['Contrast'])
-    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
-
-    if modality is None:
-        if 'Modality' in df.columns:
-            df = df.drop(columns=['Modality'])
-            df = df.groupby(
-                ['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
-                as_index=False
-            ).agg({'PSC': 'mean'})
-    elif modality == 'auditory':
-        df = df[df.Modality == 'Auditory'].drop(columns=['Modality'])
-    else:
-        assert modality == 'visual'
-        df = df[df.Modality == 'Visual'].drop(columns=['Modality'])
-
-    os.makedirs(out_dir, exist_ok=True)
-
-    for ttag, task in zip(tasks_dic.keys(), tasks_dic.values()):
-        for hem in hems:
-            db = df[
-                (df.Task == task) & (df.Hemisphere == hem)
-            ].copy()
-
-            _assert_no_nan_psc(db, where=f'catroi {task} {hem}')
-            _assert_unique_cells(
-                db, ['Subject', 'ROI', 'Category', 'Task', 'Hemisphere'],
-                where=f'catroi {task} {hem}'
-            )
-            _assert_complete_within(
-                db, 'Subject', ['ROI', 'Category'],
-                where=f'catroi {task} {hem}'
-            )
-
-            anova = pg.rm_anova(
-                data=db, dv='PSC', within=['ROI', 'Category'],
-                subject='Subject', detailed=True, effsize='ng2'
-            )
-            post = pg.pairwise_tests(
-                data=db, dv='PSC', within=['ROI', 'Category'],
-                subject='Subject', alternative=alternative,
-                return_desc=True, padjust='holm', effsize='cohen'
-            )
-
-            base = f"{prefix}_{hem}_2w-{ttag}_"
-            anova.to_csv(
-                os.path.join(out_dir, base + 'anova.tsv'),
-                sep='\t', index=False
-            )
-            post.to_csv(
-                os.path.join(out_dir, base + 'posthoc.tsv'),
-                sep='\t', index=False
-            )
-
-
-def twoway_rmanova_timingroi(df, out_dir, prefix,
-                             alternative='two-sided',
-                             modality=None,
-                             hems=('lh', 'rh', 'bh')):
-    """2-way RM-ANOVA: ROI × Task (Category dropped)."""
-    if isinstance(df, str):
-        df = pd.read_csv(df, sep='\t')
-
-    df = df.drop(columns=['Contrast'])
-    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
-
-    if modality is None:
-        if 'Modality' in df.columns:
-            df = df.drop(columns=['Modality'])
-            df = df.groupby(
-                ['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
-                as_index=False
-            ).agg({'PSC': 'mean'})
-    elif modality == 'auditory':
-        df = df[df.Modality == 'Auditory'].drop(columns=['Modality'])
-    else:
-        assert modality == 'visual'
-        df = df[df.Modality == 'Visual'].drop(columns=['Modality'])
-
-    if 'Category' in df.columns:
-        df = df.groupby(
-            ['Task', 'Subject', 'ROI', 'Hemisphere'],
-            as_index=False
-        ).agg({'PSC': 'mean'})
-
-    df = df[df.Task != 'All Tasks'].copy()
-    os.makedirs(out_dir, exist_ok=True)
-
-    for hem in hems:
-        db = df[df.Hemisphere == hem].copy()
-        _assert_no_nan_psc(db, where=f'timingroi {hem}')
-        _assert_unique_cells(
-            db, ['Subject', 'ROI', 'Task', 'Hemisphere'],
-            where=f'timingroi {hem}'
-        )
-        _assert_expected_levels(
-            db, 'Task', ['Production', 'Perception', 'NTFD'],
-            where=f'timingroi {hem}'
-        )
-        _assert_complete_within(
-            db, 'Subject', ['ROI', 'Task'],
-            where=f'timingroi {hem}'
-        )
-
-        anova = pg.rm_anova(
-            data=db, dv='PSC', within=['ROI', 'Task'],
-            subject='Subject', detailed=True, effsize='ng2'
-        )
-        post = pg.pairwise_tests(
-            data=db, dv='PSC', within=['ROI', 'Task'],
-            subject='Subject', alternative=alternative,
-            return_desc=True, padjust='holm', effsize='cohen'
-        )
-
-        base = f"{prefix}_{hem}_2w_"
-        anova.to_csv(
-            os.path.join(out_dir, base + 'anova.tsv'),
-            sep='\t', index=False
-        )
-        post.to_csv(
-            os.path.join(out_dir, base + 'posthoc.tsv'),
-            sep='\t', index=False
-        )
-
-
-# =========================== PLOTTING ============================== #
-
-def posthoc_catroi(df, tasks_dic, out_dir, prefix, n_rois, order_list,
-                   modality=None, hems=('lh', 'rh', 'bh')):
-    """
-    Posthoc barplots for ROI × Category with shared y-scale and tidy
-    layout.
-    """
-    if isinstance(df, str):
-        df_full = pd.read_csv(df, sep='\t')
-    else:
-        df_full = df.copy()
-    if 'Contrast' in df_full.columns:
-        df_full = df_full.drop(columns=['Contrast'])
-    df_full['PSC'] = pd.to_numeric(df_full['PSC'], errors='coerce')
-
-    def _ci_extents(frame, by_cols):
-        if frame.empty:
-            return np.nan, np.nan
-        g = (
-            frame.groupby(by_cols)['PSC']
-            .agg(['mean', 'std', 'count']).reset_index()
-        )
-        g['se'] = g['std'] / np.sqrt(g['count'].clip(lower=1))
-        upper = g['mean'] + 1.96 * g['se']
-        lower = g['mean'] - 1.96 * g['se']
-        return np.nanmin(lower.values), np.nanmax(upper.values)
-
-    base_group = ['ROI', 'Category', 'Task', 'Hemisphere']
-    ymin_list, ymax_list = [], []
-    if 'Modality' in df_full.columns:
-        ylo1, yhi1 = _ci_extents(df_full, base_group + ['Modality'])
-        ymin_list.append(ylo1)
-        ymax_list.append(yhi1)
-        df_coll = (
-            df_full.drop(columns=['Modality'])
-            .groupby(base_group + ['Subject'], as_index=False)
-            .mean()
-        )
-        ylo2, yhi2 = _ci_extents(df_coll, base_group)
-        ymin_list.append(ylo2)
-        ymax_list.append(yhi2)
-    else:
-        ylo, yhi = _ci_extents(df_full, base_group)
-        ymin_list.append(ylo)
-        ymax_list.append(yhi)
-
-    ymin = float(np.nanmin(ymin_list)) if len(ymin_list) else 0.0
-    ymax = float(np.nanmax(ymax_list)) if len(ymax_list) else 0.0
-    rng = max(ymax - ymin, 1e-6)
-    pad = 0.14 * rng
-    y_bottom = min(0.0, ymin - pad)
-    y_top = ymax + pad
-
-    dfp = df_full.copy()
-    if modality is None:
-        if 'Modality' in dfp.columns:
-            dfp = dfp.drop(columns=['Modality'])
-            dfp = (
-                dfp.groupby(
-                    ['Category', 'Task', 'Subject', 'ROI', 'Hemisphere'],
-                    as_index=False
-                ).mean()
-            )
-    elif modality == 'auditory':
-        dfp = dfp[dfp.Modality == 'Auditory'].drop(columns=['Modality'])
-    else:
-        assert modality == 'visual'
-        dfp = dfp[dfp.Modality == 'Visual'].drop(columns=['Modality'])
-
-    dfp['ROI'] = dfp['ROI'].str.replace('dstr', 'Dorsal Striatum')
-    dfp['ROI'] = dfp['ROI'].str.replace('cereb', 'Cerebellum')
-    order_list = [s.replace('dstr', 'Dorsal Striatum') for s in order_list]
-    order_list = [s.replace('cereb', 'Cerebellum') for s in order_list]
-
-    ttags = list(tasks_dic.keys())
-    tasks_list = list(tasks_dic.values())
-
-    if n_rois <= 6:
-        fig_w = 12
-    elif n_rois <= 8:
-        fig_w = 22
-    else:
-        fig_w = 24
-    fig = plt.figure(figsize=(fig_w, 12))
-    fig.subplots_adjust(bottom=0.16)
-
-    top_label = modality.capitalize() if modality else 'Both Mod.'
-    fig.text(0.01, 0.985, top_label, ha='left', va='top',
-             fontsize=12, fontweight='bold')
-    fig.text(0.01, 0.958, prefix, ha='left', va='top',
-             fontsize=12, fontweight='bold')
-
-    top_row = []
-
-    for h, hem in enumerate(hems):
-        for t, (ttag, task) in enumerate(zip(ttags, tasks_list)):
-            ax = plt.axes([.07 + h*.3, .7825 - t*.2425, .23, .15])
-            if t == 0:
-                top_row.append((hem, ax))
-
-            db = dfp[
-                (dfp.Task == task) & (dfp.Hemisphere == hem)
-            ].copy()
-
-            s = sns.barplot(
-                ax=ax, x='ROI', y='PSC', hue='Category', data=db,
-                estimator=np.mean, ci=95, errcolor="darkgray", errwidth=1.5,
-                capsize=0.2, alpha=0.5, order=order_list
-            )
-
-            nhue = db['Category'].nunique()
-            scale = 1.25 if nhue <= 1 and n_rois >= 8 else (
-                1.10 if nhue <= 1 else 0.96
-            )
-            for p in s.patches:
-                w = p.get_width()
-                new_w = w * scale
-                dx = (new_w - w) / 2.0
-                p.set_x(p.get_x() - dx)
-                p.set_width(new_w)
-
-            lbl_fs = 6 if n_rois <= 6 else 5
-            lbl_pad = -8 if n_rois >= 8 else -10
-            for cont in s.containers:
-                ax.bar_label(
-                    cont, padding=lbl_pad, fontsize=lbl_fs,
-                    fmt='%.3f', clip_on=False
-                )
-
-            ax.set_ylim(y_bottom, y_top)
-            ax.legend([], [], frameon=False)
-            ax.spines['right'].set_visible(False)
-            ax.spines['top'].set_visible(False)
-            ax.set_ylabel('Percent Signal Change (%)', labelpad=7)
-            ax.margins(x=0.05)
-
-            if n_rois >= 8:
-                ax.set_xticklabels(
-                    ax.get_xticklabels(), rotation=45,
-                    ha='right', fontsize=9
-                )
-            elif n_rois == 6:
-                ax.set_xticklabels(
-                    ax.get_xticklabels(), rotation=30, fontsize=10
-                )
-            ax.set_xlabel('ROI', labelpad=8)
-
-    for hem, ax0 in top_row:
-        pos = ax0.get_position()
-        x_ctr = 0.5 * (pos.x0 + pos.x1)
-        fig.text(
-            x_ctr, 0.97, hem.upper(),
-            ha='center', va='top', fontsize=14, fontweight='bold'
-        )
-
-    fname = (
-        f"{prefix}_{n_rois}-rois_2w_posthoc_{modality}"
-        if modality else
-        f"{prefix}_{n_rois}-rois_2w_posthoc_both-modalities"
-    )
-    os.makedirs(out_dir, exist_ok=True)
-    plt.savefig(
-        os.path.join(out_dir, fname + '.pdf'),
-        bbox_inches='tight', pad_inches=0.02
-    )
-    plt.close(fig)
-
-
-def posthoc_timingroi(
-    df,
-    out_dir,
-    prefix,
-    n_rois,
-    order_list,
-    modality=None,
-    hems=("lh", "rh", "bh"),
-    pvals_star_map=None,
-    ylim=None,
-):
-    """
-    Posthoc barplots for ROI × Task.
-
-    Star annotations are attempted ONLY when:
-      - prefix == 'i'
-      - modality is None (both modalities)
-      - n_rois == 8
-      - pvals_star_map is provided
-
-    For each hemisphere axis, annotations are drawn only if ALL required
-    p-values for that hemisphere are available. Otherwise, that axis is
-    plotted without annotations.
-
-    When n_rois == 8, ROI x tick labels are NOT rotated.
-
-    pvals_star_map keys:
-        (hem, roi_code, task_a, task_b) -> pvalue
-    where (task_a, task_b) are looked up in sorted order.
-    """
-    if isinstance(df, str):
-        df = pd.read_csv(df, sep="\t")
-
-    if "Contrast" in df.columns:
-        df = df.drop(columns=["Contrast"])
-
-    df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
-
-    if modality is None and "Modality" in df.columns:
-        dfp = (
-            df.drop(columns=["Modality"])
-            .groupby(
-                ["Category", "Task", "Subject", "ROI", "Hemisphere"],
-                as_index=False,
-            )
-            .mean()
-        )
-    elif modality == "auditory":
-        dfp = df[df.Modality == "Auditory"].drop(columns=["Modality"])
-    elif modality == "visual":
-        dfp = df[df.Modality == "Visual"].drop(columns=["Modality"])
-    else:
-        dfp = df.copy()
-
-    dfp = dfp[dfp.Task != "All Tasks"].copy()
-
-    do_star_annot = (
-        (prefix == "i")
-        and (n_rois == 8)
-        and (pvals_star_map is not None)
-        and (modality in (None, "auditory", "visual"))
-    )
-
-    if isinstance(hems, str):
-        hems = (hems,)
-
-    rep = {
-        "dstr": "Dorsal Striatum",
-        "cereb": "Cerebellum",
-        "pmd": "PMD",
-        "pmv": "PMV",
-        "presma": "PreSMA",
-        "sma": "SMA",
-        "heschl": "Heschl Gyrus",
-        "occipital": "Occipital Lobe",
-    }
-    inv_rep = {v: k for k, v in rep.items()}
-
-    for k, v in rep.items():
-        dfp["ROI"] = dfp["ROI"].str.replace(k, v)
-
-    order_list = [rep.get(s, s) for s in order_list]
-
-    if dfp.empty:
-        raise ValueError("posthoc_timingroi: empty dataframe after filtering.")
-
-    if ylim is None:
-        g = (
-            dfp.groupby(["ROI", "Task", "Hemisphere"])["PSC"]
-            .agg(["mean", "std", "count"])
-            .reset_index()
-        )
-        g["se"] = g["std"] / np.sqrt(g["count"].clip(lower=1))
-        y_upper = g["mean"] + 1.96 * g["se"]
-        y_lower = g["mean"] - 1.96 * g["se"]
-
-        ylo = float(np.nanmin(y_lower.values)) if len(y_lower) else 0.0
-        yhi = float(np.nanmax(y_upper.values)) if len(y_upper) else 0.0
-
-        rng = max(yhi - ylo, 1e-6)
-        pad = 0.14 * rng
-        y_min = min(0.0, ylo - pad)
-        y_max = yhi + pad
-    else:
-        if (
-            not isinstance(ylim, (tuple, list))
-            or len(ylim) != 2
-            or not np.isfinite(ylim[0])
-            or not np.isfinite(ylim[1])
-        ):
-            raise ValueError(
-                "ylim must be a tuple (ymin, ymax) with finite values."
-            )
-        y_min, y_max = float(ylim[0]), float(ylim[1])
-
-    if n_rois <= 2:
-        fig_w, left = 10, 0.12
-    elif n_rois <= 6:
-        fig_w, left = 12, 0.10
-    elif n_rois <= 8:
-        fig_w, left = 20, 0.09
-    else:
-        fig_w, left = 24, 0.09
-
-    n_hems = len(hems)
-    fig_h = 4.5 * n_hems
-
-    fig, axes = plt.subplots(n_hems, 1, figsize=(fig_w, fig_h), sharey=True)
-    if n_hems == 1:
-        axes = [axes]
-
-    top_label = modality.capitalize() if modality else "Both Mod."
-    fig.text(
-        0.01,
-        0.985,
-        top_label,
-        ha="left",
-        va="top",
-        fontsize=12,
-        fontweight="bold",
-    )
-    fig.text(
-        0.01,
-        0.958,
-        prefix,
-        ha="left",
-        va="top",
-        fontsize=12,
-        fontweight="bold",
-    )
-
-    hue_order = ["Production", "Perception", "NTFD"]
-    hue_order = [t for t in hue_order if t in dfp["Task"].unique()]
-
-    task_pairs = []
-    for a in np.arange(len(hue_order)):
-        for b in np.arange(a + 1, len(hue_order)):
-            task_pairs.append((hue_order[int(a)], hue_order[int(b)]))
-
-    for i, hem in enumerate(hems):
-        ax = axes[i]
-        db = dfp[dfp.Hemisphere == hem].copy()
-
-        order_this = [r for r in order_list if r in db["ROI"].unique()]
-
-        s = sns.barplot(
-            ax=ax,
-            x="ROI",
-            y="PSC",
-            hue="Task",
-            data=db,
-            estimator=np.mean,
-            ci=95,
-            errcolor="darkgray",
-            errwidth=1.5,
-            capsize=0.2,
-            alpha=0.6,
-            order=order_this,
-            hue_order=hue_order,
-            palette=["indigo", "m", "salmon"][: len(hue_order)],
-        )
-
-        # Get legend handles/labels for a per-axis legend
-        # (colored squares) under the hemisphere title.
-        handles, labels = ax.get_legend_handles_labels()
-        ax.legend(
-            handles,
-            labels,
-            loc="upper center",
-            bbox_to_anchor=(0.5, 1.02),
-            ncol=len(labels) if len(labels) > 0 else 1,
-            frameon=False,
-            handlelength=1.2,
-            columnspacing=1.4,
-            handletextpad=0.6,
-            borderaxespad=0.0,
-        )
-
-        lbl_fs = 7 if n_rois <= 6 else 6
-        for cont in s.containers:
-            ax.bar_label(
-                cont,
-                fmt="%.3f",
-                label_type="center",
-                fontsize=lbl_fs,
-                color="black",
-                clip_on=False,
-            )
-
-        ax.set_ylim(y_min, y_max)
-        ax.spines["right"].set_visible(False)
-        ax.spines["top"].set_visible(False)
-        ax.set_ylabel("PSC (%)", fontsize=12, labelpad=12)
-
-        # Hemisphere label slightly higher.
-        ax.set_title(
-            f"Hemisphere: {hem.upper()}",
-            fontsize=13,
-            fontweight="bold",
-            pad=24,
-        )
-
-        if n_rois == 8:
-            ax.set_xticklabels(ax.get_xticklabels(), fontsize=10)
-        elif n_rois > 8:
-            ax.set_xticklabels(
-                ax.get_xticklabels(),
-                rotation=45,
-                ha="right",
-                fontsize=10,
-            )
-        elif n_rois == 6:
-            ax.set_xticklabels(
-                ax.get_xticklabels(),
-                rotation=30,
-                ha="right",
-                fontsize=11,
-            )
-        else:
-            ax.set_xticklabels(ax.get_xticklabels(), fontsize=11)
-
-        ax.set_xlabel(
-            "ROI",
-            fontsize=12,
-            labelpad=(4 if n_rois >= 8 else 10),
-        )
-
-        if do_star_annot:
-            pairs = []
-            pvals = []
-            missing_keys = []
-
-            for roi_disp in order_this:
-                roi_code = inv_rep.get(roi_disp, roi_disp)
-
-                for t1, t2 in task_pairs:
-                    pairs.append(((roi_disp, t1), (roi_disp, t2)))
-
-                    ta, tb = sorted((str(t1), str(t2)))
-                    key = (hem, roi_code, ta, tb)
-
-                    if key not in pvals_star_map:
-                        missing_keys.append(key)
-                    else:
-                        pvals.append(float(pvals_star_map[key]))
-
-            if len(missing_keys) == 0 and len(pairs) > 0:
-                pairs_keep = []
-                pvals_keep = []
-                for pair, pv in zip(pairs, pvals):
-                    if float(pv) < 0.05:
-                        pairs_keep.append(pair)
-                        pvals_keep.append(float(pv))
-
-                if len(pairs_keep) > 0:
-                    annot = Annotator(
-                        ax=ax,
-                        pairs=pairs_keep,
-                        data=db,
-                        x="ROI",
-                        y="PSC",
-                        hue="Task",
-                        order=order_this,
-                        hue_order=hue_order,
-                    )
-                    annot.configure(
-                        test=None,
-                        text_format="star",
-                        loc="inside",
-                        verbose=0,
-                    )
-                    annot.set_pvalues(pvals_keep)
-                    annot.annotate()
-
-    hspace = 1.10 if n_rois >= 8 else 0.7
-    plt.subplots_adjust(
-        hspace=hspace,
-        bottom=0.14,
-        top=0.92,
-        left=left,
-    )
-
-    mod_sfx = modality if modality else "both-modalities"
-    fname = f"{prefix}_{n_rois}-rois_2w_posthoc_{mod_sfx}"
-    os.makedirs(out_dir, exist_ok=True)
-    plt.savefig(
-        os.path.join(out_dir, fname + ".pdf"),
-        bbox_inches="tight",
-        pad_inches=0.02,
-    )
-    plt.close(fig)
-
-
 # =========================== INPUTS ================================ #
 
 SUBJECTS = [
@@ -1568,7 +1095,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'all_tasks'
+folder_name = 'main_tasks'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1798,96 +1325,6 @@ atlas_names2 = ['hmat', 'hmat']
 region_names2 = ['motor_area', 'motor_area']
 roi_names2 = ['presma', 'sma']
 
-# ###### P-value to star map for posthoc annotations ######
-# Format: (Hemisphere, ROI, Task A, Task B) -> p-value
-
-# n_rois = 8, individualization = 'i', both modalities
-pvals_star_map_in8 = {
-    # hem, roi, task_pair -> p
-    ('bh', 'cereb', 'NTFD', 'Perception'): 0.7468653080539,
-    ('bh', 'cereb', 'NTFD', 'Production'): 0.0038694053454941,
-    ('bh', 'cereb', 'Perception', 'Production'): 0.0531942628458939,
-    ('bh', 'dstr', 'NTFD', 'Perception'): 1,
-    ('bh', 'dstr', 'NTFD', 'Production'): 0.000000747501935034951,
-    ('bh', 'dstr', 'Perception', 'Production'): 0.000000183218571178129,
-    ('bh', 'heschl', 'NTFD', 'Perception'): 0.0000000543008044450249,
-    ('bh', 'heschl', 'NTFD', 'Production'): 0.0000000326951551140279,
-    ('bh', 'heschl', 'Perception', 'Production'): 1,
-    ('bh', 'occipital', 'NTFD', 'Perception'): 0.000534887309265732,
-    ('bh', 'occipital', 'NTFD', 'Production'): 0.7468653080539,
-    ('bh', 'occipital', 'Perception', 'Production'): 0.00227878598167779,
-    ('bh', 'pmd', 'NTFD', 'Perception'): 1,
-    ('bh', 'pmd', 'NTFD', 'Production'): 1,
-    ('bh', 'pmd', 'Perception', 'Production'): 1,
-    ('bh', 'pmv', 'NTFD', 'Perception'): 0.261617186969474,
-    ('bh', 'pmv', 'NTFD', 'Production'): 0.519887025765279,
-    ('bh', 'pmv', 'Perception', 'Production'): 1,
-    ('bh', 'presma', 'NTFD', 'Perception'): 0.028120293825793,
-    ('bh', 'presma', 'NTFD', 'Production'): 0.537626981776096,
-    ('bh', 'presma', 'Perception', 'Production'): 1,
-    ('bh', 'sma', 'NTFD', 'Perception'): 0.000385097337503319,
-    ('bh', 'sma', 'NTFD', 'Production'): 0.133469672145777,
-    ('bh', 'sma', 'Perception', 'Production'): 0.0000130156708231288,
-}
-
-# n_rois = 8, individualization = 'i', auditory modality
-pvals_star_map_in8_auditory = {
-    # hem, roi, task_pair -> p
-    ('bh', 'cereb', 'NTFD', 'Perception'): 0.202357255679689,
-    ('bh', 'cereb', 'NTFD', 'Production'): 0.213218942659016,
-    ('bh', 'cereb', 'Perception', 'Production'): 1,
-    ('bh', 'dstr', 'NTFD', 'Perception'): 1,
-    ('bh', 'dstr', 'NTFD', 'Production'): 0.0000134800500526281,
-    ('bh', 'dstr', 'Perception', 'Production'): 0.0000223113707121616,
-    ('bh', 'heschl', 'NTFD', 'Perception'): 0.00000046329180419678,
-    ('bh', 'heschl', 'NTFD', 'Production'): 0.00000276179676296787,
-    ('bh', 'heschl', 'Perception', 'Production'): 1,
-    ('bh', 'occipital', 'NTFD', 'Perception'): 0.000256848410643215,
-    ('bh', 'occipital', 'NTFD', 'Production'): 1,
-    ('bh', 'occipital', 'Perception', 'Production'): 0.0114282939876558,
-    ('bh', 'pmd', 'NTFD', 'Perception'): 1,
-    ('bh', 'pmd', 'NTFD', 'Production'): 1,
-    ('bh', 'pmd', 'Perception', 'Production'): 1,
-    ('bh', 'pmv', 'NTFD', 'Perception'): 1,
-    ('bh', 'pmv', 'NTFD', 'Production'): 0.918166307865688,
-    ('bh', 'pmv', 'Perception', 'Production'): 1,
-    ('bh', 'presma', 'NTFD', 'Perception'): 0.268170216287431,
-    ('bh', 'presma', 'NTFD', 'Production'): 1,
-    ('bh', 'presma', 'Perception', 'Production'): 1,
-    ('bh', 'sma', 'NTFD', 'Perception'): 0.0415934416483814,
-    ('bh', 'sma', 'NTFD', 'Production'): 0.486320301649262,
-    ('bh', 'sma', 'Perception', 'Production'): 0.00103098679298,
-}
-
-# n_rois = 8, individualization = 'i', visual modality
-pvals_star_map_in8_visual = {
-    # hem, roi, task_pair -> p
-    ('bh', 'cereb', 'NTFD', 'Perception'): 0.58292406689646,
-    ('bh', 'cereb', 'NTFD', 'Production'): 0.0324187838480206,
-    ('bh', 'cereb', 'Perception', 'Production'): 0.302644122134062,
-    ('bh', 'dstr', 'NTFD', 'Perception'): 1,
-    ('bh', 'dstr', 'NTFD', 'Production'): 0.0000183394276401402,
-    ('bh', 'dstr', 'Perception', 'Production'): 0.0000000147957389590551,
-    ('bh', 'heschl', 'NTFD', 'Perception'): 0.0752871977609899,
-    ('bh', 'heschl', 'NTFD', 'Production'): 0.13010219918368,
-    ('bh', 'heschl', 'Perception', 'Production'): 1,
-    ('bh', 'occipital', 'NTFD', 'Perception'): 1,
-    ('bh', 'occipital', 'NTFD', 'Production'): 0.02078514755058,
-    ('bh', 'occipital', 'Perception', 'Production'): 0.0134946966485245,
-    ('bh', 'pmd', 'NTFD', 'Perception'): 1,
-    ('bh', 'pmd', 'NTFD', 'Production'): 1,
-    ('bh', 'pmd', 'Perception', 'Production'): 1,
-    ('bh', 'pmv', 'NTFD', 'Perception'): 1,
-    ('bh', 'pmv', 'NTFD', 'Production'): 0.964487706657107,
-    ('bh', 'pmv', 'Perception', 'Production'): 1,
-    ('bh', 'presma', 'NTFD', 'Perception'): 0.302644122134062,
-    ('bh', 'presma', 'NTFD', 'Production'): 1,
-    ('bh', 'presma', 'Perception', 'Production'): 1,
-    ('bh', 'sma', 'NTFD', 'Perception'): 0.0160228828086688,
-    ('bh', 'sma', 'NTFD', 'Production'): 0.308708595508286,
-    ('bh', 'sma', 'Perception', 'Production'): 0.0000271705639262566,
-}
-
 
 # ============================= RUN ================================= #
 
@@ -1968,6 +1405,8 @@ if __name__ == '__main__':
         for adir, aname, rname, rlab in zip(
             atlas_dirnames, atlas_names, region_names, roi_names
         ):
+            
+            # ###### Preparing the dataframe for the current ROI ######
             if rname == 'dorsal_striatum':
                 outdir = os.path.join(msdtb_dir, rname, aname)
             else:
@@ -2024,43 +1463,47 @@ if __name__ == '__main__':
             dfroi['ROI'] = np.repeat(rlab, len(dfroi.index))
             dfrois = pd.concat([dfrois, dfroi], ignore_index=True)
 
-            # Per-ROI analyses (and posthocs written to TSVs)
+            # #### Per-ROI analyses (and posthocs written to TSVs) ####
             if n_rois in [4, 6, 10] and encoding_type == 'bothmod':
                 if folder_name == 'main_tasks':
-                    three_dir = os.path.join(anovas_dir, '3way-anova')
-                    threeway_rmanova(df_path, three_dir, tag, rlab)
 
-                    gt_dir = os.path.join(
-                        anovas_dir, '2way-anova_grouped-tasks'
-                    )
-                    twoway_rmanova_gtasks(df_path, gt_dir, tag, rlab)
-
-                    t2_dir = os.path.join(anovas_dir, '2way-anova_task')
-                    twoway_rmanova_task(
-                        df_path, tasks, t2_dir, tag, rlab
-                    )
-
+                    # ######### One-way ANOVA #########
                     ow_dir = os.path.join(anovas_dir, '1way-anova')
                     if encoding_type == 'bothmod':
-                        oneway_rmanova(
+                        oneway_rm_cat(
                             df_path, tasks, ow_dir, tag, rlab
                         )
                     elif encoding_type == 'auditory':
-                        oneway_rmanova(
+                        oneway_rm_cat(
                             df_path, tasks, ow_dir, tag, rlab,
                             modalities=('Auditory',)
                         )
                     else:
-                        oneway_rmanova(
+                        oneway_rm_cat(
                             df_path, tasks, ow_dir, tag, rlab,
                             modalities=('Visual',)
                         )
+                    
+                    # ######### Two-way ANOVA #########
+                    t2_dir = os.path.join(anovas_dir, '2way-anova_modcat')
+                    twoway_rm_modcat(
+                        df_path, tasks, t2_dir, tag, rlab
+                    )
+                    gt_dir = os.path.join(
+                        anovas_dir, '2way-anova_modcat_tasks-averaged'
+                    )
+                    twoway_rm_modcat_taskavg(df_path, gt_dir, tag, rlab)
+
+                    # ######### Three-way ANOVA #########
+                    three_dir = os.path.join(anovas_dir, 
+                                             '3way-anova_catmodtask')
+                    threeway_rm_catmodtask(df_path, three_dir, tag, rlab)
 
                 if folder_name in ('main_tasks', 'all_tasks'):
-                    tm_dir = os.path.join(anovas_dir, '2way-anova_taskxmod')
-                    twoway_rmanova_taskmod_perroi(
-                        df_path, tm_dir, tag, rlab
-                    )
+
+                    # ######### Two-way ANOVA #########
+                    tm_dir = os.path.join(anovas_dir, '2way-anova_modtask')
+                    twoway_rm_modtask(df_path, tm_dir, tag, rlab)
 
         # Save concatenated ROI dataframe
         df_dir = os.path.join(msdtb_dir, 'df_rois_volume')
@@ -2083,81 +1526,52 @@ if __name__ == '__main__':
 
             # both modalities
             cat_dir = os.path.join(
-                msdtb_dir, f"2way-anova_vol_cat{n_rois}rois"
+                msdtb_dir, f"2way-anova_vol_roicat_{n_rois}rois"
             )
-            twoway_rmanova_catroi(dfrois, tasks, cat_dir, tag, modality=None)
-            posthoc_catroi(
-                dfrois, tasks, cat_dir, tag, n_rois, roi_names, modality=None
-            )
+            twoway_rm_roicat(dfrois, tasks, cat_dir, tag, modality=None)
 
             # auditory
             cat_dir_a = os.path.join(
-                msdtb_dir, f"2way-anova_vol_cat{n_rois}rois_auditory"
+                msdtb_dir, f"2way-anova_vol_roicat_{n_rois}rois_auditory"
             )
-            twoway_rmanova_catroi(
+            twoway_rm_roicat(
                 dfrois, tasks, cat_dir_a, tag, modality='auditory'
-            )
-            posthoc_catroi(
-                dfrois, tasks, cat_dir_a, tag, n_rois, roi_names,
-                modality='auditory'
             )
 
             # visual
             cat_dir_v = os.path.join(
-                msdtb_dir, f"2way-anova_vol_cat{n_rois}rois_visual"
+                msdtb_dir, f"2way-anova_vol_roicat_{n_rois}rois_visual"
             )
-            twoway_rmanova_catroi(
+            twoway_rm_roicat(
                 dfrois, tasks, cat_dir_v, tag, modality='visual'
-            )
-            posthoc_catroi(
-                dfrois, tasks, cat_dir_v, tag, n_rois, roi_names,
-                modality='visual'
             )
 
             # timing-ROI (main_tasks only) + posthoc plots
             if folder_name == 'main_tasks':
                 t_dir = os.path.join(
-                    msdtb_dir, f"2way-anova_vol_timing{n_rois}rois"
+                    msdtb_dir, f"2way-anova_vol_roitask_{n_rois}rois"
                 )
-                twoway_rmanova_timingroi(
+                twoway_rm_roitask(
                     dfrois, t_dir, tag, modality=None
-                )
-                posthoc_timingroi(
-                    dfrois, t_dir, tag, n_rois, roi_names, 
-                    modality=None,
-                    # pvals_star_map=pvals_star_map_in8,
-                    ylim=(0., 1.)
                 )
 
                 t_dir_a = os.path.join(
                     msdtb_dir,
-                    f"2way-anova_vol_timing{n_rois}rois_auditory"
+                    f"2way-anova_vol_roitask_{n_rois}rois_auditory"
                 )
-                twoway_rmanova_timingroi(
+                twoway_rm_roitask(
                     dfrois, t_dir_a, tag, modality='auditory'
-                )
-                posthoc_timingroi(
-                    dfrois, t_dir_a, tag, n_rois, roi_names,
-                    modality='auditory',
-                    # pvals_star_map=pvals_star_map_in8_auditory,
-                    ylim=(0., 1.)
                 )
 
                 t_dir_v = os.path.join(
                     msdtb_dir,
-                    f"2way-anova_vol_timing{n_rois}rois_visual"
+                    f"2way-anova_vol_roitask_{n_rois}rois_visual"
                 )
-                twoway_rmanova_timingroi(
+                twoway_rm_roitask(
                     dfrois, t_dir_v, tag, modality='visual'
-                )
-                posthoc_timingroi(
-                    dfrois, t_dir_v, tag, n_rois, roi_names,
-                    modality='visual',
-                    # pvals_star_map=pvals_star_map_in8_visual,
-                    ylim=(-0.25, 1.)
                 )
 
                 t_three_dir = os.path.join(
-                    msdtb_dir, f"3way-anova_vol_timing{n_rois}rois"
+                    msdtb_dir, f"3way-anova_vol_roimodtask_{n_rois}rois"
                 )
-                threeway_rmanova_timing(dfrois, t_three_dir, tag)
+                threeway_rm_roimodtask(dfrois, t_three_dir, tag)
