@@ -524,10 +524,10 @@ contrast_type = 'wbmasked'  # or 'sm8wbmasked'
 # roi_names = ['pmd', 'pmv', 'sma', 'presma']
 
 # 2 ROIs
-atlas_dirnames = [fsl_dir, ntk_dir]
-atlas_names = ['hos', 'ntk_symmni128']
-region_names = ['dorsal_striatum', 'cerebellum']
-roi_names = ['dstr', 'cereb']
+atlas_dirnames = [ntk_dir, ntk_dir]
+atlas_names = ['ntk_symmni128', 'ntk_symmni128']
+region_names = ['cerebellum', 'cerebellum']
+roi_names = ['cereb-s', 'cereb-i']
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
