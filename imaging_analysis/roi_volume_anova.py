@@ -355,6 +355,26 @@ def _ng2_threeway_within(df: pd.DataFrame,
     return out
 
 
+def preprocess_rand_ntfd_nonrandom(df):
+    """Average Beat and Interval into Non-Random for rand_ntfd_pairs."""
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='	')
+
+    db = df.copy()
+    db['PSC'] = pd.to_numeric(db['PSC'], errors='coerce')
+
+    nonrandom = db['Category'].isin(['Beat', 'Interval'])
+    db.loc[nonrandom, 'Category'] = 'Non-Random'
+
+    group_cols = ['Subject', 'Modality', 'Category', 'Task', 'Hemisphere']
+    if 'ROI' in db.columns:
+        group_cols.append('ROI')
+
+    # db = db.groupby(group_cols, as_index=False).agg({'PSC': 'mean'})
+    db = db.groupby(group_cols, as_index=False).agg({'PSC': 'sum'})
+    return db
+
+
 # ================== ANOVAS FUNCTIONS PER ROI ======================= #
 
 def oneway_rm_cat(df, tasks_dic, out_dir, prefix, roi,
@@ -405,7 +425,8 @@ def twoway_rm_modcat(df, tasks_dic, out_dir, prefix, roi,
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
-    df = df.drop(columns=['Contrast'])
+    if 'Contrast' in df.columns:
+        df = df.drop(columns=['Contrast'])
     df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
     os.makedirs(out_dir, exist_ok=True)
 
@@ -1095,7 +1116,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'all_tasks'
+folder_name = 'rand_ntfd_pairs'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1500,7 +1521,7 @@ if __name__ == '__main__':
                     )
                     threeway_rm_catmodtask(df_path, three_dir, tag, rlab)
 
-                if folder_name in ('all_tasks', 'rand_ntfd_pairs', 
+                if folder_name in ('all_tasks', 'rand_ntfd_pairs',
                                    'rand_ntfd_nonrandom'):
 
                     # ######### Two-way ANOVA #########
@@ -1508,6 +1529,15 @@ if __name__ == '__main__':
                     twoway_rm_modcat(
                         df_path, tasks, t2_dir, tag, rlab
                     )
+
+                    if folder_name == 'rand_ntfd_pairs':
+                        df_t2 = preprocess_rand_ntfd_nonrandom(dfroi)
+                        t2_nr_dir = os.path.join(
+                            anovas_dir, '2way-anova_modcat_nonrandom'
+                        )
+                        twoway_rm_modcat(
+                            df_t2, tasks, t2_nr_dir, tag, rlab
+                        )
 
                 if folder_name in ('main_tasks', 'all_tasks'):
 
