@@ -565,29 +565,29 @@ def twoway_rm_modtask(
     for hem in hems:
         db = df[df.Hemisphere == hem].copy()
 
-        _assert_no_nan_psc(db, where=f"2w_taskxmod {roi} {hem}")
+        _assert_no_nan_psc(db, where=f"2w_modtask {roi} {hem}")
         _assert_unique_cells(
             db,
             ["Subject", "Task", "Modality", "Hemisphere"],
-            where=f"2w_taskxmod {roi} {hem}",
+            where=f"2w_modtask {roi} {hem}",
         )
         _assert_expected_levels(
             db,
             "Task",
             expected_tasks,
-            where=f"2w_taskxmod {roi} {hem}",
+            where=f"2w_modtask {roi} {hem}",
         )
         _assert_expected_levels(
             db,
             "Modality",
             ["Auditory", "Visual"],
-            where=f"2w_taskxmod {roi} {hem}",
+            where=f"2w_modtask {roi} {hem}",
         )
         _assert_complete_within(
             db,
             "Subject",
             ["Task", "Modality"],
-            where=f"2w_taskxmod {roi} {hem}",
+            where=f"2w_modtask {roi} {hem}",
         )
 
         anova = pg.rm_anova(
@@ -623,7 +623,7 @@ def twoway_rm_modtask(
 
         base = f"{prefix}_{roi}_{hem}_2w-"
         anova.to_csv(
-            os.path.join(out_dir, base + "modxtask_anova.tsv"),
+            os.path.join(out_dir, base + "modtask_anova.tsv"),
             sep="\t",
             index=False,
         )
@@ -633,7 +633,7 @@ def twoway_rm_modtask(
             index=False,
         )
         post2.to_csv(
-            os.path.join(out_dir, base + "taskmod_posthoc.tsv"),
+            os.path.join(out_dir, base + "modtask_posthoc.tsv"),
             sep="\t",
             index=False,
         )
@@ -1095,7 +1095,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'rand_ntfd_nonrandom'
+folder_name = 'all_tasks'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1464,7 +1464,7 @@ if __name__ == '__main__':
             dfrois = pd.concat([dfrois, dfroi], ignore_index=True)
 
             # #### Per-ROI analyses (and posthocs written to TSVs) ####
-            if n_rois in [4, 6, 8, 10] and encoding_type == 'bothmod':
+            if n_rois in [4, 6, 10] and encoding_type == 'bothmod':
                 if folder_name == 'main_tasks':
 
                     # ######### One-way ANOVA #########
@@ -1500,7 +1500,8 @@ if __name__ == '__main__':
                     )
                     threeway_rm_catmodtask(df_path, three_dir, tag, rlab)
 
-                if folder_name in ('all_tasks', 'rand_ntfd_nonrandom'):
+                if folder_name in ('all_tasks', 'rand_ntfd_pairs', 
+                                   'rand_ntfd_nonrandom'):
 
                     # ######### Two-way ANOVA #########
                     t2_dir = os.path.join(anovas_dir, '2way-anova_modcat')
