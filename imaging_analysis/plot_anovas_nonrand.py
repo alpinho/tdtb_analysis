@@ -4,7 +4,7 @@
 Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
-Created: April 2026
+Created: 15th of April 2026
 Last update: April 2026
 
 Compatibility: Python 3.10.14
@@ -337,7 +337,29 @@ def plot_psc_boxplots(
 
     height_ratios = [s["row_h"] for s in specs]
     fig_w = 4.6 * FIG_W_SCALE * figsize_scale
-    fig_h = (float(sum(height_ratios)) - 2.8) * figsize_scale
+
+    n_rows = len(specs)
+
+    # Match the effective vertical scaling of plot_anovas_all.py
+    ref_top = 0.965
+    ref_bottom = 0.11
+    ref_hspace = 0.75
+
+    cur_top = 0.992
+    cur_bottom = 0.04
+    cur_hspace = 0.18
+
+    ref_eff = (
+        (ref_top - ref_bottom) /
+        (1.0 + ref_hspace * (n_rows - 1) / n_rows)
+    )
+    cur_eff = (
+        (cur_top - cur_bottom) /
+        (1.0 + cur_hspace * (n_rows - 1) / n_rows)
+    )
+
+    height_scale = ref_eff / cur_eff
+    fig_h = float(sum(height_ratios)) * figsize_scale * height_scale
 
     fig, axes = plt.subplots(
         nrows=len(specs),
@@ -395,7 +417,7 @@ def plot_psc_boxplots(
             ax.set_xlabel(
                 MOD_LABEL[modality],
                 fontsize=AXIS_LABEL_FS,
-                labelpad=0.5,
+                labelpad=2.,
             )
 
             rkey = _roi_key(roi)
@@ -535,7 +557,7 @@ if __name__ == "__main__":
         figsize_scale=args.figscale,
         y_limits={
             "occipital": (-0.6, 2.2),
-            "dstr": (-0.6, 2.2),
+            "dstr": (-0.6, 1.0),
             "cereb": (-0.6, 2.2),
             "presma": (-0.2, 1.2),
             "sma": (-0.2, 1.2),
@@ -544,12 +566,12 @@ if __name__ == "__main__":
         },
         show_yaxis={
             "heschl": True,
-            "occipital": False,
+            "occipital": True,
             "dstr": True,
-            "cereb": False,
+            "cereb": True,
             "presma": True,
-            "sma": False,
-            "pmd": False,
-            "pmv": False,
+            "sma": True,
+            "pmd": True,
+            "pmv": True,
         },
     )
