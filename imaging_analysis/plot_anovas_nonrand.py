@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import List, Sequence
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 from matplotlib.ticker import FormatStrFormatter, MultipleLocator
 import numpy as np
 import pandas as pd
@@ -27,11 +28,10 @@ import pandas as pd
 
 TASK_NAME = "NTFD Random"
 CATEGORIES = ["Non-Random", "Random"]
-X_LABELS = ["Non-\nRand", "Rand"]
 MODALITY_BLOCKS = ["Pooled", "Auditory", "Visual"]
 
 MOD_LABEL = {
-    "Pooled": "Both Modalities",
+    "Pooled": "Both\nModalities",
     "Auditory": "Auditory",
     "Visual": "Visual",
 }
@@ -64,20 +64,19 @@ BOX_COLORS = {
 }
 
 YTICK_STEP = 0.20
-Y_FORMATTER = FormatStrFormatter("%.2f")
+Y_FORMATTER = FormatStrFormatter("%.1f")
 INCHES_PER_STEP = 0.68
 MIN_ROW_HEIGHT = 2.0
-FIG_W_SCALE = 0.62
-PAIR_POS = [1.0, 1.22]
-PAIR_XLIM = (0.88, 1.34)
+FIG_W_SCALE = 0.74
+PAIR_POS = [1.0, 1.16]
+PAIR_XLIM = (0.90, 1.26)
 BOX_WIDTH = 0.10
 
-XLABEL_FS = 12
-AXIS_LABEL_FS = 12
-YTICK_FS = 12
-ROI_TITLE_FS = 20
-SUPTITLE_FS = 12
-MOD_LABEL_PAD = 14
+TITLE_FS = 10
+LEGEND_FS = 9
+ROI_TITLE_FS = 14
+AXIS_LABEL_FS = 10
+YTICK_FS = 8
 
 
 # ============================ UTILITIES ============================ #
@@ -110,11 +109,14 @@ def _roi_key(name: str) -> str | None:
 
 
 def _resolve_roi(name: str, roi_values: Sequence[str]) -> str | None:
-    """Resolve short ROI name to dataframe ROI value."""
-    wanted = name.lower()
-    for roi in roi_values:
-        if _roi_key(str(roi)) == wanted:
-            return str(roi)
+    """Resolve canonical ROI name to a value present in dataframe."""
+    key = name.lower()
+    roi_map = {str(r).lower(): r for r in roi_values}
+    if key in roi_map:
+        return roi_map[key]
+    for k, v in roi_map.items():
+        if key in k:
+            return v
     return None
 
 
@@ -124,16 +126,13 @@ def bootstrap_median_ci(
     alpha: float = 0.05,
     rng: np.random.Generator | None = None,
 ) -> tuple[float, float]:
-    """Percentile bootstrap confidence interval for the median."""
+    """Percentile bootstrap CI for the median."""
     x = np.asarray(vals, dtype=float)
     x = x[np.isfinite(x)]
     n = x.size
-
-    if n == 0:
-        return (np.nan, np.nan)
     if n < 3:
-        med = float(np.median(x))
-        return (med, med)
+        med = float(np.median(x)) if n > 0 else np.nan
+        return med, med
 
     if rng is None:
         rng = np.random.default_rng()
@@ -142,7 +141,7 @@ def bootstrap_median_ci(
     meds = np.median(x[idx], axis=1)
     lo = float(np.quantile(meds, alpha / 2.0))
     hi = float(np.quantile(meds, 1.0 - alpha / 2.0))
-    return (lo, hi)
+    return lo, hi
 
 
 def bootstrap_conf_intervals(
@@ -151,86 +150,73 @@ def bootstrap_conf_intervals(
     alpha: float = 0.05,
     seed: int = 12345,
 ) -> np.ndarray:
-    """Return bootstrap median confidence intervals for boxplots."""
+    """Compute bootstrap median CI for each box."""
     rng = np.random.default_rng(seed)
     cis = []
     for vals in data:
-        cis.append(bootstrap_median_ci(vals, n_boot, alpha, rng))
+        lo, hi = bootstrap_median_ci(
+            vals=np.asarray(vals, dtype=float),
+            n_boot=n_boot,
+            alpha=alpha,
+            rng=rng,
+        )
+        cis.append((lo, hi))
     return np.asarray(cis, dtype=float)
 
 
+def _poly_xspan_at_y(patch, y: float) -> tuple[float, float] | None:
+    """Return x-span of box polygon at y in data coordinates."""
+    verts = patch.get_path().vertices
+    if verts.shape[0] < 3:
+        return None
+
+    xs = []
+    n = verts.shape[0]
+    for i in range(n):
+        x0, y0 = verts[i]
+        x1, y1 = verts[(i + 1) % n]
+        if (y0 <= y <= y1) or (y1 <= y <= y0):
+            dy = y1 - y0
+            if abs(dy) < 1e-12:
+                if abs(y - y0) < 1e-12:
+                    xs.extend([float(x0), float(x1)])
+                continue
+            t = (y - y0) / dy
+            xs.append(float(x0 + t * (x1 - x0)))
+
+    if len(xs) < 2:
+        return None
+    return min(xs), max(xs)
+
+
 def _subject_table(df: pd.DataFrame, roi: str, modality: str) -> pd.DataFrame:
-    """Return subject x category table for one ROI and modality block."""
-    cols = ["Subject", "PSC", "ROI", "Task", "Category", "Modality"]
+    """Return subject x category PSC table for one ROI and modality block."""
     sub = df.loc[
-        (df["ROI"] == roi)
-        & (df["Task"] == TASK_NAME)
-        & (df["Category"].isin(CATEGORIES)),
-        cols,
+        (df["ROI"] == roi) & (df["Task"] == TASK_NAME),
+        ["Subject", "Category", "Modality", "PSC"],
     ].copy()
 
     if modality != "Pooled":
         sub = sub[sub["Modality"] == modality]
 
-    sub = (
-        sub.groupby(["Subject", "Category"], sort=False)["PSC"]
-        .mean()
-        .unstack("Category")
+    if modality == "Pooled":
+        sub = (
+            sub.groupby(["Subject", "Category"], as_index=False)["PSC"]
+            .mean()
+        )
+
+    wide = sub.pivot_table(
+        index="Subject",
+        columns="Category",
+        values="PSC",
+        aggfunc="mean",
     )
-    sub = sub.dropna(subset=CATEGORIES, how="any")
-
-    if sub.empty:
-        return pd.DataFrame(columns=CATEGORIES)
-
-    return sub[CATEGORIES]
-
-
-def _box_y_limits(
-    df: pd.DataFrame,
-    roi: str,
-    y_limits: dict[str, tuple[float, float]] | None = None,
-) -> tuple[float, float, np.ndarray]:
-    """Return rounded y-limits and ticks for one ROI."""
-    rkey = _roi_key(roi)
-    if y_limits is not None and rkey in y_limits:
-        y0 = float(y_limits[rkey][0])
-        y1 = float(y_limits[rkey][1])
-        ticks = np.arange(y0, y1 + 0.5 * YTICK_STEP, YTICK_STEP)
-        if ticks.size < 2:
-            ticks = np.array([y0, y1])
-        return (y0, y1, ticks)
-
-    vals = df.loc[
-        (df["ROI"] == roi)
-        & (df["Task"] == TASK_NAME)
-        & (df["Category"].isin(CATEGORIES)),
-        "PSC",
-    ].to_numpy(dtype=float)
-    vals = vals[np.isfinite(vals)]
-
-    if vals.size == 0:
-        y0, y1 = (-0.2, 0.2)
-    else:
-        ymin = float(vals.min())
-        ymax = float(vals.max())
-        yrange = max(ymax - ymin, 0.1)
-        pad = 0.10 * yrange
-        y0 = ymin - pad
-        y1 = ymax + pad
-        y0 = min(y0, 0.0)
-        y1 = max(y1, 0.0)
-        eps = 1e-9
-        y0 = np.floor((y0 + eps) / YTICK_STEP) * YTICK_STEP
-        y1 = np.ceil((y1 - eps) / YTICK_STEP) * YTICK_STEP
-
-    ticks = np.arange(y0, y1 + 0.5 * YTICK_STEP, YTICK_STEP)
-    if ticks.size < 2:
-        ticks = np.array([y0, y1])
-    return (float(y0), float(y1), ticks)
+    wide = wide.dropna(subset=CATEGORIES, how="any")
+    return wide[CATEGORIES]
 
 
 def _draw_boxplot(ax: plt.Axes, data: List[np.ndarray]) -> None:
-    """Draw one Non-Random vs Random boxplot pair."""
+    """Draw boxplots with bootstrap notches and mean line."""
     conf_intervals = bootstrap_conf_intervals(data)
 
     bp = ax.boxplot(
@@ -241,29 +227,38 @@ def _draw_boxplot(ax: plt.Axes, data: List[np.ndarray]) -> None:
         patch_artist=True,
         showfliers=False,
         showmeans=False,
-        whis=1.5,
         medianprops={"linewidth": 0, "color": "none"},
+        whis=1.5,
         conf_intervals=conf_intervals,
     )
 
     for patch, cat in zip(bp["boxes"], CATEGORIES):
         patch.set_facecolor(BOX_COLORS[cat])
         patch.set_edgecolor("0.2")
+        patch.set_linewidth(0.8)
 
-    for vals, patch in zip(data, bp["boxes"]):
+    for key in ("whiskers", "caps"):
+        for artist in bp[key]:
+            artist.set_color("0.2")
+            artist.set_linewidth(0.8)
+
+    for patch, vals in zip(bp["boxes"], data):
         vals = np.asarray(vals, dtype=float)
         vals = vals[np.isfinite(vals)]
         if vals.size == 0:
             continue
         mean_val = float(np.mean(vals))
-        verts = patch.get_path().vertices
-        x_left = float(verts[:, 0].min())
-        x_right = float(verts[:, 0].max())
+        span = _poly_xspan_at_y(patch, mean_val)
+        if span is None:
+            x_left = float(patch.get_path().vertices[:, 0].min())
+            x_right = float(patch.get_path().vertices[:, 0].max())
+        else:
+            x_left, x_right = span
         ax.plot(
             [x_left, x_right],
             [mean_val, mean_val],
-            color="k",
-            lw=patch.get_linewidth(),
+            color="0.2",
+            lw=0.8,
             zorder=3,
             solid_capstyle="butt",
         )
@@ -279,35 +274,59 @@ def plot_psc_boxplots(
     y_limits: dict[str, tuple[float, float]] | None = None,
     show_yaxis: dict[str, bool] | None = None,
 ) -> None:
-    """Plot a single figure with pooled, auditory and visual panels."""
+    """Plot PSC boxplots by ROI and modality blocks."""
     outpath = Path(outpath)
     outpath.parent.mkdir(parents=True, exist_ok=True)
 
     df = df.copy()
     df = df[df["Hemisphere"] == "bh"].copy()
     df = df[df["Task"] == TASK_NAME].copy()
-    df = df[df["Category"].isin(CATEGORIES)].copy()
 
     roi_values = list(pd.unique(df["ROI"]))
-    rois = [_resolve_roi(roi, roi_values) for roi in ROI_ORDER]
+    rois = [_resolve_roi(r, roi_values) for r in ROI_ORDER]
 
-    roi_specs = []
+    specs = []
     for roi in rois:
         if roi is None:
-            roi_specs.append(
+            specs.append(
                 {
                     "roi": None,
-                    "y_lim": (-0.2, 0.2),
-                    "ticks": np.array([-0.2, 0.0, 0.2]),
+                    "y_lim": (0.0, 1.0),
+                    "ticks": np.array([0.0, 1.0]),
                     "row_h": MIN_ROW_HEIGHT,
                 }
             )
             continue
 
-        y0, y1, ticks = _box_y_limits(df, roi, y_limits=y_limits)
+        vals = []
+        for modality in MODALITY_BLOCKS:
+            paired = _subject_table(df, roi, modality)
+            for cat in CATEGORIES:
+                x = paired[cat].to_numpy(dtype=float)
+                x = x[np.isfinite(x)]
+                if x.size:
+                    vals.append(x)
+
+        if vals:
+            y_min = min(float(v.min()) for v in vals)
+            y_max = max(float(v.max()) for v in vals)
+        else:
+            y_min, y_max = 0.0, 1.0
+
+        rkey = _roi_key(roi)
+        explicit = None if y_limits is None else y_limits.get(rkey)
+        if explicit is not None:
+            y0, y1 = float(explicit[0]), float(explicit[1])
+        else:
+            pad = 0.08 * max(y_max - y_min, 0.1)
+            y0 = np.floor((min(y_min - pad, 0.0)) / YTICK_STEP) * YTICK_STEP
+            y1 = np.ceil((max(y_max + pad, 0.0)) / YTICK_STEP) * YTICK_STEP
+
+        ticks = np.arange(y0, y1 + 0.5 * YTICK_STEP, YTICK_STEP)
         n_steps = max(int(np.ceil((y1 - y0) / YTICK_STEP)), 1)
         row_h = max(MIN_ROW_HEIGHT, n_steps * INCHES_PER_STEP)
-        roi_specs.append(
+
+        specs.append(
             {
                 "roi": roi,
                 "y_lim": (y0, y1),
@@ -316,54 +335,45 @@ def plot_psc_boxplots(
             }
         )
 
-    width_ratios = [1.0, 0.10, 1.0, 0.10, 1.0]
-    fig_w = 5.4 * FIG_W_SCALE * figsize_scale
-    fig_h = float(sum(spec["row_h"] for spec in roi_specs)) * figsize_scale
+    height_ratios = [s["row_h"] for s in specs]
+    fig_w = 4.6 * FIG_W_SCALE * figsize_scale
+    fig_h = (float(sum(height_ratios)) - 2.8) * figsize_scale
 
     fig, axes = plt.subplots(
-        nrows=len(rois),
-        ncols=len(width_ratios),
+        nrows=len(specs),
+        ncols=len(MODALITY_BLOCKS),
         figsize=(fig_w, fig_h),
-        gridspec_kw={
-            "width_ratios": width_ratios,
-            "height_ratios": [spec["row_h"] for spec in roi_specs],
-        },
+        gridspec_kw={"height_ratios": height_ratios},
         sharex=False,
         sharey=False,
     )
 
-    if len(rois) == 1:
-        axes = np.expand_dims(axes, axis=0)
-
-    panel_cols = {"Pooled": 0, "Auditory": 2, "Visual": 4}
-    spacer_cols = [1, 3]
-
     fig.subplots_adjust(
-        top=0.968,
-        left=0.10,
+        left=0.11,
         right=0.98,
-        bottom=0.03,
-        hspace=1.05,
-        wspace=0.04,
+        top=0.992,
+        bottom=0.04,
+        hspace=0.18,
+        wspace=0.48,
     )
 
-    for r, spec in enumerate(roi_specs):
+    if len(specs) == 1:
+        axes = np.expand_dims(axes, axis=0)
+
+    for row, spec in enumerate(specs):
         roi = spec["roi"]
-        if roi is None:
-            for j in range(len(width_ratios)):
-                axes[r, j].axis("off")
-            continue
-
-        for j in spacer_cols:
-            axes[r, j].axis("off")
-
         row_axes = []
-        for modality, col in panel_cols.items():
-            ax = axes[r, col]
+
+        for col, modality in enumerate(MODALITY_BLOCKS):
+            ax = axes[row, col]
             row_axes.append(ax)
+
+            if roi is None:
+                ax.axis("off")
+                continue
+
             paired = _subject_table(df, roi, modality)
             data = [paired[cat].to_numpy(dtype=float) for cat in CATEGORIES]
-
             _draw_boxplot(ax, data)
 
             ax.axhline(
@@ -378,15 +388,14 @@ def plot_psc_boxplots(
             ax.yaxis.set_major_locator(MultipleLocator(YTICK_STEP))
             ax.yaxis.set_major_formatter(Y_FORMATTER)
             ax.set_yticks(spec["ticks"])
-            ax.set_xticks(PAIR_POS)
-            ax.set_xticklabels(X_LABELS, fontsize=XLABEL_FS)
+            ax.set_xticks([])
             ax.tick_params(axis="x", length=0)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
             ax.set_xlabel(
                 MOD_LABEL[modality],
                 fontsize=AXIS_LABEL_FS,
-                labelpad=MOD_LABEL_PAD,
+                labelpad=0.5,
             )
 
             rkey = _roi_key(roi)
@@ -394,28 +403,22 @@ def plot_psc_boxplots(
             if show_yaxis is not None:
                 display_axis = show_yaxis.get(rkey, True)
 
-            if col == 0:
+            if col == 0 and display_axis:
                 ax.set_ylabel("PSC (%)", fontsize=AXIS_LABEL_FS)
                 ax.tick_params(axis="y", labelsize=YTICK_FS)
             else:
                 ax.set_yticklabels([])
                 ax.tick_params(axis="y", left=False)
                 ax.spines["left"].set_visible(False)
-
-            if not display_axis:
-                ax.tick_params(axis="y", left=False, labelleft=False)
-                ax.set_yticklabels([])
-                ax.spines["left"].set_visible(False)
-                ax.set_ylabel("")
-                ax.yaxis.label.set_visible(False)
-                ax.yaxis.set_ticks_position("none")
+                if not display_axis:
+                    ax.set_ylabel("")
 
         left_ax = row_axes[0]
         right_ax = row_axes[-1]
         x_center = 0.5 * (
             left_ax.get_position().x0 + right_ax.get_position().x1
         )
-        y_top = max(ax.get_position().y1 for ax in row_axes) + 0.007
+        y_top = max(ax.get_position().y1 for ax in row_axes) + 0.0015
         fig.text(
             x_center,
             y_top,
@@ -426,12 +429,45 @@ def plot_psc_boxplots(
             fontweight="semibold",
         )
 
-    fig.suptitle(
+    top_axes = [axes[0, j] for j in range(len(MODALITY_BLOCKS))]
+    x_right = max(ax.get_position().x1 for ax in top_axes)
+    y_top_axes = max(ax.get_position().y1 for ax in top_axes)
+    x_leg = x_right
+    y_text = y_top_axes + 0.020
+    y_leg = y_top_axes + 0.015
+
+    fig.text(
+        x_right,
+        y_text,
         "95% bootstrap CI for the Median of PSC",
-        fontsize=SUPTITLE_FS,
-        y=0.992,
+        ha="right",
+        va="top",
+        fontsize=TITLE_FS,
+        color="k",
     )
-    fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.10)
+
+    handles = [
+        Patch(facecolor=BOX_COLORS["Non-Random"], edgecolor="0.2"),
+        Patch(facecolor=BOX_COLORS["Random"], edgecolor="0.2"),
+    ]
+    labels = ["Non-Random", "Random"]
+
+    fig.legend(
+        handles,
+        labels,
+        loc="upper right",
+        bbox_to_anchor=(x_leg, y_leg),
+        frameon=False,
+        fontsize=LEGEND_FS,
+        ncol=1,
+        handlelength=1.0,
+        handletextpad=0.35,
+        labelspacing=0.12,
+        borderaxespad=0.0,
+        columnspacing=0.0,
+    )
+
+    fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.06)
     plt.close(fig)
 
 
@@ -509,7 +545,7 @@ if __name__ == "__main__":
         show_yaxis={
             "heschl": True,
             "occipital": False,
-            "dstr": False,
+            "dstr": True,
             "cereb": False,
             "presma": True,
             "sma": False,
