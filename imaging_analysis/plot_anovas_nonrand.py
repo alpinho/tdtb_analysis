@@ -64,13 +64,20 @@ BOX_COLORS = {
 }
 
 YTICK_STEP = 0.20
-Y_FORMATTER = FormatStrFormatter("%.1f")
-INCHES_PER_STEP = 0.32
-MIN_ROW_HEIGHT = 1.55
-FIG_W_SCALE = 0.74
-PAIR_POS = [1.0, 1.18]
-PAIR_XLIM = (0.90, 1.28)
-BOX_WIDTH = 0.12
+Y_FORMATTER = FormatStrFormatter("%.2f")
+INCHES_PER_STEP = 0.68
+MIN_ROW_HEIGHT = 2.0
+FIG_W_SCALE = 0.62
+PAIR_POS = [1.0, 1.22]
+PAIR_XLIM = (0.88, 1.34)
+BOX_WIDTH = 0.10
+
+XLABEL_FS = 12
+AXIS_LABEL_FS = 12
+YTICK_FS = 12
+ROI_TITLE_FS = 20
+SUPTITLE_FS = 12
+MOD_LABEL_PAD = 14
 
 
 # ============================ UTILITIES ============================ #
@@ -102,7 +109,6 @@ def _roi_key(name: str) -> str | None:
     return None
 
 
-
 def _resolve_roi(name: str, roi_values: Sequence[str]) -> str | None:
     """Resolve short ROI name to dataframe ROI value."""
     wanted = name.lower()
@@ -110,7 +116,6 @@ def _resolve_roi(name: str, roi_values: Sequence[str]) -> str | None:
         if _roi_key(str(roi)) == wanted:
             return str(roi)
     return None
-
 
 
 def bootstrap_median_ci(
@@ -140,7 +145,6 @@ def bootstrap_median_ci(
     return (lo, hi)
 
 
-
 def bootstrap_conf_intervals(
     data: List[np.ndarray],
     n_boot: int = 5000,
@@ -153,7 +157,6 @@ def bootstrap_conf_intervals(
     for vals in data:
         cis.append(bootstrap_median_ci(vals, n_boot, alpha, rng))
     return np.asarray(cis, dtype=float)
-
 
 
 def _subject_table(df: pd.DataFrame, roi: str, modality: str) -> pd.DataFrame:
@@ -182,9 +185,21 @@ def _subject_table(df: pd.DataFrame, roi: str, modality: str) -> pd.DataFrame:
     return sub[CATEGORIES]
 
 
-
-def _box_y_limits(df: pd.DataFrame, roi: str) -> tuple[float, float, np.ndarray]:
+def _box_y_limits(
+    df: pd.DataFrame,
+    roi: str,
+    y_limits: dict[str, tuple[float, float]] | None = None,
+) -> tuple[float, float, np.ndarray]:
     """Return rounded y-limits and ticks for one ROI."""
+    rkey = _roi_key(roi)
+    if y_limits is not None and rkey in y_limits:
+        y0 = float(y_limits[rkey][0])
+        y1 = float(y_limits[rkey][1])
+        ticks = np.arange(y0, y1 + 0.5 * YTICK_STEP, YTICK_STEP)
+        if ticks.size < 2:
+            ticks = np.array([y0, y1])
+        return (y0, y1, ticks)
+
     vals = df.loc[
         (df["ROI"] == roi)
         & (df["Task"] == TASK_NAME)
@@ -212,7 +227,6 @@ def _box_y_limits(df: pd.DataFrame, roi: str) -> tuple[float, float, np.ndarray]
     if ticks.size < 2:
         ticks = np.array([y0, y1])
     return (float(y0), float(y1), ticks)
-
 
 
 def _draw_boxplot(ax: plt.Axes, data: List[np.ndarray]) -> None:
@@ -262,6 +276,8 @@ def plot_psc_boxplots(
     df: pd.DataFrame,
     outpath: str | Path,
     figsize_scale: float = 1.0,
+    y_limits: dict[str, tuple[float, float]] | None = None,
+    show_yaxis: dict[str, bool] | None = None,
 ) -> None:
     """Plot a single figure with pooled, auditory and visual panels."""
     outpath = Path(outpath)
@@ -288,7 +304,7 @@ def plot_psc_boxplots(
             )
             continue
 
-        y0, y1, ticks = _box_y_limits(df, roi)
+        y0, y1, ticks = _box_y_limits(df, roi, y_limits=y_limits)
         n_steps = max(int(np.ceil((y1 - y0) / YTICK_STEP)), 1)
         row_h = max(MIN_ROW_HEIGHT, n_steps * INCHES_PER_STEP)
         roi_specs.append(
@@ -323,11 +339,11 @@ def plot_psc_boxplots(
     spacer_cols = [1, 3]
 
     fig.subplots_adjust(
-        top=0.965,
+        top=0.968,
         left=0.10,
         right=0.98,
         bottom=0.03,
-        hspace=0.92,
+        hspace=1.05,
         wspace=0.04,
     )
 
@@ -363,19 +379,36 @@ def plot_psc_boxplots(
             ax.yaxis.set_major_formatter(Y_FORMATTER)
             ax.set_yticks(spec["ticks"])
             ax.set_xticks(PAIR_POS)
-            ax.set_xticklabels(X_LABELS, fontsize=9)
+            ax.set_xticklabels(X_LABELS, fontsize=XLABEL_FS)
             ax.tick_params(axis="x", length=0)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
-            ax.set_xlabel(MOD_LABEL[modality], fontsize=10, labelpad=10)
+            ax.set_xlabel(
+                MOD_LABEL[modality],
+                fontsize=AXIS_LABEL_FS,
+                labelpad=MOD_LABEL_PAD,
+            )
+
+            rkey = _roi_key(roi)
+            display_axis = True
+            if show_yaxis is not None:
+                display_axis = show_yaxis.get(rkey, True)
 
             if col == 0:
-                ax.set_ylabel("PSC (%)", fontsize=9)
-                ax.tick_params(axis="y", labelsize=8)
+                ax.set_ylabel("PSC (%)", fontsize=AXIS_LABEL_FS)
+                ax.tick_params(axis="y", labelsize=YTICK_FS)
             else:
                 ax.set_yticklabels([])
                 ax.tick_params(axis="y", left=False)
                 ax.spines["left"].set_visible(False)
+
+            if not display_axis:
+                ax.tick_params(axis="y", left=False, labelleft=False)
+                ax.set_yticklabels([])
+                ax.spines["left"].set_visible(False)
+                ax.set_ylabel("")
+                ax.yaxis.label.set_visible(False)
+                ax.yaxis.set_ticks_position("none")
 
         left_ax = row_axes[0]
         right_ax = row_axes[-1]
@@ -389,13 +422,13 @@ def plot_psc_boxplots(
             ROI_PRETTY[_roi_key(roi)],
             ha="center",
             va="bottom",
-            fontsize=14,
+            fontsize=ROI_TITLE_FS,
             fontweight="semibold",
         )
 
     fig.suptitle(
         "95% bootstrap CI for the Median of PSC",
-        fontsize=10,
+        fontsize=SUPTITLE_FS,
         y=0.992,
     )
     fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.10)
@@ -464,4 +497,23 @@ if __name__ == "__main__":
         df=df_in,
         outpath=OUTPUT_PATH,
         figsize_scale=args.figscale,
+        y_limits={
+            "occipital": (-0.6, 2.2),
+            "dstr": (-0.6, 2.2),
+            "cereb": (-0.6, 2.2),
+            "presma": (-0.2, 1.2),
+            "sma": (-0.2, 1.2),
+            "pmd": (-0.2, 1.2),
+            "pmv": (-0.2, 1.2),
+        },
+        show_yaxis={
+            "heschl": True,
+            "occipital": False,
+            "dstr": False,
+            "cereb": False,
+            "presma": True,
+            "sma": False,
+            "pmd": False,
+            "pmv": False,
+        },
     )
