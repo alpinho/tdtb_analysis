@@ -27,7 +27,7 @@ import pandas as pd
 
 TASK_NAME = "NTFD Random"
 CATEGORIES = ["Non-Random", "Random"]
-X_LABELS = ["Non-\nRandom", "Random"]
+X_LABELS = ["Non-\nRand", "Rand"]
 MODALITY_BLOCKS = ["Pooled", "Auditory", "Visual"]
 
 MOD_LABEL = {
