@@ -29,6 +29,7 @@ import pandas as pd
 TASK_NAME = "NTFD Random"
 CATEGORIES = ["Non-Random", "Random"]
 MODALITY_BLOCKS = ["Pooled", "Auditory", "Visual"]
+MODALITY_BLOCKS_SENSORY = ["Auditory", "Visual"]
 
 MOD_LABEL = {
     "Pooled": "Both\nModalities",
@@ -287,6 +288,7 @@ def plot_psc_boxplots(
     figsize_scale: float = 1.0,
     y_limits: dict[str, tuple[float, float]] | None = None,
     show_yaxis: dict[str, bool] | None = None,
+    modality_blocks: Sequence[str] = MODALITY_BLOCKS,
 ) -> None:
     """Plot PSC boxplots by ROI and modality blocks."""
     outpath = Path(outpath)
@@ -313,7 +315,7 @@ def plot_psc_boxplots(
             continue
 
         vals = []
-        for modality in MODALITY_BLOCKS:
+        for modality in modality_blocks:
             paired = _subject_table(df, roi, modality)
             for cat in CATEGORIES:
                 x = paired[cat].to_numpy(dtype=float)
@@ -351,6 +353,7 @@ def plot_psc_boxplots(
 
     height_ratios = [s["row_h"] for s in specs]
     fig_w = 4.6 * FIG_W_SCALE * figsize_scale
+    fig_w *= len(modality_blocks) / len(MODALITY_BLOCKS)
 
     n_rows = len(specs)
 
@@ -369,7 +372,7 @@ def plot_psc_boxplots(
 
     fig, axes = plt.subplots(
         nrows=len(specs),
-        ncols=len(MODALITY_BLOCKS),
+        ncols=len(modality_blocks),
         figsize=(fig_w, fig_h),
         gridspec_kw={"height_ratios": height_ratios},
         sharex=False,
@@ -387,12 +390,14 @@ def plot_psc_boxplots(
 
     if len(specs) == 1:
         axes = np.expand_dims(axes, axis=0)
+    if len(modality_blocks) == 1:
+        axes = np.expand_dims(axes, axis=1)
 
     for row, spec in enumerate(specs):
         roi = spec["roi"]
         row_axes = []
 
-        for col, modality in enumerate(MODALITY_BLOCKS):
+        for col, modality in enumerate(modality_blocks):
             ax = axes[row, col]
             row_axes.append(ax)
 
@@ -461,7 +466,7 @@ def plot_psc_boxplots(
             fontweight="semibold",
         )
 
-    top_axes = [axes[0, j] for j in range(len(MODALITY_BLOCKS))]
+    top_axes = [axes[0, j] for j in range(len(modality_blocks))]
     x_right = max(ax.get_position().x1 for ax in top_axes)
     y_top_axes = max(ax.get_position().y1 for ax in top_axes)
 
@@ -545,6 +550,11 @@ OUTPUT_PATH = os.path.join(
     "psc_boxplots_rand_ntfd_nonrandom.png",
 )
 
+OUTPUT_PATH_SENSORY = os.path.join(
+    OUTPUT_DIR,
+    "psc_boxplots_rand_ntfd_nonrandom_auditory_visual.png",
+)
+
 
 # ============================== RUN ================================ #
 
@@ -558,27 +568,41 @@ if __name__ == "__main__":
             {"NTFD_Random": TASK_NAME, "NTFD-Random": TASK_NAME}
         )
 
+    y_limits = {
+        "occipital": (-0.6, 2.2),
+        "dstr": (-0.6, 1.0),
+        "cereb": (-0.6, 2.2),
+        "presma": (-0.2, 1.2),
+        "sma": (-0.2, 1.2),
+        "pmd": (-0.2, 1.2),
+        "pmv": (-0.2, 1.2),
+    }
+
+    show_yaxis = {
+        "heschl": True,
+        "occipital": True,
+        "dstr": True,
+        "cereb": True,
+        "presma": True,
+        "sma": True,
+        "pmd": True,
+        "pmv": True,
+    }
+
     plot_psc_boxplots(
         df=df_in,
         outpath=OUTPUT_PATH,
         figsize_scale=args.figscale,
-        y_limits={
-            "occipital": (-0.6, 2.2),
-            "dstr": (-0.6, 1.0),
-            "cereb": (-0.6, 2.2),
-            "presma": (-0.2, 1.2),
-            "sma": (-0.2, 1.2),
-            "pmd": (-0.2, 1.2),
-            "pmv": (-0.2, 1.2),
-        },
-        show_yaxis={
-            "heschl": True,
-            "occipital": True,
-            "dstr": True,
-            "cereb": True,
-            "presma": True,
-            "sma": True,
-            "pmd": True,
-            "pmv": True,
-        },
+        y_limits=y_limits,
+        show_yaxis=show_yaxis,
+        modality_blocks=MODALITY_BLOCKS,
+    )
+
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=OUTPUT_PATH_SENSORY,
+        figsize_scale=args.figscale,
+        y_limits=y_limits,
+        show_yaxis=show_yaxis,
+        modality_blocks=MODALITY_BLOCKS_SENSORY,
     )
