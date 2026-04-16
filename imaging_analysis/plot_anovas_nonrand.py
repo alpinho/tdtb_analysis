@@ -33,6 +33,12 @@ MODALITY_BLOCKS_SENSORY = ["Auditory", "Visual"]
 
 MOD_LABEL = {
     "Pooled": "Both\nModalities",
+    "Auditory": "Auditory",
+    "Visual": "Visual",
+}
+
+MOD_LABEL_CENTERED = {
+    "Pooled": "Both\nModalities",
     "Auditory": "\nAuditory",
     "Visual": "\nVisual",
 }
@@ -289,6 +295,9 @@ def plot_psc_boxplots(
     y_limits: dict[str, tuple[float, float]] | None = None,
     show_yaxis: dict[str, bool] | None = None,
     modality_blocks: Sequence[str] = MODALITY_BLOCKS,
+    center_singleline_xlabels: bool = True,
+    xlabel_pad: float = 3.0,
+    xlabel_pad_centered: float = -1.5,
 ) -> None:
     """Plot PSC boxplots by ROI and modality blocks."""
     outpath = Path(outpath)
@@ -393,6 +402,8 @@ def plot_psc_boxplots(
     if len(modality_blocks) == 1:
         axes = np.expand_dims(axes, axis=1)
 
+    xlabel_map = MOD_LABEL_CENTERED if center_singleline_xlabels else MOD_LABEL
+
     for row, spec in enumerate(specs):
         roi = spec["roi"]
         row_axes = []
@@ -425,12 +436,13 @@ def plot_psc_boxplots(
             ax.tick_params(axis="x", length=0)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
-            pad = 3.0
-            if modality != "Pooled":
-                pad = -1.5  # move single-line labels upward
+
+            pad = xlabel_pad
+            if center_singleline_xlabels and modality != "Pooled":
+                pad = xlabel_pad_centered
 
             ax.set_xlabel(
-                MOD_LABEL[modality],
+                xlabel_map[modality],
                 fontsize=AXIS_LABEL_FS,
                 labelpad=pad,
             )
@@ -596,6 +608,9 @@ if __name__ == "__main__":
         y_limits=y_limits,
         show_yaxis=show_yaxis,
         modality_blocks=MODALITY_BLOCKS,
+        center_singleline_xlabels=True,
+        xlabel_pad=3.0,
+        xlabel_pad_centered=-1.5,
     )
 
     plot_psc_boxplots(
@@ -605,4 +620,7 @@ if __name__ == "__main__":
         y_limits=y_limits,
         show_yaxis=show_yaxis,
         modality_blocks=MODALITY_BLOCKS_SENSORY,
+        center_singleline_xlabels=False,
+        xlabel_pad=3.0,
+        xlabel_pad_centered=-1.5,
     )
