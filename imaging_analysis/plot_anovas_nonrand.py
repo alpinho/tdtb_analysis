@@ -15,9 +15,10 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from typing import List, Sequence
+from typing import Dict, List, Sequence, Tuple
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from matplotlib.ticker import FormatStrFormatter, MultipleLocator
 import numpy as np
@@ -103,6 +104,23 @@ REF_HSPACE = 0.75
 # ============================ UTILITIES ============================ #
 
 
+def pval_label_converter(pvalues: Sequence[float]) -> List[str]:
+    """Convert p-values to star labels."""
+    out: List[str] = []
+    for p in pvalues:
+        if p <= 0.0001:
+            out.append("****")
+        elif p <= 0.001:
+            out.append("***")
+        elif p <= 0.01:
+            out.append("**")
+        elif p <= 0.05:
+            out.append("*")
+        else:
+            out.append("ns")
+    return out
+
+
 def _roi_key(name: str) -> str | None:
     """Return canonical ROI key for matching."""
     tok = str(name).strip().lower()
@@ -127,6 +145,13 @@ def _roi_key(name: str) -> str | None:
     if "occip" in tok:
         return "occipital"
     return None
+
+
+def _matches_roi(resolved_roi: str, ann_roi: str) -> bool:
+    """Match annotation ROI to resolved ROI using canonical keys."""
+    k1 = _roi_key(resolved_roi)
+    k2 = _roi_key(ann_roi)
+    return (k1 is not None) and (k1 == k2)
 
 
 def _resolve_roi(name: str, roi_values: Sequence[str]) -> str | None:
@@ -236,6 +261,89 @@ def _subject_table(df: pd.DataFrame, roi: str, modality: str) -> pd.DataFrame:
     return wide[CATEGORIES]
 
 
+def _ydata_to_yfig(fig: plt.Figure, ax: plt.Axes, y_data: float) -> float:
+    """Convert y in axis data coords to figure fraction coords."""
+    x0 = float(np.mean(ax.get_xlim()))
+    x_disp, y_disp = ax.transData.transform((x0, y_data))
+    _, y_fig = fig.transFigure.inverted().transform((x_disp, y_disp))
+    return float(y_fig)
+
+
+def span_annotation_datay_figspan(
+    fig: plt.Figure,
+    ax_left: plt.Axes,
+    ax_right: plt.Axes,
+    text: str,
+    y_data: float,
+    h_data: float,
+    lw: float = 1.2,
+    fs: float = 14.0,
+) -> None:
+    """Draw a bracket spanning ax_left -> ax_right.
+
+    X uses figure coords. Y anchors to ax_left data coords.
+    """
+    if not getattr(fig, "_ann_canvas_drawn", False):
+        fig.canvas.draw()
+        fig._ann_canvas_drawn = True
+
+    b1 = ax_left.get_position()
+    b2 = ax_right.get_position()
+    x1 = b1.x0 + 0.5 * b1.width
+    x2 = b2.x0 + 0.5 * b2.width
+
+    y0 = _ydata_to_yfig(fig, ax_left, y_data)
+    y1 = _ydata_to_yfig(fig, ax_left, y_data + h_data)
+
+    fig.add_artist(
+        Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
+    )
+    fig.add_artist(
+        Line2D([x1, x2], [y1, y1], transform=fig.transFigure, lw=lw, c="k")
+    )
+    fig.add_artist(
+        Line2D([x2, x2], [y1, y0], transform=fig.transFigure, lw=lw, c="k")
+    )
+    fig.text(
+        (x1 + x2) / 2.0,
+        y1,
+        text,
+        ha="center",
+        va="bottom",
+        fontsize=fs,
+        color="k",
+    )
+
+
+def within_axis_annotation(
+    ax: plt.Axes,
+    x1: float,
+    x2: float,
+    text: str,
+    y_data: float,
+    h_data: float,
+    lw: float = 1.2,
+    fs: float = 14.0,
+) -> None:
+    """Draw a bracket within a single axis (data coords)."""
+    y0 = y_data
+    y1 = y_data + h_data
+
+    ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=True)
+    ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=True)
+    ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=True)
+    ax.text(
+        (x1 + x2) / 2.0,
+        y1,
+        text,
+        ha="center",
+        va="bottom",
+        fontsize=fs,
+        color="k",
+        clip_on=True,
+    )
+
+
 def _draw_boxplot(ax: plt.Axes, data: List[np.ndarray]) -> None:
     """Draw boxplots with bootstrap notches and mean line."""
     conf_intervals = bootstrap_conf_intervals(data)
@@ -310,6 +418,17 @@ def plot_psc_boxplots(
     roi_values = list(pd.unique(df["ROI"]))
     rois = [_resolve_roi(r, roi_values) for r in ROI_ORDER]
 
+    within_base_frac = 0.02
+    within_step_frac = 0.07
+    within_h_frac = 0.02
+    within_headroom_frac = 0.012
+
+    cross_gap_frac = 0.11
+    cross_base_frac = 0.04
+    cross_step_frac = 0.09
+    cross_h_frac = 0.03
+    cross_headroom_frac = 0.03
+
     specs = []
     for roi in rois:
         if roi is None:
@@ -319,9 +438,35 @@ def plot_psc_boxplots(
                     "y_lim": (0.0, 1.0),
                     "ticks": np.array([0.0, 1.0]),
                     "row_h": MIN_ROW_HEIGHT,
+                    "eligible_within_by_mod": {},
+                    "eligible_cross": [],
+                    "y_max_data": 1.0,
+                    "pad": 0.0,
+                    "yr": 1.0,
                 }
             )
             continue
+
+        eligible_within_by_mod: Dict[str, List[dict]] = {
+            m: [] for m in modality_blocks
+        }
+        for ann in WITHIN_ANNOTATIONS:
+            if not _matches_roi(roi, ann.get("roi", "")):
+                continue
+            m = str(ann.get("modality", ""))
+            if m in eligible_within_by_mod:
+                eligible_within_by_mod[m].append(ann)
+
+        for m in eligible_within_by_mod:
+            eligible_within_by_mod[m].sort(key=lambda a: float(a["pvalue"]))
+
+        eligible_cross: List[dict] = []
+        if ("Auditory" in modality_blocks) and ("Visual" in modality_blocks):
+            for ann in CROSS_AV_ANNOTATIONS:
+                if not _matches_roi(roi, ann.get("roi", "")):
+                    continue
+                eligible_cross.append(dict(ann))
+            eligible_cross.sort(key=lambda a: float(a["pvalue"]))
 
         vals = []
         for modality in modality_blocks:
@@ -338,14 +483,43 @@ def plot_psc_boxplots(
         else:
             y_min, y_max = 0.0, 1.0
 
+        yr = max(y_max - y_min, 0.1)
+        pad = 0.08 * max(y_max - y_min, 0.1)
+
+        max_stack_within = max(
+            (len(v) for v in eligible_within_by_mod.values()),
+            default=0,
+        )
+        top_needed_within = 0.0
+        if max_stack_within > 0:
+            top_needed_within = (
+                within_base_frac
+                + (max_stack_within - 1) * within_step_frac
+                + within_h_frac
+                + within_headroom_frac
+            )
+
+        top_needed_cross = 0.0
+        if eligible_cross:
+            top_needed_cross = (
+                cross_gap_frac
+                + cross_base_frac
+                + (len(eligible_cross) - 1) * cross_step_frac
+                + cross_h_frac
+                + cross_headroom_frac
+            )
+
+        top_extra = max(top_needed_within, top_needed_cross) * yr
+
         rkey = _roi_key(roi)
         explicit = None if y_limits is None else y_limits.get(rkey)
         if explicit is not None:
             y0, y1 = float(explicit[0]), float(explicit[1])
         else:
-            pad = 0.08 * max(y_max - y_min, 0.1)
-            y0 = np.floor((min(y_min - pad, 0.0)) / YTICK_STEP) * YTICK_STEP
-            y1 = np.ceil((max(y_max + pad, 0.0)) / YTICK_STEP) * YTICK_STEP
+            y0_raw = min(y_min - pad, 0.0)
+            y1_raw = max(y_max + pad + top_extra, 0.0)
+            y0 = np.floor(y0_raw / YTICK_STEP) * YTICK_STEP
+            y1 = np.ceil(y1_raw / YTICK_STEP) * YTICK_STEP
 
         ticks = np.arange(y0, y1 + 0.5 * YTICK_STEP, YTICK_STEP)
         n_steps = max(int(np.ceil((y1 - y0) / YTICK_STEP)), 1)
@@ -357,6 +531,18 @@ def plot_psc_boxplots(
                 "y_lim": (y0, y1),
                 "ticks": ticks,
                 "row_h": row_h,
+                "eligible_within_by_mod": eligible_within_by_mod,
+                "eligible_cross": eligible_cross,
+                "y_max_data": y_max,
+                "pad": pad,
+                "yr": yr,
+                "within_base_frac": within_base_frac,
+                "within_step_frac": within_step_frac,
+                "within_h_frac": within_h_frac,
+                "cross_gap_frac": cross_gap_frac,
+                "cross_base_frac": cross_base_frac,
+                "cross_step_frac": cross_step_frac,
+                "cross_h_frac": cross_h_frac,
             }
         )
 
@@ -407,10 +593,12 @@ def plot_psc_boxplots(
     for row, spec in enumerate(specs):
         roi = spec["roi"]
         row_axes = []
+        ax_lookup: Dict[str, plt.Axes] = {}
 
         for col, modality in enumerate(modality_blocks):
             ax = axes[row, col]
             row_axes.append(ax)
+            ax_lookup[modality] = ax
 
             if roi is None:
                 ax.axis("off")
@@ -462,6 +650,30 @@ def plot_psc_boxplots(
                 if not display_axis:
                     ax.set_ylabel("")
 
+            within_anns = spec["eligible_within_by_mod"].get(modality, [])
+            if within_anns:
+                x1 = float(PAIR_POS[0])
+                x2 = float(PAIR_POS[1])
+                for level, ann in enumerate(within_anns):
+                    text = pval_label_converter([float(ann["pvalue"])])[0]
+                    y_data = (
+                        spec["y_max_data"]
+                        + spec["pad"]
+                        + (
+                            spec["within_base_frac"]
+                            + level * spec["within_step_frac"]
+                        ) * spec["yr"]
+                    )
+                    h_data = spec["within_h_frac"] * spec["yr"]
+                    within_axis_annotation(
+                        ax=ax,
+                        x1=x1,
+                        x2=x2,
+                        text=text,
+                        y_data=y_data,
+                        h_data=h_data,
+                    )
+
         left_ax = row_axes[0]
         right_ax = row_axes[-1]
         x_center = 0.5 * (
@@ -477,6 +689,35 @@ def plot_psc_boxplots(
             fontsize=ROI_TITLE_FS,
             fontweight="semibold",
         )
+
+        if (
+            roi is not None
+            and ("Auditory" in ax_lookup)
+            and ("Visual" in ax_lookup)
+            and spec["eligible_cross"]
+        ):
+            ax_aud = ax_lookup["Auditory"]
+            ax_vis = ax_lookup["Visual"]
+            for level, ann in enumerate(spec["eligible_cross"]):
+                text = pval_label_converter([float(ann["pvalue"])])[0]
+                y_data = (
+                    spec["y_max_data"]
+                    + spec["pad"]
+                    + (
+                        spec["cross_gap_frac"]
+                        + spec["cross_base_frac"]
+                        + level * spec["cross_step_frac"]
+                    ) * spec["yr"]
+                )
+                h_data = spec["cross_h_frac"] * spec["yr"]
+                span_annotation_datay_figspan(
+                    fig,
+                    ax_left=ax_aud,
+                    ax_right=ax_vis,
+                    text=text,
+                    y_data=y_data,
+                    h_data=h_data,
+                )
 
     top_axes = [axes[0, j] for j in range(len(modality_blocks))]
     x_right = max(ax.get_position().x1 for ax in top_axes)
@@ -568,6 +809,56 @@ OUTPUT_PATH_SENSORY = os.path.join(
 )
 
 
+# ============= WITHIN-SUBPLOT ANNOTATIONS ========================= #
+
+WITHIN_ANNOTATIONS: List[dict] = [
+    dict(
+        roi="cerebellum",
+        modality="Pooled",
+        pvalue=0.0000210418857266061,
+    ),
+    dict(
+        roi="presma",
+        modality="Pooled",
+        pvalue=0.0000156873056962545,
+    ),
+    dict(
+        roi="sma",
+        modality="Pooled",
+        pvalue=0.00000000670842733504835,
+    ),
+    dict(
+        roi="pmd",
+        modality="Pooled",
+        pvalue=0.000000257147159216042,
+    ),
+    dict(
+        roi="pmv",
+        modality="Pooled",
+        pvalue=0.0000794646286807802,
+    ),
+    dict(
+        roi="heschl",
+        modality="Auditory",
+        pvalue=0.0000000559303322907296,
+    ),
+    dict(
+        roi="occipital",
+        modality="Visual",
+        pvalue=0.00000146503323769873,
+    ),
+]
+
+# =================== CROSS-MODALITY (AUDIO ↔ VISUAL) ============== #
+
+CROSS_AV_ANNOTATIONS: List[dict] = [
+    # dict(
+    #     roi="heschl",
+    #     pvalue=0.0008,
+    # ),
+]
+
+
 # ============================== RUN ================================ #
 
 if __name__ == "__main__":
@@ -581,14 +872,14 @@ if __name__ == "__main__":
         )
 
     y_limits = {
-        "heschl": (-0.8, 3.2),
-        "occipital": (-0.8, 1.8),
+        "heschl": (-0.8, 3.6),
+        "occipital": (-0.8, 3.6),
         "dstr": (-0.6, 1.0),
-        "cereb": (-0.6, 1.2),
-        "presma": (-0.4, 1.6),
-        "sma": (-0.6, 1.8),
-        "pmd": (-0.6, 2.2),
-        "pmv": (-0.2, 1.2),
+        "cereb": (-0.6, 1.6),
+        "presma": (-0.4, 1.8),
+        "sma": (-0.4, 2.0),
+        "pmd": (-0.6, 2.4),
+        "pmv": (-0.2, 1.6),
     }
 
     show_yaxis = {
