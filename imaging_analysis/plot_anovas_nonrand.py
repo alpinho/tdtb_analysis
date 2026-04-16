@@ -72,11 +72,25 @@ PAIR_POS = [1.0, 1.16]
 PAIR_XLIM = (0.90, 1.26)
 BOX_WIDTH = 0.10
 
-TITLE_FS = 10
-LEGEND_FS = 9
-ROI_TITLE_FS = 14
-AXIS_LABEL_FS = 10
-YTICK_FS = 8
+# Match plot_anovas_all.py more closely.
+TITLE_FS = 14
+LEGEND_FS = 12
+ROI_TITLE_FS = 20
+AXIS_LABEL_FS = 12
+YTICK_FS = 12
+
+# Current layout params for this figure.
+LEFT_MARGIN = 0.13
+RIGHT_MARGIN = 0.98
+TOP_MARGIN = 0.992
+BOTTOM_MARGIN = 0.04
+HSPACE = 0.40
+WSPACE = 0.48
+
+# Reference layout params from plot_anovas_all.py for y-step scaling.
+REF_TOP = 0.965
+REF_BOTTOM = 0.11
+REF_HSPACE = 0.75
 
 
 # ============================ UTILITIES ============================ #
@@ -340,22 +354,14 @@ def plot_psc_boxplots(
 
     n_rows = len(specs)
 
-    # Match the effective vertical scaling of plot_anovas_all.py
-    ref_top = 0.965
-    ref_bottom = 0.11
-    ref_hspace = 0.75
-
-    cur_top = 0.992
-    cur_bottom = 0.04
-    cur_hspace = 0.18
-
+    # Match the effective vertical scaling of plot_anovas_all.py.
     ref_eff = (
-        (ref_top - ref_bottom) /
-        (1.0 + ref_hspace * (n_rows - 1) / n_rows)
+        (REF_TOP - REF_BOTTOM) /
+        (1.0 + REF_HSPACE * (n_rows - 1) / n_rows)
     )
     cur_eff = (
-        (cur_top - cur_bottom) /
-        (1.0 + cur_hspace * (n_rows - 1) / n_rows)
+        (TOP_MARGIN - BOTTOM_MARGIN) /
+        (1.0 + HSPACE * (n_rows - 1) / n_rows)
     )
 
     height_scale = ref_eff / cur_eff
@@ -371,12 +377,12 @@ def plot_psc_boxplots(
     )
 
     fig.subplots_adjust(
-        left=0.11,
-        right=0.98,
-        top=0.992,
-        bottom=0.04,
-        hspace=0.18,
-        wspace=0.48,
+        left=LEFT_MARGIN,
+        right=RIGHT_MARGIN,
+        top=TOP_MARGIN,
+        bottom=BOTTOM_MARGIN,
+        hspace=HSPACE,
+        wspace=WSPACE,
     )
 
     if len(specs) == 1:
@@ -417,7 +423,7 @@ def plot_psc_boxplots(
             ax.set_xlabel(
                 MOD_LABEL[modality],
                 fontsize=AXIS_LABEL_FS,
-                labelpad=2.,
+                labelpad=3.0,
             )
 
             rkey = _roi_key(roi)
@@ -440,7 +446,7 @@ def plot_psc_boxplots(
         x_center = 0.5 * (
             left_ax.get_position().x0 + right_ax.get_position().x1
         )
-        y_top = max(ax.get_position().y1 for ax in row_axes) + 0.0015
+        y_top = max(ax.get_position().y1 for ax in row_axes) + 0.0020
         fig.text(
             x_center,
             y_top,
@@ -454,13 +460,10 @@ def plot_psc_boxplots(
     top_axes = [axes[0, j] for j in range(len(MODALITY_BLOCKS))]
     x_right = max(ax.get_position().x1 for ax in top_axes)
     y_top_axes = max(ax.get_position().y1 for ax in top_axes)
-    x_leg = x_right
-    y_text = y_top_axes + 0.020
-    y_leg = y_top_axes + 0.015
 
     fig.text(
         x_right,
-        y_text,
+        y_top_axes + 0.055,
         "95% bootstrap CI for the Median of PSC",
         ha="right",
         va="top",
@@ -478,7 +481,7 @@ def plot_psc_boxplots(
         handles,
         labels,
         loc="upper right",
-        bbox_to_anchor=(x_leg, y_leg),
+        bbox_to_anchor=(x_right, y_top_axes + 0.036),
         frameon=False,
         fontsize=LEGEND_FS,
         ncol=1,
@@ -489,7 +492,7 @@ def plot_psc_boxplots(
         columnspacing=0.0,
     )
 
-    fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.06)
+    fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.08)
     plt.close(fig)
 
 
