@@ -32,8 +32,8 @@ MODALITY_BLOCKS = ["Pooled", "Auditory", "Visual"]
 
 MOD_LABEL = {
     "Pooled": "Both\nModalities",
-    "Auditory": "Auditory",
-    "Visual": "Visual",
+    "Auditory": "\nAuditory",
+    "Visual": "\nVisual",
 }
 
 ROI_ORDER = [
@@ -80,12 +80,12 @@ AXIS_LABEL_FS = 12
 YTICK_FS = 12
 
 # Current layout params for this figure.
-LEFT_MARGIN = 0.13
+LEFT_MARGIN = 0.05
 RIGHT_MARGIN = 0.98
 TOP_MARGIN = 0.992
 BOTTOM_MARGIN = 0.04
 HSPACE = 0.40
-WSPACE = 0.48
+WSPACE = 0.30
 
 # Reference layout params from plot_anovas_all.py for y-step scaling.
 REF_TOP = 0.965
@@ -420,10 +420,14 @@ def plot_psc_boxplots(
             ax.tick_params(axis="x", length=0)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
+            pad = 3.0
+            if modality != "Pooled":
+                pad = -1.5  # move single-line labels upward
+
             ax.set_xlabel(
                 MOD_LABEL[modality],
                 fontsize=AXIS_LABEL_FS,
-                labelpad=3.0,
+                labelpad=pad,
             )
 
             rkey = _roi_key(roi)
