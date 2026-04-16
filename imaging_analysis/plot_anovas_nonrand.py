@@ -66,8 +66,8 @@ ROI_PRETTY = {
 }
 
 BOX_COLORS = {
-    "Non-Random": "0.55",
-    "Random": "0.80",
+    "Non-Random": "#E1BE6A",
+    "Random": "#40B0A6",
 }
 
 YTICK_STEP = 0.20
@@ -581,12 +581,13 @@ if __name__ == "__main__":
         )
 
     y_limits = {
-        "occipital": (-0.6, 2.2),
+        "heschl": (-0.8, 3.2),
+        "occipital": (-0.8, 1.8),
         "dstr": (-0.6, 1.0),
-        "cereb": (-0.6, 2.2),
-        "presma": (-0.2, 1.2),
-        "sma": (-0.2, 1.2),
-        "pmd": (-0.2, 1.2),
+        "cereb": (-0.6, 1.2),
+        "presma": (-0.4, 1.6),
+        "sma": (-0.6, 1.8),
+        "pmd": (-0.6, 2.2),
         "pmv": (-0.2, 1.2),
     }
 
