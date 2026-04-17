@@ -67,17 +67,17 @@ ROI_PRETTY = {
 }
 
 MODALITY_COLORS = {
+    "Pooled": {
+        "Non-Random": "#B07A5E",   # lighter brown
+        "Random": "#E6CFC3",
+    },
     "Auditory": {
-        "Non-Random": "#8C564B",
-        "Random": "#D7B5A6",
+        "Non-Random": "#7B8EDB",   # soft periwinkle (lighter than blue)
+        "Random": "#C9D2F3",
     },
     "Visual": {
-        "Non-Random": "#E7298A",
-        "Random": "#F4A3C4",
-    },
-    "Pooled": {
-        "Non-Random": "#882255",
-        "Random": "#D8AFC3",
+        "Non-Random": "#E7549E",   # lighter magenta
+        "Random": "#F7C6DC",
     },
 }
 
@@ -876,8 +876,18 @@ WITHIN_ANNOTATIONS: List[dict] = [
     ),
     dict(
         roi="heschl",
+        modality="Pooled",
+        pvalue=0.000031556368482059,
+    ),
+    dict(
+        roi="heschl",
         modality="Auditory",
         pvalue=0.0000000559303322907296,
+    ),
+    dict(
+        roi="occipital",
+        modality="Pooled",
+        pvalue=0.0000554500364608825,
     ),
     dict(
         roi="occipital",
