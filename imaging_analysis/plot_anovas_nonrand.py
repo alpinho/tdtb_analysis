@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from matplotlib.ticker import FormatStrFormatter, MultipleLocator
+from matplotlib.transforms import blended_transform_factory
 import numpy as np
 import pandas as pd
 
@@ -68,15 +69,15 @@ ROI_PRETTY = {
 
 MODALITY_COLORS = {
     "Pooled": {
-        "Non-Random": "#B07A5E",   # lighter brown
+        "Non-Random": "#B07A5E",
         "Random": "#E6CFC3",
     },
     "Auditory": {
-        "Non-Random": "#7B8EDB",   # soft periwinkle (lighter than blue)
+        "Non-Random": "#7B8EDB",
         "Random": "#C9D2F3",
     },
     "Visual": {
-        "Non-Random": "#E7549E",   # lighter magenta
+        "Non-Random": "#E7549E",
         "Random": "#F7C6DC",
     },
 }
@@ -109,6 +110,9 @@ WSPACE = 0.24
 REF_TOP = 0.965
 REF_BOTTOM = 0.11
 REF_HSPACE = 0.75
+
+# Default within-axis bracket geometry in axes coordinates.
+DEFAULT_WITHIN_BRACKET_H_AX = 0.025
 
 
 # ============================ UTILITIES ============================ #
@@ -330,29 +334,36 @@ def within_axis_annotation(
     x1: float,
     x2: float,
     text: str,
-    y_data: float,
-    h_data: float,
+    y_ax: float,
+    h_ax: float,
     lw: float = 1.2,
     fs: float = 14.0,
-    text_dy_frac: float = 0.0,
+    text_dy_ax: float = 0.0,
 ) -> None:
-    """Draw a bracket within a single axis (data coords).
+    """Draw a within-axis bracket.
 
-    Parameters
-    ----------
-    text_dy_frac : float
-        Manual vertical adjustment for the text position, expressed
-        as a fraction of the axis y-range. Positive moves text up,
-        negative moves it down.
+    X is in data coordinates.
+    Y is in axes coordinates.
     """
-    y0 = y_data
-    y1 = y_data + h_data
-    yspan = ax.get_ylim()[1] - ax.get_ylim()[0]
-    text_y = y1 + text_dy_frac * yspan
+    trans = blended_transform_factory(ax.transData, ax.transAxes)
 
-    ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=True)
-    ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=True)
-    ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=True)
+    y0 = y_ax
+    y1 = y_ax + h_ax
+    text_y = y1 + text_dy_ax
+
+    ax.plot(
+        [x1, x1], [y0, y1], lw=lw, c="k",
+        transform=trans, clip_on=False
+    )
+    ax.plot(
+        [x1, x2], [y1, y1], lw=lw, c="k",
+        transform=trans, clip_on=False
+    )
+    ax.plot(
+        [x2, x2], [y1, y0], lw=lw, c="k",
+        transform=trans, clip_on=False
+    )
+
     ax.text(
         (x1 + x2) / 2.0,
         text_y,
@@ -361,6 +372,7 @@ def within_axis_annotation(
         va="bottom",
         fontsize=fs,
         color="k",
+        transform=trans,
         clip_on=False,
     )
 
@@ -445,7 +457,6 @@ def plot_psc_boxplots(
 
     within_base_frac = 0.02
     within_step_frac = 0.07
-    within_h_frac = 0.02
     within_headroom_frac = 0.012
 
     cross_gap_frac = 0.11
@@ -520,7 +531,7 @@ def plot_psc_boxplots(
             top_needed_within = (
                 within_base_frac
                 + (max_stack_within - 1) * within_step_frac
-                + within_h_frac
+                + DEFAULT_WITHIN_BRACKET_H_AX
                 + within_headroom_frac
             )
 
@@ -563,7 +574,6 @@ def plot_psc_boxplots(
                 "yr": yr,
                 "within_base_frac": within_base_frac,
                 "within_step_frac": within_step_frac,
-                "within_h_frac": within_h_frac,
                 "cross_gap_frac": cross_gap_frac,
                 "cross_base_frac": cross_base_frac,
                 "cross_step_frac": cross_step_frac,
@@ -680,29 +690,30 @@ def plot_psc_boxplots(
                 x2 = float(PAIR_POS[1])
                 for level, ann in enumerate(within_anns):
                     text = pval_label_converter([float(ann["pvalue"])])[0]
-                    y_top = ax.get_ylim()[1]
-                    y_data = (
-                        y_top
-                        - (
-                            spec["within_h_frac"]
-                            + spec["within_base_frac"]
-                            + within_headroom_frac
-                            + level * spec["within_step_frac"]
-                        ) * spec["yr"]
-                    )
-                    h_data = spec["within_h_frac"] * spec["yr"]
 
                     ann_key = (ann["roi"], ann["modality"], level)
-                    text_dy_frac = WITHIN_TEXT_DY.get(ann_key, 0.0)
+                    h_ax = WITHIN_BRACKET_H_AX.get(
+                        ann_key,
+                        DEFAULT_WITHIN_BRACKET_H_AX,
+                    )
+
+                    y_ax = 1.0 - (
+                        h_ax
+                        + spec["within_base_frac"]
+                        + within_headroom_frac
+                        + level * spec["within_step_frac"]
+                    )
+
+                    text_dy_ax = WITHIN_TEXT_DY.get(ann_key, 0.0)
 
                     within_axis_annotation(
                         ax=ax,
                         x1=x1,
                         x2=x2,
                         text=text,
-                        y_data=y_data,
-                        h_data=h_data,
-                        text_dy_frac=text_dy_frac,
+                        y_ax=y_ax,
+                        h_ax=h_ax,
+                        text_dy_ax=text_dy_ax,
                     )
 
         left_ax = row_axes[0]
@@ -740,7 +751,7 @@ def plot_psc_boxplots(
                         + level * spec["cross_step_frac"]
                     ) * spec["yr"]
                 )
-                h_data = spec["cross_h_frac"] * spec["yr"]
+                h_data = cross_h_frac * spec["yr"]
                 span_annotation_datay_figspan(
                     fig,
                     ax_left=ax_aud,
@@ -948,6 +959,15 @@ WITHIN_ANNOTATIONS: List[dict] = [
 WITHIN_TEXT_DY: Dict[Tuple[str, str, int], float] = {
     # Example:
     # ("occipital", "Visual", 0): -0.01,
+}
+
+WITHIN_BRACKET_H_AX: Dict[Tuple[str, str, int], float] = {
+    ("pmd", "Pooled", 0): 0.020,
+    ("pmv", "Pooled", 0): 0.030,
+    ("heschl", "Pooled", 0): 0.012,
+    ("heschl", "Auditory", 0): 0.012,
+    ("occipital", "Pooled", 0): 0.018,
+    ("occipital", "Visual", 0): 0.018,
 }
 
 
