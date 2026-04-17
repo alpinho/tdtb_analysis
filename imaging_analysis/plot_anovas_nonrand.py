@@ -328,21 +328,19 @@ def within_axis_annotation(
     """Draw a bracket within a single axis (data coords)."""
     y0 = y_data
     y1 = y_data + h_data
-    yspan = ax.get_ylim()[1] - ax.get_ylim()[0]
-    text_y = y1 - 0.01 * yspan
 
     ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=True)
     ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=True)
     ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=True)
     ax.text(
         (x1 + x2) / 2.0,
-        text_y,
+        y1,
         text,
         ha="center",
-        va="top",
+        va="bottom",
         fontsize=fs,
         color="k",
-        clip_on=True,
+        clip_on=False,
     )
 
 
