@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -66,18 +66,28 @@ ROI_PRETTY = {
     "occipital": "Occipital Lobe",
 }
 
-BOX_COLORS = {
-    "Non-Random": "#E1BE6A",
-    "Random": "#40B0A6",
+MODALITY_COLORS = {
+    "Auditory": {
+        "Non-Random": "#8C564B",
+        "Random": "#D7B5A6",
+    },
+    "Visual": {
+        "Non-Random": "#E7298A",
+        "Random": "#F4A3C4",
+    },
+    "Pooled": {
+        "Non-Random": "#882255",
+        "Random": "#D8AFC3",
+    },
 }
 
 YTICK_STEP = 0.20
 Y_FORMATTER = FormatStrFormatter("%.1f")
 INCHES_PER_STEP = 0.68
 MIN_ROW_HEIGHT = 2.0
-FIG_W_SCALE = 0.74
-PAIR_POS = [1.0, 1.16]
-PAIR_XLIM = (0.93, 1.23)
+PAIR_POS = [1.03, 1.13]
+PAIR_XLIM = (0.955, 1.205)
+FIG_W_SCALE = 0.617
 BOX_WIDTH = 0.075
 
 # Match plot_anovas_all.py more closely.
@@ -324,17 +334,28 @@ def within_axis_annotation(
     h_data: float,
     lw: float = 1.2,
     fs: float = 14.0,
+    text_dy_frac: float = 0.0,
 ) -> None:
-    """Draw a bracket within a single axis (data coords)."""
+    """Draw a bracket within a single axis (data coords).
+
+    Parameters
+    ----------
+    text_dy_frac : float
+        Manual vertical adjustment for the text position, expressed
+        as a fraction of the axis y-range. Positive moves text up,
+        negative moves it down.
+    """
     y0 = y_data
     y1 = y_data + h_data
+    yspan = ax.get_ylim()[1] - ax.get_ylim()[0]
+    text_y = y1 + text_dy_frac * yspan
 
     ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=True)
     ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=True)
     ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=True)
     ax.text(
         (x1 + x2) / 2.0,
-        y1,
+        text_y,
         text,
         ha="center",
         va="bottom",
@@ -344,7 +365,11 @@ def within_axis_annotation(
     )
 
 
-def _draw_boxplot(ax: plt.Axes, data: List[np.ndarray]) -> None:
+def _draw_boxplot(
+    ax: plt.Axes,
+    data: List[np.ndarray],
+    modality: str,
+) -> None:
     """Draw boxplots with bootstrap notches and mean line."""
     conf_intervals = bootstrap_conf_intervals(data)
 
@@ -362,7 +387,7 @@ def _draw_boxplot(ax: plt.Axes, data: List[np.ndarray]) -> None:
     )
 
     for patch, cat in zip(bp["boxes"], CATEGORIES):
-        patch.set_facecolor(BOX_COLORS[cat])
+        patch.set_facecolor(MODALITY_COLORS[modality][cat])
         patch.set_edgecolor("0.2")
         patch.set_linewidth(0.8)
 
@@ -605,7 +630,7 @@ def plot_psc_boxplots(
 
             paired = _subject_table(df, roi, modality)
             data = [paired[cat].to_numpy(dtype=float) for cat in CATEGORIES]
-            _draw_boxplot(ax, data)
+            _draw_boxplot(ax, data, modality)
 
             ax.axhline(
                 0,
@@ -666,6 +691,10 @@ def plot_psc_boxplots(
                         ) * spec["yr"]
                     )
                     h_data = spec["within_h_frac"] * spec["yr"]
+
+                    ann_key = (ann["roi"], ann["modality"], level)
+                    text_dy_frac = WITHIN_TEXT_DY.get(ann_key, 0.0)
+
                     within_axis_annotation(
                         ax=ax,
                         x1=x1,
@@ -673,6 +702,7 @@ def plot_psc_boxplots(
                         text=text,
                         y_data=y_data,
                         h_data=h_data,
+                        text_dy_frac=text_dy_frac,
                     )
 
         left_ax = row_axes[0]
@@ -680,7 +710,7 @@ def plot_psc_boxplots(
         x_center = 0.5 * (
             left_ax.get_position().x0 + right_ax.get_position().x1
         )
-        y_top = max(ax.get_position().y1 for ax in row_axes) + 0.0060
+        y_top = max(ax.get_position().y1 for ax in row_axes) + 0.0020
         fig.text(
             x_center,
             y_top,
@@ -734,15 +764,21 @@ def plot_psc_boxplots(
         color="k",
     )
 
-    handles = [
-        Patch(facecolor=BOX_COLORS["Non-Random"], edgecolor="0.2"),
-        Patch(facecolor=BOX_COLORS["Random"], edgecolor="0.2"),
+    legend_handles = [
+        Patch(
+            facecolor=MODALITY_COLORS["Pooled"]["Non-Random"],
+            edgecolor="0.2",
+        ),
+        Patch(
+            facecolor=MODALITY_COLORS["Pooled"]["Random"],
+            edgecolor="0.2",
+        ),
     ]
-    labels = ["Non-Random", "Random"]
+    legend_labels = ["Non-Random", "Random"]
 
     fig.legend(
-        handles,
-        labels,
+        legend_handles,
+        legend_labels,
         loc="upper right",
         bbox_to_anchor=(x_right, y_top_axes + 0.036),
         frameon=False,
@@ -849,6 +885,12 @@ WITHIN_ANNOTATIONS: List[dict] = [
         pvalue=0.00000146503323769873,
     ),
 ]
+
+WITHIN_TEXT_DY: Dict[Tuple[str, str, int], float] = {
+    # Example:
+    # ("occipital", "Visual", 0): -0.01,
+}
+
 
 # =================== CROSS-MODALITY (AUDIO ↔ VISUAL) ============== #
 
