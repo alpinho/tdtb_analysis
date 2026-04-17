@@ -764,31 +764,80 @@ def plot_psc_boxplots(
         color="k",
     )
 
-    legend_handles = [
+    legend_modalities = list(modality_blocks)
+
+    nr_handles = [
         Patch(
-            facecolor=MODALITY_COLORS["Pooled"]["Non-Random"],
+            facecolor=MODALITY_COLORS[mod]["Non-Random"],
             edgecolor="0.2",
-        ),
-        Patch(
-            facecolor=MODALITY_COLORS["Pooled"]["Random"],
-            edgecolor="0.2",
-        ),
+        )
+        for mod in legend_modalities
     ]
-    legend_labels = ["Non-Random", "Random"]
+
+    rand_handles = [
+        Patch(
+            facecolor=MODALITY_COLORS[mod]["Random"],
+            edgecolor="0.2",
+        )
+        for mod in legend_modalities
+    ]
+
+    x_leg = x_right - 0.080
+    y_nr = y_top_axes + 0.038
+    row_gap = 0.004
+    y_rand = y_nr - row_gap
 
     fig.legend(
-        legend_handles,
-        legend_labels,
+        nr_handles,
+        [""] * len(nr_handles),
         loc="upper right",
-        bbox_to_anchor=(x_right, y_top_axes + 0.036),
+        bbox_to_anchor=(x_leg, y_nr),
+        ncol=len(nr_handles),
         frameon=False,
         fontsize=LEGEND_FS,
-        ncol=1,
-        handlelength=1.0,
-        handletextpad=0.35,
-        labelspacing=0.12,
+        handlelength=0.90,
+        handleheight=0.55,
+        columnspacing=0.27,
+        handletextpad=0.0,
         borderaxespad=0.0,
-        columnspacing=0.0,
+    )
+
+    fig.legend(
+        rand_handles,
+        [""] * len(rand_handles),
+        loc="upper right",
+        bbox_to_anchor=(x_leg, y_rand),
+        ncol=len(rand_handles),
+        frameon=False,
+        fontsize=LEGEND_FS,
+        handlelength=0.90,
+        handleheight=0.55,
+        columnspacing=0.27,
+        handletextpad=0.0,
+        borderaxespad=0.0,
+    )
+
+    label_x = x_right - 0.07
+    label_dy = 0.003
+
+    fig.text(
+        label_x,
+        y_nr - label_dy,
+        "Non-Random",
+        ha="left",
+        va="center",
+        fontsize=LEGEND_FS,
+        color="k",
+    )
+
+    fig.text(
+        label_x,
+        y_rand - label_dy,
+        "Random",
+        ha="left",
+        va="center",
+        fontsize=LEGEND_FS,
+        color="k",
     )
 
     fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.08)
