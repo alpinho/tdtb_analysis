@@ -680,7 +680,7 @@ def plot_psc_boxplots(
         x_center = 0.5 * (
             left_ax.get_position().x0 + right_ax.get_position().x1
         )
-        y_top = max(ax.get_position().y1 for ax in row_axes) + 0.0020
+        y_top = max(ax.get_position().y1 for ax in row_axes) + 0.0060
         fig.text(
             x_center,
             y_top,
