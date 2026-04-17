@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -77,8 +77,8 @@ INCHES_PER_STEP = 0.68
 MIN_ROW_HEIGHT = 2.0
 FIG_W_SCALE = 0.74
 PAIR_POS = [1.0, 1.16]
-PAIR_XLIM = (0.90, 1.26)
-BOX_WIDTH = 0.10
+PAIR_XLIM = (0.93, 1.23)
+BOX_WIDTH = 0.075
 
 # Match plot_anovas_all.py more closely.
 TITLE_FS = 14
@@ -93,7 +93,7 @@ RIGHT_MARGIN = 0.98
 TOP_MARGIN = 0.992
 BOTTOM_MARGIN = 0.04
 HSPACE = 0.40
-WSPACE = 0.30
+WSPACE = 0.24
 
 # Reference layout params from plot_anovas_all.py for y-step scaling.
 REF_TOP = 0.965
@@ -328,16 +328,18 @@ def within_axis_annotation(
     """Draw a bracket within a single axis (data coords)."""
     y0 = y_data
     y1 = y_data + h_data
+    yspan = ax.get_ylim()[1] - ax.get_ylim()[0]
+    text_y = y1 - 0.01 * yspan
 
     ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=True)
     ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=True)
     ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=True)
     ax.text(
         (x1 + x2) / 2.0,
-        y1,
+        text_y,
         text,
         ha="center",
-        va="bottom",
+        va="top",
         fontsize=fs,
         color="k",
         clip_on=True,
@@ -552,7 +554,6 @@ def plot_psc_boxplots(
 
     n_rows = len(specs)
 
-    # Match the effective vertical scaling of plot_anovas_all.py.
     ref_eff = (
         (REF_TOP - REF_BOTTOM) /
         (1.0 + REF_HSPACE * (n_rows - 1) / n_rows)
@@ -656,11 +657,13 @@ def plot_psc_boxplots(
                 x2 = float(PAIR_POS[1])
                 for level, ann in enumerate(within_anns):
                     text = pval_label_converter([float(ann["pvalue"])])[0]
+                    y_top = ax.get_ylim()[1]
                     y_data = (
-                        spec["y_max_data"]
-                        + spec["pad"]
-                        + (
-                            spec["within_base_frac"]
+                        y_top
+                        - (
+                            spec["within_h_frac"]
+                            + spec["within_base_frac"]
+                            + within_headroom_frac
                             + level * spec["within_step_frac"]
                         ) * spec["yr"]
                     )
@@ -873,7 +876,7 @@ if __name__ == "__main__":
 
     y_limits = {
         "heschl": (-0.8, 3.6),
-        "occipital": (-0.8, 3.6),
+        "occipital": (-0.8, 2.0),
         "dstr": (-0.6, 1.0),
         "cereb": (-0.6, 1.6),
         "presma": (-0.4, 1.8),
