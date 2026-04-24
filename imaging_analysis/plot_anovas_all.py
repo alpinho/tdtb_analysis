@@ -19,7 +19,6 @@ from typing import Dict, List, Sequence, Tuple
 
 import matplotlib.cbook as cbook
 import matplotlib.pyplot as plt
-from matplotlib.colors import to_rgb
 from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
@@ -493,53 +492,74 @@ def plot_psc_boxplots(
     n_rows = len(rois)
 
     # ------------------------ style params -------------------------
-    POOLED_BASE = ["steelblue", "darkturquoise", "aquamarine", "cyan"]
-    AUD_BASE = ["saddlebrown", "chocolate", "orange", "gold"]
-    VIS_BASE = ["rebeccapurple", "darkorchid", "violet", "pink"]
+    color_map = {
+        "Pooled": {
+            "Production": {
+                "Beat": "#12a3a3",
+                "Interval": "#8adcdc",
+            },
 
-    def _shades(base: list[str], n: int) -> list[tuple[float, float, float]]:
-        if n <= 0:
-            return []
-        return [to_rgb(base[i % len(base)]) for i in range(n)]
+            "Perception": {
+                "Beat": "#18c8de",
+                "Interval": "#c9f4fa",
+            },
 
-    def _lighten(
-        rgb: tuple[float, float, float],
-        amount: float = 0.78,
-    ) -> tuple[float, float, float]:
-        # Blend toward white by "amount" (0..1). Larger -> lighter.
-        r, g, b = rgb
-        return (
-            min(1.0, r + (1.0 - r) * amount),
-            min(1.0, g + (1.0 - g) * amount),
-            min(1.0, b + (1.0 - b) * amount),
-        )
+            "NTFD": {
+                "Beat": "#73c8a8",
+                "Interval": "#dcf5e8",
+            },
 
-    n_task_shades = len(tasks_per_block)
-    pooled_task_shades = _shades(POOLED_BASE, n_task_shades)
-    aud_task_shades = _shades(AUD_BASE, n_task_shades)
-    vis_task_shades = _shades(VIS_BASE, n_task_shades)
+            "NTFD Random": {
+                "Beat": "#93dfdf",
+                "Interval": "#eefafa",
+            },
+        },
 
-    task_shade_by_mod: dict[str, dict[str, tuple[float, float, float]]] = {
-        "Pooled": dict(zip(tasks_per_block, pooled_task_shades)),
-        "Auditory": dict(zip(tasks_per_block, aud_task_shades)),
-        "Visual": dict(zip(tasks_per_block, vis_task_shades)),
+        "Auditory": {
+            "Production": {
+                "Beat": "#d39c12",
+                "Interval": "#f2d37b",
+            },
+            "Perception": {
+                "Beat": "#e7b93a",
+                "Interval": "#f7e2a2",
+            },
+            "NTFD": {
+                "Beat": "#efd36c",
+                "Interval": "#fbefc6",
+            },
+            TASK_NTFD_RANDOM: {
+                "Beat": "#ddb13a",
+                "Interval": "#f5e6a8",
+            },
+        },
+
+        "Visual": {
+            "Production": {
+                "Beat": "#7e6ac6",
+                "Interval": "#c9c0ea",
+            },
+            "Perception": {
+                "Beat": "#a391d6",
+                "Interval": "#ddd6f2",
+            },
+            "NTFD": {
+                "Beat": "#c1b7e7",
+                "Interval": "#eeeaf8",
+            },
+            TASK_NTFD_RANDOM: {
+                "Beat": "#9180cf",
+                "Interval": "#d5cef0",
+            },
+        },
     }
 
-    def _cat_color(
-        mod: str,
-        task: str,
-        cat: str,
-    ) -> tuple[float, float, float]:
+    def _cat_color(mod: str, task: str, cat: str) -> str:
+        """Return explicit box color."""
         if cat == "Random":
-            return (0.70, 0.70, 0.70)
+            return "#bdbdbd"
 
-        base = task_shade_by_mod.get(mod, {}).get(task)
-        if base is None:
-            base = to_rgb("0.5")
-
-        if cat == "Beat":
-            return base
-        return _lighten(base)
+        return color_map.get(mod, {}).get(task, {}).get(cat, "#808080")
 
     box_alpha = 1.0
     whis = 1.5
@@ -2048,70 +2068,70 @@ if __name__ == "__main__":
     df_in = pd.concat([df_main, df_rand], ignore_index=True, axis=0)
 
     # 1) Original figures (no NTFD Random panels)
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=OUTPUT_PATH,
-        figsize_scale=args.figscale,
-        audivisual_only=False,
-        include_ntfd_random=False,
-        y_limits={
-            "occipital": (-0.6, 2.2),
-            "dstr": (-0.6, 2.2),
-            "cereb": (-0.6, 2.2),
-            "presma": (-0.2, 1.2),
-            "sma": (-0.2, 1.2),
-            "pmd": (-0.2, 1.2),
-            "pmv": (-0.2, 1.2),
-        },
-        show_yaxis={
-            "heschl": True,
-            "occipital": False,
-            "dstr": False,
-            "cereb": False,
-            "presma": True,
-            "sma": False,
-            "pmd": False,
-            "pmv": False,
-        },
-        row_gap=0.004,
-        tag_dx_beat=-0.056,
-    )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=OUTPUT_PATH,
+    #     figsize_scale=args.figscale,
+    #     audivisual_only=False,
+    #     include_ntfd_random=False,
+    #     y_limits={
+    #         "occipital": (-0.6, 2.2),
+    #         "dstr": (-0.6, 2.2),
+    #         "cereb": (-0.6, 2.2),
+    #         "presma": (-0.2, 1.2),
+    #         "sma": (-0.2, 1.2),
+    #         "pmd": (-0.2, 1.2),
+    #         "pmv": (-0.2, 1.2),
+    #     },
+    #     show_yaxis={
+    #         "heschl": True,
+    #         "occipital": False,
+    #         "dstr": False,
+    #         "cereb": False,
+    #         "presma": True,
+    #         "sma": False,
+    #         "pmd": False,
+    #         "pmv": False,
+    #     },
+    #     row_gap=0.004,
+    #     tag_dx_beat=-0.056,
+    # )
 
-    outpath_av = Path(OUTPUT_PATH)
-    outpath_av = outpath_av.with_name(
-        outpath_av.stem + "_audivisual_only" + outpath_av.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_av,
-        figsize_scale=args.figscale,
-        audivisual_only=True,
-        include_ntfd_random=False,
-        y_limits={
-            "occipital": (-0.6, 2.2),
-            "dstr": (-0.6, 2.2),
-            "cereb": (-0.6, 2.2),
-            "presma": (-0.2, 1.2),
-            "sma": (-0.2, 1.2),
-            "pmd": (-0.2, 1.2),
-            "pmv": (-0.2, 1.2),
-        },
-        show_yaxis={
-            "heschl": True,
-            "occipital": False,
-            "dstr": False,
-            "cereb": False,
-            "presma": True,
-            "sma": False,
-            "pmd": False,
-            "pmv": False,
-        },
-        x_leg_dx=-0.175,
-        tag_dx_beat=-0.035,
-        tag_dx_interval=0.05,
-        tag_dy=-0.00075,
-        row_gap=0.004,
-    )
+    # outpath_av = Path(OUTPUT_PATH)
+    # outpath_av = outpath_av.with_name(
+    #     outpath_av.stem + "_audivisual_only" + outpath_av.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_av,
+    #     figsize_scale=args.figscale,
+    #     audivisual_only=True,
+    #     include_ntfd_random=False,
+    #     y_limits={
+    #         "occipital": (-0.6, 2.2),
+    #         "dstr": (-0.6, 2.2),
+    #         "cereb": (-0.6, 2.2),
+    #         "presma": (-0.2, 1.2),
+    #         "sma": (-0.2, 1.2),
+    #         "pmd": (-0.2, 1.2),
+    #         "pmv": (-0.2, 1.2),
+    #     },
+    #     show_yaxis={
+    #         "heschl": True,
+    #         "occipital": False,
+    #         "dstr": False,
+    #         "cereb": False,
+    #         "presma": True,
+    #         "sma": False,
+    #         "pmd": False,
+    #         "pmv": False,
+    #     },
+    #     x_leg_dx=-0.175,
+    #     tag_dx_beat=-0.035,
+    #     tag_dx_interval=0.05,
+    #     tag_dy=-0.00075,
+    #     row_gap=0.004,
+    # )
 
     # 1b) Pooled-only figure (pooled modality block only)
     # outpath_pooled = Path(OUTPUT_PATH)
@@ -2129,18 +2149,18 @@ if __name__ == "__main__":
     #     tag_dy=-0.001,
     # )
 
-    # # 2) Extended figures (with NTFD Random panels)
-    # outpath_rand = Path(OUTPUT_PATH)
-    # outpath_rand = outpath_rand.with_name(
-    #     outpath_rand.stem + "_ntfd_random" + outpath_rand.suffix
-    # )
-    # plot_psc_boxplots(
-    #     df=df_in,
-    #     outpath=outpath_rand,
-    #     figsize_scale=args.figscale,
-    #     audivisual_only=False,
-    #     include_ntfd_random=True,
-    # )
+    # 2) Extended figures (with NTFD Random panels)
+    outpath_rand = Path(OUTPUT_PATH)
+    outpath_rand = outpath_rand.with_name(
+        outpath_rand.stem + "_ntfd_random" + outpath_rand.suffix
+    )
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=outpath_rand,
+        figsize_scale=args.figscale,
+        audivisual_only=False,
+        include_ntfd_random=True,
+    )
 
     # outpath_rand_av = Path(OUTPUT_PATH)
     # outpath_rand_av = outpath_rand_av.with_name(
