@@ -422,10 +422,10 @@ def plot_psc_boxplots(
     y_limits: dict[str, tuple[float, float]] | None = None,
     show_yaxis: dict[str, bool] | None = None,
     x_leg_dx: float = -0.15,
-    tag_dx_beat: float = -0.055,
-    tag_dx_interval: float = -0.001,
+    tag_dx_beat: float = -0.0885,
+    tag_dx_interval: float = -0.0515,
     tag_dy: float = -0.001,
-    row_gap: float = 0.006,
+    row_gap: float = 0.005,
 ) -> None:
     """Plot PSC boxplots by ROI and modality/task blocks."""
     outpath = Path(outpath)
@@ -1141,7 +1141,7 @@ def plot_psc_boxplots(
     elif audivisual_only:
         legend_mods = ["Auditory", "Visual"]
     else:
-        legend_mods = ["Auditory", "Visual", "Pooled"]
+        legend_mods = ["Pooled","Auditory", "Visual"]
 
     beat_colors: list[tuple[float, float, float]] = []
     interval_colors: list[tuple[float, float, float]] = []
@@ -2081,86 +2081,86 @@ if __name__ == "__main__":
     df_in = pd.concat([df_main, df_rand], ignore_index=True, axis=0)
 
     # 1) Original figures (no NTFD Random panels)
-    # plot_psc_boxplots(
-    #     df=df_in,
-    #     outpath=OUTPUT_PATH,
-    #     figsize_scale=args.figscale,
-    #     audivisual_only=False,
-    #     include_ntfd_random=False,
-    #     y_limits={
-    #         "occipital": (-0.6, 2.2),
-    #         "dstr": (-0.6, 2.2),
-    #         "cereb": (-0.6, 2.2),
-    #         "presma": (-0.2, 1.2),
-    #         "sma": (-0.2, 1.2),
-    #         "pmd": (-0.2, 1.2),
-    #         "pmv": (-0.2, 1.2),
-    #     },
-    #     show_yaxis={
-    #         "heschl": True,
-    #         "occipital": False,
-    #         "dstr": False,
-    #         "cereb": False,
-    #         "presma": True,
-    #         "sma": False,
-    #         "pmd": False,
-    #         "pmv": False,
-    #     },
-    #     row_gap=0.004,
-    #     tag_dx_beat=-0.056,
-    # )
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=OUTPUT_PATH,
+        figsize_scale=args.figscale,
+        audivisual_only=False,
+        include_ntfd_random=False,
+        y_limits={
+            "occipital": (-0.6, 2.2),
+            "dstr": (-0.6, 2.2),
+            "cereb": (-0.6, 2.2),
+            "presma": (-0.2, 1.2),
+            "sma": (-0.2, 1.2),
+            "pmd": (-0.2, 1.2),
+            "pmv": (-0.2, 1.2),
+        },
+        show_yaxis={
+            "heschl": True,
+            "occipital": False,
+            "dstr": False,
+            "cereb": False,
+            "presma": True,
+            "sma": False,
+            "pmd": False,
+            "pmv": False,
+        },
+        row_gap=0.004,
+        tag_dx_beat=-0.056,
+        tag_dx_interval=-0.001,
+    )
 
-    # outpath_av = Path(OUTPUT_PATH)
-    # outpath_av = outpath_av.with_name(
-    #     outpath_av.stem + "_audivisual_only" + outpath_av.suffix
-    # )
-    # plot_psc_boxplots(
-    #     df=df_in,
-    #     outpath=outpath_av,
-    #     figsize_scale=args.figscale,
-    #     audivisual_only=True,
-    #     include_ntfd_random=False,
-    #     y_limits={
-    #         "occipital": (-0.6, 2.2),
-    #         "dstr": (-0.6, 2.2),
-    #         "cereb": (-0.6, 2.2),
-    #         "presma": (-0.2, 1.2),
-    #         "sma": (-0.2, 1.2),
-    #         "pmd": (-0.2, 1.2),
-    #         "pmv": (-0.2, 1.2),
-    #     },
-    #     show_yaxis={
-    #         "heschl": True,
-    #         "occipital": False,
-    #         "dstr": False,
-    #         "cereb": False,
-    #         "presma": True,
-    #         "sma": False,
-    #         "pmd": False,
-    #         "pmv": False,
-    #     },
-    #     x_leg_dx=-0.175,
-    #     tag_dx_beat=-0.035,
-    #     tag_dx_interval=0.05,
-    #     tag_dy=-0.00075,
-    #     row_gap=0.004,
-    # )
+    outpath_av = Path(OUTPUT_PATH)
+    outpath_av = outpath_av.with_name(
+        outpath_av.stem + "_audivisual_only" + outpath_av.suffix
+    )
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=outpath_av,
+        figsize_scale=args.figscale,
+        audivisual_only=True,
+        include_ntfd_random=False,
+        y_limits={
+            "occipital": (-0.6, 2.2),
+            "dstr": (-0.6, 2.2),
+            "cereb": (-0.6, 2.2),
+            "presma": (-0.2, 1.2),
+            "sma": (-0.2, 1.2),
+            "pmd": (-0.2, 1.2),
+            "pmv": (-0.2, 1.2),
+        },
+        show_yaxis={
+            "heschl": True,
+            "occipital": False,
+            "dstr": False,
+            "cereb": False,
+            "presma": True,
+            "sma": False,
+            "pmd": False,
+            "pmv": False,
+        },
+        x_leg_dx=-0.175,
+        tag_dx_beat=-0.056,
+        tag_dx_interval=-0.001,
+        tag_dy=-0.00075,
+        row_gap=0.005,
+    )
 
     # 1b) Pooled-only figure (pooled modality block only)
-    # outpath_pooled = Path(OUTPUT_PATH)
-    # outpath_pooled = outpath_pooled.with_name(
-    #     outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
-    # )
-    # plot_psc_boxplots(
-    #     df=df_in,
-    #     outpath=outpath_pooled,
-    #     figsize_scale=args.figscale,
-    #     pooled_only=True,
-    #     include_ntfd_random=False,
-    #     x_leg_dx=-0.15,
-    #     tag_dx=0.055,
-    #     tag_dy=-0.001,
-    # )
+    outpath_pooled = Path(OUTPUT_PATH)
+    outpath_pooled = outpath_pooled.with_name(
+        outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
+    )
+    plot_psc_boxplots(
+        df=df_in,
+        outpath=outpath_pooled,
+        figsize_scale=args.figscale,
+        pooled_only=True,
+        include_ntfd_random=False,
+        x_leg_dx=-0.15,
+        tag_dy=-0.001,
+    )
 
     # 2) Extended figures (with NTFD Random panels)
     outpath_rand = Path(OUTPUT_PATH)
