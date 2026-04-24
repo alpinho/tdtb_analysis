@@ -517,20 +517,23 @@ def plot_psc_boxplots(
 
         "Auditory": {
             "Production": {
-                "Beat": "#d39c12",
-                "Interval": "#f2d37b",
+                "Beat": "#d49a00",
+                "Interval": "#f6d56f",
             },
+
             "Perception": {
-                "Beat": "#e7b93a",
-                "Interval": "#f7e2a2",
+                "Beat": "#ffbf00",
+                "Interval": "#fff08a",
             },
+
             "NTFD": {
-                "Beat": "#efd36c",
-                "Interval": "#fbefc6",
+                "Beat": "#aebf33",
+                "Interval": "#e4ef9f",
             },
-            TASK_NTFD_RANDOM: {
-                "Beat": "#ddb13a",
-                "Interval": "#f5e6a8",
+
+            "NTFD Random": {
+                "Beat": "#efe37a",
+                "Interval": "#fffbe2",
             },
         },
 
