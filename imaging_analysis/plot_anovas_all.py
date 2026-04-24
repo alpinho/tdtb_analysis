@@ -538,21 +538,27 @@ def plot_psc_boxplots(
         },
 
         "Visual": {
+
+            # Visual panel only
+
             "Production": {
-                "Beat": "#7e6ac6",
-                "Interval": "#c9c0ea",
+                "Beat": "#8682e7",
+                "Interval": "#c2cbf0",   # darker
             },
+
             "Perception": {
-                "Beat": "#a391d6",
-                "Interval": "#ddd6f2",
+                "Beat": "#b06ff1",
+                "Interval": "#d8b4f5",   # mid-light
             },
+
             "NTFD": {
-                "Beat": "#c1b7e7",
-                "Interval": "#eeeaf8",
+                "Beat": "#cb5fcf",
+                "Interval": "#f7baf5",   # lighter
             },
-            TASK_NTFD_RANDOM: {
-                "Beat": "#9180cf",
-                "Interval": "#d5cef0",
+
+            "NTFD Random": {
+                "Beat": "#cc9cc2",
+                "Interval": "#f2e2f8",
             },
         },
     }
