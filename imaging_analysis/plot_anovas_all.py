@@ -494,24 +494,28 @@ def plot_psc_boxplots(
     # ------------------------ style params -------------------------
     color_map = {
         "Pooled": {
+            # Turquoise panel adjusted lighter
+            # Beat slightly lighter for black mean-line visibility
+            # Intervals rebalanced accordingly
+
             "Production": {
-                "Beat": "#12a3a3",
-                "Interval": "#8adcdc",
+                "Beat": "#1ead9a",
+                "Interval": "#a6e5d3",
             },
 
             "Perception": {
-                "Beat": "#18c8de",
-                "Interval": "#c9f4fa",
+                "Beat": "#01e1e1",
+                "Interval": "#BBFCFA",
             },
 
             "NTFD": {
-                "Beat": "#73c8a8",
-                "Interval": "#dcf5e8",
+                "Beat": "#16ace7",
+                "Interval": "#91d2e1",
             },
 
             "NTFD Random": {
-                "Beat": "#93dfdf",
-                "Interval": "#eefafa",
+                "Beat": "#6fa9b6",
+                "Interval": "#cce1e4",
             },
         },
 
@@ -522,17 +526,17 @@ def plot_psc_boxplots(
             },
 
             "Perception": {
-                "Beat": "#ffbf00",
-                "Interval": "#fff08a",
+                "Beat": "#ffb300",
+                "Interval": "#fffb8a",
             },
 
             "NTFD": {
-                "Beat": "#aebf33",
-                "Interval": "#e4ef9f",
+                "Beat": "#bfba33",
+                "Interval": "#efec9f",
             },
 
             "NTFD Random": {
-                "Beat": "#efe37a",
+                "Beat": "#b5b18f",
                 "Interval": "#fffbe2",
             },
         },
