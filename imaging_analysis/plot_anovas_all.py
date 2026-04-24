@@ -556,8 +556,8 @@ def plot_psc_boxplots(
             },
 
             "NTFD": {
-                "Beat": "#cb5fcf",
-                "Interval": "#f7baf5",   # lighter
+                "Beat": "#d44ce6",
+                "Interval": "#fabaf5",   # lighter
             },
 
             "NTFD Random": {
