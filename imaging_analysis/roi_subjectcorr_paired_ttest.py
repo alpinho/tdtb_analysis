@@ -17,6 +17,9 @@ For the selected individualization X modality X hemisphere:
 - Summarize all pairs involving cerebellum or dorsal striatum.
 - For each cortical ROI, run a paired t-test comparing:
   target-cerebellum vs target-dstr subject-wise correlations.
+- Build a ROI X ROI matrix using mean subject-wise correlations.
+- Test each ROI-pair mean correlation against zero using either raw r
+  or Fisher-z transformed subject-wise correlations.
 - Write TSV outputs and simple summary plots.
 
 Author: Ana Luisa Pinho
@@ -31,6 +34,7 @@ Compatibility: Python 3.10+
 from __future__ import annotations
 
 import os
+from itertools import combinations
 from pathlib import Path
 from typing import Dict, List
 
@@ -40,7 +44,7 @@ import pandas as pd
 import pingouin as pg
 
 from matplotlib.colors import to_rgb
-from plot_anovas import bootstrap_conf_intervals, _poly_xspan_at_y
+from plot_anovas_all import bootstrap_conf_intervals, _poly_xspan_at_y
 
 
 # =========================== FUNCTIONS ============================= #
@@ -93,18 +97,33 @@ def p_to_stars(p_val: float) -> str:
     return ''
 
 
+def roi_display_labels(rois: List[str]) -> List[str]:
+    """
+    Return display labels for ROI matrix axes.
+    """
+    labels = []
+    for roi in rois:
+        label = ROI_LABELS.get(roi, roi)
+        label = label.replace('\n', ' ')
+        labels.append(label[:1].upper() + label[1:])
+    return labels
+
+
+def validate_matrix_test_scale(test_scale: str) -> None:
+    """
+    Validate matrix test scale.
+    """
+    allowed = ['fisher_z', 'raw_r']
+    if test_scale not in allowed:
+        raise ValueError(
+            "[ERROR] MATRIX_TEST_SCALE must be one of "
+            f"{allowed}, got '{test_scale}'."
+        )
+
+
 def load_df(indiv: str) -> pd.DataFrame:
     """
     Load and optionally merge per-individualization dataframes.
-
-    Sources
-    -------
-    - main_tasks/df_rois_volume (always)
-    - rand_ntfd_pairs/df_rois_volume (when USE_RAND)
-
-    Returns
-    -------
-    Non-empty dataframe filtered to allowed Tasks and Categories.
     """
     path_main = os.path.join(
         DF_DIR_MAIN, f"dfrois_{indiv}_{N_ROIS}-rois.tsv"
@@ -191,9 +210,6 @@ def wide_for_corr(
 ) -> pd.DataFrame:
     """
     Build Subject X Task X Category X Modality table for two ROIs.
-
-    This follows the same recipe as wide_for_rmcorr in the original
-    script.
     """
     if df.empty:
         raise ValueError("[ERROR] input dataframe to wide_for_corr is empty.")
@@ -425,6 +441,168 @@ def paired_tests_from_subject_corrs(
     return pd.DataFrame(rows)
 
 
+def test_subject_corrs_against_zero(
+    corrs: pd.DataFrame,
+    test_scale: str,
+) -> float:
+    """
+    Test subject-wise correlations against zero.
+    """
+    validate_matrix_test_scale(test_scale)
+
+    r_vals = corrs['r'].to_numpy(dtype=float)
+    r_vals = r_vals[np.isfinite(r_vals)]
+
+    if r_vals.size < 2:
+        return np.nan
+
+    if test_scale == 'fisher_z':
+        r_vals = np.clip(r_vals, -0.999999, 0.999999)
+        test_vals = np.arctanh(r_vals)
+    else:
+        test_vals = r_vals
+
+    res = pg.ttest(
+        test_vals,
+        y=0,
+        paired=False,
+        alternative='two-sided'
+    )
+    p_col = 'p-val' if 'p-val' in res.columns else 'p'
+    return float(res[p_col].iloc[0])
+
+
+def subjectcorr_matrix_stats(
+    df: pd.DataFrame,
+    rois: List[str],
+    hemi: str,
+    modality: str,
+    add_rest: bool = False,
+    alpha: float = 0.05,
+    test_scale: str = 'fisher_z',
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Build matrices for mean subject-wise r and uncorrected p-values.
+    """
+    validate_matrix_test_scale(test_scale)
+    rois_order = list(rois)
+
+    if len(rois_order) < 2:
+        raise ValueError("[ERROR] fewer than two ROIs available.")
+
+    if len(rois_order) != len(set(rois_order)):
+        raise ValueError("[ERROR] duplicate ROI keys in requested order.")
+
+    n_rois = len(rois_order)
+    mean_r = np.full((n_rois, n_rois), np.nan, dtype=float)
+    p_uncorr = np.full((n_rois, n_rois), np.nan, dtype=float)
+
+    for i in range(n_rois):
+        mean_r[i, i] = 1.0
+        p_uncorr[i, i] = 0.0
+
+    for i, j in combinations(range(n_rois), 2):
+        roi1 = rois_order[i]
+        roi2 = rois_order[j]
+
+        wide = wide_for_corr(
+            df,
+            hemi=hemi,
+            modality=modality,
+            roi1=roi1,
+            roi2=roi2,
+            add_rest=add_rest,
+        )
+
+        vec_lengths = wide.groupby('Subject').size()
+        print(
+            f"[MATRIX VECTOR LENGTH] {roi1}-{roi2} | "
+            f"{modality} | {hemi} | "
+            f"min={vec_lengths.min()} "
+            f"max={vec_lengths.max()} "
+            f"unique={sorted(vec_lengths.unique())}"
+        )
+
+        corr_df = compute_subject_corrs(wide, roi1, roi2)
+        r_val = float(corr_df['r'].mean())
+        p_val = test_subject_corrs_against_zero(
+            corr_df,
+            test_scale=test_scale,
+        )
+
+        mean_r[i, j] = mean_r[j, i] = r_val
+        p_uncorr[i, j] = p_uncorr[j, i] = p_val
+
+    r_mat = pd.DataFrame(mean_r, index=rois_order, columns=rois_order)
+    p_mat = pd.DataFrame(p_uncorr, index=rois_order, columns=rois_order)
+    sig_mat = (p_mat < alpha).astype(int)
+
+    if r_mat.isna().any(axis=None) or p_mat.isna().any(axis=None):
+        raise ValueError("[ERROR] NaNs found in matrix outputs.")
+
+    return r_mat, p_mat, sig_mat
+
+
+def plot_subjectcorr_matrix(
+    mat: pd.DataFrame,
+    p_mat: pd.DataFrame,
+    out_png: Path,
+    alpha_thr: float = 0.05,
+) -> None:
+    """
+    Plot mean subject-wise correlation matrix with p-value stars.
+    """
+    if mat.empty:
+        raise ValueError("[ERROR] empty matrix for plotting.")
+
+    rois = list(mat.index)
+    labels = roi_display_labels(rois)
+    n_rois = len(rois)
+    ticks = np.arange(n_rois)
+
+    fig, ax = plt.subplots(figsize=(6.2, 5.4))
+    im = ax.imshow(mat.values, vmin=-1.0, vmax=1.0, cmap='PRGn')
+
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=9)
+    ax.set_yticklabels(labels, fontsize=9)
+
+    ax.tick_params(
+        axis='x', bottom=True, top=False, labelbottom=True, labeltop=False
+    )
+    ax.tick_params(
+        axis='y', left=True, right=False, labelleft=True, labelright=False
+    )
+
+    fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
+    ax.set_title('Mean Subject-wise Correlation ($r_s$)', pad=10)
+
+    for i in range(n_rois):
+        for j in range(i + 1, n_rois):
+            p_val = p_mat.values[i, j]
+            if np.isfinite(p_val) and p_val < alpha_thr:
+                stars = p_to_stars(p_val)
+                if stars:
+                    ax.text(
+                        j,
+                        i - 0.25,
+                        stars,
+                        ha='center',
+                        va='center',
+                        fontsize=9,
+                        color='k',
+                        fontweight='bold',
+                    )
+
+    fig.subplots_adjust(left=0.28, bottom=0.22, right=0.94, top=0.92)
+
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    print(f"[SAVED] {out_png}")
+
+
 def plot_seed_vs_target_boxplots(
     all_corrs: pd.DataFrame,
     paired_df: pd.DataFrame,
@@ -438,13 +616,11 @@ def plot_seed_vs_target_boxplots(
     """
     Paired boxplots with bootstrap notches and mean lines.
     """
-    # Match spacing of 6-target reference figure
     base_targets = 6
     base_width = 6.4
     width_scale = len(targets) / base_targets
     fig_width = base_width * width_scale
 
-    # Keep constant pixels per y-unit across ylim choices
     base_ylim = (-0.7, 1.0)
     base_height = 4.8
     y_range = ylim[1] - ylim[0]
@@ -567,7 +743,6 @@ def plot_seed_vs_target_boxplots(
         dashes=(4, 3),
     )
     ax.set_ylim(ylim)
-    # ax.set_yticks(np.arange(-0.75, 1.01, 0.25))
 
     labels = [ROI_LABELS.get(t, t) for t in targets]
     labels = ['PreSMA' if lab == 'preSMA' else lab for lab in labels]
@@ -643,10 +818,13 @@ N_ROIS: int = 8
 ADD_REST: bool = True
 USE_RAND: bool = True
 
-INDIVID_LEVELS: List[str] = ['i']
+INDIVID_LEVELS: List[str] = ['g']
 HEMIS: List[str] = ['bh']
 MODALITIES: List[str] = ['Both']
 YLIM: tuple[float, float] = (-0.2, 1.0)
+
+# Options: 'fisher_z' or 'raw_r'
+MATRIX_TEST_SCALE: str = 'raw_r'
 
 BASE_TASKS: List[str] = ['Production', 'Perception', 'NTFD']
 TASKS_NO_REST: List[str] = (
@@ -683,10 +861,6 @@ ROI_ORDER_GROUPS: List[List[str]] = [
 
 SEEDS: List[str] = ['cereb', 'dstr']
 
-# Set to None to include all cortical targets in the plot.
-# Example excluding heschl and occipital:
-# PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv',
-#                                   'heschl', 'occipital']
 PLOT_TARGETS: List[str] | None = ['presma', 'sma', 'pmd', 'pmv']
 
 
@@ -729,6 +903,8 @@ OUT_ROOT = Path(BASE_ALL) / 'profile_similarity' / SUBJECTCORR_DIRNAME
 
 if __name__ == '__main__':
 
+    validate_matrix_test_scale(MATRIX_TEST_SCALE)
+
     for indiv in INDIVID_LEVELS:
         df_all = load_df(indiv)
         rois = ordered_rois_in_df(df_all)
@@ -764,7 +940,6 @@ if __name__ == '__main__':
                         add_rest=ADD_REST,
                     )
 
-                    # Diagnostic: print vector length per subject
                     vec_lengths = wide.groupby('Subject').size()
                     print(
                         f"[VECTOR LENGTH] {roi1}-{roi2} | "
@@ -831,4 +1006,42 @@ if __name__ == '__main__':
                     hemi=hemi,
                     modality=modality,
                     ylim=YLIM,
+                )
+
+                mat_dir = indiv_root / 'matrices'
+                os.makedirs(mat_dir, exist_ok=True)
+
+                mat_r, mat_p, mat_sig = subjectcorr_matrix_stats(
+                    df=df_all,
+                    rois=rois,
+                    hemi=hemi,
+                    modality=modality,
+                    add_rest=ADD_REST,
+                    alpha=ALPHA,
+                    test_scale=MATRIX_TEST_SCALE,
+                )
+
+                mat_stem = (
+                    f'{indiv}_{modality}_{hemi}_'
+                    f'{N_ROIS}-rois_{FILETAG}_{MATRIX_TEST_SCALE}'
+                )
+
+                r_tsv = mat_dir / f'matrix_mean_r_{mat_stem}.tsv'
+                p_tsv = mat_dir / f'matrix_p_uncorr_{mat_stem}.tsv'
+                sig_tsv = mat_dir / f'matrix_sig_uncorr_{mat_stem}.tsv'
+
+                mat_r.to_csv(r_tsv, sep='\t')
+                mat_p.to_csv(p_tsv, sep='\t')
+                mat_sig.to_csv(sig_tsv, sep='\t')
+
+                print(f"[SAVED] {r_tsv}")
+                print(f"[SAVED] {p_tsv}")
+                print(f"[SAVED] {sig_tsv}")
+
+                mat_png = mat_dir / f'matrix_{mat_stem}.png'
+                plot_subjectcorr_matrix(
+                    mat=mat_r,
+                    p_mat=mat_p,
+                    out_png=mat_png,
+                    alpha_thr=ALPHA,
                 )
