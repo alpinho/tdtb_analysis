@@ -908,9 +908,11 @@ def plot_mds_3d(
         x_rng = float(abs(x1 - x0))
         y_rng = float(abs(y1 - y0))
 
-        len_x = 0.010 * y_rng
-        len_y = 0.040 * x_rng
-        len_z = 0.040 * x_rng
+        tick_length = get_spec(specs, "tick_length", {})
+
+        len_x = tick_length.get("x", 0.010) * y_rng
+        len_y = tick_length.get("y", 0.040) * x_rng
+        len_z = tick_length.get("z", 0.040) * x_rng
 
         for xv in xt:
             ax.plot(
@@ -1267,6 +1269,15 @@ MDS_3D_SPECS = {
             "dy_px": 0.0,
             "rotation": 0.0,
         },
+    },
+
+    # Length of custom major ticks on each 3D axis.
+    # Values are multipliers of the current axis data range.
+    # Defaults are x=0.010, y=0.040, z=0.040.
+    "tick_length": {
+        "x": 0.0125,
+        "y": 0.020,
+        "z": 0.020,
     },
 
     # Manual projected label offsets in pixels, by 3D triplet.
