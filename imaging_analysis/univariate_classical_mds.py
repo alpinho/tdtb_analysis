@@ -467,6 +467,59 @@ def _keep_interior(vals, vmin, vmax, atol=1e-12):
     return np.asarray(out, dtype=float)
 
 
+def _draw_custom_yticklabels_3d(
+    fig,
+    ax,
+    fontsize=10,
+    dx_px=0.0,
+    dy_px=0.0,
+    spread_x_px=0.0,
+    spread_y_px=0.0,
+):
+    """Redraw y tick labels in 3D at projected tick positions."""
+    fig.canvas.draw()
+
+    for t in ax.get_yticklabels():
+        t.set_visible(False)
+
+    yticks = np.asarray(ax.get_yticks(), dtype=float)
+    if yticks.size == 0:
+        return
+
+    y_center = 0.5 * (float(yticks.min()) + float(yticks.max()))
+    y_half_range = 0.5 * (float(yticks.max()) - float(yticks.min()))
+    if y_half_range <= 0:
+        y_half_range = 1.0
+
+    x0 = float(ax.get_xlim()[1])
+    z0 = float(ax.get_zlim()[0])
+
+    inv_fig = fig.transFigure.inverted()
+    formatter = ax.yaxis.get_major_formatter()
+
+    for yv in yticks:
+        x2, y2, _ = proj3d.proj_transform(x0, float(yv), z0, ax.get_proj())
+        x_disp, y_disp = ax.transData.transform((x2, y2))
+
+        u = (float(yv) - y_center) / y_half_range
+
+        x_disp += float(dx_px) + float(spread_x_px) * u
+        y_disp += float(dy_px) + float(spread_y_px) * u
+
+        x_fig, y_fig = inv_fig.transform((x_disp, y_disp))
+        txt = fig.text(
+            x_fig,
+            y_fig,
+            formatter(yv, None),
+            ha="center",
+            va="center",
+            fontsize=fontsize,
+            rotation=0.0,
+            rotation_mode="anchor",
+        )
+        txt.set_in_layout(False)
+
+
 def plot_mds_3d(
     coords,
     labels,
@@ -773,6 +826,22 @@ def plot_mds_3d(
         dy_px=xtick_specs.get("dy_px", 0.0),
         spread_x_px=xtick_specs.get("spread_x_px", 12.0),
         spread_y_px=xtick_specs.get("spread_y_px", 0.0),
+    )
+
+    ytick_specs = get_panel_spec(
+        specs,
+        "y_ticklabel_offsets",
+        tuple(comps),
+        {},
+    )
+    _draw_custom_yticklabels_3d(
+        fig=fig,
+        ax=ax,
+        fontsize=10,
+        dx_px=ytick_specs.get("dx_px", 0.0),
+        dy_px=ytick_specs.get("dy_px", 0.0),
+        spread_x_px=ytick_specs.get("spread_x_px", 0.0),
+        spread_y_px=ytick_specs.get("spread_y_px", 0.0),
     )
 
     xlabel_specs = get_panel_spec(
@@ -1156,7 +1225,7 @@ MDS_3D_SPECS = {
         4: (-0.15, 0.15),
     },
 
-    # Pixel offsets for projected x tick labels in 3D.
+    # Pixel offsets for projected x and y tick labels in 3D.
     "x_ticklabel_offsets": {
         (1, 2, 3): {
             "dx_px": 55.0,
@@ -1168,6 +1237,20 @@ MDS_3D_SPECS = {
             "dx_px": 0.0,
             "dy_px": 0.0,
             "spread_x_px": 12.0,
+            "spread_y_px": 0.0,
+        },
+    },
+    "y_ticklabel_offsets": {
+        (1, 2, 3): {
+            "dx_px": -96.0,
+            "dy_px": -82.0,
+            "spread_x_px": 48.0,
+            "spread_y_px": -22.0,
+        },
+        "default": {
+            "dx_px": 0.0,
+            "dy_px": 0.0,
+            "spread_x_px": 0.0,
             "spread_y_px": 0.0,
         },
     },
