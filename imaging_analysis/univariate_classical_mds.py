@@ -120,6 +120,13 @@ def get_panel_spec(specs, group, panel, default=None):
     return block.get(panel, block.get("default", default))
 
 
+def mds_axis_label(dim_idx, var, show_variance):
+    """Return MDS axis label with optional explained variance."""
+    if show_variance:
+        return f"MDS{dim_idx + 1} ({var[dim_idx]:.1%})"
+    return f"MDS{dim_idx + 1}"
+
+
 def plot_mds_2d(
     coords,
     labels,
@@ -146,6 +153,10 @@ def plot_mds_2d(
     var = np.clip(explained_var, 0, None)
     denom = var.sum() if var.sum() > 0 else 1.0
     var = var / denom
+
+    show_variance = get_spec(specs, "show_variance", True)
+    xlabel = mds_axis_label(c1, var, show_variance)
+    ylabel = mds_axis_label(c2, var, show_variance)
 
     labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
@@ -176,8 +187,8 @@ def plot_mds_2d(
                 va="center",
             )
 
-        ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
-        ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
         ax.axhline(0, lw=0.9, color=zero_color, zorder=1)
         ax.axvline(0, lw=0.9, color=zero_color, zorder=1)
 
@@ -338,8 +349,8 @@ def plot_mds_2d(
     ax.axhline(0, lw=0.9, color=zero_color, zorder=1)
     ax.axvline(0, lw=0.9, color=zero_color, zorder=1)
 
-    ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
-    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
     nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30)
 
@@ -479,6 +490,11 @@ def plot_mds_3d(
     var = np.clip(explained_var, 0, None)
     var = var / (var.sum() if var.sum() > 0 else 1.0)
 
+    show_variance = get_spec(specs, "show_variance", True)
+    xlabel_text = mds_axis_label(c1, var, show_variance)
+    ylabel = mds_axis_label(c2, var, show_variance)
+    zlabel = mds_axis_label(c3, var, show_variance)
+
     labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
     figsize = get_panel_spec(specs, "figsize", tuple(comps), (6, 5))
@@ -497,9 +513,9 @@ def plot_mds_3d(
     )
 
     if not use_custom:
-        ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
-        ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
-        ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})")
+        ax.set_xlabel(xlabel_text)
+        ax.set_ylabel(ylabel)
+        ax.set_zlabel(zlabel)
 
         def _lims(vals):
             vmin = float(vals.min())
@@ -608,11 +624,10 @@ def plot_mds_3d(
                 zorder=0,
             )
 
-    xlabel_text = f"MDS{c1 + 1} ({var[c1]:.1%})"
     ax.set_xlabel("")
-    ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})", labelpad=-1.0)
+    ax.set_ylabel(ylabel, labelpad=-1.0)
     ax.set_zlabel(
-        f"MDS{c3 + 1} ({var[c3]:.1%})",
+        zlabel,
         labelpad=1.0,
         rotation=90.0,
     )
@@ -963,6 +978,9 @@ ZERO_LINE_COLOR = "mediumblue"
 # ========================== PLOT SPECS ============================= #
 
 MDS_2D_SPECS = {
+    # Show explained variance in axis labels, e.g. MDS1 (58.2%).
+    "show_variance": False,
+
     # Shared appearance for 2D point markers.
     "point_color": MDS_POINT_COLOR,
     "point_alpha": MDS_POINT_ALPHA,
@@ -1054,6 +1072,9 @@ MDS_2D_SPECS = {
 }
 
 MDS_3D_SPECS = {
+    # Show explained variance in axis labels, e.g. MDS1 (58.2%).
+    "show_variance": False,
+
     # Shared appearance for 3D point markers and vertical stems.
     "point_color": MDS_POINT_COLOR,
     "point_alpha": MDS_POINT_ALPHA,
