@@ -1149,6 +1149,7 @@ MDS_2D_SPECS = {
             "PMD": (0.015, -0.001),
             "PMV": (0.015, -0.001),
             "Heschl's Gyrus": (0.015, -0.001),
+        },
     },
 
     # Optional leader lines from ROI point to label, in data units.
