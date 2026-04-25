@@ -1149,6 +1149,7 @@ MDS_2D_SPECS = {
             "PMD": (0.015, -0.001),
             "PMV": (0.015, -0.001),
             "Heschl's Gyrus": (0.015, -0.001),
+            "Occipital Lobe": (0.0, 0.02),
         },
     },
 
@@ -1383,6 +1384,8 @@ if __name__ == "__main__":
 
     scores, eigval = pcm.util.classical_mds(mtx)
 
+    # ## Flip specified MDS dimensions if needed ##
+
     for dim in FLIP_MDS_DIMS:
         idx = int(dim) - 1
         if idx < 0 or idx >= scores.shape[1]:
@@ -1390,6 +1393,33 @@ if __name__ == "__main__":
         scores[:, idx] *= -1
 
     coords = scores[:, :N_COMPONENTS]
+
+    # #### Print MDS coordinates for every ROI ####
+    print("\nMDS coordinates:")
+    print("-" * 60)
+
+    labels_disp = [
+        ROI_LABELS.get(str(lbl), str(lbl)).replace("\n", " ")
+        for lbl in df.index
+    ]
+
+    n_show = min(3, coords.shape[1])
+
+    header = "ROI".ljust(22)
+    for k in range(n_show):
+        header += f"{('MDS ' + str(k + 1)):>10}"
+    print(header)
+    print("-" * 60)
+
+    for name, row in zip(labels_disp, coords):
+        line = name.ljust(22)
+        for k in range(n_show):
+            line += f"{row[k]:10.6f}"
+        print(line)
+
+    print("-" * 60)
+
+    # #############################################
 
     ev_pos = np.clip(eigval, 0, None)
     denom = ev_pos.sum() if ev_pos.sum() > 0 else 1.0
