@@ -999,6 +999,10 @@ ROI_LABELS = {
     "occipital_lobe": "Occipital Lobe",
 }
 
+# MDS dimensions to flip manually, using 1-based indexing.
+# Example: [3] flips MDS3. Use [] for no flips.
+FLIP_MDS_DIMS = [3]
+
 # =============================== PATHS ============================= #
 
 WORKING_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1054,6 +1058,12 @@ if __name__ == "__main__":
     mtx = mtx / rank
 
     scores, eigval = pcm.util.classical_mds(mtx)
+
+    for dim in FLIP_MDS_DIMS:
+        idx = int(dim) - 1
+        if idx < 0 or idx >= scores.shape[1]:
+            raise ValueError(f"Invalid MDS dimension to flip: {dim}")
+        scores[:, idx] *= -1
 
     coords = scores[:, :N_COMPONENTS]
 
