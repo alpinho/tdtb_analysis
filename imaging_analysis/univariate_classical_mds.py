@@ -1134,9 +1134,9 @@ MDS_3D_SPECS = {
     # Pixel offsets and rotation for projected x-axis label in 3D.
     "xlabel_offsets": {
         (1, 2, 3): {
-            "dx_px": 70.0,
-            "dy_px": -122.0,
-            "rotation": 10.,
+            "dx_px": 70.0, # 158.0,
+            "dy_px": -122.0, # -78.0,
+            "rotation": 10., # 73.0,
         },
         "default": {
             "dx_px": 0.0,
@@ -1150,7 +1150,7 @@ MDS_3D_SPECS = {
     "label_offsets_px": {
         (1, 2, 3): {
             "Dorsal Striatum": (-70, 128), # (-98, 130),
-            "Cerebellum": (16, 43), # (-3, 44),
+            "Cerebellum": (16, 43), # (-8, 44),
             "PreSMA": (22, 30), # (-4, 32),
             "SMA": (-45, 53), # (-90, 38),
             "PMD": (30, 7), # (7, 8),
