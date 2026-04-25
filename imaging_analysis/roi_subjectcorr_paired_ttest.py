@@ -17,9 +17,11 @@ For the selected individualization X modality X hemisphere:
 - Summarize all pairs involving cerebellum or dorsal striatum.
 - For each cortical ROI, run a paired t-test comparing:
   target-cerebellum vs target-dstr subject-wise correlations.
-- Build a ROI X ROI matrix using mean subject-wise correlations.
+- Build a ROI X ROI matrix using mean raw subject-wise correlations.
 - Test each ROI-pair mean correlation against zero using either raw r
   or Fisher-z transformed subject-wise correlations.
+- Always save the raw-r matrix. If Fisher-z is used for testing, also
+  save a mean-z matrix.
 - Write TSV outputs and simple summary plots.
 
 Author: Ana Luisa Pinho
@@ -441,6 +443,25 @@ def paired_tests_from_subject_corrs(
     return pd.DataFrame(rows)
 
 
+def subjectcorr_test_values(
+    corrs: pd.DataFrame,
+    test_scale: str,
+) -> np.ndarray:
+    """
+    Return values used for the one-sample test against zero.
+    """
+    validate_matrix_test_scale(test_scale)
+
+    r_vals = corrs['r'].to_numpy(dtype=float)
+    r_vals = r_vals[np.isfinite(r_vals)]
+
+    if test_scale == 'fisher_z':
+        r_vals = np.clip(r_vals, -0.999999, 0.999999)
+        return np.arctanh(r_vals)
+
+    return r_vals
+
+
 def test_subject_corrs_against_zero(
     corrs: pd.DataFrame,
     test_scale: str,
@@ -448,19 +469,13 @@ def test_subject_corrs_against_zero(
     """
     Test subject-wise correlations against zero.
     """
-    validate_matrix_test_scale(test_scale)
+    test_vals = subjectcorr_test_values(
+        corrs=corrs,
+        test_scale=test_scale,
+    )
 
-    r_vals = corrs['r'].to_numpy(dtype=float)
-    r_vals = r_vals[np.isfinite(r_vals)]
-
-    if r_vals.size < 2:
+    if test_vals.size < 2:
         return np.nan
-
-    if test_scale == 'fisher_z':
-        r_vals = np.clip(r_vals, -0.999999, 0.999999)
-        test_vals = np.arctanh(r_vals)
-    else:
-        test_vals = r_vals
 
     res = pg.ttest(
         test_vals,
@@ -480,9 +495,9 @@ def subjectcorr_matrix_stats(
     add_rest: bool = False,
     alpha: float = 0.05,
     test_scale: str = 'fisher_z',
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame | None]:
     """
-    Build matrices for mean subject-wise r and uncorrected p-values.
+    Build matrices for raw r, p-values, significance, and optional z.
     """
     validate_matrix_test_scale(test_scale)
     rois_order = list(rois)
@@ -496,10 +511,16 @@ def subjectcorr_matrix_stats(
     n_rois = len(rois_order)
     mean_r = np.full((n_rois, n_rois), np.nan, dtype=float)
     p_uncorr = np.full((n_rois, n_rois), np.nan, dtype=float)
+    mean_z = None
+
+    if test_scale == 'fisher_z':
+        mean_z = np.full((n_rois, n_rois), np.nan, dtype=float)
 
     for i in range(n_rois):
         mean_r[i, i] = 1.0
         p_uncorr[i, i] = 0.0
+        if mean_z is not None:
+            mean_z[i, i] = 1.0
 
     for i, j in combinations(range(n_rois), 2):
         roi1 = rois_order[i]
@@ -524,7 +545,10 @@ def subjectcorr_matrix_stats(
         )
 
         corr_df = compute_subject_corrs(wide, roi1, roi2)
-        r_val = float(corr_df['r'].mean())
+        r_vals = corr_df['r'].to_numpy(dtype=float)
+        r_vals = r_vals[np.isfinite(r_vals)]
+
+        r_val = float(np.mean(r_vals))
         p_val = test_subject_corrs_against_zero(
             corr_df,
             test_scale=test_scale,
@@ -533,14 +557,25 @@ def subjectcorr_matrix_stats(
         mean_r[i, j] = mean_r[j, i] = r_val
         p_uncorr[i, j] = p_uncorr[j, i] = p_val
 
+        if mean_z is not None:
+            z_vals = subjectcorr_test_values(corr_df, 'fisher_z')
+            mean_z[i, j] = mean_z[j, i] = float(np.mean(z_vals))
+
     r_mat = pd.DataFrame(mean_r, index=rois_order, columns=rois_order)
     p_mat = pd.DataFrame(p_uncorr, index=rois_order, columns=rois_order)
     sig_mat = (p_mat < alpha).astype(int)
 
+    z_mat = None
+    if mean_z is not None:
+        z_mat = pd.DataFrame(mean_z, index=rois_order, columns=rois_order)
+
     if r_mat.isna().any(axis=None) or p_mat.isna().any(axis=None):
         raise ValueError("[ERROR] NaNs found in matrix outputs.")
 
-    return r_mat, p_mat, sig_mat
+    if z_mat is not None and z_mat.isna().any(axis=None):
+        raise ValueError("[ERROR] NaNs found in z matrix output.")
+
+    return r_mat, p_mat, sig_mat, z_mat
 
 
 def plot_subjectcorr_matrix(
@@ -550,7 +585,7 @@ def plot_subjectcorr_matrix(
     alpha_thr: float = 0.05,
 ) -> None:
     """
-    Plot mean subject-wise correlation matrix with p-value stars.
+    Plot mean raw subject-wise correlation matrix with p-value stars.
     """
     if mat.empty:
         raise ValueError("[ERROR] empty matrix for plotting.")
@@ -818,13 +853,13 @@ N_ROIS: int = 8
 ADD_REST: bool = True
 USE_RAND: bool = True
 
-INDIVID_LEVELS: List[str] = ['g']
+INDIVID_LEVELS: List[str] = ['i']
 HEMIS: List[str] = ['bh']
 MODALITIES: List[str] = ['Both']
 YLIM: tuple[float, float] = (-0.2, 1.0)
 
 # Options: 'fisher_z' or 'raw_r'
-MATRIX_TEST_SCALE: str = 'raw_r'
+MATRIX_TEST_SCALE: str = 'fisher_z'
 
 BASE_TASKS: List[str] = ['Production', 'Perception', 'NTFD']
 TASKS_NO_REST: List[str] = (
@@ -1011,7 +1046,7 @@ if __name__ == '__main__':
                 mat_dir = indiv_root / 'matrices'
                 os.makedirs(mat_dir, exist_ok=True)
 
-                mat_r, mat_p, mat_sig = subjectcorr_matrix_stats(
+                mat_r, mat_p, mat_sig, mat_z = subjectcorr_matrix_stats(
                     df=df_all,
                     rois=rois,
                     hemi=hemi,
@@ -1021,14 +1056,15 @@ if __name__ == '__main__':
                     test_scale=MATRIX_TEST_SCALE,
                 )
 
-                mat_stem = (
+                base_stem = (
                     f'{indiv}_{modality}_{hemi}_'
-                    f'{N_ROIS}-rois_{FILETAG}_{MATRIX_TEST_SCALE}'
+                    f'{N_ROIS}-rois_{FILETAG}'
                 )
+                test_stem = f'{base_stem}_{MATRIX_TEST_SCALE}'
 
-                r_tsv = mat_dir / f'matrix_mean_r_{mat_stem}.tsv'
-                p_tsv = mat_dir / f'matrix_p_uncorr_{mat_stem}.tsv'
-                sig_tsv = mat_dir / f'matrix_sig_uncorr_{mat_stem}.tsv'
+                r_tsv = mat_dir / f'matrix_mean_r_{base_stem}.tsv'
+                p_tsv = mat_dir / f'matrix_p_uncorr_{test_stem}.tsv'
+                sig_tsv = mat_dir / f'matrix_sig_uncorr_{test_stem}.tsv'
 
                 mat_r.to_csv(r_tsv, sep='\t')
                 mat_p.to_csv(p_tsv, sep='\t')
@@ -1038,7 +1074,12 @@ if __name__ == '__main__':
                 print(f"[SAVED] {p_tsv}")
                 print(f"[SAVED] {sig_tsv}")
 
-                mat_png = mat_dir / f'matrix_{mat_stem}.png'
+                if mat_z is not None:
+                    z_tsv = mat_dir / f'matrix_mean_z_{base_stem}.tsv'
+                    mat_z.to_csv(z_tsv, sep='\t')
+                    print(f"[SAVED] {z_tsv}")
+
+                mat_png = mat_dir / f'matrix_{test_stem}.png'
                 plot_subjectcorr_matrix(
                     mat=mat_r,
                     p_mat=mat_p,
