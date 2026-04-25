@@ -624,11 +624,16 @@ def plot_mds_3d(
                 zorder=0,
             )
 
+    axis_labelpad = get_spec(specs, "axis_labelpad", {})
+    x_labelpad = axis_labelpad.get("x", 0.0)
+    y_labelpad = axis_labelpad.get("y", -1.0)
+    z_labelpad = axis_labelpad.get("z", 1.0)
+
     ax.set_xlabel("")
-    ax.set_ylabel(ylabel, labelpad=-1.0)
+    ax.set_ylabel(ylabel, labelpad=y_labelpad)
     ax.set_zlabel(
         zlabel,
-        labelpad=1.0,
+        labelpad=z_labelpad,
         rotation=90.0,
     )
     ax.zaxis.set_rotate_label(False)
@@ -730,9 +735,29 @@ def plot_mds_3d(
                 zorder=2,
             )
 
-    ax.tick_params(axis="x", labelrotation=0.0, labelsize=10.0, pad=0.0)
-    ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.0)
-    ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.0)
+    tick_pad = get_spec(specs, "tick_pad", {})
+    x_tick_pad = tick_pad.get("x", 0.0)
+    y_tick_pad = tick_pad.get("y", -4.0)
+    z_tick_pad = tick_pad.get("z", 1.0)
+
+    ax.tick_params(
+        axis="x",
+        labelrotation=0.0,
+        labelsize=10.0,
+        pad=x_tick_pad,
+    )
+    ax.tick_params(
+        axis="y",
+        labelrotation=5.0,
+        labelsize=10.0,
+        pad=y_tick_pad,
+    )
+    ax.tick_params(
+        axis="z",
+        labelrotation=0.0,
+        labelsize=10.0,
+        pad=z_tick_pad,
+    )
 
     xtick_specs = get_panel_spec(
         specs,
@@ -978,7 +1003,7 @@ ZERO_LINE_COLOR = "mediumblue"
 # ========================== PLOT SPECS ============================= #
 
 MDS_2D_SPECS = {
-    # Show explained variance in axis labels, e.g. MDS1 (58.2%).
+    # Show explained variance in axis labels, e.g. MDS 1 (58.2%).
     "show_variance": False,
 
     # Shared appearance for 2D point markers.
@@ -1037,9 +1062,9 @@ MDS_2D_SPECS = {
         },
         (1, 3): {
             "Dorsal Striatum": (0.015, 0.000),
-            "Cerebellum": (-0.0075, 0.0175),  # (0.009, 0.0075),
+            "Cerebellum": (-0.0075, 0.0175),
             "PreSMA": (0.012, -0.0025),
-            "SMA": (0.0095, 0.009),  # (0.012, 0.000),
+            "SMA": (0.0095, 0.009),
             "PMD": (0.01, -0.001),
             "PMV": (0.0125, -0.001),
             "Heschl's Gyrus": (-0.085, -0.025),
@@ -1047,9 +1072,9 @@ MDS_2D_SPECS = {
         },
         (2, 3): {
             "Dorsal Striatum": (-0.1725, 0.000),
-            "Cerebellum": (-0.11, 0.02),  # (-0.126, 0.0085),
-            "PreSMA": (-0.0675, -0.024),  # (-0.087, -0.006),
-            "SMA": (-0.042, 0.0175),  # (-0.057, 0.0001),
+            "Cerebellum": (-0.11, 0.02),
+            "PreSMA": (-0.0675, -0.024),
+            "SMA": (-0.042, 0.0175),
             "PMD": (0.015, -0.001),
             "PMV": (0.015, -0.001),
             "Heschl's Gyrus": (0.015, -0.001),
@@ -1072,7 +1097,7 @@ MDS_2D_SPECS = {
 }
 
 MDS_3D_SPECS = {
-    # Show explained variance in axis labels, e.g. MDS1 (58.2%).
+    # Show explained variance in axis labels, e.g. MDS 1 (58.2%).
     "show_variance": False,
 
     # Shared appearance for 3D point markers and vertical stems.
@@ -1085,6 +1110,22 @@ MDS_3D_SPECS = {
     # Tick labels are shown only every 0.1.
     "label_step": 0.1,
 
+    # Distance between axis labels and axes.
+    # If missing, defaults are x=0.0, y=-1.0, z=1.0.
+    "axis_labelpad": {
+        "x": 0.0,
+        "y": 1.0,
+        "z": 8.0,
+    },
+
+    # Distance between tick labels and axes.
+    # If missing, defaults are x=0.0, y=-4.0, z=1.0.
+    "tick_pad": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 6.0,
+    },
+
     # Figure size by 3D component triplet. If missing, use default.
     "figsize": {
         (2, 3, 4): (8.5, 6.5),
@@ -1095,7 +1136,7 @@ MDS_3D_SPECS = {
     "view": {
         (1, 2, 3): {
             "elev": 15,
-            "azim": 55,  # 10,
+            "azim": 55,
         },
         (2, 3, 4): {
             "elev": 10,
@@ -1118,10 +1159,10 @@ MDS_3D_SPECS = {
     # Pixel offsets for projected x tick labels in 3D.
     "x_ticklabel_offsets": {
         (1, 2, 3): {
-            "dx_px": 55.,  # 119.0,
-            "dy_px": -116.,  # -78.0,
-            "spread_x_px": -32.,  # -3.75,
-            "spread_y_px": -8.,  # -15.0,
+            "dx_px": 55.0,
+            "dy_px": -116.0,
+            "spread_x_px": -32.0,
+            "spread_y_px": -8.0,
         },
         "default": {
             "dx_px": 0.0,
@@ -1134,9 +1175,9 @@ MDS_3D_SPECS = {
     # Pixel offsets and rotation for projected x-axis label in 3D.
     "xlabel_offsets": {
         (1, 2, 3): {
-            "dx_px": 70.0,  # 158.0,
-            "dy_px": -122.0,  # -78.0,
-            "rotation": 10.,  # 73.0,
+            "dx_px": 70.0,
+            "dy_px": -122.0,
+            "rotation": 10.0,
         },
         "default": {
             "dx_px": 0.0,
@@ -1149,14 +1190,14 @@ MDS_3D_SPECS = {
     # If a label is missing, default offset (6, 6) is used.
     "label_offsets_px": {
         (1, 2, 3): {
-            "Dorsal Striatum": (-70, 128),  # (-98, 130),
-            "Cerebellum": (16, 43),  # (-8, 44),
-            "PreSMA": (22, 30),  # (-4, 32),
-            "SMA": (-45, 53),  # (-90, 38),
-            "PMD": (30, 7),  # (7, 8),
-            "PMV": (29, 17),  # (8, 18),
-            "Heschl's Gyrus": (-83, 19),  # (-85, 4),
-            "Occipital\nLobe": (90, -15),  # (58, 40),
+            "Dorsal Striatum": (-70, 128),
+            "Cerebellum": (16, 43),
+            "PreSMA": (22, 30),
+            "SMA": (-45, 53),
+            "PMD": (30, 7),
+            "PMV": (29, 17),
+            "Heschl's Gyrus": (-83, 19),
+            "Occipital\nLobe": (90, -15),
             "Occipital Lobe": (8, 6),
         },
         "default": {},
