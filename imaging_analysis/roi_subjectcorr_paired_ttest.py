@@ -611,7 +611,7 @@ def plot_subjectcorr_matrix(
     )
 
     fig.colorbar(im, ax=ax, shrink=.87, pad=0.02)
-    ax.set_title('Mean Subject-wise Correlation ($r_s$)', pad=10)
+    ax.set_title('Between-Subject Correlation ($r_s$)', pad=10)
 
     for i in range(n_rois):
         for j in range(i + 1, n_rois):
@@ -621,13 +621,14 @@ def plot_subjectcorr_matrix(
                 if stars:
                     ax.text(
                         j,
-                        i - 0.25,
+                        i,
                         stars,
                         ha='center',
                         va='center',
                         fontsize=9,
                         color='k',
                         fontweight='bold',
+                        fontfamily='DejaVu Sans Mono',
                     )
 
     fig.subplots_adjust(left=0.28, bottom=0.22, right=0.94, top=0.92)
