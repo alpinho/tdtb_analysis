@@ -981,7 +981,7 @@ def plot_mds_3d(
 
 # ============================= CONFIG ============================== #
 
-N_COMPONENTS = 4
+N_COMPONENTS = 3
 INDIVID_LEVEL = "i"
 
 USE_CUSTOM_2D_PLOTTING = (N_COMPONENTS == 3)
@@ -1006,12 +1006,16 @@ MODEL = "rwls"
 MASKING = "wb"
 HRF = "hrf128"
 
+# use "encoding_restrand" for within-subject rm corr, and ...
+# ... "subjectcorr_paired_restrand" for between-subject rm corr
+corrtype_folder = "subjectcorr_paired_restrand"
+
 BASE_ALL = os.path.join(
     WORKING_DIR,
     f"roi_analyses_{MODEL}_{HRF}_{MASKING}_puncorr_unsmoothed",
     "bothmod_allmain_tasks",
     "profile_similarity",
-    "encoding_restrand",
+    corrtype_folder,
     "i",
     "matrices",
 )
@@ -1027,12 +1031,22 @@ MDS_OUTPUT_DIR = os.path.join(
 
 if __name__ == "__main__":
 
-    mtx_path = os.path.join(
-        BASE_ALL,
-        "matrix_r_"
-        + INDIVID_LEVEL
-        + "_Both_bh_8-rois_withrestrand.tsv",
-    )
+    if corrtype_folder == "encoding_restrand":
+        mtx_path = os.path.join(
+            BASE_ALL,
+            "matrix_r_"
+            + INDIVID_LEVEL
+            + "_Both_bh_8-rois_withrestrand.tsv",
+        )
+    else:
+        assert corrtype_folder == "subjectcorr_paired_restrand"
+        mtx_path = os.path.join(
+            BASE_ALL,
+            "matrix_mean_r_"
+            + INDIVID_LEVEL
+            + "_Both_bh_8-rois_withrestrand.tsv",
+        )
+
     df = pd.read_csv(mtx_path, sep="\t", index_col=0)
     mtx = df.to_numpy(dtype=float)
 
