@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Multidimensional scaling (MDS) plots for ROI similarity matrices
+Multidimensional scaling (MDS) plots for ROI similarity matrices.
 
 Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
@@ -109,6 +109,17 @@ def nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30):
             txt.set_position((x_new, y_new))
 
 
+def get_spec(specs, key, default=None):
+    """Return a spec value with a default fallback."""
+    return specs.get(key, default)
+
+
+def get_panel_spec(specs, group, panel, default=None):
+    """Return a panel-specific spec with default fallback."""
+    block = specs.get(group, {})
+    return block.get(panel, block.get("default", default))
+
+
 def plot_mds_2d(
     coords,
     labels,
@@ -116,29 +127,19 @@ def plot_mds_2d(
     out_path,
     comps=(1, 2),
     use_custom=False,
+    specs=None,
 ):
     """
     Plot 2D classical MDS.
 
-    If use_custom is True, apply the 3-component panel-specific styling.
-    Otherwise, use Matplotlib defaults (data-driven limits, default
-    ticks/grid/spines) while keeping ROI labels and variance in axes.
-
-    Notes (custom mode)
-    -------------------
-    - Offsets are in *data units* (same units as coords).
-    - Panel key uses the plotted component order (after the MDS1 vs MDS2
-      swap). So for input comps=(1, 2), the panel key is (2, 1).
+    If use_custom is True, apply panel-specific styling. If a spec is
+    missing, internally generated defaults are used.
     """
-    # ---------------------------------------------------------------
-    # Shared bits: component selection + explained variance formatting
-    # ---------------------------------------------------------------
-    if use_custom and tuple(comps) == (1, 2):
-        # For MDS1 vs MDS2, reverse the view: MDS2 on x, MDS1 on y.
-        comps_plot = (2, 1)
-    else:
-        comps_plot = tuple(comps)
+    if specs is None:
+        specs = {}
 
+    swap_axes = get_spec(specs, "swap_axes", {})
+    comps_plot = swap_axes.get(tuple(comps), tuple(comps))
     c1 = comps_plot[0] - 1
     c2 = comps_plot[1] - 1
 
@@ -148,20 +149,24 @@ def plot_mds_2d(
 
     labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
-    # ---------------------------------------------------------------
-    # Default mode: Matplotlib defaults (minimal labeling)
-    # ---------------------------------------------------------------
+    point_color = get_spec(specs, "point_color", "mediumblue")
+    point_alpha = get_spec(specs, "point_alpha", 0.8)
+    zero_color = get_spec(specs, "zero_line_color", "mediumblue")
+
     if not use_custom:
         fig, ax = plt.subplots(figsize=(6.0, 5.0), dpi=150)
         ax.scatter(
             coords[:, c1],
             coords[:, c2],
-            color="mediumblue",
-            alpha=0.8
+            color=point_color,
+            alpha=point_alpha,
         )
 
-        for x_val, y_val, name in zip(coords[:, c1], coords[:, c2],
-                                      labels_disp):
+        for x_val, y_val, name in zip(
+            coords[:, c1],
+            coords[:, c2],
+            labels_disp,
+        ):
             ax.annotate(
                 name,
                 (float(x_val), float(y_val)),
@@ -173,11 +178,9 @@ def plot_mds_2d(
 
         ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
         ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
-        # Zero reference lines (match custom styling)
-        ax.axhline(0, lw=0.9, color="mediumblue", zorder=1)
-        ax.axvline(0, lw=0.9, color="mediumblue", zorder=1)
+        ax.axhline(0, lw=0.9, color=zero_color, zorder=1)
+        ax.axvline(0, lw=0.9, color=zero_color, zorder=1)
 
-        # Data-driven padding for limits, keeping defaults otherwise.
         x_min = float(coords[:, c1].min())
         x_max = float(coords[:, c1].max())
         y_min = float(coords[:, c2].min())
@@ -193,55 +196,50 @@ def plot_mds_2d(
         plt.close(fig)
         return
 
-    # ---------------------------------------------------------------
-    # Custom mode (intended for N_COMPONENTS == 3)
-    # ---------------------------------------------------------------
-
-    # Fixed limits for first 3 components; others are data-driven.
-    axis_limits = {
-        0: (-0.35, 0.05),   # MDS1
-        1: (-0.35, 0.35),   # MDS2
-        2: (-0.30, 0.30),   # MDS3
-    }
-
+    axis_limits = get_spec(specs, "axis_limits", {})
     xlim = axis_limits.get(
-        c1, (float(coords[:, c1].min()), float(coords[:, c1].max()))
+        comps_plot[0],
+        (float(coords[:, c1].min()), float(coords[:, c1].max())),
     )
     ylim = axis_limits.get(
-        c2, (float(coords[:, c2].min()), float(coords[:, c2].max()))
+        comps_plot[1],
+        (float(coords[:, c2].min()), float(coords[:, c2].max())),
     )
+
+    fig_ref = get_spec(specs, "figsize_reference", {})
+    ref_figsize = fig_ref.get("figsize", (6.0, 5.0))
+    ref_x_range = fig_ref.get("x_range", 0.70)
+    ref_y_range = fig_ref.get("y_range", 0.60)
+    pad = fig_ref.get("pad", 1.08)
 
     x_range = float(abs(xlim[1] - xlim[0]))
     y_range = float(abs(ylim[1] - ylim[0]))
 
-    # Match the reference pixels-per-unit scale across all 2D panels.
-    ref_figsize = (6.0, 5.0)
-    ref_x_range = 0.70
-    ref_y_range = 0.60
-
     k = min(ref_figsize[0] / ref_x_range, ref_figsize[1] / ref_y_range)
-    pad = 1.08
     figsize = (k * x_range * pad, k * y_range * pad)
 
     fig, ax = plt.subplots(figsize=figsize, dpi=150)
-    ax.scatter(coords[:, c1], coords[:, c2], color="mediumblue", alpha=0.8)
+    ax.scatter(
+        coords[:, c1],
+        coords[:, c2],
+        color=point_color,
+        alpha=point_alpha,
+    )
 
-    # For panel (1, 3), remove line break in Occipital label
-    if comps_plot in [(1, 3), (2, 3)]:
-        labels_disp = [
-            name.replace("\n", " ")
-            if name == "Occipital\nLobe"
-            else name
-            for name in labels_disp
-        ]
+    remove_linebreak = get_spec(specs, "remove_linebreak_labels", {})
+    labels_to_clean = remove_linebreak.get(comps_plot, [])
+    labels_disp = [
+        name.replace("\n", " ")
+        if name in labels_to_clean
+        else name
+        for name in labels_disp
+    ]
 
-    # Default offset magnitude (used for the fallback pattern).
     x_rng = float(coords[:, c1].max() - coords[:, c1].min())
     y_rng = float(coords[:, c2].max() - coords[:, c2].min())
     dx = x_rng * 0.015 if x_rng > 0 else 0.01
     dy = y_rng * 0.015 if y_rng > 0 else 0.01
 
-    # Default pattern for labels without per-ROI overrides.
     offsets = [
         (dx, 0.0),
         (0.0, dy),
@@ -253,41 +251,11 @@ def plot_mds_2d(
         (-dx, -dy),
     ]
 
-    # Per-panel, per-ROI offsets (DATA UNITS).
-    LABEL_OFFSETS_BY_PANEL = {
-        (2, 1): {  # MDS2 (x) vs MDS1 (y)
-            "Dorsal Striatum": (-0.175, 0.000),
-            "Cerebellum": (-0.09, 0.035),
-            "PreSMA": (-0.0825, -0.01),
-            "SMA": (-0.055, 0.0005),
-            "PMD": (0.01, -0.12),
-            "PMV": (0.0125, 0.001),
-            "Heschl's Gyrus": (0.015, -0.0015),
-            "Occipital\nLobe": (0.0, 0.035),
-        },
-        (1, 3): {  # MDS1 (x) vs MDS3 (y)
-            "Dorsal Striatum": (0.015, 0.000),
-            "Cerebellum": (0.009, 0.0075),
-            "PreSMA": (0.012, -0.0025),
-            "SMA": (0.012, 0.000),
-            "PMD": (0.01, -0.001),
-            "PMV": (0.0125, -0.001),
-            "Heschl's Gyrus": (-0.085, -0.025),
-            "Occipital Lobe": (0.085, 0.0),
-        },
-        (2, 3): {  # MDS2 (x) vs MDS3 (y)
-            "Dorsal Striatum": (-0.1725, 0.000),
-            "Cerebellum": (-0.126, 0.0085),
-            "PreSMA": (-0.087, -0.006),
-            "SMA": (-0.057, 0.0001),
-            "PMD": (0.015, -0.001),
-            "PMV": (0.015, -0.001),
-            "Heschl's Gyrus": (0.015, -0.001),
-            "Occipital Lobe": (0.0, 0.02),
-        },
-    }
+    label_offsets = get_spec(specs, "label_offsets", {})
+    panel_offsets = label_offsets.get(comps_plot, {})
 
-    panel_offsets = LABEL_OFFSETS_BY_PANEL.get(comps_plot, {})
+    leader_lines = get_spec(specs, "leader_lines", {})
+    panel_leaders = leader_lines.get(comps_plot, {})
 
     texts = []
     for idx, (x_val, y_val, name) in enumerate(
@@ -321,14 +289,16 @@ def plot_mds_2d(
                 clip_on=True,
             )
 
-        # Leader line only for Cerebellum in MDS2 (x) vs MDS1 (y).
-        if name == "Cerebellum" and comps_plot == (2, 1):
+        if name in panel_leaders:
+            leader = panel_leaders[name]
+            start_off = leader.get("start_offset", (0.0, 0.0))
+            end_off = leader.get("end_offset", (0.0, 0.0))
             ax.plot(
-                [float(x_val) - 0.0025, x_txt + 0.075],
-                [float(y_val) + 0.009, y_txt - 0.01],
-                color="black",
-                linewidth=0.8,
-                zorder=5,
+                [float(x_val) + start_off[0], x_txt + end_off[0]],
+                [float(y_val) + start_off[1], y_txt + end_off[1]],
+                color=leader.get("color", "black"),
+                linewidth=leader.get("linewidth", 0.8),
+                zorder=leader.get("zorder", 5),
             )
 
         texts.append(txt)
@@ -337,9 +307,8 @@ def plot_mds_2d(
     ax.set_ylim(*ylim)
     ax.set_aspect("equal", adjustable="box")
 
-    # Ticks/grid: 0.05 tick spacing, label every 0.1 (as in 3D).
-    tick_step = 0.05
-    label_step = 0.1
+    tick_step = get_spec(specs, "tick_step", 0.05)
+    label_step = get_spec(specs, "label_step", 0.1)
 
     labeler = SparseTickLabeler(
         label_step=label_step,
@@ -358,7 +327,6 @@ def plot_mds_2d(
     ax.xaxis.set_major_formatter(formatter)
     ax.yaxis.set_major_formatter(formatter)
 
-    # Remove top/right spines and separate spines from the grid.
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_position(("outward", 4))
@@ -367,9 +335,8 @@ def plot_mds_2d(
     ax.grid(True, color="0.8", linewidth=0.8)
     ax.set_axisbelow(True)
 
-    # Highlight zero axes in blue.
-    ax.axhline(0, lw=0.9, color="mediumblue", zorder=1)
-    ax.axvline(0, lw=0.9, color="mediumblue", zorder=1)
+    ax.axhline(0, lw=0.9, color=zero_color, zorder=1)
+    ax.axvline(0, lw=0.9, color=zero_color, zorder=1)
 
     ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
     ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
@@ -390,9 +357,9 @@ def _draw_custom_xticklabels_3d(
     spread_y_px=0.0,
 ):
     """
-    Redraw x tick labels in 3D at projected tick positions, with
-    explicit screen-space (pixel) offsets and optional symmetric
-    spreading in x and y.
+    Redraw x tick labels in 3D at projected tick positions.
+
+    Offsets are in screen pixels after projection.
     """
     fig.canvas.draw()
 
@@ -446,6 +413,7 @@ def _draw_custom_xlabel_3d(
     dy_px=0.0,
     rotation=0.0,
 ):
+    """Draw custom projected x-axis label for 3D plots."""
     fig.canvas.draw()
 
     ax.set_xlabel("")
@@ -477,12 +445,14 @@ def _draw_custom_xlabel_3d(
 
 
 def _keep_interior(vals, vmin, vmax, atol=1e-12):
-    """Return vals excluding points at vmin or vmax (within atol)."""
+    """Return vals excluding points at vmin or vmax."""
     out = []
-    for v in vals:
-        if np.isclose(v, vmin, atol=atol) or np.isclose(v, vmax, atol=atol):
+    for val in vals:
+        if np.isclose(val, vmin, atol=atol):
             continue
-        out.append(v)
+        if np.isclose(val, vmax, atol=atol):
+            continue
+        out.append(val)
     return np.asarray(out, dtype=float)
 
 
@@ -493,14 +463,17 @@ def plot_mds_3d(
     out_path,
     comps=(1, 2, 3),
     use_custom=False,
+    specs=None,
 ):
     """
-    Plot 3D MDS for chosen components (1-based indices).
+    Plot 3D MDS for chosen components.
 
-    If use_custom is True, apply the 3-component styling (ticks, grids,
-    projected labels, etc.). Otherwise, use Matplotlib defaults while
-    keeping labels and variance in axes labels.
+    If use_custom is True, apply panel-specific styling. If a spec is
+    missing, internally generated defaults are used.
     """
+    if specs is None:
+        specs = {}
+
     c1, c2, c3 = comps[0] - 1, comps[1] - 1, comps[2] - 1
 
     var = np.clip(explained_var, 0, None)
@@ -508,28 +481,26 @@ def plot_mds_3d(
 
     labels_disp = [ROI_LABELS.get(str(lab), str(lab)) for lab in labels]
 
-    if tuple(comps) == (2, 3, 4):
-        fig = plt.figure(figsize=(8.5, 6.5), dpi=150)
-    else:
-        fig = plt.figure(figsize=(6, 5), dpi=150)
+    figsize = get_panel_spec(specs, "figsize", tuple(comps), (6, 5))
+    point_color = get_spec(specs, "point_color", "mediumblue")
+    point_alpha = get_spec(specs, "point_alpha", 0.8)
 
+    fig = plt.figure(figsize=figsize, dpi=150)
     ax = fig.add_subplot(111, projection="3d")
 
     ax.scatter(
         coords[:, c1],
         coords[:, c2],
         coords[:, c3],
-        color="mediumblue",
-        alpha=0.8,
+        color=point_color,
+        alpha=point_alpha,
     )
 
-    # Default mode: rely on mplot3d defaults.
     if not use_custom:
         ax.set_xlabel(f"MDS{c1 + 1} ({var[c1]:.1%})")
         ax.set_ylabel(f"MDS{c2 + 1} ({var[c2]:.1%})")
         ax.set_zlabel(f"MDS{c3 + 1} ({var[c3]:.1%})")
 
-        # Light data-driven padding for limits (keeps defaults otherwise).
         def _lims(vals):
             vmin = float(vals.min())
             vmax = float(vals.max())
@@ -542,7 +513,10 @@ def plot_mds_3d(
         ax.set_zlim(*_lims(coords[:, c3]))
 
         for x_val, y_val, z_val, name in zip(
-            coords[:, c1], coords[:, c2], coords[:, c3], labels_disp
+            coords[:, c1],
+            coords[:, c2],
+            coords[:, c3],
+            labels_disp,
         ):
             ax.text(
                 float(x_val),
@@ -555,10 +529,6 @@ def plot_mds_3d(
         plt.close(fig)
         return
 
-    # ----------------------------------------------------------------
-    # Custom mode (intended for N_COMPONENTS == 3)
-    # ----------------------------------------------------------------
-
     def _draw_minor_grid_planes(
         ax,
         xlim,
@@ -568,7 +538,7 @@ def plot_mds_3d(
         color="0.7",
         lw=0.8,
     ):
-        """Draw 0.05 grid on the 3 visible planes (x=x0, y=y1, z=z0)."""
+        """Draw grid on the visible 3D planes."""
         x0, x1 = xlim
         y0, y1 = ylim
         z0, z1 = zlim
@@ -581,7 +551,6 @@ def plot_mds_3d(
         ys_in = _keep_interior(ys, y0, y1)
         zs_in = _keep_interior(zs, z0, z1)
 
-        # Plane z=z0
         for xv in xs_in:
             ax.plot(
                 [xv, xv],
@@ -601,7 +570,6 @@ def plot_mds_3d(
                 zorder=0,
             )
 
-        # Plane x=x0
         for yv in ys_in:
             ax.plot(
                 [x0, x0],
@@ -621,7 +589,6 @@ def plot_mds_3d(
                 zorder=0,
             )
 
-        # Plane y=y1
         for xv in xs_in:
             ax.plot(
                 [xv, xv],
@@ -651,41 +618,34 @@ def plot_mds_3d(
     )
     ax.zaxis.set_rotate_label(False)
 
-    if tuple(comps) == (1, 2, 3):
-        ax.view_init(elev=15, azim=10)
-    elif tuple(comps) == (2, 3, 4):
-        ax.view_init(elev=10, azim=50)
-    else:
-        ax.view_init(elev=15, azim=45)
+    view = get_panel_spec(specs, "view", tuple(comps), {})
+    ax.view_init(
+        elev=view.get("elev", 15),
+        azim=view.get("azim", 45),
+    )
 
-    axis_limits = {
-        0: (-0.35, 0.0),    # MDS1
-        1: (-0.35, 0.35),   # MDS2
-        2: (-0.30, 0.30),   # MDS3
-        3: (-0.15, 0.15),   # MDS4
-    }
+    axis_limits = get_spec(specs, "axis_limits", {})
 
-    def _lims_for_dim(dim_idx):
-        if dim_idx in axis_limits:
-            return axis_limits[dim_idx]
+    def _lims_for_dim(dim_num, vals):
+        if dim_num in axis_limits:
+            return axis_limits[dim_num]
 
-        vals = coords[:, dim_idx]
         vmin = float(vals.min())
         vmax = float(vals.max())
         vrng = vmax - vmin
         pad = 0.05 * vrng if vrng > 0 else 0.01
         return vmin - pad, vmax + pad
 
-    ax.set_xlim(*_lims_for_dim(c1))
-    ax.set_ylim(*_lims_for_dim(c2))
-    ax.set_zlim(*_lims_for_dim(c3))
+    ax.set_xlim(*_lims_for_dim(comps[0], coords[:, c1]))
+    ax.set_ylim(*_lims_for_dim(comps[1], coords[:, c2]))
+    ax.set_zlim(*_lims_for_dim(comps[2], coords[:, c3]))
 
     ax.xaxis.pane.set_alpha(0.0)
     ax.yaxis.pane.set_alpha(0.0)
     ax.zaxis.pane.set_alpha(0.0)
 
-    tick_step = 0.05
-    label_step = 0.1
+    tick_step = get_spec(specs, "tick_step", 0.05)
+    label_step = get_spec(specs, "label_step", 0.1)
 
     labeler = SparseTickLabeler(
         label_step=label_step,
@@ -721,26 +681,32 @@ def plot_mds_3d(
     ax.yaxis.set_major_formatter(formatter)
     ax.zaxis.set_major_formatter(formatter)
 
-    # Equal visual spacing per 0.05 step across axes.
     nx = abs(x1 - x0) / tick_step if tick_step > 0 else 1.0
     ny = abs(y1 - y0) / tick_step if tick_step > 0 else 1.0
     nz = abs(z1 - z0) / tick_step if tick_step > 0 else 1.0
     ax.set_box_aspect((nx, ny, nz))
 
+    stem_specs = get_spec(specs, "stems", {})
     z_bottom = float(ax.get_zlim()[0])
-    n_segments = 640
-    for x, y, z_top in zip(coords[:, c1], coords[:, c2], coords[:, c3]):
+    n_segments = int(stem_specs.get("n_segments", 640))
+    stem_lw = stem_specs.get("linewidth", 1.5)
+
+    for x_val, y_val, z_top in zip(
+        coords[:, c1],
+        coords[:, c2],
+        coords[:, c3],
+    ):
         zs = np.linspace(z_bottom, z_top, n_segments + 1)
-        for i in range(n_segments):
-            z0s = zs[i]
-            z1s = zs[i + 1]
-            alpha = 1.0 - (i / n_segments)
+        for idx in range(n_segments):
+            z0s = zs[idx]
+            z1s = zs[idx + 1]
+            alpha = 1.0 - (idx / n_segments)
             ax.plot(
-                [x, x],
-                [y, y],
+                [x_val, x_val],
+                [y_val, y_val],
                 [z0s, z1s],
-                color="mediumblue",
-                linewidth=1.5,
+                color=point_color,
+                linewidth=stem_lw,
                 alpha=alpha,
                 linestyle="-",
                 solid_capstyle="butt",
@@ -753,47 +719,38 @@ def plot_mds_3d(
     ax.tick_params(axis="y", labelrotation=5.0, labelsize=10.0, pad=-4.0)
     ax.tick_params(axis="z", labelrotation=0.0, labelsize=10.0, pad=1.0)
 
-    if tuple(comps) == (1, 2, 3):
-        x_ticklabel_dx_px = 119.0
-        x_ticklabel_dy_px = -78.0
-        x_ticklabel_spread_x_px = -3.75
-        x_ticklabel_spread_y_px = -15.0
-    else:
-        x_ticklabel_dx_px = 0.0
-        x_ticklabel_dy_px = 0.0
-        x_ticklabel_spread_x_px = 12.0
-        x_ticklabel_spread_y_px = 0.0
-
+    xtick_specs = get_panel_spec(
+        specs,
+        "x_ticklabel_offsets",
+        tuple(comps),
+        {},
+    )
     _draw_custom_xticklabels_3d(
         fig=fig,
         ax=ax,
         fontsize=10,
-        dy_px=x_ticklabel_dy_px,
-        dx_px=x_ticklabel_dx_px,
-        spread_x_px=x_ticklabel_spread_x_px,
-        spread_y_px=x_ticklabel_spread_y_px,
+        dx_px=xtick_specs.get("dx_px", 0.0),
+        dy_px=xtick_specs.get("dy_px", 0.0),
+        spread_x_px=xtick_specs.get("spread_x_px", 12.0),
+        spread_y_px=xtick_specs.get("spread_y_px", 0.0),
     )
 
-    if tuple(comps) == (1, 2, 3):
-        x_label_dx_px = 158.0
-        x_label_dy_px = -78.0
-        x_label_rotation = 73.0
-    else:
-        x_label_dx_px = 0.0
-        x_label_dy_px = 0.0
-        x_label_rotation = 0.0
-
+    xlabel_specs = get_panel_spec(
+        specs,
+        "xlabel_offsets",
+        tuple(comps),
+        {},
+    )
     _draw_custom_xlabel_3d(
         fig=fig,
         ax=ax,
         text=xlabel_text,
         fontsize=10,
-        dx_px=x_label_dx_px,
-        dy_px=x_label_dy_px,
-        rotation=x_label_rotation,
+        dx_px=xlabel_specs.get("dx_px", 0.0),
+        dy_px=xlabel_specs.get("dy_px", 0.0),
+        rotation=xlabel_specs.get("rotation", 0.0),
     )
 
-    # Black bounding box edges (unchanged).
     x0, x1 = ax.get_xlim()
     y0, y1 = ax.get_ylim()
     z0, z1 = ax.get_zlim()
@@ -821,9 +778,9 @@ def plot_mds_3d(
         (5, 4),
     ]
 
-    for i, j in edges:
-        xi, yi, zi = corners[i]
-        xj, yj, zj = corners[j]
+    for idx_i, idx_j in edges:
+        xi, yi, zi = corners[idx_i]
+        xj, yj, zj = corners[idx_j]
         ax.plot(
             [xi, xj],
             [yi, yj],
@@ -834,16 +791,7 @@ def plot_mds_3d(
         )
 
     def _draw_custom_major_ticks(ax, xlim, ylim, zlim, xt, yt, zt):
-        """
-        Major ticks only (0.1). Draw ticks on the visible spines for azim≈10.
-
-        Keep:
-        - MDS2 (y-axis): edge (x=x1, z=z0), tick direction ±x
-
-        Fix:
-        - MDS1 (x-axis): edge (y=y1, z=z0), tick direction ±y
-        - MDS3 (z-axis): edge (y=y0), tick direction ±x
-        """
+        """Draw custom major ticks on visible 3D spines."""
         x0, x1 = xlim
         y0, y1 = ylim
         z0, _z1 = zlim
@@ -855,14 +803,12 @@ def plot_mds_3d(
         len_y = 0.040 * x_rng
         len_z = 0.040 * x_rng
 
-        col = "black"
-
         for xv in xt:
             ax.plot(
                 [xv, xv],
                 [y1 - len_x, y1 + len_x],
                 [z0, z0],
-                color=col,
+                color="black",
                 linewidth=1.0,
                 zorder=30,
             )
@@ -872,7 +818,7 @@ def plot_mds_3d(
                 [x1 - len_y, x1 + len_y],
                 [yv, yv],
                 [z0, z0],
-                color=col,
+                color="black",
                 linewidth=1.0,
                 zorder=30,
             )
@@ -882,7 +828,7 @@ def plot_mds_3d(
                 [x1 - len_z, x1 + len_z],
                 [y0, y0],
                 [zv, zv],
-                color=col,
+                color="black",
                 linewidth=1.2,
                 zorder=10_000,
             )
@@ -917,27 +863,24 @@ def plot_mds_3d(
     inv_fig = fig.transFigure.inverted()
     label_fontsize = 10
 
-    label_offsets_by_triplet = {
-        (1, 2, 3): {
-            "Dorsal Striatum": (-98, 130),
-            "Cerebellum": (-8, 44),
-            "PreSMA": (-4, 32),
-            "SMA": (-90, 38),
-            "PMD": (7, 8),
-            "PMV": (8, 18),
-            "Heschl's Gyrus": (-85, 4),
-            "Occipital\nLobe": (58, 40),
-            "Occipital Lobe": (8, 6),
-        },
-    }
+    label_offsets_px = get_panel_spec(
+        specs,
+        "label_offsets_px",
+        tuple(comps),
+        {},
+    )
 
-    label_offsets_px = label_offsets_by_triplet.get(tuple(comps), {})
-
-    for x, y, z, name in zip(
-        coords[:, c1], coords[:, c2], coords[:, c3], labels_disp
+    for x_val, y_val, z_val, name in zip(
+        coords[:, c1],
+        coords[:, c2],
+        coords[:, c3],
+        labels_disp,
     ):
         x2, y2, _ = proj3d.proj_transform(
-            float(x), float(y), float(z), ax.get_proj()
+            float(x_val),
+            float(y_val),
+            float(z_val),
+            ax.get_proj(),
         )
         x_px, y_px = ax.transData.transform((x2, y2))
 
@@ -948,7 +891,7 @@ def plot_mds_3d(
         x_fig, y_fig = inv_fig.transform((x_px, y_px))
 
         if name.startswith("Occipital"):
-            t = fig.text(
+            txt = fig.text(
                 x_fig,
                 y_fig,
                 name,
@@ -958,7 +901,7 @@ def plot_mds_3d(
                 fontsize=label_fontsize,
             )
         else:
-            t = fig.text(
+            txt = fig.text(
                 x_fig,
                 y_fig,
                 name,
@@ -966,14 +909,15 @@ def plot_mds_3d(
                 va="center",
                 fontsize=label_fontsize,
             )
-        t.set_in_layout(False)
+        txt.set_in_layout(False)
 
-    if tuple(comps) == (1, 2, 3):
-        fig.subplots_adjust(left=0.0, right=0.97, bottom=-0.05, top=1.10)
-    elif tuple(comps) == (2, 3, 4):
-        fig.subplots_adjust(left=0.03, right=0.98, bottom=0.02, top=0.98)
-    else:
-        fig.subplots_adjust(left=0.03, right=0.97, bottom=0.02, top=0.98)
+    adjust = get_panel_spec(specs, "subplots_adjust", tuple(comps), {})
+    fig.subplots_adjust(
+        left=adjust.get("left", 0.03),
+        right=adjust.get("right", 0.97),
+        bottom=adjust.get("bottom", 0.02),
+        top=adjust.get("top", 0.98),
+    )
 
     fig.savefig(out_path)
     plt.close(fig)
@@ -1001,7 +945,231 @@ ROI_LABELS = {
 
 # MDS dimensions to flip manually, using 1-based indexing.
 # Example: [3] flips MDS3. Use [] for no flips.
+# FLIP_MDS_DIMS = []
 FLIP_MDS_DIMS = [3]
+
+# ======================= GLOBAL PLOT CONTROLS ====================== #
+
+# Color of ROI points in all 2D and 3D MDS plots.
+MDS_POINT_COLOR = "mediumblue"
+
+# Transparency of ROI points. 1.0 is opaque; lower values are lighter.
+MDS_POINT_ALPHA = 0.8
+
+# Color of zero reference lines in 2D plots.
+ZERO_LINE_COLOR = "mediumblue"
+
+
+# ========================== PLOT SPECS ============================= #
+
+MDS_2D_SPECS = {
+    # Shared appearance for 2D point markers.
+    "point_color": MDS_POINT_COLOR,
+    "point_alpha": MDS_POINT_ALPHA,
+
+    # Color of x=0 and y=0 reference lines in 2D plots.
+    "zero_line_color": ZERO_LINE_COLOR,
+
+    # Tick spacing. All ticks are drawn every 0.05.
+    "tick_step": 0.05,
+
+    # Tick labels are shown only every 0.1.
+    "label_step": 0.1,
+
+    # Optional axis swapping per panel. Here MDS1 vs MDS2 is shown as
+    # MDS2 on x and MDS1 on y.
+    "swap_axes": {
+        (1, 2): (2, 1),
+    },
+
+    # Fixed axis limits by MDS dimension. If a dimension is missing,
+    # limits are computed from the data.
+    "axis_limits": {
+        1: (-0.35, 0.05),
+        2: (-0.35, 0.35),
+        3: (-0.30, 0.30),
+    },
+
+    # Figure scaling reference used to preserve pixels per data unit.
+    "figsize_reference": {
+        "figsize": (6.0, 5.0),
+        "x_range": 0.70,
+        "y_range": 0.60,
+        "pad": 1.08,
+    },
+
+    # Labels whose line breaks should be removed for specific panels.
+    "remove_linebreak_labels": {
+        (1, 3): ["Occipital\nLobe"],
+        (2, 3): ["Occipital\nLobe"],
+    },
+
+    # Manual label offsets in data units, separated by 2D panel.
+    # If a label is missing, an automatic small offset is used.
+    "label_offsets": {
+        (2, 1): {
+            "Dorsal Striatum": (-0.175, 0.000),
+            "Cerebellum": (-0.09, 0.035),
+            "PreSMA": (-0.0825, -0.01),
+            "SMA": (-0.055, 0.0005),
+            "PMD": (0.01, -0.12),
+            "PMV": (0.0125, 0.001),
+            "Heschl's Gyrus": (0.015, -0.0015),
+            "Occipital\nLobe": (0.0, 0.035),
+        },
+        (1, 3): {
+            "Dorsal Striatum": (0.015, 0.000),
+            "Cerebellum": (0.009, 0.0075),
+            "PreSMA": (0.012, -0.0025),
+            "SMA": (0.012, 0.000),
+            "PMD": (0.01, -0.001),
+            "PMV": (0.0125, -0.001),
+            "Heschl's Gyrus": (-0.085, -0.025),
+            "Occipital Lobe": (0.085, 0.0),
+        },
+        (2, 3): {
+            "Dorsal Striatum": (-0.1725, 0.000),
+            "Cerebellum": (-0.126, 0.0085),
+            "PreSMA": (-0.087, -0.006),
+            "SMA": (-0.057, 0.0001),
+            "PMD": (0.015, -0.001),
+            "PMV": (0.015, -0.001),
+            "Heschl's Gyrus": (0.015, -0.001),
+            "Occipital Lobe": (0.0, 0.02),
+        },
+    },
+
+    # Optional leader lines from ROI point to label, in data units.
+    "leader_lines": {
+        (2, 1): {
+            "Cerebellum": {
+                "start_offset": (-0.0025, 0.009),
+                "end_offset": (0.075, -0.01),
+                "color": "black",
+                "linewidth": 0.8,
+                "zorder": 5,
+            },
+        },
+    },
+}
+
+MDS_3D_SPECS = {
+    # Shared appearance for 3D point markers and vertical stems.
+    "point_color": MDS_POINT_COLOR,
+    "point_alpha": MDS_POINT_ALPHA,
+
+    # Tick spacing. All ticks are drawn every 0.05.
+    "tick_step": 0.05,
+
+    # Tick labels are shown only every 0.1.
+    "label_step": 0.1,
+
+    # Figure size by 3D component triplet. If missing, use default.
+    "figsize": {
+        (2, 3, 4): (8.5, 6.5),
+        "default": (6, 5),
+    },
+
+    # View angle by 3D component triplet.
+    "view": {
+        (1, 2, 3): {
+            "elev": 15,
+            "azim": 10,
+        },
+        (2, 3, 4): {
+            "elev": 10,
+            "azim": 50,
+        },
+        "default": {
+            "elev": 15,
+            "azim": 45,
+        },
+    },
+
+    # Fixed axis limits by MDS dimension. If missing, use data limits.
+    "axis_limits": {
+        1: (-0.35, 0.0),
+        2: (-0.35, 0.35),
+        3: (-0.30, 0.30),
+        4: (-0.15, 0.15),
+    },
+
+    # Pixel offsets for projected x tick labels in 3D.
+    "x_ticklabel_offsets": {
+        (1, 2, 3): {
+            "dx_px": 119.0,
+            "dy_px": -78.0,
+            "spread_x_px": -3.75,
+            "spread_y_px": -15.0,
+        },
+        "default": {
+            "dx_px": 0.0,
+            "dy_px": 0.0,
+            "spread_x_px": 12.0,
+            "spread_y_px": 0.0,
+        },
+    },
+
+    # Pixel offsets and rotation for projected x-axis label in 3D.
+    "xlabel_offsets": {
+        (1, 2, 3): {
+            "dx_px": 158.0,
+            "dy_px": -78.0,
+            "rotation": 73.0,
+        },
+        "default": {
+            "dx_px": 0.0,
+            "dy_px": 0.0,
+            "rotation": 0.0,
+        },
+    },
+
+    # Manual projected label offsets in pixels, by 3D triplet.
+    # If a label is missing, default offset (6, 6) is used.
+    "label_offsets_px": {
+        (1, 2, 3): {
+            "Dorsal Striatum": (-98, 130),
+            "Cerebellum": (-8, 44),
+            "PreSMA": (-4, 32),
+            "SMA": (-90, 38),
+            "PMD": (7, 8),
+            "PMV": (8, 18),
+            "Heschl's Gyrus": (-85, 4),
+            "Occipital\nLobe": (58, 40),
+            "Occipital Lobe": (8, 6),
+        },
+        "default": {},
+    },
+
+    # Subplot margins by triplet. Useful when projected labels are cut.
+    "subplots_adjust": {
+        (1, 2, 3): {
+            "left": 0.0,
+            "right": 0.97,
+            "bottom": -0.05,
+            "top": 1.10,
+        },
+        (2, 3, 4): {
+            "left": 0.03,
+            "right": 0.98,
+            "bottom": 0.02,
+            "top": 0.98,
+        },
+        "default": {
+            "left": 0.03,
+            "right": 0.97,
+            "bottom": 0.02,
+            "top": 0.98,
+        },
+    },
+
+    # Vertical stems from z-axis floor to each ROI point.
+    "stems": {
+        "n_segments": 640,
+        "linewidth": 1.5,
+    },
+}
+
 
 # =============================== PATHS ============================= #
 
@@ -1010,8 +1178,9 @@ MODEL = "rwls"
 MASKING = "wb"
 HRF = "hrf128"
 
-# use "encoding_restrand" for within-subject rm corr, and ...
-# ... "subjectcorr_paired_restrand" for between-subject rm corr
+# Use "encoding_restrand" for within-subject rm corr, and ...
+# ... "subjectcorr_paired_restrand" for subject-wise corr.
+# corrtype_folder = "encoding_restrand"
 corrtype_folder = "subjectcorr_paired_restrand"
 
 BASE_ALL = os.path.join(
@@ -1086,6 +1255,7 @@ if __name__ == "__main__":
             out_path=out2d,
             comps=(a, b),
             use_custom=USE_CUSTOM_2D_PLOTTING,
+            specs=MDS_2D_SPECS,
         )
 
     if coords.shape[1] >= 3:
@@ -1102,4 +1272,5 @@ if __name__ == "__main__":
                 out_path=out3d,
                 comps=(a, b, c),
                 use_custom=USE_CUSTOM_3D_PLOTTING,
+                specs=MDS_3D_SPECS,
             )
