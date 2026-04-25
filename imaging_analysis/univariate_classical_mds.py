@@ -1133,9 +1133,9 @@ MDS_2D_SPECS = {
         },
         (1, 3): {
             "Dorsal Striatum": (0.015, 0.000),
-            "Cerebellum": (-0.0075, 0.0175),
+            "Cerebellum": (-0.0075, 0.0175),  # (0.009, 0.0075),
             "PreSMA": (0.012, -0.0025),
-            "SMA": (0.0095, 0.009),
+            "SMA": (0.0095, 0.009),  # (0.012, 0.000),
             "PMD": (0.01, -0.001),
             "PMV": (0.0125, -0.001),
             "Heschl's Gyrus": (-0.085, -0.025),
@@ -1143,14 +1143,12 @@ MDS_2D_SPECS = {
         },
         (2, 3): {
             "Dorsal Striatum": (-0.1725, 0.000),
-            "Cerebellum": (-0.11, 0.02),
-            "PreSMA": (-0.0675, -0.024),
-            "SMA": (-0.042, 0.0175),
+            "Cerebellum": (-0.11, 0.02),  # (-0.126, 0.0085),
+            "PreSMA": (-0.0675, -0.024),  # (-0.087, -0.006),
+            "SMA": (-0.042, 0.0175),  # (-0.057, 0.0001),
             "PMD": (0.015, -0.001),
             "PMV": (0.015, -0.001),
             "Heschl's Gyrus": (0.015, -0.001),
-            "Occipital Lobe": (0.0, 0.02),
-        },
     },
 
     # Optional leader lines from ROI point to label, in data units.
@@ -1207,7 +1205,7 @@ MDS_3D_SPECS = {
     "view": {
         (1, 2, 3): {
             "elev": 15,
-            "azim": 55,
+            "azim": 55,  # 10,
         },
         (2, 3, 4): {
             "elev": 10,
@@ -1230,10 +1228,10 @@ MDS_3D_SPECS = {
     # Pixel offsets for projected x and y tick labels in 3D.
     "x_ticklabel_offsets": {
         (1, 2, 3): {
-            "dx_px": 55.0,
-            "dy_px": -116.0,
-            "spread_x_px": -32.0,
-            "spread_y_px": -8.0,
+            "dx_px": 55.0,  # 119.0,
+            "dy_px": -116.0,  # -78.0,
+            "spread_x_px": -32.0,  # -3.75,
+            "spread_y_px": -8.0,  # -15.0,
         },
         "default": {
             "dx_px": 0.0,
@@ -1260,9 +1258,9 @@ MDS_3D_SPECS = {
     # Pixel offsets and rotation for projected x-axis label in 3D.
     "xlabel_offsets": {
         (1, 2, 3): {
-            "dx_px": 70.0,
-            "dy_px": -122.0,
-            "rotation": 10.0,
+            "dx_px": 70.0,  # 158.0,
+            "dy_px": -122.0,  # -78.0,
+            "rotation": 10.,  # 73.0,
         },
         "default": {
             "dx_px": 0.0,
@@ -1284,14 +1282,14 @@ MDS_3D_SPECS = {
     # If a label is missing, default offset (6, 6) is used.
     "label_offsets_px": {
         (1, 2, 3): {
-            "Dorsal Striatum": (-70, 128),
-            "Cerebellum": (16, 43),
-            "PreSMA": (22, 30),
-            "SMA": (-45, 53),
-            "PMD": (30, 7),
-            "PMV": (29, 17),
-            "Heschl's Gyrus": (-83, 19),
-            "Occipital\nLobe": (90, -15),
+            "Dorsal Striatum": (-70, 128),  # (-98, 130),
+            "Cerebellum": (16, 43),  # (-8, 44),
+            "PreSMA": (22, 30),  # (-4, 32),
+            "SMA": (-45, 53),  # (-90, 38),
+            "PMD": (30, 7),  # (7, 8),
+            "PMV": (29, 17),  # (8, 18),
+            "Heschl's Gyrus": (-83, 19),  # (-85, 4),
+            "Occipital\nLobe": (90, -15),  # (58, 40),
             "Occipital Lobe": (8, 6),
         },
         "default": {},
