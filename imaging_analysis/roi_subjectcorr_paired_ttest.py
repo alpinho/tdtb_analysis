@@ -961,9 +961,7 @@ if __name__ == '__main__':
 
                 seed_targets = []
                 for seed in SEEDS:
-                    for target in rois:
-                        if target == seed:
-                            continue
+                    for target in plot_targets:
                         seed_targets.append((seed, target))
 
                 for roi1, roi2 in seed_targets:
@@ -996,7 +994,7 @@ if __name__ == '__main__':
                 pair_summary = pd.DataFrame(pair_rows)
                 paired_df = paired_tests_from_subject_corrs(
                     all_corrs=all_corrs,
-                    cortical_targets=cortical_targets,
+                    cortical_targets=plot_targets,
                     indiv=indiv,
                 )
 
