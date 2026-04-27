@@ -15,8 +15,9 @@ For the selected individualization X modality X hemisphere:
 - Optionally add one synthetic Rest row (PSC=0) per Subject X ROI.
 - Compute Pearson correlations separately for each subject.
 - Summarize all pairs involving cerebellum or dorsal striatum.
-- For each cortical ROI, run a paired t-test comparing:
-  target-cerebellum vs target-dstr subject-wise correlations.
+- For each cortical ROI, run a paired t-test comparing:a
+  target-cerebellum vs target-dstr subject-wise correlations, usinga
+  either raw r or Fisher-z transformed subject-wise correlations.
 - Build a ROI X ROI matrix using mean raw subject-wise correlations.
 - Test each ROI-pair mean correlation against zero using either raw r
   or Fisher-z transformed subject-wise correlations.
@@ -382,10 +383,12 @@ def paired_tests_from_subject_corrs(
     all_corrs: pd.DataFrame,
     cortical_targets: List[str],
     indiv: str,
+    test_scale: str,
 ) -> pd.DataFrame:
     """
     Compare target-cereb and target-dstr subject-wise correlations.
     """
+    validate_matrix_test_scale(test_scale)
     rows: List[Dict[str, object]] = []
 
     for target in cortical_targets:
@@ -406,9 +409,16 @@ def paired_tests_from_subject_corrs(
                 f"[ERROR] no overlapping subjects for {target}."
             )
 
+        vals_c = merged['r_cereb'].to_numpy(dtype=float)
+        vals_d = merged['r_dstr'].to_numpy(dtype=float)
+
+        if test_scale == 'fisher_z':
+            vals_c = np.arctanh(np.clip(vals_c, -0.999999, 0.999999))
+            vals_d = np.arctanh(np.clip(vals_d, -0.999999, 0.999999))
+
         t_res = pg.ttest(
-            merged['r_cereb'],
-            merged['r_dstr'],
+            vals_c,
+            vals_d,
             paired=True,
             alternative='two-sided'
         )
@@ -423,11 +433,12 @@ def paired_tests_from_subject_corrs(
             ci_low = np.nan
             ci_high = np.nan
 
-        rows.append({
+        row = {
             'individualization': indiv,
             'target_roi': target,
             'pair_cereb': pair_c,
             'pair_dstr': pair_d,
+            'test_scale': test_scale,
             'mean_r_cereb': float(merged['r_cereb'].mean()),
             'mean_r_dstr': float(merged['r_dstr'].mean()),
             't': float(t_res['T'].iloc[0]),
@@ -438,7 +449,13 @@ def paired_tests_from_subject_corrs(
             'ci95_high': ci_high,
             'n_subj': int(len(merged)),
             'significant': bool(float(t_res[p_col].iloc[0]) < ALPHA),
-        })
+        }
+
+        if test_scale == 'fisher_z':
+            row['mean_z_cereb'] = float(np.mean(vals_c))
+            row['mean_z_dstr'] = float(np.mean(vals_d))
+
+        rows.append(row)
 
     return pd.DataFrame(rows)
 
@@ -650,7 +667,7 @@ def plot_seed_vs_target_boxplots(
     ylim: tuple[float, float] = (-0.7, 1.0),
 ) -> None:
     """
-    Paired boxplots with bootstrap notches and mean lines.
+    Plot raw correlations and annotate selected paired-test scale.
     """
     base_targets = 6
     base_width = 6.4
@@ -665,6 +682,19 @@ def plot_seed_vs_target_boxplots(
     fig_height = base_height * height_scale
 
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+
+    test_scales = paired_df['test_scale'].dropna().unique().tolist()
+    if len(test_scales) == 1:
+        test_scale = str(test_scales[0])
+    else:
+        test_scale = 'mixed'
+
+    if test_scale == 'fisher_z':
+        star_label = 'Stars: paired t-test on Fisher-z correlations'
+    elif test_scale == 'raw_r':
+        star_label = 'Stars: paired t-test on raw correlations'
+    else:
+        star_label = 'Stars: paired t-test'
 
     dstr_color = '#E69F00'
     cereb_color = '#56B4E9'
@@ -789,6 +819,16 @@ def plot_seed_vs_target_boxplots(
     ax.margins(x=0)
 
     ax.set_ylabel('Subject-wise Correlation ($r_s$)')
+    ax.text(
+        0.0,
+        1.03,
+        star_label,
+        transform=ax.transAxes,
+        ha='left',
+        va='bottom',
+        fontsize=8,
+        clip_on=False,
+    )
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
@@ -860,6 +900,7 @@ MODALITIES: List[str] = ['Both']
 YLIM: tuple[float, float] = (-0.2, 1.0)
 
 # Options: 'fisher_z' or 'raw_r'
+PAIRED_TEST_SCALE: str = 'fisher_z'
 MATRIX_TEST_SCALE: str = 'fisher_z'
 
 BASE_TASKS: List[str] = ['Production', 'Perception', 'NTFD']
@@ -939,6 +980,7 @@ OUT_ROOT = Path(BASE_ALL) / 'profile_similarity' / SUBJECTCORR_DIRNAME
 
 if __name__ == '__main__':
 
+    validate_matrix_test_scale(PAIRED_TEST_SCALE)
     validate_matrix_test_scale(MATRIX_TEST_SCALE)
 
     for indiv in INDIVID_LEVELS:
@@ -996,6 +1038,7 @@ if __name__ == '__main__':
                     all_corrs=all_corrs,
                     cortical_targets=plot_targets,
                     indiv=indiv,
+                    test_scale=PAIRED_TEST_SCALE,
                 )
 
                 reject, p_corr = pg.multicomp(
@@ -1021,7 +1064,8 @@ if __name__ == '__main__':
 
                 out_corrs = indiv_root / f'subject_corrs_{stem}.tsv'
                 out_pairs = indiv_root / f'pair_summary_{stem}.tsv'
-                out_ttest = indiv_root / f'paired_tests_{stem}.tsv'
+                paired_stem = f'{stem}_{PAIRED_TEST_SCALE}'
+                out_ttest = indiv_root / f'paired_tests_{paired_stem}.tsv'
 
                 all_corrs.to_csv(out_corrs, sep='\t', index=False)
                 pair_summary.to_csv(out_pairs, sep='\t', index=False)
@@ -1030,7 +1074,7 @@ if __name__ == '__main__':
                 print(f"[SAVED] {out_pairs}")
                 print(f"[SAVED] {out_ttest}")
 
-                out_png = indiv_root / f'paired_boxplots_{stem}.png'
+                out_png = indiv_root / f'paired_boxplots_{paired_stem}.png'
                 plot_seed_vs_target_boxplots(
                     all_corrs=all_corrs,
                     paired_df=paired_df,
