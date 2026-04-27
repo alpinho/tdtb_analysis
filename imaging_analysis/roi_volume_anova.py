@@ -1116,7 +1116,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'rand_ntfd_pairs'
+folder_name = 'rand_ntfd_nonrandom'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1341,10 +1341,20 @@ roi_names3 = ['dstr', 'cereb', 'sma']
 # region_names2 = ['heschl_gyrus', 'occipital_lobe']
 # roi_names2 = ['heschl', 'occipital']
 
-atlas_dirnames2 = [fsl_dir, hmat_dir]
-atlas_names2 = ['hmat', 'hmat']
-region_names2 = ['motor_area', 'motor_area']
-roi_names2 = ['presma', 'sma']
+# atlas_dirnames2 = [hmat_dir, hmat_dir]
+# atlas_names2 = ['hmat', 'hmat']
+# region_names2 = ['motor_area', 'motor_area']
+# roi_names2 = ['presma', 'sma']
+
+# atlas_dirnames2 = [fsl_dir, hmat_dir]
+# atlas_names2 = ['hos', 'hmat']
+# region_names2 = ['dorsal_striatum', 'motor_area']
+# roi_names2 = ['dstr', 'sma']
+
+atlas_dirnames2 = [ntk_dir, hmat_dir]
+atlas_names2 = ['ntk_symmni128', 'hmat']
+region_names2 = ['cerebellum', 'motor_area']
+roi_names2 = ['cereb', 'sma']
 
 
 # ============================= RUN ================================= #
