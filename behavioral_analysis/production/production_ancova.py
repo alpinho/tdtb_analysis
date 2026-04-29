@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 5, 2024
-Last update: February, 2025
+Last update: April, 2025
 
 Compatibility: Python 3.10.14
 """
@@ -213,6 +213,9 @@ sessions_dic = {'allses': 'All Sessions',
                 'ses-04': 'Session 4',
                 'ses-05': 'Session 5',
                 'behavses': 'Behavioral Sessions',
+                'behav12': 'Behavioral Sessions 1 and 2',
+                'behav13': 'Behavioral Sessions 1 and 3',
+                'behav23': 'Behavioral Sessions 2 and 3',
                 'imgses': 'Imaging Sessions'}
 
 subjects_dic = {'allses': GOOD_SUBJECTS,
@@ -222,6 +225,9 @@ subjects_dic = {'allses': GOOD_SUBJECTS,
                 'ses-04': IMG_SUBJECTS,
                 'ses-05': IMG_SUBJECTS,
                 'behavses': GOOD_SUBJECTS,
+                'behav12': GOOD_SUBJECTS,
+                'behav13': GOOD_SUBJECTS,
+                'behav23': GOOD_SUBJECTS,
                 'imgses': IMG_SUBJECTS}
 
 # %%
@@ -246,6 +252,12 @@ if __name__ == "__main__":
             sessions_list = [5]
         elif key == 'behavses':
             sessions_list = [1, 2, 3]
+        elif key == 'behav12':
+            sessions_list = [1, 2]
+        elif key == 'behav13':
+            sessions_list = [1, 3]
+        elif key == 'behav23':
+            sessions_list = [2, 3]
         else:
             assert key == 'imgses'
             sessions_list = [4, 5]
