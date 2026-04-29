@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 5, 2024
-Last update: April, 2025
+Last update: April, 2026
 
 Compatibility: Python 3.10.14
 """
@@ -39,7 +39,7 @@ def ffx_dvar(df):
 
 def plot_pttest(data_audio, data_visual,
                 y, ylim_b, ylim_t, title, output_dir, fname,
-                pval_audio_bi, pval_visual_bi, 
+                pval_audio_bi, pval_visual_bi,
                 pval_audio_br=None, pval_audio_ir=None,
                 pval_visual_br=None, pval_visual_ir=None,
                 norand=False, loc='inside'):
@@ -51,8 +51,8 @@ def plot_pttest(data_audio, data_visual,
     # right  # the right side of the subplots of the figure
     # bottom # the bottom of the subplots of the figure
     # top    # the top of the subplots of the figure
-    # wspace # the amount of width reserved for blank space between subplots
-    # hspace # the amount of height reserved for white space between subplots
+    # wspace # amount of width reserved for blank space between subplots
+    # hspace # amount of height reserved for white space between subplots
     plt.subplots_adjust(left=.15, bottom=.15, wspace=.25, top=.8)
 
     # Define subplot of bar charts and its position in the fig
@@ -73,12 +73,10 @@ def plot_pttest(data_audio, data_visual,
         if modality == 'audio':
             data_list = data_audio
             pvalue = pval_audio
-            x_label = 'Auditory Conditions'
         else:
             assert modality == 'visual'
             data_list = data_visual
             pvalue = pval_visual
-            x_label = 'Visual Conditions'
 
         if norand:
             conditions = \
@@ -89,7 +87,7 @@ def plot_pttest(data_audio, data_visual,
                 np.repeat('Beat', len(data_list) / 3).tolist() + \
                 np.repeat('Interval', len(data_list) / 3).tolist() + \
                 np.repeat('Random', len(data_list) / 3).tolist()
-        
+
         d = {x: conditions, y: data_list}
         df = pd.DataFrame(data=d)
 
@@ -105,7 +103,7 @@ def plot_pttest(data_audio, data_visual,
             notch=True,
             meanline=True,
             showmeans=True,
-            meanprops = dict(color="tab:brown",linewidth=1.5),
+            meanprops=dict(color="tab:brown", linewidth=1.5),
             **{'boxprops': {'alpha': 0.5, 'edgecolor': 'black'}})
 
         # Annotate
@@ -123,15 +121,15 @@ def plot_pttest(data_audio, data_visual,
                             fontsize=10.,
                             hide_non_significant=True,
                             loc=loc,
-                            line_offset_to_group=1.,  # try values like 0.1, 0.15, 0.2
-                            line_height=0.05) # vertical space between stacked annotations
+                            line_offset_to_group=1.,
+                            line_height=0.05)
         annotator.set_pvalues(pvalue)
         annotator.annotate()
 
         # Set limits of y-axis
-        ax[m].set_ylim(bottom=ylim_b, top=750)
+        ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
 
-        if m ==1:
+        if m == 1:
             # Remove labels and ticks
             ax[m].axes.get_yaxis().set_visible(False)
             # Remove y frame
@@ -143,7 +141,7 @@ def plot_pttest(data_audio, data_visual,
             assert m == 0
             ax[m].set_xlabel('Auditory Conditions', fontweight='semibold',
                              labelpad=14, fontsize=12)
-            ax[m].set_ylabel('Group Mean Reaction Time (ms)', fontsize=13, labelpad=10)
+            ax[m].set_ylabel(y, fontsize=13, labelpad=10)
             ax[m].tick_params(axis='y', labelsize=11)
 
         # Set the fontsize of the tick labels for both x and y axes
@@ -161,36 +159,38 @@ def plot_pttest(data_audio, data_visual,
     plt.savefig(os.path.join(output_dir, fname + '.pdf'))
 
 
-
 # %%
 # ========================== INPUTS ====================================
 
 # All good subjects including img pilot (sub-04)
 # They did all behavioral sessions
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-            22, 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 
-            44, 45, 46, 47]
+SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+            18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32,
+            34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Subjects (without pilot = sub-04) who did behavioral random only, ...
 # ... or img (random) only, ...
 # or both bahavioral random + img
-RAND_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-                 23, 24, 25, 26, 27, 28, 29, 32, 34, 35, 38, 39, 40, 41, 42,
-                 43, 44, 45, 46, 47]
+RAND_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34,
+                 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Subjects who did (all behavioral and) imaging sessions (without pilot)
-IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
-                28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21,
+                22, 23, 26, 28, 29, 32, 34, 35, 38, 39, 40, 41,
+                42, 43, 44, 45, 46, 47]
 
 # Subjects who did all behavioral sessions with the random condition
-BEHAV_RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-                       32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+BEHAV_RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+                       26, 27, 28, 29, 32, 34, 35, 38, 39, 40,
+                       41, 42, 43, 44, 45, 46, 47]
 
 # Subjects who did all behavioral sessions with the random condition...
 # ... and img sessions
 # BEHAVIMG_RAND_SUBJECTS = list(set(BEHAV_RAND_SUBJECTS) & set(IMG_SUBJECTS))
-BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
-                          39, 40, 41, 42, 43, 44, 45, 46, 47]
+BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32,
+                          34, 35, 38, 39, 40, 41, 42, 43, 44, 45,
+                          46, 47]
 
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -205,6 +205,9 @@ sessions_dic = {'allses': 'All Sessions',
                 'ses-04': 'Session 4',
                 'ses-05': 'Session 5',
                 'behavses': 'Behavioral Sessions',
+                'behavses12': 'Behavioral Sessions',
+                'behavses13': 'Behavioral Sessions',
+                'behavses23': 'Behavioral Sessions',
                 'imgses': 'Imaging Sessions'}
 
 subjects_dic = {'allses': BEHAVIMG_RAND_SUBJECTS,
@@ -214,6 +217,9 @@ subjects_dic = {'allses': BEHAVIMG_RAND_SUBJECTS,
                 'ses-04': IMG_SUBJECTS,
                 'ses-05': IMG_SUBJECTS,
                 'behavses': BEHAVIMG_RAND_SUBJECTS,
+                'behavses12': BEHAVIMG_RAND_SUBJECTS,
+                'behavses13': BEHAVIMG_RAND_SUBJECTS,
+                'behavses23': BEHAVIMG_RAND_SUBJECTS,
                 'imgses': BEHAVIMG_RAND_SUBJECTS}
 
 # %%
@@ -238,10 +244,16 @@ if __name__ == "__main__":
             sessions_list = [5]
         elif key == 'behavses':
             sessions_list = [1, 2, 3]
+        elif key == 'behavses12':
+            sessions_list = [1, 2]
+        elif key == 'behavses13':
+            sessions_list = [1, 3]
+        elif key == 'behavses23':
+            sessions_list = [2, 3]
         else:
             assert key == 'imgses'
             sessions_list = [4, 5]
-        
+
         # Open dataframe
         db_path = os.path.join(DATAFRAMES_FOLDER, 'df_ntfd.tsv')
         db = pd.read_csv(db_path, sep='\t')
@@ -389,7 +401,7 @@ if __name__ == "__main__":
         score_title = \
             'Group Mean of the Success Rate for the NTFD tasks: ' + value
         score_fname = 'group_scores_ntfd_' + key
-        
+
         if key == 'ses-04':
             plot_pttest(rt_audio,
                         rt_visual,
@@ -400,7 +412,7 @@ if __name__ == "__main__":
                         norand=True, loc='inside')
             plot_pttest(np.multiply(score_audio, 100).tolist(),
                         np.multiply(score_visual, 100).tolist(),
-                        'Success Rate (%)', 80, 104,
+                        'Group Mean Score (%)', 0, 100,
                         score_title, PLOTS_FOLDER, score_fname,
                         pval_score_abi,
                         pval_score_vbi,
@@ -417,7 +429,7 @@ if __name__ == "__main__":
                         pval_visual_ir=pval_rt_vir, loc='inside')
             plot_pttest(np.multiply(score_audio, 100).tolist(),
                         np.multiply(score_visual, 100).tolist(),
-                        'Success Rate (%)', 80, 104,
+                        'Group Mean Score (%)', 70, 100,
                         score_title, PLOTS_FOLDER, score_fname,
                         pval_score_abi, pval_score_vbi,
                         pval_audio_br=pval_score_abr,

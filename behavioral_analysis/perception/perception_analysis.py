@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February, 2023
-Last update: February, 2025
+Last update: April 2026
 
 Compatibility: Python 3.10.14
 """
@@ -882,7 +882,8 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
             ax0 = ax
             # Draw small vertical line for annotation
             if sesstag in ['allses', 'behavses', 'imgses',
-                           'ses-01', 'ses-02', 'ses-03', 'ses-04']:
+                           'ses-01', 'ses-02', 'ses-03', 'ses-04',
+                           'behav12', 'behav13', 'behav23']:
                 plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
             else:
                 assert sesstag == 'ses-05'
@@ -903,7 +904,8 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
             #              y=.95)
             # Draw small vertical line for annotation
             if sesstag in ['allses', 'behavses', 'imgses',
-                           'ses-01', 'ses-02', 'ses-03', 'ses-04']:
+                           'ses-01', 'ses-02', 'ses-03', 'ses-04', 
+                           'behav12', 'behav13', 'behav23']:
                 plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
             else:
                 assert sesstag == 'ses-05'
@@ -917,7 +919,8 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
 
     # Annotation
     if sesstag in ['allses', 'behavses', 'imgses',
-                   'ses-01', 'ses-02', 'ses-03']:
+                   'ses-01', 'ses-02', 'ses-03',
+                   'behav12', 'behav13', 'behav23']:
         xa = (.5, .195)
         xb = (.5, .195)
         fig.text(.53, .75, '****', size=12)
@@ -980,9 +983,9 @@ N_TRIALS = 30
 # tag = 'allses'
 
 # # ### For 'All Behavioral Sessionss' ###
-SUBJECTS = GOOD_SUBJECTS
-SESSIONS = [1, 2, 3]
-tag = 'behavses'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSIONS = [1, 2, 3]
+# tag = 'behavses'
 
 # # ### For 'All Imaging Sessionss' ###
 # SUBJECTS = BEHAVIMG_RAND_SUBJECTS
@@ -1014,6 +1017,25 @@ tag = 'behavses'
 # SESSIONS = [5]
 # tag = 'ses-05'
 
+# ### For first and second behav sessions: ###
+# 'ses-01' and 'ses-02' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSIONS = [1, 2]
+# tag = 'behav12'
+
+# ### For first and third behav sessions: ###
+# 'ses-01' and 'ses-03' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSIONS = [1, 3]
+# tag = 'behav13'
+
+# ### For second and third behav sessions: ###
+# 'ses-02' and 'ses-03' ###
+SUBJECTS = GOOD_SUBJECTS
+SESSIONS = [2, 3]
+tag = 'behav23'
+
+
 sessions_dic = {'allses': 'All Sessions',
                 'behavses': 'All Behavioral Sessions',
                 'imgses': 'All Imaging Sessions',
@@ -1021,7 +1043,10 @@ sessions_dic = {'allses': 'All Sessions',
                 'ses-02': 'Session 2',
                 'ses-03': 'Session 3',
                 'ses-04': 'Session 4',
-                'ses-05': 'Session 5'}
+                'ses-05': 'Session 5',
+                'behav12': 'Sessions 1 and 2',
+                'behav13': 'Sessions 1 and 3',
+                'behav23': 'Sessions 2 and 3'}
 
 # %%
 # ========================= PARAMETERS =================================
