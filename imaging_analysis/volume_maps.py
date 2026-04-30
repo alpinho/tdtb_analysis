@@ -6,7 +6,7 @@ Script: Group-level (second-level) volume maps with BH-FDR on z and
           - Storage under results/volume/<id>_<name>/
         To run for all contrasts, set RUN_ALL_CONTRASTS = True.
         To run a single contrast, set RUN_ALL_CONTRASTS = False and
-        set contrast_name to the desired contrast name 
+        set contrast_name to the desired contrast name
         (see all_contrasts).
 
 Author: Ana Luisa Pinho
@@ -174,12 +174,15 @@ def second_level_one(
     # Optional: GM mask for visualization only
     z_path_for_plot = z_path
     if GM_MASK_PATH:
-        z_path_for_plot = os.path.join(out_dir, f"{idlabel}_zmap_gmmasked.nii.gz")
+        z_path_for_plot = os.path.join(
+            out_dir,
+            f"{idlabel}_zmap_gmmasked.nii.gz",
+        )
         apply_visual_mask(z_path, GM_MASK_PATH, z_path_for_plot)
 
     # Glass-brain figure
     png_path = os.path.join(
-        out_dir, f"{idlabel}_glassbrain_zmap_FDRz{int(alpha_fdr*100)}.png"
+        out_dir, f"{idlabel}_glassbrain_zmap_FDRz{int(alpha_fdr * 100)}.png"
     )
     title = (
         f"{cname}: second-level one-sample "
@@ -197,7 +200,7 @@ def second_level_one(
     else:
         z_thr_plot = z_thr
         two_sided_plot = two_sided
-        suffix = f"FDRz{int(alpha_fdr*100)}"
+        suffix = f"FDRz{int(alpha_fdr * 100)}"
         title_plot = title
 
     png_path = os.path.join(
@@ -206,7 +209,11 @@ def second_level_one(
 
     if PLOT_UNTHRESHED:
         z_data = np.asanyarray(nib.load(z_path_for_plot).dataobj)
-        vmax = float(np.nanmax(np.abs(z_data)))
+
+        if FIXED_VMAX is not None:
+            vmax = float(FIXED_VMAX)
+        else:
+            vmax = float(np.nanmax(np.abs(z_data)))
 
         display = plotting.plot_glass_brain(
             z_path_for_plot,
@@ -252,7 +259,7 @@ RUN_ALL_CONTRASTS = False
 TWO_SIDED_TEST = False
 
 # Smoothing at second level (nilearn SecondLevelModel)
-SMOOTHING_FWHM = 0. # 8.0
+SMOOTHING_FWHM = 8.0  # 8.0
 
 # FDR alpha
 FDR_ALPHA = 0.05
@@ -260,6 +267,9 @@ FDR_ALPHA = 0.05
 # Plot unthresholded maps (red > 0, blue < 0)
 PLOT_UNTHRESHED = True
 UNTHRESHED_CMAP = "cold_hot"
+
+# Fix colorbar max for comparability across maps (None = auto)
+FIXED_VMAX = None  # e.g. 5.0
 
 
 # %%
@@ -271,14 +281,15 @@ SUBJECTS = [
 ]
 
 # Task selection
-tasks = {'prod': 'Production', 
-         'percep': 'Perception', 
-         'ntfd': 'NTFD',
-         'rand_ntfd': 'NTFD Random',
-         'allmain_tasks': 'All Tasks'
+tasks = {
+    'prod': 'Production',
+    'percep': 'Perception',
+    'ntfd': 'NTFD',
+    'rand_ntfd': 'NTFD Random',
+    'allmain_tasks': 'All Tasks',
 }
-task_tag = 'NTFD Random' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
-task_id = {v: k for k, v in tasks.items()}[task_tag]  # e.g. 'allmain_tasks'
+task_tag = 'NTFD Random'
+task_id = {v: k for k, v in tasks.items()}[task_tag]
 
 # Contrast dictionary (id -> name)
 if task_id != 'rand_ntfd':
@@ -300,10 +311,10 @@ if task_id != 'rand_ntfd':
         15: 'Visual Interval',
         16: 'Visual Beat vs Visual Interval',
         17: 'Visual Interval vs Visual Beat',
-        18: 'Decision'
+        18: 'Decision',
     }
 else:
-    assert task_id == 'rand_ntfd'   
+    assert task_id == 'rand_ntfd'
     all_contrasts = {
         1: 'Encoding',
         2: 'Auditory Encoding',
@@ -324,7 +335,7 @@ else:
         17: 'Random vs Non-Random',
         18: 'Auditory Beat',
         19: 'Auditory Interval',
-        20: 'Auditory Non-Random',                   
+        20: 'Auditory Non-Random',
         21: 'Auditory Random',
         22: 'Auditory Beat vs Auditory Interval',
         23: 'Auditory Interval vs Auditory Beat',
@@ -336,21 +347,21 @@ else:
         29: 'Auditory Random vs Auditory Non-Random',
         30: 'Visual Beat',
         31: 'Visual Interval',
-        32: 'Visual Non-Random',                   
+        32: 'Visual Non-Random',
         33: 'Visual Random',
         34: 'Visual Beat vs Visual Interval',
         35: 'Visual Interval vs Visual Beat',
         36: 'Visual Beat vs Visual Random',
-        37: 'Visual Random vs Visual Beat',                    
+        37: 'Visual Random vs Visual Beat',
         38: 'Visual Interval vs Visual Random',
         39: 'Visual Random vs Visual Interval',
         40: 'Visual Non-Random vs Visual Random',
         41: 'Visual Random vs Visual Non-Random',
-        42: 'Decision'
+        42: 'Decision',
     }
 
 # Single-contrast selection used when RUN_ALL_CONTRASTS = False
-contrast_name = 'Non-Random'  # change when running a single contrast
+contrast_name = 'Random vs Non-Random'
 contrast_id = {v: k for k, v in all_contrasts.items()}[contrast_name]
 
 # ========================= PATHS / LABELS ==============================
@@ -362,19 +373,26 @@ else:
 
 music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
-GM_MASK_PATH = os.path.join(derivatives_folder, 'group', 'anat',
-                            'group_mask_gray.nii')
+GM_MASK_PATH = os.path.join(
+    derivatives_folder,
+    'group',
+    'anat',
+    'group_mask_gray.nii',
+)
 
 # Where to save results (as requested)
 out_root_vol = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    'results', 'parametric_tests', 'volume', task_id
+    'results',
+    'parametric_tests',
+    'volume',
+    task_id,
 )
 
 # Subject contrast location/pattern (second-level inputs)
 # Adjust here if your single-subject outputs differ.
 DERIVATIVE_SUBFOLDER = 'ffx_rwls_dbb_hrf128'
-FILENAME_TEMPLATE = 'wcon_{cid:04d}.nii'  # e.g., wcon_0014.nii
+FILENAME_TEMPLATE = 'wcon_{cid:04d}.nii'
 
 
 # %%
