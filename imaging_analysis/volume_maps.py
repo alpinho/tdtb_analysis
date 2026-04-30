@@ -13,7 +13,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 22nd of August 2025
-Last Update: September 2025
+Last Update: April 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 """
@@ -28,137 +28,6 @@ from nilearn.glm.thresholding import fdr_threshold
 
 # Re-use your glass-brain plotter from ols_permutation_tests.py
 from ols_permutation_tests import plot_glass_brain_z
-
-
-# %%
-# ============================ TOGGLES ==================================
-
-# Run a single contrast (set below) or all contrasts in all_contrasts
-RUN_ALL_CONTRASTS = False
-
-# Two-sided vs one-sided BH-FDR on z for reporting/plotting
-TWO_SIDED_TEST = False
-
-# Smoothing at second level (nilearn SecondLevelModel)
-SMOOTHING_FWHM = 8.0
-
-# FDR alpha
-FDR_ALPHA = 0.05
-
-
-# %%
-# ============================ INPUTS ===================================
-
-SUBJECTS = [
-    3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-]
-
-# Task selection
-tasks = {'prod': 'Production', 
-         'percep': 'Perception', 
-         'ntfd': 'NTFD',
-         'rand_ntfd': 'NTFD Random',
-         'allmain_tasks': 'All Tasks'
-}
-task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
-task_id = {v: k for k, v in tasks.items()}[task_tag]  # e.g. 'allmain_tasks'
-
-# Contrast dictionary (id -> name)
-if task_id != 'rand_ntfd':
-    all_contrasts = {
-        1: 'Encoding',
-        2: 'Auditory Encoding',
-        3: 'Visual Encoding',
-        4: 'Auditory vs Visual Encoding',
-        5: 'Visual vs Auditory Encoding',
-        6: 'Beat',
-        7: 'Interval',
-        8: 'Beat vs Interval',
-        9: 'Interval vs Beat',
-        10: 'Auditory Beat',
-        11: 'Auditory Interval',
-        12: 'Auditory Beat vs Auditory Interval',
-        13: 'Auditory Interval vs Auditory Beat',
-        14: 'Visual Beat',
-        15: 'Visual Interval',
-        16: 'Visual Beat vs Visual Interval',
-        17: 'Visual Interval vs Visual Beat',
-        18: 'Decision'
-    }
-else:
-    assert task_id == 'rand_ntfd'   
-    all_contrasts = {
-        1: 'Encoding',
-        2: 'Auditory Encoding',
-        3: 'Visual Encoding',
-        4: 'Auditory vs Visual Encoding',
-        5: 'Visual vs Auditory Encoding',
-        6: 'Beat',
-        7: 'Interval',
-        8: 'Non-Random',
-        9: 'Random',
-        10: 'Beat vs Interval',
-        11: 'Interval vs Beat',
-        12: 'Beat vs Random',
-        13: 'Random vs Beat',
-        14: 'Interval vs Random',
-        15: 'Random vs Interval',
-        16: 'Non-Random vs Random',
-        17: 'Random vs Non-Random',
-        18: 'Auditory Beat',
-        19: 'Auditory Interval',
-        20: 'Auditory Non-Random',                   
-        21: 'Auditory Random',
-        22: 'Auditory Beat vs Auditory Interval',
-        23: 'Auditory Interval vs Auditory Beat',
-        24: 'Auditory Beat vs Auditory Random',
-        25: 'Auditory Random vs Auditory Beat',
-        26: 'Auditory Interval vs Auditory Random',
-        27: 'Auditory Random vs Auditory Interval',
-        28: 'Auditory Non-Random vs Auditory Random',
-        29: 'Auditory Random vs Auditory Non-Random',
-        30: 'Visual Beat',
-        31: 'Visual Interval',
-        32: 'Visual Non-Random',                   
-        33: 'Visual Random',
-        34: 'Visual Beat vs Visual Interval',
-        35: 'Visual Interval vs Visual Beat',
-        36: 'Visual Beat vs Visual Random',
-        37: 'Visual Random vs Visual Beat',                    
-        38: 'Visual Interval vs Visual Random',
-        39: 'Visual Random vs Visual Interval',
-        40: 'Visual Non-Random vs Visual Random',
-        41: 'Visual Random vs Visual Non-Random',
-        42: 'Decision'
-    }
-
-# Single-contrast selection used when RUN_ALL_CONTRASTS = False
-contrast_name = 'Encoding'  # change when running a single contrast
-contrast_id = {v: k for k, v in all_contrasts.items()}[contrast_name]
-
-# ========================= PATHS / LABELS ==============================
-
-if os.path.isdir('/home/analu/diedrichsen_data/data'):
-    base_dir = '/home/analu/diedrichsen_data/data'
-else:
-    base_dir = '/cifs/diedrichsen/data'
-
-music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
-derivatives_folder = os.path.join(music, 'derivatives')
-GM_MASK_PATH = os.path.join(derivatives_folder, 'group', 'anat',
-                            'group_mask_gray.nii')
-
-# Where to save results (as requested)
-out_root_vol = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'results', 'parametric_tests', 'volume', task_id
-)
-
-# Subject contrast location/pattern (second-level inputs)
-# Adjust here if your single-subject outputs differ.
-DERIVATIVE_SUBFOLDER = 'ffx_rwls_dbb_hrf128'
-FILENAME_TEMPLATE = 'wcon_{cid:04d}.nii'  # e.g., wcon_0014.nii
 
 
 # %%
@@ -338,7 +207,138 @@ def second_level_one(
 
 
 # %%
-# ============================ MAIN =====================================
+# ============================ TOGGLES ==================================
+
+# Run a single contrast (set below) or all contrasts in all_contrasts
+RUN_ALL_CONTRASTS = False
+
+# Two-sided vs one-sided BH-FDR on z for reporting/plotting
+TWO_SIDED_TEST = False
+
+# Smoothing at second level (nilearn SecondLevelModel)
+SMOOTHING_FWHM = 8.0
+
+# FDR alpha
+FDR_ALPHA = 0.05
+
+
+# %%
+# ============================ INPUTS ===================================
+
+SUBJECTS = [
+    3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+]
+
+# Task selection
+tasks = {'prod': 'Production', 
+         'percep': 'Perception', 
+         'ntfd': 'NTFD',
+         'rand_ntfd': 'NTFD Random',
+         'allmain_tasks': 'All Tasks'
+}
+task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+task_id = {v: k for k, v in tasks.items()}[task_tag]  # e.g. 'allmain_tasks'
+
+# Contrast dictionary (id -> name)
+if task_id != 'rand_ntfd':
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Beat vs Interval',
+        9: 'Interval vs Beat',
+        10: 'Auditory Beat',
+        11: 'Auditory Interval',
+        12: 'Auditory Beat vs Auditory Interval',
+        13: 'Auditory Interval vs Auditory Beat',
+        14: 'Visual Beat',
+        15: 'Visual Interval',
+        16: 'Visual Beat vs Visual Interval',
+        17: 'Visual Interval vs Visual Beat',
+        18: 'Decision'
+    }
+else:
+    assert task_id == 'rand_ntfd'   
+    all_contrasts = {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Non-Random',
+        9: 'Random',
+        10: 'Beat vs Interval',
+        11: 'Interval vs Beat',
+        12: 'Beat vs Random',
+        13: 'Random vs Beat',
+        14: 'Interval vs Random',
+        15: 'Random vs Interval',
+        16: 'Non-Random vs Random',
+        17: 'Random vs Non-Random',
+        18: 'Auditory Beat',
+        19: 'Auditory Interval',
+        20: 'Auditory Non-Random',                   
+        21: 'Auditory Random',
+        22: 'Auditory Beat vs Auditory Interval',
+        23: 'Auditory Interval vs Auditory Beat',
+        24: 'Auditory Beat vs Auditory Random',
+        25: 'Auditory Random vs Auditory Beat',
+        26: 'Auditory Interval vs Auditory Random',
+        27: 'Auditory Random vs Auditory Interval',
+        28: 'Auditory Non-Random vs Auditory Random',
+        29: 'Auditory Random vs Auditory Non-Random',
+        30: 'Visual Beat',
+        31: 'Visual Interval',
+        32: 'Visual Non-Random',                   
+        33: 'Visual Random',
+        34: 'Visual Beat vs Visual Interval',
+        35: 'Visual Interval vs Visual Beat',
+        36: 'Visual Beat vs Visual Random',
+        37: 'Visual Random vs Visual Beat',                    
+        38: 'Visual Interval vs Visual Random',
+        39: 'Visual Random vs Visual Interval',
+        40: 'Visual Non-Random vs Visual Random',
+        41: 'Visual Random vs Visual Non-Random',
+        42: 'Decision'
+    }
+
+# Single-contrast selection used when RUN_ALL_CONTRASTS = False
+contrast_name = 'Encoding'  # change when running a single contrast
+contrast_id = {v: k for k, v in all_contrasts.items()}[contrast_name]
+
+# ========================= PATHS / LABELS ==============================
+
+if os.path.isdir('/home/analu/diedrichsen_data/data'):
+    base_dir = '/home/analu/diedrichsen_data/data'
+else:
+    base_dir = '/cifs/diedrichsen/data'
+
+music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
+derivatives_folder = os.path.join(music, 'derivatives')
+GM_MASK_PATH = os.path.join(derivatives_folder, 'group', 'anat',
+                            'group_mask_gray.nii')
+
+# Where to save results (as requested)
+out_root_vol = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'parametric_tests', 'volume', task_id
+)
+
+# Subject contrast location/pattern (second-level inputs)
+# Adjust here if your single-subject outputs differ.
+DERIVATIVE_SUBFOLDER = 'ffx_rwls_dbb_hrf128'
+FILENAME_TEMPLATE = 'wcon_{cid:04d}.nii'  # e.g., wcon_0014.nii
+
+
+# %%
+# ============================ RUN ====================================
 
 if __name__ == '__main__':
 
