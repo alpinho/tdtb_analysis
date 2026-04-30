@@ -25,6 +25,7 @@ import pandas as pd
 
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm.thresholding import fdr_threshold
+from nilearn import plotting
 
 # Re-use your glass-brain plotter from ols_permutation_tests.py
 from ols_permutation_tests import plot_glass_brain_z
@@ -186,14 +187,49 @@ def second_level_one(
         f"{'two-sided |z|' if two_sided else 'one-sided z+'}; "
         f"z* = {z_thr:.3f})"
     )
-    plot_glass_brain_z(
-        z_map_path=z_path_for_plot,
-        z_threshold=z_thr,
-        two_sided=two_sided,
-        title=title,
-        out_png=png_path,
-        cbar_contrast_label=cap_label(cname),
+
+    # Decide plotting mode from toggle
+    if PLOT_UNTHRESHED:
+        z_thr_plot = 0.0
+        two_sided_plot = True
+        suffix = "unthresholded"
+        title_plot = f"{cname}: unthresholded z-map"
+    else:
+        z_thr_plot = z_thr
+        two_sided_plot = two_sided
+        suffix = f"FDRz{int(alpha_fdr*100)}"
+        title_plot = title
+
+    png_path = os.path.join(
+        out_dir, f"{idlabel}_glassbrain_zmap_{suffix}.png"
     )
+
+    if PLOT_UNTHRESHED:
+        z_data = np.asanyarray(nib.load(z_path_for_plot).dataobj)
+        vmax = float(np.nanmax(np.abs(z_data)))
+
+        display = plotting.plot_glass_brain(
+            z_path_for_plot,
+            threshold=1e-12,
+            cmap="bwr",
+            colorbar=True,
+            symmetric_cbar=True,
+            vmax=vmax,
+            title=title_plot,
+            plot_abs=False,
+            black_bg=False,
+        )
+        display.savefig(png_path)
+        display.close()
+    else:
+        plot_glass_brain_z(
+            z_map_path=z_path_for_plot,
+            z_threshold=z_thr_plot,
+            two_sided=two_sided_plot,
+            title=title_plot,
+            out_png=png_path,
+            cbar_contrast_label=cap_label(cname),
+        )
 
     print("[volume] Outputs:")
     print(f"  z-map: {z_path}")
@@ -216,10 +252,14 @@ RUN_ALL_CONTRASTS = False
 TWO_SIDED_TEST = False
 
 # Smoothing at second level (nilearn SecondLevelModel)
-SMOOTHING_FWHM = 8.0
+SMOOTHING_FWHM = 0. # 8.0
 
 # FDR alpha
 FDR_ALPHA = 0.05
+
+# Plot unthresholded maps (red > 0, blue < 0)
+PLOT_UNTHRESHED = True
+UNTHRESHED_CMAP = "cold_hot"
 
 
 # %%
@@ -237,7 +277,7 @@ tasks = {'prod': 'Production',
          'rand_ntfd': 'NTFD Random',
          'allmain_tasks': 'All Tasks'
 }
-task_tag = 'All Tasks' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+task_tag = 'NTFD Random' # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
 task_id = {v: k for k, v in tasks.items()}[task_tag]  # e.g. 'allmain_tasks'
 
 # Contrast dictionary (id -> name)
@@ -310,7 +350,7 @@ else:
     }
 
 # Single-contrast selection used when RUN_ALL_CONTRASTS = False
-contrast_name = 'Encoding'  # change when running a single contrast
+contrast_name = 'Non-Random'  # change when running a single contrast
 contrast_id = {v: k for k, v in all_contrasts.items()}[contrast_name]
 
 # ========================= PATHS / LABELS ==============================
