@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: February, 2025
+Last update: April 2026
 
 Compatibility: Python 3.10.14
 """
@@ -63,13 +63,15 @@ def symlog_transform(arr, shift):
 
 
 def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
-                         sesstag=None, sessions=None,
-                         tasks=['Auditory Production', 'Visual Production']):
+                         sesstag=None, sessions=None, audio_latency=133,
+                         visual_latency=35, button_press=20,
+                         tasks=['Auditory Production',
+                                'Visual Production']):
 
     # Define columns of dataframe
     df = pd.DataFrame(columns=[
         'subject', 'session', 'run', 'modality', 'condition', 'standard',
-        'response_time', 'signed_asynchrony'])
+        'response_time', 'response_time_corrected', 'signed_asynchrony'])
 
     logfiles_dir = os.path.join(
         os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
@@ -80,7 +82,7 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
         for t, task in enumerate(tasks):
             if task not in ['Auditory Production', 'Visual Production']:
                 raise NameError('Task not valid!')
-            
+
             data = parse_logfile(logfiles_dir, subject, sesstype, task,
                                  n_trials, sessions=sessions,
                                  renumber_sessions=True)
@@ -97,27 +99,41 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             # ... the row is NaN
             beat_numeric = beat_trials[:, 4:].astype(float)
             interval_numeric = interval_trials[:, 4:].astype(float)
+
+            modality = np.array([task.partition(' ')[0].lower()])
+
+            if modality[0] == 'auditory':
+                latency = audio_latency
+            elif modality[0] == 'visual':
+                latency = visual_latency
+            else:
+                raise NameError('Modality not valid!')
+
+            beat_corr = beat_numeric[:, 1] - latency - button_press
+            interval_corr = interval_numeric[:, 1] - latency - button_press
+
             with np.errstate(invalid='ignore'):  # Avoid warnings for NaN operations
                 ss_beat = np.where(
                     np.isnan(beat_numeric).any(axis=1), np.nan,
-                    np.round((beat_numeric[:, 1] - beat_numeric[:, 0]) /
+                    np.round((beat_corr - beat_numeric[:, 0]) /
                              beat_numeric[:, 0], 2))
                 ss_interval = np.where(
                     np.isnan(interval_numeric).any(axis=1), np.nan,
-                    np.round((interval_numeric[:, 1] - interval_numeric[:, 0]) /
+                    np.round((interval_corr - interval_numeric[:, 0]) /
                              interval_numeric[:, 0], 2))
 
-            # Append asynchronies as the last elements of the row
+            # Append corrected response times and asynchronies as the last
+            # elements of the row
             beat_trials = np.hstack((beat_trials,
+                                     beat_corr.reshape(-1, 1),
                                      ss_beat.reshape(-1, 1)
                                      ))
             interval_trials = np.hstack((interval_trials,
+                                         interval_corr.reshape(-1, 1),
                                          ss_interval.reshape(-1, 1)
                                          ))
 
             # Append modality info in the third position of the row
-            modality = np.array([task.partition(' ')[0].lower()])
-            
             mbeat = np.repeat(modality, beat_trials.shape[0])
             table_beat = np.insert(beat_trials, 3, mbeat, axis=1)
 
@@ -162,6 +178,10 @@ IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
 # TASKS = ['Visual Production']
 
 N_TRIALS = 30
+
+AUDIO_LATENCY = 133
+VISUAL_LATENCY = 35
+BUTTON_PRESS = 20
 
 # ### For 'All Sessions' ###
 SUBJECTS = GOOD_SUBJECTS
@@ -215,4 +235,7 @@ if __name__ == "__main__":
 
     # Create the dataframe
     production_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                         N_TRIALS, sessions=SESSIONS)
+                         N_TRIALS, sessions=SESSIONS,
+                         audio_latency=AUDIO_LATENCY,
+                         visual_latency=VISUAL_LATENCY,
+                         button_press=BUTTON_PRESS)
