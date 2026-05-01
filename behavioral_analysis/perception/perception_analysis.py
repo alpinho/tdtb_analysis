@@ -988,9 +988,9 @@ N_TRIALS = 30
 # tag = 'behavses'
 
 # # ### For 'All Imaging Sessionss' ###
-# SUBJECTS = BEHAVIMG_RAND_SUBJECTS
-# SESSIONS = [4, 5]
-# tag = 'imgses'
+SUBJECTS = BEHAVIMG_RAND_SUBJECTS
+SESSIONS = [4, 5]
+tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -1031,9 +1031,9 @@ N_TRIALS = 30
 
 # ### For second and third behav sessions: ###
 # 'ses-02' and 'ses-03' ###
-SUBJECTS = GOOD_SUBJECTS
-SESSIONS = [2, 3]
-tag = 'behav23'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSIONS = [2, 3]
+# tag = 'behav23'
 
 
 sessions_dic = {'allses': 'All Sessions',
