@@ -97,7 +97,7 @@ def compute_q_from_paths(zmap_path, mask_path, z_star,
 # Parent directories
 home_dir = os.path.expanduser("~")
 inputs_dir = os.path.join(home_dir,
-                          'mygit', 'music_sdtb', 'music-sdtb_analysis',
+                          'mygit', 'music_sdtb', 'tdtb_analysis',
                           'imaging_analysis', 'results')
 
 group_functional = os.path.join(inputs_dir, 'parametric_tests', 'volume',
