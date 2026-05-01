@@ -10,7 +10,6 @@ behavioral_analysis/production/production_results
 behavioral_analysis/perception/perception_results
 behavioral_analysis/ntfd_results
 imaging_analysis/events
-imaging_analysis/events_drbb
 imaging_analysis/atlases
 imaging_analysis/group_anats
 imaging_analysis/results
