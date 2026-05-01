@@ -30,13 +30,11 @@ from statannotations.Annotator import Annotator
 # ======================== MAIN FUNCTIONS ==============================
 
 def ffx_dvar(df):
-    """ 
-    Fixed Effects within subjects, averaged across subjects
-    """
+    # Fixed Effects within subjects, averaged across subjects
     df_ffx = df.drop(['session'], axis=1)
-    df_ffx = df_ffx.groupby(
-        ['condition', 'modality', 'subject']
-    ).mean(numeric_only=True).reset_index()
+    df_ffx = df_ffx.groupby([
+        'condition', 'modality', 'subject']).mean(
+            numeric_only=True).reset_index()
 
     return df_ffx
 
@@ -162,6 +160,9 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32,
                           34, 35, 38, 39, 40, 41, 42, 43, 44, 45,
                           46, 47]
 
+audio_latency = 133
+visual_latency = 35
+button_press = 20
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results')
@@ -236,6 +237,12 @@ if __name__ == "__main__":
 
         df = df.dropna(subset=['reaction_time'])
         df = df.drop(columns=['answer'])
+
+        df['reaction_time'] = df['reaction_time'].astype(float)
+        df.loc[df['modality'] == 'auditory', 'reaction_time'] -= (
+            audio_latency + button_press)
+        df.loc[df['modality'] == 'visual', 'reaction_time'] -= (
+            visual_latency + button_press)
 
         df_ffx = ffx_dvar(df)
 
@@ -369,7 +376,7 @@ if __name__ == "__main__":
         if key in ['ses-04', 'imgses_ntfd']:
             plot_pttest(rt_audio,
                         rt_visual,
-                        'Reaction Time (ms)', 300., 800.,
+                        'Reaction Time (ms)', 100., 700.,
                         rt_title, PLOTS_FOLDER, rt_fname,
                         pval_rt_abi,
                         pval_rt_vbi,
@@ -384,7 +391,7 @@ if __name__ == "__main__":
         else:
             plot_pttest(rt_audio,
                         rt_visual,
-                        'Reaction Time (ms)', 300., 800.,
+                        'Reaction Time (ms)', 100., 700.,
                         rt_title, PLOTS_FOLDER, rt_fname,
                         pval_rt_abi, pval_rt_vbi,
                         pval_audio_br=pval_rt_abr,
