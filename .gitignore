@@ -5,6 +5,7 @@
 *.csv
 *.xpd
 *.xpe
+logfiles
 logfiles_filtered
 behavioral_analysis/production/production_results
 behavioral_analysis/perception/perception_results
