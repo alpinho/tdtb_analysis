@@ -1429,10 +1429,10 @@ switch what
         
         if isfolder('/cifs/diedrichsen/data')
             source = fullfile(homedir, ...
-                'tsclient/analu/mygit/music_sdtb/music-sdtb_analysis/imaging_analysis/events');
+                'tsclient/analu/mygit/music_sdtb/tdtb_analysis/imaging_analysis/events');
         else
             source = fullfile(...
-                '/home/analu/mygit/music_sdtb/music-sdtb_analysis/imaging_analysis/events');
+                '/home/analu/mygit/music_sdtb/tdtb_analysis/imaging_analysis/events');
         end
         destination = fullfile(workdir, ...
             'Cerebellum/music-sdtb/derivatives');
