@@ -1,14 +1,16 @@
 *.pdf
 *.asv
 *.png
-behavioral_analysis/production_results/dataframes/*.tsv
-behavioral_analysis/perception/production_results/ancova/plots
-behavioral_analysis/perception/perception_results/raw_dataframes/*.tsv
-perception/perception_results/anovas/twoway/
+logfiles_filtered
+behavioral_analysis/production_results
+behavioral_analysis/perception/perception_results
 behavioral_analysis/ntfd_results
 imaging_analysis/events
 imaging_analysis/events_drbb
 imaging_analysis/atlases
+imaging_analysis/group_anats
+imaging_analysis/results
+imaging_analysis/roi_analyses_rwls_hrf128_wb_puncorr_unsmoothed
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
