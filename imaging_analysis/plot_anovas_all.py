@@ -79,6 +79,9 @@ W_RATIO_SPACER = 0.30
 # Scale overall figure width without changing internal layout.
 FIG_W_SCALE = 0.50
 
+# Constant vertical pin size for annotation brackets.
+BRACKET_HEIGHT_FIG = 0.002
+
 
 # ============================ UTILITIES ============================ #
 
@@ -235,7 +238,7 @@ def span_annotation_datay_figspan(
     x2 = b2.x0 + 0.5 * b2.width
 
     y0 = _ydata_to_yfig(fig, ax_left, y_data)
-    y1 = _ydata_to_yfig(fig, ax_left, y_data + h_data)
+    y1 = y0 + BRACKET_HEIGHT_FIG
 
     fig.add_artist(
         Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
@@ -277,7 +280,7 @@ def span_annotation_figx_figspan(
         fig._ann_canvas_drawn = True
 
     y0 = _ydata_to_yfig(fig, ax_ref, y_data)
-    y1 = _ydata_to_yfig(fig, ax_ref, y_data + h_data)
+    y1 = y0 + BRACKET_HEIGHT_FIG
 
     fig.add_artist(
         Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
@@ -1608,7 +1611,7 @@ def plot_psc_boxplots(
 
                     x_mid_aud = (x_aud_left + x_aud_right) / 2.0
                     x_mid_vis = (x_vis_left + x_vis_right) / 2.0
-                    h_data_long = 0.08
+                    h_data_long = 0.0
 
                     span_annotation_figx_figspan(
                         fig,
@@ -2148,19 +2151,19 @@ if __name__ == "__main__":
     )
 
     # 1b) Pooled-only figure (pooled modality block only)
-    outpath_pooled = Path(OUTPUT_PATH)
-    outpath_pooled = outpath_pooled.with_name(
-        outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_pooled,
-        figsize_scale=args.figscale,
-        pooled_only=True,
-        include_ntfd_random=False,
-        x_leg_dx=-0.15,
-        tag_dy=-0.001,
-    )
+    # outpath_pooled = Path(OUTPUT_PATH)
+    # outpath_pooled = outpath_pooled.with_name(
+    #     outpath_pooled.stem + "_pooled_only" + outpath_pooled.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_pooled,
+    #     figsize_scale=args.figscale,
+    #     pooled_only=True,
+    #     include_ntfd_random=False,
+    #     x_leg_dx=-0.15,
+    #     tag_dy=-0.001,
+    # )
 
     # 2) Extended figures (with NTFD Random panels)
     outpath_rand = Path(OUTPUT_PATH)
