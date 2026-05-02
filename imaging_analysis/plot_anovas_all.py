@@ -79,8 +79,9 @@ W_RATIO_SPACER = 0.30
 # Scale overall figure width without changing internal layout.
 FIG_W_SCALE = 0.50
 
-# Constant vertical pin size for annotation brackets.
-BRACKET_HEIGHT_FIG = 0.002
+# Annotation vertical pin heights in figure-fraction units.
+WITHIN_MODALITY_BRACKET_HEIGHT_FIG = 0.0015
+BETWEEN_MODALITY_BRACKET_HEIGHT_FIG = 0.0025
 
 
 # ============================ UTILITIES ============================ #
@@ -221,6 +222,7 @@ def span_annotation_datay_figspan(
     text: str,
     y_data: float,
     h_data: float,
+    bracket_height_fig: float,
     lw: float = 1.2,
     fs: float = 14.0,
 ) -> None:
@@ -238,7 +240,7 @@ def span_annotation_datay_figspan(
     x2 = b2.x0 + 0.5 * b2.width
 
     y0 = _ydata_to_yfig(fig, ax_left, y_data)
-    y1 = y0 + BRACKET_HEIGHT_FIG
+    y1 = y0 + float(bracket_height_fig)
 
     fig.add_artist(
         Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
@@ -268,6 +270,7 @@ def span_annotation_figx_figspan(
     text: str,
     y_data: float,
     h_data: float,
+    bracket_height_fig: float,
     lw: float = 1.2,
     fs: float = 14.0,
 ) -> None:
@@ -280,7 +283,7 @@ def span_annotation_figx_figspan(
         fig._ann_canvas_drawn = True
 
     y0 = _ydata_to_yfig(fig, ax_ref, y_data)
-    y1 = y0 + BRACKET_HEIGHT_FIG
+    y1 = y0 + float(bracket_height_fig)
 
     fig.add_artist(
         Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
@@ -429,6 +432,12 @@ def plot_psc_boxplots(
     tag_dx_interval: float = -0.0515,
     tag_dy: float = -0.001,
     row_gap: float = 0.005,
+    within_modality_bracket_height_fig: float = (
+        WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+    ),
+    between_modality_bracket_height_fig: float = (
+        BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+    ),
 ) -> None:
     """Plot PSC boxplots by ROI and modality/task blocks."""
     outpath = Path(outpath)
@@ -1516,6 +1525,7 @@ def plot_psc_boxplots(
                     text=text,
                     y_data=y_data,
                     h_data=h_data,
+                    bracket_height_fig=within_modality_bracket_height_fig,
                 )
 
         eligible_cross = spec.get("eligible_cross", [])
@@ -1621,6 +1631,9 @@ def plot_psc_boxplots(
                         text=text,
                         y_data=y_data,
                         h_data=h_data_long,
+                        bracket_height_fig=(
+                            between_modality_bracket_height_fig
+                        ),
                     )
                 else:
                     span_annotation_datay_figspan(
@@ -1630,6 +1643,9 @@ def plot_psc_boxplots(
                         text=text,
                         y_data=y_data,
                         h_data=h_data,
+                        bracket_height_fig=(
+                            between_modality_bracket_height_fig
+                        ),
                     )
 
         fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.22)
@@ -2112,6 +2128,12 @@ if __name__ == "__main__":
         row_gap=0.004,
         tag_dx_beat=-0.056,
         tag_dx_interval=-0.001,
+        within_modality_bracket_height_fig=(
+            WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+        ),
+        between_modality_bracket_height_fig=(
+            BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+        ),
     )
 
     outpath_av = Path(OUTPUT_PATH)
@@ -2148,6 +2170,12 @@ if __name__ == "__main__":
         tag_dx_interval=-0.001,
         tag_dy=-0.00075,
         row_gap=0.005,
+        within_modality_bracket_height_fig=(
+            WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+        ),
+        between_modality_bracket_height_fig=(
+            BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+        ),
     )
 
     # 1b) Pooled-only figure (pooled modality block only)
@@ -2163,6 +2191,12 @@ if __name__ == "__main__":
     #     include_ntfd_random=False,
     #     x_leg_dx=-0.15,
     #     tag_dy=-0.001,
+    #     within_modality_bracket_height_fig=(
+    #         WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
+    #     between_modality_bracket_height_fig=(
+    #         BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
     # )
 
     # 2) Extended figures (with NTFD Random panels)
@@ -2176,6 +2210,12 @@ if __name__ == "__main__":
         figsize_scale=args.figscale,
         audivisual_only=False,
         include_ntfd_random=True,
+        within_modality_bracket_height_fig=(
+            WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+        ),
+        between_modality_bracket_height_fig=(
+            BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+        ),
     )
 
     # outpath_rand_av = Path(OUTPUT_PATH)
@@ -2189,6 +2229,12 @@ if __name__ == "__main__":
     #     figsize_scale=args.figscale,
     #     audivisual_only=True,
     #     include_ntfd_random=True,
+    #     within_modality_bracket_height_fig=(
+    #         WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
+    #     between_modality_bracket_height_fig=(
+    #         BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
     # )
 
     # # 2b) Pooled-only figure with NTFD Random panels
@@ -2203,4 +2249,10 @@ if __name__ == "__main__":
     #     figsize_scale=args.figscale,
     #     pooled_only=True,
     #     include_ntfd_random=True,
+    #     within_modality_bracket_height_fig=(
+    #         WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
+    #     between_modality_bracket_height_fig=(
+    #         BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
     # )
