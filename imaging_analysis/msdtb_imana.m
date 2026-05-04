@@ -87,7 +87,7 @@ wb_dir   = 'surfaceWB';
 subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-% subj_n = [22]
+% subj_n = [3]
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -196,7 +196,7 @@ contrasts_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...          
                       'Visual Interval vs Visual Beat', [0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...     %17
                       'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]                                 %18
                       };
-         
+
 contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                                 %1
                     'Auditory Encoding', [1 1 1 0 0 0 0]; ...                        %2
                     'Visual Encoding', [0 0 0 1 1 1 0]; ...                          %3
@@ -212,11 +212,11 @@ contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                            
                     'Random vs Beat', [-1 0 1 -1 0 1 0]; ...                         %13
                     'Interval vs Random', [0 1 -1 0 1 -1 0]; ...                     %14
                     'Random vs Interval', [0 -1 1 0 -1 1 0]; ...                     %15
-                    'Non-Random vs Random', [1 1 -1 1 1 -1 0]; ...                   %16
-                    'Random vs Non-Random', [-1 -1 1 -1 -1 1 0]; ...                 %17
+                    'Non-Random vs Random', [0.5 0.5 -1 0.5 0.5 -1 0]; ...           %16 FIXED
+                    'Random vs Non-Random', [-0.5 -0.5 1 -0.5 -0.5 1 0]; ...         %17 FIXED
                     'Auditory Beat', [1 0 0 0 0 0 0]; ...                            %18
                     'Auditory Interval', [0 1 0 0 0 0 0]; ...                        %19
-                    'Auditory Non-Random', [1 1 0 0 0 0 0]; ...                      %20                   
+                    'Auditory Non-Random', [1 1 0 0 0 0 0]; ...                      %20
                     'Auditory Random', [0 0 1 0 0 0 0]; ...                          %21
                     'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0]; ...      %22
                     'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0]; ...      %23
@@ -224,93 +224,112 @@ contrasts_random = {'Encoding', [1 1 1 1 1 1 0]; ...                            
                     'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0]; ...        %25
                     'Auditory Interval vs Auditory Random', [0 1 -1 0 0 0 0]; ...    %26
                     'Auditory Random vs Auditory Interval', [0 -1 1 0 0 0 0]; ...    %27
-                    'Auditory Non-Random vs Auditory Random', [1 1 -1 0 0 0 0]; ...  %28
-                    'Auditory Random vs Auditory Non-Random', [-1 -1 1 0 0 0 0]; ... %29
+                    'Auditory Non-Random vs Auditory Random', [0.5 0.5 -1 0 0 0 0]; ...  %28 FIXED
+                    'Auditory Random vs Auditory Non-Random', [-0.5 -0.5 1 0 0 0 0]; ... %29 FIXED
                     'Visual Beat', [0 0 0 1 0 0 0]; ...                              %30
                     'Visual Interval', [0 0 0 0 1 0 0]; ...                          %31
-                    'Visual Non-Random', [0 0 0 1 1 0 0]; ...                        %32                   
+                    'Visual Non-Random', [0 0 0 1 1 0 0]; ...                        %32
                     'Visual Random', [0 0 0 0 0 1 0]; ...                            %33
                     'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0]; ...          %34
                     'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0]; ...          %35
                     'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0]; ...            %36
-                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...            %37                    
+                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...            %37
                     'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0]; ...        %38
                     'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...        %39
-                    'Visual Non-Random vs Visual Random', [0 0 0 1 1 -1 0]; ...      %40
-                    'Visual Random vs Visual Non-Random', [0 0 0 -1 -1 1 0]; ...     %41
+                    'Visual Non-Random vs Visual Random', [0 0 0 0.5 0.5 -1 0]; ...  %40 FIXED
+                    'Visual Random vs Visual Non-Random', [0 0 0 -0.5 -0.5 1 0]; ... %41 FIXED
                     'Decision', [0 0 0 0 0 0 1]                                      %42
                     };
 
+
 % This list does not include "Random vs Non-Random" type contrasts
-contrasts_random_time = {'Encoding', [1 0 1 0 1 0 1 0 1 0 1 0 0 0]; ...                              %1
-                         'Auditory Encoding', [1 0 1 0 1 0 0 0 0 0 0 0 0 0]; ...                     %2
-                         'Visual Encoding', [0 0 0 0 0 0 1 0 1 0 1 0 0 0]; ...                       %3
-                         'Auditory vs Visual Encoding', [1 0 1 0 1 0 -1 0 -1 0 -1 0 0 0]; ...        %4
-                         'Visual vs Auditory Encoding', [-1 0 -1 0 -1 0 1 0 1 0 1 0 0 0]; ...        %5
-                         'Beat', [1 0 0 0 0 0 1 0 0 0 0 0 0 0]; ...                                  %6
-                         'Interval', [0 0 1 0 0 0 0 0 1 0 0 0 0 0]; ...                              %7
-                         'Random', [0 0 0 0 1 0 0 0 0 0 1 0 0 0]; ...                                %8
-                         'Beat vs Interval', [1 0 -1 0 0 0 1 0 -1 0 0 0 0 0]; ...                    %9
-                         'Interval vs Beat', [-1 0 1 0 0 0 -1 0 1 0 0 0 0 0]; ...                    %10
-                         'Beat vs Random', [1 0 0 0 -1 0 1 0 0 0 -1 0 0 0]; ...                      %11
-                         'Random vs Beat', [-1 0 0 0 1 0 -1 0 0 0 1 0 0 0]; ...                      %12
-                         'Interval vs Random', [0 0 1 0 -1 0 0 0 1 0 -1 0 0 0]; ...                  %13
-                         'Random vs Interval', [0 0 -1 0 1 0 0 0 -1 0 1 0 0 0]; ...                  %14
-                         'Auditory Beat', [1 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                         %15
-                         'Auditory Interval', [0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                     %16
-                         'Auditory Random', [0 0 0 0 1 0 0 0 0 0 0 0 0 0]; ...                       %17
-                         'Auditory Beat vs Auditory Interval', [1 0 -1 0 0 0 0 0 0 0 0 0 0 0]; ...   %18
-                         'Auditory Interval vs Auditory Beat', [-1 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...   %19
-                         'Auditory Beat vs Auditory Random', [1 0 0 0 -1 0 0 0 0 0 0 0 0 0]; ...     %20
-                         'Auditory Random vs Auditory Beat', [-1 0 0 0 1 0 0 0 0 0 0 0 0 0]; ...     %21
-                         'Auditory Interval vs Auditory Random', [0 0 1 0 -1 0 0 0 0 0 0 0 0 0]; ... %22
-                         'Auditory Random vs Auditory Interval', [0 0 -1 0 1 0 0 0 0 0 0 0 0 0]; ... %23
-                         'Visual Beat', [0 0 0 0 0 0 1 0 0 0 0 0 0 0]; ...                           %24
-                         'Visual Interval', [0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                       %25
-                         'Visual Random', [0 0 0 0 0 0 0 0 0 0 1 0 0 0]; ...                         %26
-                         'Visual Beat vs Visual Interval', [0 0 0 0 0 0 1 0 -1 0 0 0 0 0]; ...       %27
-                         'Visual Interval vs Visual Beat', [0 0 0 0 0 0 -1 0 1 0 0 0 0 0]; ...       %28
-                         'Visual Beat vs Visual Random', [0 0 0 0 0 0 1 0 0 0 -1 0 0 0]; ...         %29
-                         'Visual Random vs Visual Beat', [0 0 0 0 0 0 -1 0 0 0 1 0 0 0]; ...         %30                    
-                         'Visual Interval vs Visual Random', [0 0 0 0 0 0 0 0 1 0 -1 0 0 0]; ...     %31
-                         'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 -1 0 1 0 0 0]; ...     %32
-                         'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0]                                   %33
+contrasts_random_time = {'Encoding', [1 0 1 0 1 0 1 0 1 0 1 0 0 0]; ...                                          %1
+                         'Auditory Encoding', [1 0 1 0 1 0 0 0 0 0 0 0 0 0]; ...                                 %2
+                         'Visual Encoding', [0 0 0 0 0 0 1 0 1 0 1 0 0 0]; ...                                   %3
+                         'Auditory vs Visual Encoding', [1 0 1 0 1 0 -1 0 -1 0 -1 0 0 0]; ...                    %4
+                         'Visual vs Auditory Encoding', [-1 0 -1 0 -1 0 1 0 1 0 1 0 0 0]; ...                    %5
+                         'Beat', [1 0 0 0 0 0 1 0 0 0 0 0 0 0]; ...                                              %6
+                         'Interval', [0 0 1 0 0 0 0 0 1 0 0 0 0 0]; ...                                          %7
+                         'Non-Random', [1 0 1 0 0 0 1 0 1 0 0 0 0 0]; ...                                        %8
+                         'Random', [0 0 0 0 1 0 0 0 0 0 1 0 0 0]; ...                                            %9
+                         'Beat vs Interval', [1 0 -1 0 0 0 1 0 -1 0 0 0 0 0]; ...                                %10
+                         'Interval vs Beat', [-1 0 1 0 0 0 -1 0 1 0 0 0 0 0]; ...                                %11
+                         'Beat vs Random', [1 0 0 0 -1 0 1 0 0 0 -1 0 0 0]; ...                                  %12
+                         'Random vs Beat', [-1 0 0 0 1 0 -1 0 0 0 1 0 0 0]; ...                                  %13
+                         'Interval vs Random', [0 0 1 0 -1 0 0 0 1 0 -1 0 0 0]; ...                              %14
+                         'Random vs Interval', [0 0 -1 0 1 0 0 0 -1 0 1 0 0 0]; ...                              %15
+                         'Non-Random vs Random', [0.5 0 0.5 0 -1 0 0.5 0 0.5 0 -1 0 0 0]; ...                    %16
+                         'Random vs Non-Random', [-0.5 0 -0.5 0 1 0 -0.5 0 -0.5 0 1 0 0 0]; ...                  %17
+                         'Auditory Beat', [1 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                                     %18
+                         'Auditory Interval', [0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                                 %19
+                         'Auditory Non-Random', [1 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                               %20
+                         'Auditory Random', [0 0 0 0 1 0 0 0 0 0 0 0 0 0]; ...                                   %21
+                         'Auditory Beat vs Auditory Interval', [1 0 -1 0 0 0 0 0 0 0 0 0 0 0]; ...               %22
+                         'Auditory Interval vs Auditory Beat', [-1 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...               %23
+                         'Auditory Beat vs Auditory Random', [1 0 0 0 -1 0 0 0 0 0 0 0 0 0]; ...                 %24
+                         'Auditory Random vs Auditory Beat', [-1 0 0 0 1 0 0 0 0 0 0 0 0 0]; ...                 %25
+                         'Auditory Interval vs Auditory Random', [0 0 1 0 -1 0 0 0 0 0 0 0 0 0]; ...             %26
+                         'Auditory Random vs Auditory Interval', [0 0 -1 0 1 0 0 0 0 0 0 0 0 0]; ...             %27
+                         'Auditory Non-Random vs Auditory Random', [0.5 0 0.5 0 -1 0 0 0 0 0 0 0 0 0]; ...       %28
+                         'Auditory Random vs Auditory Non-Random', [-0.5 0 -0.5 0 1 0 0 0 0 0 0 0 0 0]; ...      %29
+                         'Visual Beat', [0 0 0 0 0 0 1 0 0 0 0 0 0 0]; ...                                       %30
+                         'Visual Interval', [0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                                   %31
+                         'Visual Non-Random', [0 0 0 0 0 0 1 0 1 0 0 0 0 0]; ...                                 %32
+                         'Visual Random', [0 0 0 0 0 0 0 0 0 0 1 0 0 0]; ...                                     %33
+                         'Visual Beat vs Visual Interval', [0 0 0 0 0 0 1 0 -1 0 0 0 0 0]; ...                   %34
+                         'Visual Interval vs Visual Beat', [0 0 0 0 0 0 -1 0 1 0 0 0 0 0]; ...                   %35
+                         'Visual Beat vs Visual Random', [0 0 0 0 0 0 1 0 0 0 -1 0 0 0]; ...                     %36
+                         'Visual Random vs Visual Beat', [0 0 0 0 0 0 -1 0 0 0 1 0 0 0]; ...                     %37
+                         'Visual Interval vs Visual Random', [0 0 0 0 0 0 0 0 1 0 -1 0 0 0]; ...                 %38
+                         'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 -1 0 1 0 0 0]; ...                 %39
+                         'Visual Non-Random vs Visual Random', [0 0 0 0 0 0 0.5 0 0.5 0 -1 0 0 0]; ...           %40
+                         'Visual Random vs Visual Non-Random', [0 0 0 0 0 0 -0.5 0 -0.5 0 1 0 0 0]; ...          %41
+                         'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 1 0]                                               %42
                         };
 
 % This list does not include "Random vs Non-Random" type contrasts
-contrasts_random_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                              %1
-                             'Auditory Encoding', [1 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                     %2
-                             'Visual Encoding', [0 0 0 0 0 0 0 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                       %3
-                             'Auditory vs Visual Encoding', [1 0 0 1 0 0 1 0 0 -1 0 0 -1 0 0 -1 0 0 0 0 0]; ...        %4
-                             'Visual vs Auditory Encoding', [-1 0 0 -1 0 0 -1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...        %5
-                             'Beat', [1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                                  %6
-                             'Interval', [0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]; ...                              %7
-                             'Random', [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                                %8
-                             'Beat vs Interval', [1 0 0 -1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0]; ...                    %9
-                             'Interval vs Beat', [-1 0 0 1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0]; ...                    %10
-                             'Beat vs Random', [1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 -1 0 0 0 0 0]; ...                      %11
-                             'Random vs Beat', [-1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 1 0 0 0 0 0]; ...                      %12
-                             'Interval vs Random', [0 0 0 1 0 0 -1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...                  %13
-                             'Random vs Interval', [0 0 0 -1 0 0 1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...                  %14
-                             'Auditory Beat', [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                         %15
-                             'Auditory Interval', [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                     %16
-                             'Auditory Random', [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                       %17
-                             'Auditory Beat vs Auditory Interval', [1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...   %18
-                             'Auditory Interval vs Auditory Beat', [-1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...   %19
-                             'Auditory Beat vs Auditory Random', [1 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...     %20
-                             'Auditory Random vs Auditory Beat', [-1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...     %21
-                             'Auditory Interval vs Auditory Random', [0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ... %22
-                             'Auditory Random vs Auditory Interval', [0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ... %23
-                             'Visual Beat', [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                           %24
-                             'Visual Interval', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]; ...                       %25
-                             'Visual Random', [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                         %26
-                             'Visual Beat vs Visual Interval', [0 0 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0]; ...       %27
-                             'Visual Interval vs Visual Beat', [0 0 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0]; ...       %28
-                             'Visual Beat vs Visual Random', [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 -1 0 0 0 0 0]; ...         %29
-                             'Visual Random vs Visual Beat', [0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 1 0 0 0 0 0]; ...         %30                    
-                             'Visual Interval vs Visual Random', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...     %31
-                             'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...     %32
-                             'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]                                   %33
+contrasts_random_timedisp = {'Encoding', [1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                                          %1
+                             'Auditory Encoding', [1 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                                 %2
+                             'Visual Encoding', [0 0 0 0 0 0 0 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                                   %3
+                             'Auditory vs Visual Encoding', [1 0 0 1 0 0 1 0 0 -1 0 0 -1 0 0 -1 0 0 0 0 0]; ...                    %4
+                             'Visual vs Auditory Encoding', [-1 0 0 -1 0 0 -1 0 0 1 0 0 1 0 0 1 0 0 0 0 0]; ...                    %5
+                             'Beat', [1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                                              %6
+                             'Interval', [0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]; ...                                          %7
+                             'Non-Random', [1 0 0 1 0 0 0 0 0 1 0 0 1 0 0 0 0 0 0 0 0]; ...                                        %8  ADDED
+                             'Random', [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                                            %9
+                             'Beat vs Interval', [1 0 0 -1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0]; ...                                %10
+                             'Interval vs Beat', [-1 0 0 1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0]; ...                                %11
+                             'Beat vs Random', [1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 -1 0 0 0 0 0]; ...                                  %12
+                             'Random vs Beat', [-1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 1 0 0 0 0 0]; ...                                  %13
+                             'Interval vs Random', [0 0 0 1 0 0 -1 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...                              %14
+                             'Random vs Interval', [0 0 0 -1 0 0 1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...                              %15
+                             'Non-Random vs Random', [0.5 0 0 0.5 0 0 -1 0 0 0.5 0 0 0.5 0 0 -1 0 0 0 0 0]; ...                    %16 ADDED
+                             'Random vs Non-Random', [-0.5 0 0 -0.5 0 0 1 0 0 -0.5 0 0 -0.5 0 0 1 0 0 0 0 0]; ...                  %17 ADDED
+                             'Auditory Beat', [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                                     %18
+                             'Auditory Interval', [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                                 %19
+                             'Auditory Non-Random', [1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                               %20 ADDED
+                             'Auditory Random', [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                                   %21
+                             'Auditory Beat vs Auditory Interval', [1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...               %22
+                             'Auditory Interval vs Auditory Beat', [-1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...               %23
+                             'Auditory Beat vs Auditory Random', [1 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                 %24
+                             'Auditory Random vs Auditory Beat', [-1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...                 %25
+                             'Auditory Interval vs Auditory Random', [0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...             %26
+                             'Auditory Random vs Auditory Interval', [0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...             %27
+                             'Auditory Non-Random vs Auditory Random', [0.5 0 0 0.5 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...       %28 ADDED
+                             'Auditory Random vs Auditory Non-Random', [-0.5 0 0 -0.5 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]; ...      %29 ADDED
+                             'Visual Beat', [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]; ...                                       %30
+                             'Visual Interval', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]; ...                                   %31
+                             'Visual Non-Random', [0 0 0 0 0 0 0 0 0 1 0 0 1 0 0 0 0 0 0 0 0]; ...                                 %32 ADDED
+                             'Visual Random', [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0]; ...                                     %33
+                             'Visual Beat vs Visual Interval', [0 0 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0 0 0 0]; ...                   %34
+                             'Visual Interval vs Visual Beat', [0 0 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 0 0 0]; ...                   %35
+                             'Visual Beat vs Visual Random', [0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 -1 0 0 0 0 0]; ...                     %36
+                             'Visual Random vs Visual Beat', [0 0 0 0 0 0 0 0 0 -1 0 0 0 0 0 1 0 0 0 0 0]; ...                     %37
+                             'Visual Interval vs Visual Random', [0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 -1 0 0 0 0 0]; ...                 %38
+                             'Visual Random vs Visual Interval', [0 0 0 0 0 0 0 0 0 0 0 0 -1 0 0 1 0 0 0 0 0]; ...                 %39
+                             'Visual Non-Random vs Visual Random', [0 0 0 0 0 0 0 0 0 0.5 0 0 0.5 0 0 -1 0 0 0 0 0]; ...           %40 ADDED
+                             'Visual Random vs Visual Non-Random', [0 0 0 0 0 0 0 0 0 -0.5 0 0 -0.5 0 0 1 0 0 0 0 0]; ...          %41 ADDED
+                             'Decision', [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0]                                               %42
                              };
 
 %==============================================================================
@@ -1946,6 +1965,17 @@ switch what
         % Both: Replicate + Create per session --- 'both'
         % Both: Replicate&Scale + Create per session --- 'bothsc'
         sessrep_mode = 'sess';
+
+        % Important note:
+        % When running the 'bothsc' option, for each contrast type a
+        % contrast for each sesssion and all sessions (the ffx) are done.
+        % In my current pipeline, analyses rely on the following order of
+        % contrasts: for all contrast types, ffx contrast are listed and
+        % after for the single sessions (the two next to each other for
+        % each contrast type. Thus, the correct way to run this function is
+        % to run first sessrep_mode = 'replsc' for all subjects with 
+        % delete_con = 1 and then run sessrep_mode = 'sess' with 
+        % delete_con = 0
 
         % Delete existing contrasts and spmT files or not?
         delete_con = 0; % 1 yes, 0 no
