@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2024
-Last update: April 2026
+Last update: May 2026
 
 Compatibility: Python 3.10.14
 
@@ -355,8 +355,48 @@ def _ng2_threeway_within(df: pd.DataFrame,
     return out
 
 
-def preprocess_rand_ntfd_nonrandom(df):
-    """Average Beat and Interval into Non-Random for rand_ntfd_pairs."""
+def preprocess_rand_ntfd_nonrandom(df, aggregation_type='sum'):
+    """
+    Aggregate 'Beat' and 'Interval' categories into a unified 'Non-Random' category
+    for rand_ntfd_pairs analysis.
+
+    This function relabels rows where 'Category' is 'Beat' or 'Interval' as
+    'Non-Random', then aggregates the PSC (Percent Signal Change) values across
+    the new category groupings using the specified aggregation method.
+
+    Parameters
+    ----------
+    df : str or pd.DataFrame
+        Input data. If a string, interpreted as a file path to a
+        tab-separated CSV file which will be loaded automatically.
+        If a DataFrame, used directly.
+    aggregation_type : str, optional
+        Aggregation function to apply to PSC values when grouping.
+        Accepts any valid pandas aggregation string (e.g., 'sum', 'mean').
+        Default is 'sum'.
+
+    Returns
+    -------
+    pd.DataFrame
+        A grouped DataFrame with one row per unique combination of
+        ['Subject', 'Modality', 'Category', 'Task', 'Hemisphere']
+        (plus 'ROI' if present), where 'Beat' and 'Interval' categories
+        have been merged into 'Non-Random' and PSC values aggregated
+        accordingly.
+
+    Notes
+    -----
+    - The original DataFrame is not modified; a copy is made internally.
+    - 'PSC' column is coerced to numeric; non-parseable values become NaN.
+    - If the input DataFrame contains an 'ROI' column, it is included
+      as an additional grouping key.
+
+    Examples
+    --------
+    >>> result = preprocess_rand_ntfd_nonrandom(df, aggregation_type='mean')
+    >>> result = preprocess_rand_ntfd_nonrandom('data/rand_ntfd.csv', aggregation_type='sum')
+    """
+
     if isinstance(df, str):
         df = pd.read_csv(df, sep='	')
 
@@ -370,8 +410,8 @@ def preprocess_rand_ntfd_nonrandom(df):
     if 'ROI' in db.columns:
         group_cols.append('ROI')
 
-    # db = db.groupby(group_cols, as_index=False).agg({'PSC': 'mean'})
-    db = db.groupby(group_cols, as_index=False).agg({'PSC': 'sum'})
+    db = db.groupby(group_cols, as_index=False).agg({'PSC': aggregation_type})
+
     return db
 
 
@@ -1116,7 +1156,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'rand_ntfd_nonrandom'
+folder_name = 'rand_ntfd_pairs'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1541,12 +1581,21 @@ if __name__ == '__main__':
                     )
 
                     if folder_name == 'rand_ntfd_pairs':
-                        df_t2 = preprocess_rand_ntfd_nonrandom(dfroi)
-                        t2_nr_dir = os.path.join(
-                            anovas_dir, '2way-anova_modcat_nonrandom'
+                        df_t2_sum = preprocess_rand_ntfd_nonrandom(dfroi)
+                        t2_nr_sum_dir = os.path.join(
+                            anovas_dir, '2way-anova_modcat_nonrandom-sum'
                         )
                         twoway_rm_modcat(
-                            df_t2, tasks, t2_nr_dir, tag, rlab
+                            df_t2_sum, tasks, t2_nr_sum_dir, tag, rlab
+                        )
+
+                        df_t2_mean = preprocess_rand_ntfd_nonrandom(
+                            dfroi, aggregation_type='mean')
+                        t2_nr_mean_dir = os.path.join(
+                            anovas_dir, '2way-anova_modcat_nonrandom-mean'
+                        )
+                        twoway_rm_modcat(
+                            df_t2_mean, tasks, t2_nr_mean_dir, tag, rlab
                         )
 
                 if folder_name in ('main_tasks', 'all_tasks'):
