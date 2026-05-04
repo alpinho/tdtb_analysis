@@ -13,7 +13,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 22nd of August 2025
-Last Update: April 2026
+Last Update: May 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 """
@@ -269,7 +269,7 @@ PLOT_UNTHRESHED = True
 UNTHRESHED_CMAP = "cold_hot"
 
 # Fix colorbar max for comparability across maps (None = auto)
-FIXED_VMAX = None  # e.g. 5.0
+FIXED_VMAX = 5.6  # e.g. 5.0
 
 
 # %%
@@ -361,7 +361,7 @@ else:
     }
 
 # Single-contrast selection used when RUN_ALL_CONTRASTS = False
-contrast_name = 'Random vs Non-Random'
+contrast_name = 'Interval vs Random'
 contrast_id = {v: k for k, v in all_contrasts.items()}[contrast_name]
 
 # ========================= PATHS / LABELS ==============================
