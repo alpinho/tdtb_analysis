@@ -2371,66 +2371,70 @@ switch what
         %             'input_folder', 'ffx_rwls_drbb_hrf42', ...
         %             'file_type', 'spmT', ...
         %             'contrast_scope', 'runs', ...
-        %             'delete_existing', 1)
-
+        %             'delete_existing', 1, ...
+        %             'do_smooth', 1)
+    
         sn = subj_id; % subject list
-
+    
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
-
-        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+    
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'prod', 'percep', 'ntfd'};
         % design = {'prod', 'percep'};
-        design = {'rand_ntfd'};
-
+        % design = {'rand_ntfd'};
+    
         input_folder = 'ffx_rwls_dbb_hrf128';
-
+    
         % options: 'con', 'spmT', 'ResMS', 'psc', 'beta'
         % (beta refers to the prewhitened files)
         file_type = 'spmT';
-
+    
         smoothing_kernel = [8 8 8];
-
+    
         % Which file family to process?
         % 'ffx'  -> across-run files only
         % 'runs' -> run-specific files only
         % 'all'  -> all indexed files
-        contrast_scope = 'all';
-
+        contrast_scope = 'ffx';
+    
         % Delete existing normalized/smoothed files in selected range only
         delete_existing = 1;
-
+    
+        % Whether to smooth the normalized files
+        do_smooth = 1;
+    
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+    
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
             'file_type', 'smoothing_kernel', 'contrast_scope', ...
-            'delete_existing'});
-
+            'delete_existing', 'do_smooth'});
+    
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);
-
+    
             for dg = 1:length(design)
                 estdesign_folder = fullfile(estderiv_subj_dir, ...
                     design{dg}, input_folder);
-
+    
                 % ---------------------------------------------------------
                 % Determine file index range for con / psc / spmT
                 % ---------------------------------------------------------
                 use_index_range = ismember(file_type, {'con', 'psc', 'spmT'});
-
+    
                 if use_index_range
                     if strcmp(design{dg}, 'rand_ntfd')
                         ffx_first = 1;
                         ffx_last = 42;
                         runs_first = 43;
-                        runs_last = 127;
+                        runs_last = 126;
                     else
                         ffx_first = 1;
                         ffx_last = 18;
                         runs_first = 19;
                         runs_last = 90;
                     end
-
+    
                     if strcmp(contrast_scope, 'ffx')
                         first_idx = ffx_first;
                         last_idx = ffx_last;
@@ -2444,7 +2448,7 @@ switch what
                         error('Unknown contrast_scope: %s', contrast_scope);
                     end
                 end
-
+    
                 % ---------------------------------------------------------
                 % Delete pre-existing normalized/smoothed files
                 % ---------------------------------------------------------
@@ -2455,7 +2459,7 @@ switch what
                                 sprintf('w%s_%04d.nii', file_type, c));
                             swfile = fullfile(estdesign_folder, ...
                                 sprintf('sw%s_%04d.nii', file_type, c));
-
+    
                             if exist(wfile, 'file')
                                 delete(wfile);
                             end
@@ -2470,14 +2474,14 @@ switch what
                                 sprintf('w%s.nii', file_type));
                             swfile = fullfile(estdesign_folder, ...
                                 sprintf('sw%s.nii', file_type));
-
+    
                             if exist(wfile, 'file')
                                 delete(wfile);
                             end
                             if exist(swfile, 'file')
                                 delete(swfile);
                             end
-
+    
                         elseif strcmp(file_type, 'beta')
                             wbeta_files = dir(fullfile(estdesign_folder, ...
                                 'wbeta_*_desc-prewhitened.nii'));
@@ -2485,7 +2489,7 @@ switch what
                                 delete(fullfile(estdesign_folder, ...
                                     wbeta_files(k).name));
                             end
-
+    
                             swbeta_files = dir(fullfile(estdesign_folder, ...
                                 'swbeta_*_desc-prewhitened.nii'));
                             for k = 1:length(swbeta_files)
@@ -2495,23 +2499,23 @@ switch what
                         end
                     end
                 end
-
+    
                 % ---------------------------------------------------------
                 % Build input file list
                 % ---------------------------------------------------------
                 confiles = {};
-
+    
                 if strcmp(file_type, 'ResMS')
                     cname = sprintf('%s.nii', file_type);
                     confiles = {fullfile(estdesign_folder, cname)};
-
+    
                 elseif strcmp(file_type, 'beta')
                     beta_files = dir(fullfile(estdesign_folder, ...
                         [file_type '_*_desc-prewhitened.nii']));
                     beta_paths = fullfile(estdesign_folder, ...
                         {beta_files.name});
                     confiles = beta_paths(:);
-
+    
                 else
                     % con / psc / spmT -> indexed files
                     if use_index_range
@@ -2531,14 +2535,14 @@ switch what
                         end
                     end
                 end
-
+    
                 if isempty(confiles)
                     fprintf(['No input files found for %s | %s | %s | ' ...
                         'scope=%s\n'], subj_str{s}, design{dg}, ...
                         file_type, contrast_scope);
                     continue
                 end
-
+    
                 % ---------------------------------------------------------
                 % Deformation field
                 % ---------------------------------------------------------
@@ -2546,71 +2550,74 @@ switch what
                     subj_str{s}, 'ses-01', 'anat');
                 deffield_file = fullfile(deffield_folder, ...
                     ['y_' subj_str{s} '_T1w.nii']);
-
+    
                 % ---------------------------------------------------------
                 % Apply normalization
                 % ---------------------------------------------------------
                 spmja_normalization_write(deffield_file, confiles, ...
                     'voxel_size', [2.5 2.5 2.5])
-
+    
                 % ---------------------------------------------------------
                 % Collect normalized files for smoothing
                 % ---------------------------------------------------------
-                wsource_files = {};
-
-                if use_index_range
-                    for c = first_idx:last_idx
-                        wname = sprintf('w%s_%04d.nii', file_type, c);
-                        wpath = fullfile(estdesign_folder, wname);
-                        if exist(wpath, 'file')
-                            wsource_files{end+1,1} = wpath;
+                if do_smooth
+                    wsource_files = {};
+    
+                    if use_index_range
+                        for c = first_idx:last_idx
+                            wname = sprintf('w%s_%04d.nii', file_type, c);
+                            wpath = fullfile(estdesign_folder, wname);
+                            if exist(wpath, 'file')
+                                wsource_files{end+1,1} = wpath;
+                            end
                         end
-                    end
-                else
-                    if strcmp(file_type, 'ResMS')
-                        wpath = fullfile(estdesign_folder, ...
-                            sprintf('w%s.nii', file_type));
-                        if exist(wpath, 'file')
-                            wsource_files = {wpath};
-                        end
-
-                    elseif strcmp(file_type, 'beta')
-                        wsource_list = dir(fullfile(estdesign_folder, ...
-                            'wbeta_*_desc-prewhitened.nii'));
-                        wsource_files = fullfile(estdesign_folder, ...
-                            {wsource_list.name})';
                     else
-                        wsource_list = dir(fullfile(estdesign_folder, ...
-                            ['w' file_type '*.nii']));
-                        wsource_files = fullfile(estdesign_folder, ...
-                            {wsource_list.name})';
+                        if strcmp(file_type, 'ResMS')
+                            wpath = fullfile(estdesign_folder, ...
+                                sprintf('w%s.nii', file_type));
+                            if exist(wpath, 'file')
+                                wsource_files = {wpath};
+                            end
+    
+                        elseif strcmp(file_type, 'beta')
+                            wsource_list = dir(fullfile(estdesign_folder, ...
+                                'wbeta_*_desc-prewhitened.nii'));
+                            wsource_files = fullfile(estdesign_folder, ...
+                                {wsource_list.name})';
+                        else
+                            wsource_list = dir(fullfile(estdesign_folder, ...
+                                ['w' file_type '*.nii']));
+                            wsource_files = fullfile(estdesign_folder, ...
+                                {wsource_list.name})';
+                        end
                     end
-                end
-
-                if isempty(wsource_files)
-                    fprintf(['No normalized files found for smoothing: ' ...
-                        '%s | %s | %s | scope=%s\n'], subj_str{s}, ...
-                        design{dg}, file_type, contrast_scope);
-                    continue
-                end
-
-                % ---------------------------------------------------------
-                % Smooth normalized files
-                % ---------------------------------------------------------
-                S = [];
-                S.data = wsource_files;
-                S.fwhm = smoothing_kernel;
-                S.dtype = 0;
-                S.im = 0;
-                S.prefix = 's';
-
-                clear matlabbatch
-                matlabbatch{1}.spm.spatial.smooth = S;
-                spm_jobman('run', matlabbatch);
-
+    
+                    if isempty(wsource_files)
+                        fprintf(['No normalized files found for smoothing: ' ...
+                            '%s | %s | %s | scope=%s\n'], subj_str{s}, ...
+                            design{dg}, file_type, contrast_scope);
+                        continue
+                    end
+    
+                    % ---------------------------------------------------------
+                    % Smooth normalized files
+                    % ---------------------------------------------------------
+                    S = [];
+                    S.data = wsource_files;
+                    S.fwhm = smoothing_kernel;
+                    S.dtype = 0;
+                    S.im = 0;
+                    S.prefix = 's';
+    
+                    clear matlabbatch
+                    matlabbatch{1}.spm.spatial.smooth = S;
+                    spm_jobman('run', matlabbatch);
+    
+                end % do_smooth
+    
                 fprintf('%s | %s | %s | scope=%s - Done\n', ...
                     subj_str{s}, design{dg}, file_type, contrast_scope);
-
+    
             end % dg
         end % s
         
@@ -2750,7 +2757,7 @@ switch what
                         ffx_first = 1;
                         ffx_last = 42;
                         runs_first = 43;
-                        runs_last = 127;
+                        runs_last = 126;
                     else
                         ffx_first = 1;
                         ffx_last = 18;
