@@ -2073,8 +2073,8 @@ switch what
 
         sn = subj_id; % subject list
 
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'rand_ntfd'};
 
         model_derivatives = 'no_deriv';
         % model_derivatives = 'time';
@@ -2223,8 +2223,8 @@ switch what
         sn = subj_id; % subject list
 
         % design = {'prod', 'percep', 'ntfd'}; % do not include "allmain_tasks"
-        design = {'percep'}
-        % design = {'rand_ntfd'};
+        % design = {'percep'}
+        design = {'rand_ntfd'};
 
         model_derivatives = 'no_deriv';
         % model_derivatives = 'time';
@@ -2379,14 +2379,14 @@ switch what
 
         % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'prod', 'percep', 'ntfd'};
-        design = {'prod', 'percep'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep'};
+        design = {'rand_ntfd'};
 
         input_folder = 'ffx_rwls_dbb_hrf128';
 
         % options: 'con', 'spmT', 'ResMS', 'psc', 'beta'
         % (beta refers to the prewhitened files)
-        file_type = 'psc';
+        file_type = 'spmT';
 
         smoothing_kernel = [8 8 8];
 
@@ -2394,7 +2394,7 @@ switch what
         % 'ffx'  -> across-run files only
         % 'runs' -> run-specific files only
         % 'all'  -> all indexed files
-        contrast_scope = 'runs';
+        contrast_scope = 'all';
 
         % Delete existing normalized/smoothed files in selected range only
         delete_existing = 1;
@@ -2694,7 +2694,7 @@ switch what
         input_folder = 'ffx_rwls_dbb_hrf128';
         output_folder = 'masked_derivatives_rwls_dbb_hrf128';
 
-        file_type = 'psc'; % options: 'con', 'spmT', 'ResMS', 'psc'
+        file_type = 'con'; % options: 'con', 'spmT', 'ResMS', 'psc'
         smoothing_kernel = [8 8 8];
 
         masktag = 'wbmasked'; % whole-brain masking
@@ -2704,12 +2704,12 @@ switch what
         % 'ffx'  -> across-run files only
         % 'runs' -> run-specific files only
         % 'all'  -> all indexed files
-        contrast_scope = 'runs';
+        contrast_scope = 'all';
 
         % Apply masking also to the corresponding smoothed files?
         % 0 -> no
         % 1 -> yes
-        mask_smoothed = 0;
+        mask_smoothed = 1;
 
         % Delete existing masked outputs in selected range only
         delete_existing = 1;
