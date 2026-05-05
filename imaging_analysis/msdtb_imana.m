@@ -2688,46 +2688,46 @@ switch what
         %             'contrast_scope', 'runs', ...
         %             'mask_smoothed', 0, ...
         %             'delete_existing', 1)
-
+    
         sn = subj_id; % subject list
-
+    
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
-
-        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+    
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'prod', 'percep', 'ntfd'};
         % design = {'percep'};
-        design = {'rand_ntfd'};
-
+        % design = {'rand_ntfd'};
+    
         input_folder = 'ffx_rwls_dbb_hrf128';
         output_folder = 'masked_derivatives_rwls_dbb_hrf128';
-
-        file_type = 'con'; % options: 'con', 'spmT', 'ResMS', 'psc'
+    
+        file_type = 'spmT'; % options: 'con', 'spmT', 'ResMS', 'psc'
         smoothing_kernel = [8 8 8];
-
+    
         masktag = 'wbmasked'; % whole-brain masking
         % masktag = 'gmmasked'; % gray-matter masking
-
+    
         % Which file family to process?
         % 'ffx'  -> across-run files only
         % 'runs' -> run-specific files only
         % 'all'  -> all indexed files
-        contrast_scope = 'all';
-
+        contrast_scope = 'ffx';
+    
         % Apply masking also to the corresponding smoothed files?
         % 0 -> no
         % 1 -> yes
         mask_smoothed = 1;
-
+    
         % Delete existing masked outputs in selected range only
         delete_existing = 1;
-
+    
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+    
         vararginoptions(varargin, {'sn', 'design', 'input_folder', ...
             'output_folder', 'file_type', 'smoothing_kernel', ...
             'masktag', 'contrast_scope', 'mask_smoothed', ...
             'delete_existing'});
-
+    
         if strcmp(masktag, 'wbmasked')
             group_mask = fullfile(base_dir, derivatives_dir, ...
                 'group/anat/group_mask_noskull.nii');
@@ -2737,21 +2737,21 @@ switch what
         else
             error('Unknown masktag: %s', masktag);
         end
-
+    
         for s = sn
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);
-
+    
             for dg = 1:length(design)
                 estdesign_folder = fullfile(estderiv_subj_dir, ...
                     design{dg}, input_folder);
-
+    
                 % ---------------------------------------------------------
                 % Determine file index range for con / psc / spmT
                 % ---------------------------------------------------------
                 use_index_range = ismember(file_type, ...
                     {'con', 'psc', 'spmT'});
-
+    
                 if use_index_range
                     if strcmp(design{dg}, 'rand_ntfd')
                         ffx_first = 1;
@@ -2764,7 +2764,7 @@ switch what
                         runs_first = 19;
                         runs_last = 90;
                     end
-
+    
                     if strcmp(contrast_scope, 'ffx')
                         first_idx = ffx_first;
                         last_idx = ffx_last;
@@ -2779,20 +2779,20 @@ switch what
                             contrast_scope);
                     end
                 end
-
+    
                 % ---------------------------------------------------------
                 % Build source file lists
                 % ---------------------------------------------------------
                 wsource_files = {};
                 swsource_files = {};
-
+    
                 if strcmp(file_type, 'ResMS')
                     wfile = fullfile(estdesign_folder, ...
                         sprintf('w%s.nii', file_type));
                     if exist(wfile, 'file')
                         wsource_files = {wfile};
                     end
-
+    
                     if mask_smoothed
                         swfile = fullfile(estdesign_folder, ...
                             sprintf('sw%s.nii', file_type));
@@ -2800,17 +2800,17 @@ switch what
                             swsource_files = {swfile};
                         end
                     end
-
+    
                 else
                     if use_index_range
                         for c = first_idx:last_idx
                             wname = sprintf('w%s_%04d.nii', file_type, c);
                             wpath = fullfile(estdesign_folder, wname);
-
+    
                             if exist(wpath, 'file')
                                 wsource_files{end+1,1} = wpath;
                             end
-
+    
                             if mask_smoothed
                                 swname = sprintf('sw%s_%04d.nii', ...
                                     file_type, c);
@@ -2822,12 +2822,12 @@ switch what
                         end
                     else
                         cd(estdesign_folder)
-
+    
                         wsource_list = dir(fullfile(estdesign_folder, ...
                             ['w' file_type '*.nii']));
                         wsource_files = fullfile(estdesign_folder, ...
                             {wsource_list.name})';
-
+    
                         if mask_smoothed
                             swsource_list = dir(fullfile(estdesign_folder, ...
                                 ['sw' file_type '*.nii']));
@@ -2836,7 +2836,7 @@ switch what
                         end
                     end
                 end
-
+    
                 % ---------------------------------------------------------
                 % Check that input files exist
                 % ---------------------------------------------------------
@@ -2845,13 +2845,13 @@ switch what
                         '%s | %s | %s | scope=%s'], ...
                         subj_str{s}, design{dg}, file_type, contrast_scope);
                 end
-                
+    
                 if mask_smoothed && isempty(swsource_files)
                     error(['mask_smoothed=1 but no smoothed files found: ' ...
                         '%s | %s | %s | scope=%s'], ...
                         subj_str{s}, design{dg}, file_type, contrast_scope);
                 end
-
+    
                 % ---------------------------------------------------------
                 % Create destination folder if it does not exist
                 % ---------------------------------------------------------
@@ -2860,7 +2860,7 @@ switch what
                 if ~isfolder(destination_dir)
                     mkdir(destination_dir);
                 end
-
+    
                 % ---------------------------------------------------------
                 % Delete existing masked outputs in selected range only
                 % ---------------------------------------------------------
@@ -2872,16 +2872,17 @@ switch what
                         if exist(wmask_file, 'file')
                             delete(wmask_file);
                         end
-
+    
                         if mask_smoothed
+                            % No 'sw' prefix: smoothing is encoded in desc only
                             swmask_file = fullfile(destination_dir, ...
-                                sprintf('sw%s_desc-sm%d%s.nii', ...
+                                sprintf('w%s_desc-sm%d%s.nii', ...
                                 file_type, smoothing_kernel(1), masktag));
                             if exist(swmask_file, 'file')
                                 delete(swmask_file);
                             end
                         end
-
+    
                     elseif use_index_range
                         for c = first_idx:last_idx
                             wmask_file = fullfile(destination_dir, ...
@@ -2890,10 +2891,12 @@ switch what
                             if exist(wmask_file, 'file')
                                 delete(wmask_file);
                             end
-
+    
                             if mask_smoothed
+                                % No 'sw' prefix: smoothing is encoded in desc 
+                                % only
                                 swmask_file = fullfile(destination_dir, ...
-                                    sprintf('sw%s_%04d_desc-sm%d%s.nii', ...
+                                    sprintf('w%s_%04d_desc-sm%d%s.nii', ...
                                     file_type, c, smoothing_kernel(1), ...
                                     masktag));
                                 if exist(swmask_file, 'file')
@@ -2908,10 +2911,11 @@ switch what
                             delete(fullfile(destination_dir, ...
                                 old_wmask(k).name));
                         end
-
+    
                         if mask_smoothed
+                            % Match smoothed masked files by desc-sm pattern
                             old_swmask = dir(fullfile(destination_dir, ...
-                                ['sw' file_type '*' masktag '.nii']));
+                                ['w' file_type '*desc-sm*' masktag '.nii']));
                             for k = 1:length(old_swmask)
                                 delete(fullfile(destination_dir, ...
                                     old_swmask(k).name));
@@ -2919,13 +2923,13 @@ switch what
                         end
                     end
                 end
-
+    
                 % ---------------------------------------------------------
                 % Mask non-smoothed normalized files
                 % ---------------------------------------------------------
                 for w = 1:length(wsource_files)
                     [~, wbase, ~] = fileparts(wsource_files{w});
-
+    
                     M = [];
                     M.input = {group_mask; wsource_files{w}};
                     M.output = [wbase '_desc-' masktag '.nii'];
@@ -2936,22 +2940,27 @@ switch what
                     M.options.mask = 0;
                     M.options.interp = 1;
                     M.options.dtype = 4;
-
+    
                     clear matlabbatch
                     matlabbatch{1}.spm.util.imcalc = M;
                     spm_jobman('run', matlabbatch);
                 end
-
+    
                 % ---------------------------------------------------------
                 % Mask smoothed normalized files, if requested
                 % ---------------------------------------------------------
                 if mask_smoothed
                     for sm = 1:length(swsource_files)
                         [~, swbase, ~] = fileparts(swsource_files{sm});
-
+    
+                        % Strip leading 's' smooth prefix to avoid redundancy
+                        % with the sm<kernel> tag already encoded in desc
+                        % e.g. swcon_0068 -> wcon_0068_desc-sm8wbmasked.nii
+                        wbase_nosmprefix = swbase(2:end);
+    
                         MS = [];
                         MS.input = {group_mask; swsource_files{sm}};
-                        MS.output = [swbase '_desc-sm' ...
+                        MS.output = [wbase_nosmprefix '_desc-sm' ...
                             num2str(smoothing_kernel(1)) masktag '.nii'];
                         MS.outdir = {destination_dir};
                         MS.expression = 'i2.*(i1>0.99)';
@@ -2960,17 +2969,17 @@ switch what
                         MS.options.mask = 0;
                         MS.options.interp = 1;
                         MS.options.dtype = 4;
-
+    
                         clear matlabbatch
                         matlabbatch{1}.spm.util.imcalc = MS;
                         spm_jobman('run', matlabbatch);
                     end
                 end
-
+    
                 fprintf('%s | %s | %s | scope=%s | %s | smoothed=%d - Done\n', ...
                     subj_str{s}, design{dg}, file_type, ...
                     contrast_scope, masktag, mask_smoothed);
-
+    
             end % dg
         end % s  
         
