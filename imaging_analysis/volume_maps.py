@@ -3,6 +3,7 @@ Script: Group-level (second-level) volume maps with BH-FDR on z and
         glass-brain visualization. Supports:
           - One contrast, or iterate all contrasts (toggle).
           - Gray-matter mask for visualization only (stats unchanged).
+          - Whole-brain mask for model fitting / smoothing containment.
           - Storage under results/volume/<id>_<name>/
         To run for all contrasts, set RUN_ALL_CONTRASTS = True.
         To run a single contrast, set RUN_ALL_CONTRASTS = False and
@@ -129,10 +130,21 @@ def second_level_one(
     smoothing_fwhm: float = 8.0,
     alpha_fdr: float = 0.05,
     two_sided: bool = False,
+    fitting_mask: str = None,
 ) -> tuple:
     """
     Fit a one-sample second-level model on subject maps for a single
     contrast, save z-map and glass brain, and return (z_thr, z_max, z_path).
+
+    Parameters
+    ----------
+    fitting_mask : str or None
+        Path to a whole-brain NIfTI mask used by SecondLevelModel.
+        Constrains both the implicit masking and the smoothing kernel so
+        that no signal bleeds outside the brain. If None, nilearn computes
+        a permissive implicit mask which can cause extra-cranial activation
+        after smoothing. Set this to your group whole-brain mask
+        (e.g. group_mask.nii).
     """
     idlabel = id_label_folder(cid, cname)
     out_dir = os.path.join(out_root, idlabel)
@@ -147,8 +159,14 @@ def second_level_one(
     # Design: one-sample t-test (intercept-only)
     design = pd.DataFrame({'intercept': [1] * len(conpaths)})
 
-    # Fit the second-level model; rely on implicit mask
-    slm = SecondLevelModel(mask_img=None, smoothing_fwhm=smoothing_fwhm)
+    # Fit the second-level model.
+    # Passing fitting_mask here ensures smoothing is applied only within the
+    # brain, preventing signal from bleeding into non-brain voxels (which
+    # occurs when mask_img=None and nilearn uses its permissive implicit mask).
+    slm = SecondLevelModel(
+        mask_img=fitting_mask,
+        smoothing_fwhm=smoothing_fwhm,
+    )
     slm = slm.fit(conpaths, design_matrix=design)
 
     # z-map
@@ -253,7 +271,7 @@ def second_level_one(
 # ============================ TOGGLES ==================================
 
 # Run a single contrast (set below) or all contrasts in all_contrasts
-RUN_ALL_CONTRASTS = False
+RUN_ALL_CONTRASTS = True
 
 # Two-sided vs one-sided BH-FDR on z for reporting/plotting
 TWO_SIDED_TEST = False
@@ -265,11 +283,11 @@ SMOOTHING_FWHM = 8.0  # 8.0
 FDR_ALPHA = 0.05
 
 # Plot unthresholded maps (red > 0, blue < 0)
-PLOT_UNTHRESHED = True
+PLOT_UNTHRESHED = False
 UNTHRESHED_CMAP = "cold_hot"
 
 # Fix colorbar max for comparability across maps (None = auto)
-FIXED_VMAX = 5.6  # e.g. 5.0
+FIXED_VMAX = None  # e.g. 5.0
 
 
 # %%
@@ -288,7 +306,7 @@ tasks = {
     'rand_ntfd': 'NTFD Random',
     'allmain_tasks': 'All Tasks',
 }
-task_tag = 'NTFD Random'
+task_tag = 'NTFD'
 task_id = {v: k for k, v in tasks.items()}[task_tag]
 
 # Contrast dictionary (id -> name)
@@ -361,7 +379,7 @@ else:
     }
 
 # Single-contrast selection used when RUN_ALL_CONTRASTS = False
-contrast_name = 'Interval vs Random'
+contrast_name = 'Encoding'
 contrast_id = {v: k for k, v in all_contrasts.items()}[contrast_name]
 
 # ========================= PATHS / LABELS ==============================
@@ -373,6 +391,20 @@ else:
 
 music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
+
+# Whole-brain mask used during model fitting and smoothing.
+# This prevents the smoothing kernel from bleeding signal outside the brain.
+# Set this to the path of your group whole-brain binary mask (e.g.
+# group_mask.nii). If your GM mask covers enough of the brain for fitting
+# purposes you may point both variables at the same file.
+FITTING_MASK_PATH = os.path.join(
+    derivatives_folder,
+    'group',
+    'anat',
+    'group_mask_noskull.nii',
+)
+
+# Gray-matter mask applied post-hoc for visualization only (stats unchanged).
 GM_MASK_PATH = os.path.join(
     derivatives_folder,
     'group',
@@ -413,6 +445,7 @@ if __name__ == '__main__':
                 smoothing_fwhm=SMOOTHING_FWHM,
                 alpha_fdr=FDR_ALPHA,
                 two_sided=TWO_SIDED_TEST,
+                fitting_mask=FITTING_MASK_PATH,
             )
     else:
         # Single contrast only (as set at the top)
@@ -426,4 +459,5 @@ if __name__ == '__main__':
             smoothing_fwhm=SMOOTHING_FWHM,
             alpha_fdr=FDR_ALPHA,
             two_sided=TWO_SIDED_TEST,
+            fitting_mask=FITTING_MASK_PATH,
         )
