@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2023
-Last update: April 2026
+Last update: May 2026
 
 Compatibility: Python 3.10.14
 
@@ -493,29 +493,29 @@ roi_dir = os.path.join(
 contrast_type = 'wbmasked'  # or 'sm8wbmasked'
 
 # All ROIs: 10 ROIs
-# atlas_dirnames = [fsl_dir, 
-#                   ntk_dir, ntk_dir, ntk_dir,
-#                   hmat_dir, hmat_dir, hmat_dir, hmat_dir,
-#                   fsl_dir, 
-#                   fsl_dir]
+atlas_dirnames = [fsl_dir,
+                  ntk_dir, ntk_dir, ntk_dir,
+                  hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+                  fsl_dir,
+                  fsl_dir]
 
-# atlas_names = ['hos', 
-#                'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-#                'hmat', 'hmat', 'hmat', 'hmat'
-#                'hos', 
-#                'hos']
+atlas_names = ['hos',
+               'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+               'hmat', 'hmat', 'hmat', 'hmat',
+               'hos', 
+               'hos']
 
-# region_names = ['dorsal_striatum', 
-#                 'cerebellum', 'cerebellum', 'cerebellum',
-#                 'motor_area', 'motor_area', 'motor_area', 'motor_area', 
-#                 'heschl_gyrus', 
-#                 'occipital_lobe']
+region_names = ['dorsal_striatum',
+                'cerebellum', 'cerebellum', 'cerebellum',
+                'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+                'heschl_gyrus', 
+                'occipital_lobe']
 
-# roi_names = ['dstr', 
-#              'cereb-s', 'cereb-i', 'cereb',
-#              'pmd', 'pmv', 'sma', 'presma',
-#              'heschl',
-#              'occipital']
+roi_names = ['dstr',
+             'cereb-s', 'cereb-i', 'cereb',
+             'pmd', 'pmv', 'sma', 'presma',
+             'heschl',
+             'occipital']
 
 # Example: 4 ROIs
 # atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
@@ -524,10 +524,10 @@ contrast_type = 'wbmasked'  # or 'sm8wbmasked'
 # roi_names = ['pmd', 'pmv', 'sma', 'presma']
 
 # 2 ROIs
-atlas_dirnames = [ntk_dir, ntk_dir]
-atlas_names = ['ntk_symmni128', 'ntk_symmni128']
-region_names = ['cerebellum', 'cerebellum']
-roi_names = ['cereb-s', 'cereb-i']
+# atlas_dirnames = [ntk_dir, ntk_dir]
+# atlas_names = ['ntk_symmni128', 'ntk_symmni128']
+# region_names = ['cerebellum', 'cerebellum']
+# roi_names = ['cereb-s', 'cereb-i']
 
 tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
@@ -577,6 +577,8 @@ if __name__ == '__main__':
                 33: 'Visual Random'
             }
         else:
+            assert rand_mode == 'nonrandom', \
+                f"Unexpected rand_mode: {rand_mode}"
             selected_contrasts = {
                 20: 'Auditory Non-Random',
                 21: 'Auditory Random',
