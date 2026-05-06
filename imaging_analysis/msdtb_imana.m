@@ -2693,15 +2693,15 @@ switch what
     
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
     
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
         % design = {'prod', 'percep', 'ntfd'};
         % design = {'percep'};
-        % design = {'rand_ntfd'};
+        design = {'rand_ntfd'};
     
         input_folder = 'ffx_rwls_dbb_hrf128';
         output_folder = 'masked_derivatives_rwls_dbb_hrf128';
     
-        file_type = 'spmT'; % options: 'con', 'spmT', 'ResMS', 'psc'
+        file_type = 'psc'; % options: 'con', 'spmT', 'ResMS', 'psc'
         smoothing_kernel = [8 8 8];
     
         masktag = 'wbmasked'; % whole-brain masking
@@ -2711,7 +2711,7 @@ switch what
         % 'ffx'  -> across-run files only
         % 'runs' -> run-specific files only
         % 'all'  -> all indexed files
-        contrast_scope = 'ffx';
+        contrast_scope = 'all';
     
         % Apply masking also to the corresponding smoothed files?
         % 0 -> no
