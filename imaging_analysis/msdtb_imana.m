@@ -3184,20 +3184,20 @@ switch what
         
     case 'GROUP:onesample_t_design'
         % Example usage: msdtb_imana('GROUP:onesample_t_design', ...
-        %                'design', {'rand_ntfd'}, ...
-        %                'input_folder', 'masked_derivatives_rwls_drbb_hrf42', ...
-        %                'output_folder', 'rfx_onesample_t_rwls_gm_drbb_hrf42', ...
-        %                'suffix', 'sm8gmmasked')
+        %            'design', {'rand_ntfd'}, ...
+        %            'input_folder', 'masked_derivatives_rwls_drbb_hrf42', ...
+        %            'output_folder', 'rfx_onesample_t_rwls_gm_drbb_hrf42', ...
+        %            'suffix', 'sm8gmmasked')
         
         sn = subj_id; % subject list
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'rand_ntfd'};
         
-        input_folder = 'masked_derivatives';
-        output_folder = 'rfx_onesample_t';
+        input_folder = 'masked_derivatives_rwls_dbb_hrf128';
+        output_folder = 'rfx_onesample_t_rwls_dbb_hrf128_wb';
         
         suffix = 'sm8wbmasked';
         
@@ -3270,10 +3270,10 @@ switch what
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'rand_ntfd'};
         
-        model = {'rfx_onesample_t'};
+        model = {'rfx_onesample_t_rwls_dbb_hrf128_wb'};
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -3323,10 +3323,10 @@ switch what
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'rand_ntfd'};
         
-        model = {'rfx_onesample_t'}; % or 'rfx_onesample_t_rwls_gm_dbb_hrf128'
+        model = {'rfx_onesample_t_rwls_dbb_hrf128_wb'};
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
