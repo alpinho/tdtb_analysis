@@ -25,7 +25,7 @@ import nibabel as nib
 import pandas as pd
 
 from nilearn.glm.second_level import SecondLevelModel
-from nilearn.glm.thresholding import fdr_threshold
+from nilearn.glm import threshold_stats_img
 from nilearn import plotting
 
 # Re-use your glass-brain plotter from ols_permutation_tests.py
@@ -81,18 +81,16 @@ def build_single_contrast_paths(
 
 def fdr_z_threshold_from_img(z_img, alpha=0.05, two_sided=False) -> float:
     """
-    Compute BH-FDR threshold on z from an image, following the convention:
-      - one-sided: use z>0
-      - two-sided: use |z|
+    Compute the BH-FDR z-threshold using Nilearn's image-level helper.
     """
-    z = np.asanyarray(z_img.dataobj)
-    zuse = np.abs(z) if two_sided else z
-    valid = np.isfinite(zuse) & (zuse > 0)
-    if not np.any(valid):
-        print("[FDR] No valid z > 0; using z_thr = inf.")
-        return float('inf')
-    return float(fdr_threshold(zuse[valid], alpha=alpha))
-
+    _, z_thr = threshold_stats_img(
+        z_img,
+        alpha=alpha,
+        height_control='fdr',
+        cluster_threshold=0,
+        two_sided=two_sided,
+    )
+    return float(z_thr)
 
 def apply_visual_mask(src_img_path, mask_path, out_path):
     """
@@ -271,7 +269,7 @@ def second_level_one(
 # ============================ TOGGLES ==================================
 
 # Run a single contrast (set below) or all contrasts in all_contrasts
-RUN_ALL_CONTRASTS = True
+RUN_ALL_CONTRASTS = False
 
 # Two-sided vs one-sided BH-FDR on z for reporting/plotting
 TWO_SIDED_TEST = False
