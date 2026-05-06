@@ -1,5 +1,5 @@
 """
-Run ROI-wise ANOVAs for Music-SDTB.
+Run ROI-wise ANOVAs for TDTB.
 
 Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
