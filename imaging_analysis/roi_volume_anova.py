@@ -23,16 +23,10 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-
-from scipy.stats import ttest_rel
-from scipy.stats import f as f_dist
-
-import seaborn as sns
 import pingouin as pg
-from statannotations.Annotator import Annotator
+
+from scipy.stats import f as f_dist
 from statsmodels.stats.anova import AnovaRM
-from statsmodels.stats.multicomp import MultiComparison
-from matplotlib import pyplot as plt
 
 
 # =========================== HELPERS =============================== #
@@ -355,7 +349,7 @@ def _ng2_threeway_within(df: pd.DataFrame,
     return out
 
 
-def preprocess_rand_ntfd_nonrandom(df, aggregation_type='sum'):
+def preprocess_rand_ntfd_nonrandom(df, aggregation_type='mean'):
     """
     Aggregate 'Beat' and 'Interval' categories into a unified 'Non-Random' category
     for rand_ntfd_pairs analysis.
@@ -373,7 +367,7 @@ def preprocess_rand_ntfd_nonrandom(df, aggregation_type='sum'):
     aggregation_type : str, optional
         Aggregation function to apply to PSC values when grouping.
         Accepts any valid pandas aggregation string (e.g., 'sum', 'mean').
-        Default is 'sum'.
+        Default is 'mean'.
 
     Returns
     -------
@@ -1156,7 +1150,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'rand_ntfd_pairs'
+folder_name = 'rand_ntfd_nonrandom'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1581,21 +1575,13 @@ if __name__ == '__main__':
                     )
 
                     if folder_name == 'rand_ntfd_pairs':
-                        df_t2_sum = preprocess_rand_ntfd_nonrandom(dfroi)
-                        t2_nr_sum_dir = os.path.join(
-                            anovas_dir, '2way-anova_modcat_nonrandom-sum'
-                        )
-                        twoway_rm_modcat(
-                            df_t2_sum, tasks, t2_nr_sum_dir, tag, rlab
-                        )
-
-                        df_t2_mean = preprocess_rand_ntfd_nonrandom(
+                        df_t2 = preprocess_rand_ntfd_nonrandom(
                             dfroi, aggregation_type='mean')
-                        t2_nr_mean_dir = os.path.join(
+                        t2_nr_dir = os.path.join(
                             anovas_dir, '2way-anova_modcat_nonrandom-mean'
                         )
                         twoway_rm_modcat(
-                            df_t2_mean, tasks, t2_nr_mean_dir, tag, rlab
+                            df_t2, tasks, t2_nr_dir, tag, rlab
                         )
 
                 if folder_name in ('main_tasks', 'all_tasks'):
