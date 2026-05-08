@@ -8,7 +8,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 20th of January 2026
-Last Update: January 2026
+Last Update: May 2026
 
 Compatibility: Python 3.10.16, nilearn 0.11.1
 """
@@ -112,7 +112,7 @@ zmap_path = os.path.join(group_functional,
 wb_gmask = os.path.join(group_anat, 'group_mask_noskull.nii')
 
 # Z value to convert
-z_star = 6.8
+z_star = 6.80
 
 # "one" = one-sided (greater-than), "two" = two-sided
 side = "one"
