@@ -1832,7 +1832,7 @@ switch what
         % Create per Session --- 'sess'
         % Both: Replicate + Create per session --- 'both'
         % Both: Replicate&Scale + Create per session --- 'bothsc'
-        sessrep_mode = 'replsc';
+        sessrep_mode = 'sess';
 
         % Important note:
         % When running the 'bothsc' option, for each contrast type a
@@ -1846,7 +1846,7 @@ switch what
         % delete_con = 0
 
         % Delete existing contrasts and spmT files or not?
-        delete_con = 1; % 1 yes, 0 no
+        delete_con = 0; % 1 yes, 0 no
 
         % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -1945,8 +1945,6 @@ switch what
         design = {'rand_ntfd'};
 
         model_derivatives = 'no_deriv';
-        % model_derivatives = 'time';
-        % model_derivatives = 'timedisp';
 
         output_folder = 'ffx_rwls_dbb_hrf128';
 
@@ -2091,12 +2089,9 @@ switch what
         sn = subj_id; % subject list
 
         % design = {'prod', 'percep', 'ntfd'}; % do not include "allmain_tasks"
-        % design = {'percep'}
         design = {'rand_ntfd'};
 
         model_derivatives = 'no_deriv';
-        % model_derivatives = 'time';
-        % model_derivatives = 'timedisp';
 
         output_folder = 'ffx_rwls_dbb_hrf128';
 
@@ -2246,16 +2241,14 @@ switch what
     
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
     
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'prod', 'percep', 'ntfd'};
-        % design = {'prod', 'percep'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'rand_ntfd'};
     
         input_folder = 'ffx_rwls_dbb_hrf128';
     
-        % options: 'con', 'spmT', 'ResMS', 'psc', 'beta'
+        % options: 'con', 'spmT', 'psc', 'beta'
         % (beta refers to the prewhitened files)
-        file_type = 'spmT';
+        file_type = 'psc';
     
         smoothing_kernel = [8 8 8];
     
@@ -2263,7 +2256,7 @@ switch what
         % 'ffx'  -> across-run files only
         % 'runs' -> run-specific files only
         % 'all'  -> all indexed files
-        contrast_scope = 'ffx';
+        contrast_scope = 'all';
     
         % Delete existing normalized/smoothed files in selected range only
         delete_existing = 1;
@@ -2493,8 +2486,8 @@ switch what
         % Example usage: msdtb_imana('GROUP:mask', 'mask_type', 'wrmask_gray')
         
         sn       = subj_id; % subject list
-        mask_type = 'wrmask_noskull'; % whole-brain
-        % mask_type = 'wrmask_gray'   % gray-matter
+        % mask_type = 'wrmask_noskull'; % whole-brain
+        mask_type = 'wrmask_gray'   % gray-matter
         vararginoptions(varargin, {'sn', 'mask_type'});
         
         group_dir = fullfile(base_dir, derivatives_dir, 'group/anat')
@@ -2562,8 +2555,6 @@ switch what
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
     
         % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'prod', 'percep', 'ntfd'};
-        % design = {'percep'};
         design = {'rand_ntfd'};
     
         input_folder = 'ffx_rwls_dbb_hrf128';
@@ -3191,8 +3182,8 @@ switch what
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
-        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        design = {'rand_ntfd'};
+        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        % design = {'rand_ntfd'};
         
         model = {'rfx_onesample_t_rwls_dbb_hrf128_wb'};
 
