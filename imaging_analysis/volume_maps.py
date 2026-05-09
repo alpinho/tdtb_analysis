@@ -269,7 +269,7 @@ def second_level_one(
 # ============================ TOGGLES ==================================
 
 # Run a single contrast (set below) or all contrasts in all_contrasts
-RUN_ALL_CONTRASTS = False
+RUN_ALL_CONTRASTS = True
 
 # Two-sided vs one-sided BH-FDR on z for reporting/plotting
 TWO_SIDED_TEST = False
@@ -304,7 +304,7 @@ tasks = {
     'rand_ntfd': 'NTFD Random',
     'allmain_tasks': 'All Tasks',
 }
-task_tag = 'NTFD'
+task_tag = 'NTFD Random'
 task_id = {v: k for k, v in tasks.items()}[task_tag]
 
 # Contrast dictionary (id -> name)
