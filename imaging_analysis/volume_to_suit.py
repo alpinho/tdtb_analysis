@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of February 2025
-Last Update: January 2026
+Last Update: May 2026
 
 Compatibility: Python 3.10.x, Nilearn, SUITPy
 
@@ -82,7 +82,7 @@ from utils import zval_conversion
 
 
 # %%
-# ========================== FUNCTIONS =================================
+# ========================== FUNCTIONS ================================
 
 def group_suit(group_dir, task_key, contrast_key, subjects, suit_dir):
 
@@ -196,7 +196,9 @@ def plot_suitflat(stats,
             # Build a standalone mappable so we can control placement,
             # tick formatting and the label.
             cmap = plt.get_cmap(colormap)
-            sm = ScalarMappable(norm=Normalize(vmin=vmin, vmax=vmax), cmap=cmap)
+            sm = ScalarMappable(
+                norm=Normalize(vmin=vmin, vmax=vmax), cmap=cmap
+            )
             sm.set_array([])
 
             rect = cbar_rect if cbar_rect is not None else [.2, .1, .6, .03]
@@ -234,10 +236,10 @@ def plot_suitflat(stats,
                     ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
                 )
 
-            # Two-line label ABOVE the vertical bar (axis-relative coords)
+            # Label ABOVE the vertical bar (axis-relative coords)
             cax.text(
                 1., 1.1,
-                "Fraction of\nParticipants",
+                cmap_title,
                 ha="center",
                 va="bottom",
                 fontsize=15,
@@ -403,7 +405,7 @@ def plot_suitflat(stats,
 
 
 # %%
-# =========================== INPUTS ===================================
+# =========================== INPUTS ==================================
 
 # Subjects without pilot
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
@@ -414,13 +416,15 @@ suitparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests',
     'suit')
 
-task_tag = 'All Tasks'  # 'Production', 'Perception', 'NTFD', 'NTFD Random', 'All Tasks'
+# Options: 'Production', 'Perception', 'NTFD', 'NTFD Random',
+#          'All Main Tasks'
+task_tag = 'All Main Tasks'
 contrast_name = 'Encoding'  # 'E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None  # Set to None if not used
 
 
 # %%
-# ========================= PARAMETERS =================================
+# ========================= PARAMETERS ================================
 
 # Parent directories
 if os.path.isdir('/home/analu/diedrichsen_data/data'):
@@ -455,7 +459,7 @@ tasks = {'prod': 'Production',
          'percep': 'Perception',
          'ntfd': 'NTFD',
          'rand_ntfd': 'NTFD Random',
-         'allmain_tasks': 'All Tasks'
+         'allmain_tasks': 'All Main Tasks'
          }
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
@@ -546,20 +550,9 @@ if contrast_name2:
         {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
     cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
 
-# Already pre-computed thresholds for the three first contrasts...
-# ... considering all tasks together (allmain_tasks)
-fdr_thresh_encoding = 2.7166013496886174
-zmax_encoding = 6.796930745609075
-
-fdr_thresh_audio_encoding = 2.7051156945711403
-zmax_audio_encoding = 7.366581723533498
-
-fdr_thresh_visual_encoding = 2.6649611311019035
-zmax_visual_encoding = 6.896651056145507
-
 
 # %%
-# ============================ RUN =====================================
+# ============================ RUN ====================================
 
 if __name__ == '__main__':
 
@@ -580,7 +573,7 @@ if __name__ == '__main__':
     if not (mode_single or mode_both or mode_iroi):
         mode_single = True  # default to single only
 
-    # ---------------- batch (single plots only) as before ----------------
+    # -------------- batch (single plots only) as before --------------
     _batch = None
     if isinstance(contrast_name, (list, tuple, np.ndarray)):
         _batch = list(contrast_name)
@@ -588,7 +581,7 @@ if __name__ == '__main__':
           and contrast_name.strip().upper() == 'ALL'):
         _batch = list(all_contrasts.values())
 
-    # ------------------------- ROI overlay only -------------------------
+    # ------------------------ ROI overlay only -----------------------
     if mode_iroi:
         os.makedirs(irois_folder, exist_ok=True)
 
@@ -620,7 +613,7 @@ if __name__ == '__main__':
 
         sys.exit(0)
 
-    # ----------------------- single (with batch) ------------------------
+    # ---------------------- single (with batch) ----------------------
     if mode_single or mode_both:
         # Batch single-plot loop (no overlay in batch)
         if _batch is not None and not contrast_name2:
@@ -644,6 +637,10 @@ if __name__ == '__main__':
                 _thr, _zmax = whole_brain_thresholds(
                     derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask_path
                 )
+                print(
+                    f"Batch contrast '{_cname}': FDR threshold = "
+                    f"{_thr:.3f}, max z = {_zmax:.3f}"
+                )
                 # Plot single-contrast SUIT flatmap
                 _fname = (
                     f"group_{task_id.replace('_', '-')}_"
@@ -655,7 +652,7 @@ if __name__ == '__main__':
             # After batch single, do not fall through to overlay
             sys.exit(0)
 
-        # ---------- single for the currently selected contrast ----------
+        # --------- single for the currently selected contrast --------
         suitplots_folder = os.path.join(
             contrasts_folder, str(contrast_id) + '_' + cname.lower()
         )
@@ -676,7 +673,7 @@ if __name__ == '__main__':
         contrast_fpath = os.path.join(suitplots_folder, contrast_fname)
         plot_suitflat(z_values, fdr_thresh, contrast_fpath, vmax=zmax)
 
-    # --------------------- optional overlay after single ----------------
+    # ------------------- optional overlay after single ---------------
     if mode_both and contrast_name2:
         z_values2 = group_suit(
             group_folder, task_id, contrast_id2, SUBJECTS, suit_folder
