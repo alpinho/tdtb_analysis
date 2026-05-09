@@ -1389,8 +1389,8 @@ task_tag = 'All Main Tasks'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'Beat' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
-contrast_name2 = 'Interval' # E.g. 'Interval'
+contrast_name = 'Encoding' # E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = None # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
 
