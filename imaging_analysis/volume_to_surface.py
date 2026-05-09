@@ -22,7 +22,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 24th of February 2025
-Last Update: February 2026
+Last Update: May 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
@@ -733,15 +733,16 @@ def plot_flatmap(
 
             # Do colorbars
             fig = plt.gcf()
+            dec = int(tick_decimals) if tick_decimals is not None else 2
             for sm, rect, lo, m1, m2, hi, lbl in bars:
                 cax = fig.add_axes(rect)
-                cb = fig.colorbar(
-                    sm, cax=cax, orientation='horizontal',
-                    ticks=[lo, m1, m2, hi]
-                )
+                cb = fig.colorbar(sm, cax=cax, orientation='horizontal',
+                                ticks=[lo, m1, m2, hi])
                 cb.set_label(lbl, fontsize=9, labelpad=5)
-                cb.ax.set_xticklabels([f"{lo:.2f}", f"{m1:.2f}", f"{m2:.2f}", 
-                                       f"{hi:.2f}"])
+                cb.ax.set_xticklabels(
+                    [f"{lo:.{dec}f}", f"{m1:.{dec}f}", f"{m2:.{dec}f}",
+                     f"{hi:.{dec}f}"]
+                )
                 cb.ax.tick_params(labelsize=8)
 
     plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
@@ -1376,8 +1377,8 @@ surfparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
     'surface')
 
-# Production/Perception/NTFD/NTFD Random/All Tasks
-task_tag = 'All Tasks'
+# Production/Perception/NTFD/NTFD Random/All Main Tasks
+task_tag = 'All Main Tasks'
  
 # To run every contrast:
 # contrast_name = 'ALL' and contrast_name2 = None.
@@ -1388,8 +1389,8 @@ task_tag = 'All Tasks'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'Auditory Encoding' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
-contrast_name2 = None # E.g. 'Interval'
+contrast_name = 'Beat' # ''E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = 'Interval' # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
 
@@ -1490,7 +1491,7 @@ tasks = {'prod': 'Production',
          'percep': 'Perception', 
          'ntfd': 'NTFD',
          'rand_ntfd': 'NTFD Random',
-         'allmain_tasks': 'All Tasks'
+         'allmain_tasks': 'All Main Tasks'
 }
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
