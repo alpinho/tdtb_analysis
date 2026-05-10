@@ -22,6 +22,13 @@ Examples:
    python roi_extraction_msdtb.py bothmod
    python roi_extraction_msdtb.py auditory pairs
    python roi_extraction_msdtb.py visual nonrandom
+
+Note:
+You have always to specify from what tasks you want to extract the ROIs
+by setting the variable `tasks_roiextract_vals` to a list of task names
+(e.g. ['All Main Tasks']). Only when `tasks_roiextract_vals` is 
+'NTFD Random', the second argument <rand_mode> is required to select 
+the contrasts.
 """
 
 import glob
@@ -35,7 +42,7 @@ from nilearn.image import load_img, new_img_like, resample_to_img
 from nilearn.input_data import NiftiLabelsMasker
 
 
-# ############################ FUNCTIONS ###############################
+# ############################ FUNCTIONS ##############################
 
 def nonan_map(con_path):
     """Load image and replace NaNs with zero."""
@@ -344,7 +351,7 @@ def iroicon_estimation(main_dir, atlas_dir, atlas, region, roi,
     np.save(outpath, roi_hems, allow_pickle=False)
 
 
-# ############################## INPUTS #################################
+# ############################## INPUTS ###############################
 
 # Subjects without pilot
 SUBJECTS = [
@@ -353,13 +360,14 @@ SUBJECTS = [
 ]
 
 # Task that defines the ROI mask
-# 'Production' | 'Perception' | 'NTFD' | 'NTFD Random' | 'All Tasks'
-task_roidef = 'All Tasks'
+# 'Production' | 'Perception' | 'NTFD' | 'NTFD Random' | 
+# 'All Main Tasks'
+task_roidef = 'All Main Tasks' # use 'All Main Tasks' (others might give an error)
 
 # Tasks to extract from
 tasks_roiextract_vals = ['NTFD Random']
 
-# ============================ PARAMETERS ==============================
+# ============================ PARAMETERS =============================
 
 if os.path.isdir('/home/analu/diedrichsen_data/data'):
     base_dir = '/home/analu/diedrichsen_data/data'
@@ -374,7 +382,7 @@ tasks = {
     'percep': 'Perception',
     'ntfd': 'NTFD',
     'rand_ntfd': 'NTFD Random',
-    'allmain_tasks': 'All Tasks'
+    'allmain_tasks': 'All Main Tasks'
 }
 task_roidef_id = {v: k for k, v in tasks.items()}.get(task_roidef)
 tasks_roiextract = {
@@ -517,27 +525,16 @@ roi_names = ['dstr',
              'heschl',
              'occipital']
 
-# Example: 4 ROIs
-# atlas_dirnames = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
-# atlas_names = ['hmat', 'hmat', 'hmat', 'hmat']
-# region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
-# roi_names = ['pmd', 'pmv', 'sma', 'presma']
-
-# 2 ROIs
-# atlas_dirnames = [ntk_dir, ntk_dir]
-# atlas_names = ['ntk_symmni128', 'ntk_symmni128']
-# region_names = ['cerebellum', 'cerebellum']
-# roi_names = ['cereb-s', 'cereb-i']
-
-tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
 # Weights (individual, group) via two-vector average
 weights_list = [
     (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4), (.5, .5),
     (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)
 ]
+tags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g', 'g']
 
-# ############################### RUN ##################################
+
+# ############################### RUN #################################
 
 if __name__ == '__main__':
     assert len(sys.argv) > 1, (
