@@ -17,6 +17,8 @@ Usage:
 Note: The encoding type pertain to the modality used to define the 
       ROIs. To define what tasks were used to define the ROIs, 
       please edit the variable `task_roidef_id` in Input section below.
+      Also to define what tasks were used for the roi extraction, edit 
+      the variable `folder_name` in the same section.
 """
 
 import os
@@ -515,15 +517,16 @@ def twoway_rm_modcat_taskavg(df, out_dir, prefix, roi,
     """
     2-way RM-ANOVA across tasks: Modality x Category.
 
-    It takes all tasks (but allmain_tasks) and average them.
+    It takes All Main Tasks (but allmain_tasks) and average them.
     This was to check whether it delivers the same results as
     allmain_tasks in 'twoway_rm_modcat' function,
-    where we do the ffx of all tasks and extract the psc's (and it does).
+    where we do the ffx of All Main Tasks and extract the psc's 
+    (and it does).
     """
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
-    df = df[df.Task != 'All Tasks'].copy()
+    df = df[df.Task != 'All Main Tasks'].copy()
     df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
     os.makedirs(out_dir, exist_ok=True)
 
@@ -587,7 +590,7 @@ def twoway_rm_modtask(
     """
     2-way RM-ANOVA PER ROI: Modality x Task.
 
-    - Drops "All Tasks"
+    - Drops "All Main Tasks"
     - If Category exists, averages PSC across Category first
       so the design is Subject x Modality x Task (per hemisphere).
     - Writes ANOVA + posthoc TSVs per hemisphere.
@@ -600,7 +603,7 @@ def twoway_rm_modtask(
 
     df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
 
-    df = df[df.Task != "All Tasks"].copy()
+    df = df[df.Task != "All Main Tasks"].copy()
 
     if "Category" in df.columns:
         df = (
@@ -789,7 +792,7 @@ def twoway_rm_roitask(df, out_dir, prefix,
             as_index=False
         ).agg({'PSC': 'mean'})
 
-    df = df[df.Task != 'All Tasks'].copy()
+    df = df[df.Task != 'All Main Tasks'].copy()
     os.makedirs(out_dir, exist_ok=True)
 
     for hem in hems:
@@ -834,7 +837,7 @@ def threeway_rm_catmodtask(df, out_dir, prefix, roi, hems=('lh', 'rh', 'bh')):
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
-    df = df[df.Task != 'All Tasks'].copy()
+    df = df[df.Task != 'All Main Tasks'].copy()
     df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
     os.makedirs(out_dir, exist_ok=True)
 
@@ -950,8 +953,8 @@ def threeway_rm_roimodtask(df, output_dir, prefix, hems=['lh', 'rh', 'bh']):
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
-    # drop “All Tasks” and coerce
-    df = df.loc[df.Task != 'All Tasks'].copy()
+    # drop “All Main Tasks” and coerce
+    df = df.loc[df.Task != 'All Main Tasks'].copy()
     df['PSC'] = pd.to_numeric(df['PSC'])
 
     for hem in hems:
@@ -1150,7 +1153,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'rand_ntfd_nonrandom'
+folder_name = 'main_tasks'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
@@ -1255,7 +1258,7 @@ if folder_name == 'main_tasks':
         'prod': 'Production',
         'percep': 'Perception',
         'ntfd': 'NTFD',
-        'allmain_tasks': 'All Tasks'
+        'allmain_tasks': 'All Main Tasks'
     }
     selected_contrasts = {
         10: 'Auditory Beat',
@@ -1330,6 +1333,7 @@ roi_names8 = [
     'dstr', 'cereb', 'pmd', 'pmv', 'sma', 'presma',
     'heschl', 'occipital'
 ]
+crossroi_label = ''
 
 # #######################
 
@@ -1348,6 +1352,7 @@ roi_names6 = [
     'pmd', 'pmv', 'sma', 'presma',
     'heschl', 'occipital'
 ]
+crossroi_label = 'premotor-sensory'
 
 # #######################
 
@@ -1355,6 +1360,7 @@ atlas_dirnames4 = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
 atlas_names4 = ['hmat', 'hmat', 'hmat', 'hmat']
 region_names4 = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
 roi_names4 = ['pmd', 'pmv', 'sma', 'presma']
+crossroi_label = 'premotor'
 
 # #######################
 
@@ -1362,34 +1368,39 @@ atlas_dirnames3 = [fsl_dir, ntk_dir, hmat_dir]
 atlas_names3 = ['hos', 'ntk_symmni128', 'hmat']
 region_names3 = ['dorsal_striatum', 'cerebellum', 'motor_area']
 roi_names3 = ['dstr', 'cereb', 'sma']
+crossroi_label = 'subcortical-sma'
 
 # #######################
 
-# atlas_dirnames2 = [fsl_dir, ntk_dir]
-# atlas_names2 = ['hos', 'ntk_symmni128']
-# region_names2 = ['dorsal_striatum', 'cerebellum']
-# roi_names2 = ['dstr', 'cereb']
+atlas_dirnames2 = [fsl_dir, ntk_dir]
+atlas_names2 = ['hos', 'ntk_symmni128']
+region_names2 = ['dorsal_striatum', 'cerebellum']
+roi_names2 = ['dstr', 'cereb']
+crossroi_label = 'subcortical'
 
 # atlas_dirnames2 = [fsl_dir, fsl_dir]
 # atlas_names2 = ['hos', 'hos']
 # region_names2 = ['heschl_gyrus', 'occipital_lobe']
 # roi_names2 = ['heschl', 'occipital']
+# crossroi_label = 'sensory'
 
 # atlas_dirnames2 = [hmat_dir, hmat_dir]
 # atlas_names2 = ['hmat', 'hmat']
 # region_names2 = ['motor_area', 'motor_area']
 # roi_names2 = ['presma', 'sma']
+# crossroi_label = 'presma-sma'
 
 # atlas_dirnames2 = [fsl_dir, hmat_dir]
 # atlas_names2 = ['hos', 'hmat']
 # region_names2 = ['dorsal_striatum', 'motor_area']
 # roi_names2 = ['dstr', 'sma']
+# crossroi_label = 'dstr-sma'
 
-atlas_dirnames2 = [ntk_dir, hmat_dir]
-atlas_names2 = ['ntk_symmni128', 'hmat']
-region_names2 = ['cerebellum', 'motor_area']
-roi_names2 = ['cereb', 'sma']
-
+# atlas_dirnames2 = [ntk_dir, hmat_dir]
+# atlas_names2 = ['ntk_symmni128', 'hmat']
+# region_names2 = ['cerebellum', 'motor_area']
+# roi_names2 = ['cereb', 'sma']
+# crossroi_label = 'cereb-sma'
 
 # ============================= RUN ================================= #
 
@@ -1609,15 +1620,22 @@ if __name__ == '__main__':
         # Multi-ROI analyses + posthoc plots
         if n_rois in (2, 3, 4, 6, 8):
 
+            crossroi_suffix = (
+                f"_{crossroi_label}" if crossroi_label else ""
+            )
+
             # both modalities
             cat_dir = os.path.join(
-                msdtb_dir, f"2way-anova_vol_roicat_{n_rois}rois"
+                msdtb_dir, 
+                f"2way-anova_vol_roicat{crossroi_suffix}_{n_rois}rois"
             )
             twoway_rm_roicat(dfrois, tasks, cat_dir, tag, modality=None)
 
             # auditory
             cat_dir_a = os.path.join(
-                msdtb_dir, f"2way-anova_vol_roicat_{n_rois}rois_auditory"
+                msdtb_dir, 
+                f"2way-anova_vol_roicat{crossroi_suffix}_{n_rois}rois"
+                f"_auditory"
             )
             twoway_rm_roicat(
                 dfrois, tasks, cat_dir_a, tag, modality='auditory'
@@ -1625,7 +1643,9 @@ if __name__ == '__main__':
 
             # visual
             cat_dir_v = os.path.join(
-                msdtb_dir, f"2way-anova_vol_roicat_{n_rois}rois_visual"
+                msdtb_dir, 
+                f"2way-anova_vol_roicat{crossroi_suffix}_{n_rois}rois"
+                f"_visual"
             )
             twoway_rm_roicat(
                 dfrois, tasks, cat_dir_v, tag, modality='visual'
@@ -1634,7 +1654,8 @@ if __name__ == '__main__':
             # timing-ROI (main_tasks only) + posthoc plots
             if folder_name == 'main_tasks':
                 t_dir = os.path.join(
-                    msdtb_dir, f"2way-anova_vol_roitask_{n_rois}rois"
+                    msdtb_dir, 
+                    f"2way-anova_vol_roitask{crossroi_suffix}_{n_rois}rois"
                 )
                 twoway_rm_roitask(
                     dfrois, t_dir, tag, modality=None
@@ -1642,7 +1663,8 @@ if __name__ == '__main__':
 
                 t_dir_a = os.path.join(
                     msdtb_dir,
-                    f"2way-anova_vol_roitask_{n_rois}rois_auditory"
+                    f"2way-anova_vol_roitask{crossroi_suffix}_{n_rois}rois"
+                    f"_auditory"
                 )
                 twoway_rm_roitask(
                     dfrois, t_dir_a, tag, modality='auditory'
@@ -1650,13 +1672,15 @@ if __name__ == '__main__':
 
                 t_dir_v = os.path.join(
                     msdtb_dir,
-                    f"2way-anova_vol_roitask_{n_rois}rois_visual"
+                    f"2way-anova_vol_roitask{crossroi_suffix}_{n_rois}rois"
+                    f"_visual"
                 )
                 twoway_rm_roitask(
                     dfrois, t_dir_v, tag, modality='visual'
                 )
 
                 t_three_dir = os.path.join(
-                    msdtb_dir, f"3way-anova_vol_roimodtask_{n_rois}rois"
+                    msdtb_dir, 
+                    f"3way-anova_vol_roimodtask{crossroi_suffix}_{n_rois}rois"
                 )
                 threeway_rm_roimodtask(dfrois, t_three_dir, tag)
