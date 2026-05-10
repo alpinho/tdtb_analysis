@@ -360,12 +360,12 @@ SUBJECTS = [
 ]
 
 # Task that defines the ROI mask
-# 'Production' | 'Perception' | 'NTFD' | 'NTFD Random' | 
+# 'Production' | 'Perception' | 'NTFD' | 'NTFD Random' |
 # 'All Main Tasks'
 task_roidef = 'All Main Tasks' # use 'All Main Tasks' (others might give an error)
 
 # Tasks to extract from
-tasks_roiextract_vals = ['NTFD Random']
+tasks_roiextract_vals = ['Production', 'Perception', 'NTFD', 'All Main Tasks']
 
 # ============================ PARAMETERS =============================
 
@@ -377,6 +377,10 @@ else:
 data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
 
 # Tasks dict
+# Note: this dictionary determines the order of the tasks in the 
+# output array, so be aware of this order in future analyses. This 
+# order (and removing NTFD Random) has been adopted throughout the 
+# whole pipeline.
 tasks = {
     'prod': 'Production',
     'percep': 'Perception',
@@ -555,11 +559,11 @@ if __name__ == '__main__':
         }
         folder_name = 'main_tasks'
     else:
-        all_contrasts = ALL_CONTRASTS_RAND
         assert len(sys.argv) > 2, (
             'For rand_ntfd, pass second arg <rand_mode>: '
             'pairs|nonrandom.'
         )
+        all_contrasts = ALL_CONTRASTS_RAND
         rand_mode = sys.argv[2].strip().lower()
         if rand_mode not in ('pairs', 'nonrandom'):
             raise ValueError("rand_mode must be 'pairs' or 'nonrandom'.")
