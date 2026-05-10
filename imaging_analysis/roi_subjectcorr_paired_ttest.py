@@ -29,7 +29,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Date of creation: 9th of March 2026
-Last update: April 2026
+Last update: May 2026
 
 Compatibility: Python 3.10+
 """
@@ -901,7 +901,12 @@ YLIM: tuple[float, float] = (-0.2, 1.0)
 
 # Options: 'fisher_z' or 'raw_r'
 PAIRED_TEST_SCALE: str = 'fisher_z'
-MATRIX_TEST_SCALE: str = 'fisher_z'
+MATRIX_TEST_SCALE: str = 'fisher_z' # one-sample t-test of matrix... 
+                                    # ... values displayed as stars. 
+                                    # It does not affect the ...
+                                    # ... displayed matrix values ...
+                                    # ... themselves. These are the ...
+                                    # ... mean raw correlations.
 
 BASE_TASKS: List[str] = ['Production', 'Perception', 'NTFD']
 TASKS_NO_REST: List[str] = (
