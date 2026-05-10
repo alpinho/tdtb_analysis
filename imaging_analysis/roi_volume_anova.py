@@ -517,9 +517,9 @@ def twoway_rm_modcat_taskavg(df, out_dir, prefix, roi,
     """
     2-way RM-ANOVA across tasks: Modality x Category.
 
-    It takes All Main Tasks (but allmain_tasks) and average them.
-    This was to check whether it delivers the same results as
-    allmain_tasks in 'twoway_rm_modcat' function,
+    It takes the 3 main tasks (i.e. it excludes allmain_tasks) 
+    and average them. This was to check whether it delivers 
+    the same results as allmain_tasks in 'twoway_rm_modcat' function,
     where we do the ffx of All Main Tasks and extract the psc's 
     (and it does).
     """
@@ -590,7 +590,10 @@ def twoway_rm_modtask(
     """
     2-way RM-ANOVA PER ROI: Modality x Task.
 
-    - Drops "All Main Tasks"
+    - Drops "All Main Tasks", i.e. it keeps the 3 main tasks 
+      (Production, Perception, NTFD) and excludes the All Main Tasks, 
+      which is the PC of the contrassts aconsidering all of them 
+      together.
     - If Category exists, averages PSC across Category first
       so the design is Subject x Modality x Task (per hemisphere).
     - Writes ANOVA + posthoc TSVs per hemisphere.
@@ -601,9 +604,8 @@ def twoway_rm_modtask(
     if "Contrast" in df.columns:
         df = df.drop(columns=["Contrast"])
 
-    df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
-
     df = df[df.Task != "All Main Tasks"].copy()
+    df["PSC"] = pd.to_numeric(df["PSC"], errors="coerce")
 
     if "Category" in df.columns:
         df = (
@@ -691,7 +693,7 @@ def twoway_rm_modtask(
             index=False,
         )
         post2.to_csv(
-            os.path.join(out_dir, base + "modtask_posthoc.tsv"),
+            os.path.join(out_dir, base + "taskmod_posthoc.tsv"),
             sep="\t",
             index=False,
         )
