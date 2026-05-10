@@ -724,10 +724,10 @@ def plot_flatmap(
             bars = [
                 # colorbar positions: [left, bottom, width, height]
                 (sm1, [.04, .08, .25, .04], thr1, m1_1, m1_2, v1,
-                 f"Z-Values ({label1})"),
+                 f"Z-values ({label1})"),
                 (sm2, [.3825, .08, .25, .04], thr2, m2_1, m2_2, v2,
-                 f"Z-Values ({label2})"),
-                (sm3, [.715, .08, .25, .04], min_ol, m3_1, m3_2, 1.0, 
+                 f"Z-values ({label2})"),
+                (sm3, [.715, .08, .25, .04], min_ol, m3_1, m3_2, 1.0,
                  "Co-activation")
             ]
 
@@ -1590,7 +1590,7 @@ if __name__ == '__main__':
 
     # ------------------ ROI overlap (cortex) ------------------
     # Run independently of contrasts (flatmaps only).
-    if '--iroi' in sys.argv:
+    if '--irois' in sys.argv:
 
         vmin = 1 / len(SUBJECTS)
         vmax = 1.0
@@ -1949,6 +1949,7 @@ if __name__ == '__main__':
             contrasts_folder, 'rgba', cname.lower() + '_and_' + cname2.lower()
         )
         os.makedirs(rgbaplots_folder, exist_ok=True)
+        vmax = max(v1, v2)
         plot_flatmap(
             stats=[[zL1, zR1], [zL2, zR2]],
             threshold=[thr1, thr2],
@@ -1956,6 +1957,6 @@ if __name__ == '__main__':
             contrast_tag=cname + '_and_' + cname2,
             output_dir=rgbaplots_folder,
             hemi=['L', 'R'],
-            colors=['#D41159', '#1A85FF'],
-            vmax=[v1, v2]
+            colors=["#FFF200", "#F42DFF"], # colors=['#D41159', '#1A85FF']
+            vmax=[vmax, vmax] # [vmax, vmax]
         )

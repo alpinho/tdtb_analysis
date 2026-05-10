@@ -607,7 +607,7 @@ if __name__ == '__main__':
             tick_decimals=2,
             cbar_orientation='vertical',
             cbar_rect=[.2, .06, .6, .03],
-            cmap_title='Fraction of Participants',
+            cmap_title='Fraction of\nParticipants',
             cbar_ticks=ticks
         )
 

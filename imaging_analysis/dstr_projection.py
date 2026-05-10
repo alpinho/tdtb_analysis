@@ -7,7 +7,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 30th of March 2025
-Last Update: January, 2026
+Last Update: May 2026
 
 Compatibility: Python 3.10.16, nilearn 0.11.1
 """
@@ -32,8 +32,6 @@ from nilearn.glm.thresholding import fdr_threshold
 
 # setting path
 sys.path.append('../')
-# importing
-from utils import zval_conversion
 
 
 # ========================== FUNCTIONS =================================
