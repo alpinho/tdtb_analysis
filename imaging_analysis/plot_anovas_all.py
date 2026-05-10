@@ -1153,7 +1153,7 @@ def plot_psc_boxplots(
     elif audivisual_only:
         legend_mods = ["Auditory", "Visual"]
     else:
-        legend_mods = ["Pooled","Auditory", "Visual"]
+        legend_mods = ["Auditory", "Visual", "Pooled"]
 
     beat_colors: list[tuple[float, float, float]] = []
     interval_colors: list[tuple[float, float, float]] = []
@@ -1719,26 +1719,6 @@ WITHIN_ANNOTATIONS: List[dict] = [
 
 # =================== CROSS-MODALITY (AUDIO ↔ VISUAL) =============== #
 
-# These are three-way ANOVA results for the main effect of Modality
-# Pairwise comparisons between modalities
-# CROSS_AV_ANNOTATIONS: List[dict] = [
-#     dict(
-#         roi="pmd",
-#         tasks=["Production", "Perception", "NTFD"],
-#         pvalue=0.00382583338647626,
-#     ),
-#     dict(
-#         roi="heschl",
-#         tasks=["Production", "Perception", "NTFD"],
-#         pvalue=0.000000000000019175900003915,
-#     ),
-#     dict(
-#         roi="occipital",
-#         tasks=["Production", "Perception", "NTFD"],
-#         pvalue=0.00000000290970950214818,
-#     ),
-# ]
-
 # Reporting uncorrected pvalues that survived to ...
 # ... pHolm-Bonferroni correction across the 2way ANOVAs
 # ... per ROI for Task and Modality as within-subject factors
@@ -1747,238 +1727,21 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
     dict(
         roi="heschl",
         tasks=["Production", "Perception", "NTFD"],
-        pvalue=0.000000000000019175900003915,
+        pvalue=0.000000000000019175870689252,
     ),
     dict(
         roi="occipital",
         tasks=["Production", "Perception", "NTFD"],
-        pvalue=0.00000000290970950214818,
+        pvalue=0.00000000306482935206361,
     ),
     dict(
         roi="pmd",
         tasks=["Production", "Perception", "NTFD"],
-        pvalue=0.00382583338647626,
+        pvalue=0.00366481397614982,
     ),
-    # dict(
-    #     roi=,
-    #     task="Production",
-    #     pvalue=,
-    # ),
-    # dict(
-    #     roi=,
-    #     task_pair=["Production"],
-    #     pvalue=,
-    # ),
 ]
 
 # ========================== CROSS-TASKS ============================ #
-
-# Pooled refer three-way ANOVA for ROI and Task,...
-# ... collapsing across modalities
-# For separate modalities, we also did 2way RM ANOVA pairwise comparisons
-
-# Reporting uncorrected pvalues that survived to ...
-# ... pHolm-Bonferroni correction across the 3way ANOVA
-# ANNOTATIONS: List[dict] = [
-#     dict(
-#         roi="dstr",
-#         modality="Pooled",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.00000000832811687173313,
-#     ),
-#     dict(
-#         roi="dstr",
-#         modality="Pooled",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.0000000355953302397596,
-#     ),
-#     dict(
-#         roi="cereb",
-#         modality="Pooled",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.000241837834093381,
-#     ),
-#     dict(
-#         roi="presma",
-#         modality="Pooled",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.00187468625505287,
-#     ),
-#     dict(
-#         roi="sma",
-#         modality="Pooled",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.000000650783541156439,
-#     ),
-#     dict(
-#         roi="sma",
-#         modality="Pooled",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.0000202682809212273,
-#     ),
-#     dict(
-#         roi="heschl",
-#         modality="Pooled",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.00000000136229812975116,
-#     ),
-#     dict(
-#         roi="heschl",
-#         modality="Pooled",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.00000000236090454108804,
-#     ),
-#     dict(
-#         roi="occipital",
-#         modality="Pooled",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.000134046234216341,
-#     ),
-#     dict(
-#         roi="occipital",
-#         modality="Pooled",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.000029715961625874,
-#     ),
-#     dict(
-#         roi="dstr",
-#         modality="Auditory",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.00000106244622438865,
-#     ),
-#     dict(
-#         roi="dstr",
-#         modality="Auditory",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.000000612729547846731,
-#     ),
-#     dict(
-#         roi="cereb",
-#         modality="Auditory",  # significant only in the 3way ANOVA
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.0142145961772677,
-#     ),
-#     dict(
-#         roi="cereb",
-#         modality="Auditory",  # significant only in the 3way ANOVA
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.0126473284799806,
-#     ),
-#     dict(
-#         roi="sma",
-#         modality="Auditory",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.000054262462788421,
-#     ),
-#     dict(
-#         roi="sma",  # significant only in the 3way ANOVA
-#         modality="Auditory",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.0374092539730202,
-#     ),
-#     dict(
-#         roi="sma",
-#         modality="Auditory",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.00244667303814008,
-#     ),
-#     dict(
-#         roi="heschl",
-#         modality="Auditory",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.000000120078120129038,
-#     ),
-#     dict(
-#         roi="heschl",
-#         modality="Auditory",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.0000000193038251748658,
-#     ),
-#     dict(
-#         roi="occipital",
-#         modality="Auditory",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.000634905221536432,
-#     ),
-#     dict(
-#         roi="occipital",
-#         modality="Auditory",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.0000128424205321607,
-#     ),
-#     dict(
-#         roi="dstr",
-#         modality="Visual",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.000000000616489123293964,
-#     ),
-#     dict(
-#         roi="dstr",
-#         modality="Visual",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.00000079736641913653,
-#     ),
-#     dict(
-#         roi="cereb",
-#         modality="Visual",  # significant only in the 3way ANOVA
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.0201762748089375,
-#     ),
-#     dict(
-#         roi="cereb",
-#         modality="Visual",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.00180104354711226,
-#     ),
-#     dict(
-#         roi="cereb",
-#         modality="Visual",  # significant only in the 3way ANOVA
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.048577005574705,
-#     ),
-#     dict(
-#         roi="sma",
-#         modality="Visual",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.00000123502563301166,
-#     ),
-#     dict(
-#         roi="sma",  # significant only in the 3way ANOVA
-#         modality="Visual",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.0237468150390989,
-#     ),
-#     dict(
-#         roi="sma",
-#         modality="Visual",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.000801144140433441,
-#     ),
-#     dict(
-#         roi="heschl",  # significant only in the 3way ANOVA
-#         modality="Visual",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.00813138744897999,
-#     ),
-#     dict(
-#         roi="heschl",  # significant only in the 3way ANOVA
-#         modality="Visual",
-#         task_pair=("Perception", "NTFD"),
-#         pvalue=0.00442865869182293,
-#     ),
-#     dict(
-#         roi="occipital",
-#         modality="Visual",
-#         task_pair=("Production", "Perception"),
-#         pvalue=0.000642604602310693,
-#     ),
-#     dict(
-#         roi="occipital",
-#         modality="Visual",
-#         task_pair=("Production", "NTFD"),
-#         pvalue=0.00109395513424105,
-#     ),
-# ]
 
 # Reporting uncorrected pvalues that survived to ...
 # ... pHolm-Bonferroni correction across the 2way ANOVAs
@@ -2001,37 +1764,37 @@ ANNOTATIONS: List[dict] = [
         roi="heschl",
         modality="Visual",
         task_pair=("Production", "NTFD"),
-        pvalue=0.00813138744897999,
+        pvalue=0.0081314046208235,
     ),
     dict(
         roi="heschl",
         modality="Visual",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.00442865869182293,
+        pvalue=0.00442866858182365,
     ),
     dict(
         roi="occipital",
         modality="Auditory",
         task_pair=("Production", "Perception"),
-        pvalue=0.000634905221536432,
+        pvalue=0.000626114850557064,
     ),
     dict(
         roi="occipital",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0000128424205321607,
+        pvalue=0.0000127270315099403,
     ),
     dict(
         roi="occipital",
         modality="Visual",
         task_pair=("Production", "Perception"),
-        pvalue=0.000642604602310693,
+        pvalue=0.000636929873833315,
     ),
     dict(
         roi="occipital",
         modality="Visual",
         task_pair=("Production", "NTFD"),
-        pvalue=0.00109395513424105,
+        pvalue=0.00106498769262454,
     ),
     dict(
         roi="dorsal striatum",
@@ -2043,25 +1806,25 @@ ANNOTATIONS: List[dict] = [
         roi="dorsal striatum",
         modality="Pooled",
         task_pair=("Production", "NTFD"),
-        pvalue=0.0000000355953302397597,
+        pvalue=0.0000000355953143817497,
     ),
     dict(
         roi="cerebellum",
         modality="Pooled",
         task_pair=("Production", "Perception"),
-        pvalue=0.00379959020327813,
+        pvalue=0.00371185077635477,
     ),
     dict(
         roi="cerebellum",
         modality="Pooled",
         task_pair=("Production", "NTFD"),
-        pvalue=0.000241837834093381,
+        pvalue=0.000227317411495172,
     ),
     dict(
         roi="presma",
         modality="Pooled",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.00187468625505287,
+        pvalue=0.00187469080530894,
     ),
     dict(
         roi="sma",
@@ -2073,13 +1836,13 @@ ANNOTATIONS: List[dict] = [
         roi="sma",
         modality="Pooled",
         task_pair=("Production", "NTFD"),
-        pvalue=0.0102668978573674,
+        pvalue=0.0102669303444073,
     ),
     dict(
         roi="sma",
         modality="Pooled",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0000202682809212273,
+        pvalue=0.0000202681809469692,
     ),
 ]
 
