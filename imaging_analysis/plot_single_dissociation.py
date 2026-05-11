@@ -9,7 +9,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 10th of March 2025
-Last Update: March 2026
+Last Update: May 2026
 
 Compatibility: Python 3.10.14
 """
@@ -20,7 +20,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from plot_anovas import bootstrap_conf_intervals, _poly_xspan_at_y
+from plot_anovas_all import bootstrap_conf_intervals, _poly_xspan_at_y
 
 
 # ========================== FUNCTIONS =================================
