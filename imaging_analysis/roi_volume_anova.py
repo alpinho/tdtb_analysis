@@ -1374,11 +1374,11 @@ crossroi_label = 'subcortical-sma'
 
 # #######################
 
-atlas_dirnames2 = [fsl_dir, ntk_dir]
-atlas_names2 = ['hos', 'ntk_symmni128']
-region_names2 = ['dorsal_striatum', 'cerebellum']
-roi_names2 = ['dstr', 'cereb']
-crossroi_label = 'subcortical'
+# atlas_dirnames2 = [fsl_dir, ntk_dir]
+# atlas_names2 = ['hos', 'ntk_symmni128']
+# region_names2 = ['dorsal_striatum', 'cerebellum']
+# roi_names2 = ['dstr', 'cereb']
+# crossroi_label = 'subcortical'
 
 # atlas_dirnames2 = [fsl_dir, fsl_dir]
 # atlas_names2 = ['hos', 'hos']
@@ -1392,11 +1392,11 @@ crossroi_label = 'subcortical'
 # roi_names2 = ['presma', 'sma']
 # crossroi_label = 'presma-sma'
 
-# atlas_dirnames2 = [fsl_dir, hmat_dir]
-# atlas_names2 = ['hos', 'hmat']
-# region_names2 = ['dorsal_striatum', 'motor_area']
-# roi_names2 = ['dstr', 'sma']
-# crossroi_label = 'dstr-sma'
+atlas_dirnames2 = [fsl_dir, hmat_dir]
+atlas_names2 = ['hos', 'hmat']
+region_names2 = ['dorsal_striatum', 'motor_area']
+roi_names2 = ['dstr', 'sma']
+crossroi_label = 'dstr-sma'
 
 # atlas_dirnames2 = [ntk_dir, hmat_dir]
 # atlas_names2 = ['ntk_symmni128', 'hmat']

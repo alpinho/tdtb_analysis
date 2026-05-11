@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 23rd of March 2026
-Last Update: April 2026
+Last Update: May 2026
 
 Compatibility: Python 3.10.16
 """
@@ -1418,7 +1418,6 @@ ROI_NAMES = ['dstr',
 
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g',
 #          'g']
-# itags = ['i', 'g']
 itags = ['i', 'g']
 
 hemispheres = ['bh']  # Both hemispheres
@@ -1441,13 +1440,13 @@ if __name__ == '__main__':
     )
 
     # Create dataframes
-    # reliability_dataframe(
-    #     SUBJECTS, glm_tasks, data_storage,
-    #     selected_contrasts_main, selected_contrasts_random,
-    #     db_taskglm_path, derivative_type, mask_type, smooth)
+    reliability_dataframe(
+        SUBJECTS, glm_tasks, data_storage,
+        selected_contrasts_main, selected_contrasts_random,
+        db_taskglm_path, derivative_type, mask_type, smooth)
 
     # Open dataframe
-    # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
+    db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
 
     # Extract signals from derivatives using individualized ROIs
     # Order of conditions:
@@ -1461,10 +1460,10 @@ if __name__ == '__main__':
     #   'auditory_random_rand_ntfd',
     #   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd',
     #   'visual_random_rand_ntfd'
-    # taskglm_roi_extraction(db_taskglm_path, data_storage, main_dir,
-    #                        itags, region_names, atlas_names,
-    #                        ROI_NAMES, hemispheres, iroi_main_dir,
-    #                        smooth, roi_signals_folder)
+    taskglm_roi_extraction(db_taskglm_path, data_storage, main_dir,
+                           itags, region_names, atlas_names,
+                           ROI_NAMES, hemispheres, iroi_main_dir,
+                           smooth, roi_signals_folder)
 
     for itag in itags:
         data_by_roi = load_roi_signal_arrays(
