@@ -353,7 +353,7 @@ def _ng2_threeway_within(df: pd.DataFrame,
 
 def preprocess_rand_ntfd_nonrandom(df, aggregation_type='mean'):
     """
-    Aggregate 'Beat' and 'Interval' categories into a unified 'Non-Random' category
+    Aggregate Beat and Interval into a unified Non-Random category.
     for rand_ntfd_pairs analysis.
 
     This function relabels rows where 'Category' is 'Beat' or 'Interval' as
@@ -390,7 +390,9 @@ def preprocess_rand_ntfd_nonrandom(df, aggregation_type='mean'):
     Examples
     --------
     >>> result = preprocess_rand_ntfd_nonrandom(df, aggregation_type='mean')
-    >>> result = preprocess_rand_ntfd_nonrandom('data/rand_ntfd.csv', aggregation_type='sum')
+    >>> result = preprocess_rand_ntfd_nonrandom(
+    ...     'data/rand_ntfd.csv', aggregation_type='sum'
+    ... )
     """
 
     if isinstance(df, str):
@@ -576,6 +578,112 @@ def twoway_rm_modcat_taskavg(df, out_dir, prefix, roi,
         post.to_csv(
             os.path.join(out_dir, base + 'posthoc.tsv'),
             sep='\t', index=False
+        )
+
+
+
+def twoway_rm_taskcat(df, out_dir, prefix, roi,
+                      alternative='two-sided',
+                      hems=('lh', 'rh', 'bh')):
+    """2-way RM-ANOVA per ROI: Task x Category.
+
+    Only the 3 main tasks are used: Production, Perception, and NTFD.
+    """
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    if 'Contrast' in df.columns:
+        df = df.drop(columns=['Contrast'])
+
+    df = df[df.Task != 'All Main Tasks'].copy()
+    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
+
+    if 'Modality' in df.columns:
+        df = (
+            df.groupby(
+                ['Subject', 'Task', 'Category', 'Hemisphere'],
+                as_index=False,
+            )
+            .agg({'PSC': 'mean'})
+        )
+
+    expected_tasks = ['Production', 'Perception', 'NTFD']
+    expected_categories = ['Beat', 'Interval']
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    for hem in hems:
+        db = df[df.Hemisphere == hem].copy()
+
+        _assert_no_nan_psc(db, where=f'2w_taskcat {roi} {hem}')
+        _assert_unique_cells(
+            db,
+            ['Subject', 'Task', 'Category', 'Hemisphere'],
+            where=f'2w_taskcat {roi} {hem}',
+        )
+        _assert_expected_levels(
+            db,
+            'Task',
+            expected_tasks,
+            where=f'2w_taskcat {roi} {hem}',
+        )
+        _assert_expected_levels(
+            db,
+            'Category',
+            expected_categories,
+            where=f'2w_taskcat {roi} {hem}',
+        )
+        _assert_complete_within(
+            db,
+            'Subject',
+            ['Task', 'Category'],
+            where=f'2w_taskcat {roi} {hem}',
+        )
+
+        anova = pg.rm_anova(
+            data=db,
+            dv='PSC',
+            within=['Task', 'Category'],
+            subject='Subject',
+            detailed=True,
+            effsize='ng2',
+        )
+        post1 = pg.pairwise_tests(
+            data=db,
+            dv='PSC',
+            within=['Category', 'Task'],
+            subject='Subject',
+            alternative=alternative,
+            return_desc=True,
+            padjust='holm',
+            effsize='cohen',
+        )
+        post2 = pg.pairwise_tests(
+            data=db,
+            dv='PSC',
+            within=['Task', 'Category'],
+            subject='Subject',
+            alternative=alternative,
+            return_desc=True,
+            padjust='holm',
+            effsize='cohen',
+        )
+
+        base = f'{prefix}_{roi}_{hem}_2w-'
+        anova.to_csv(
+            os.path.join(out_dir, base + 'taskcat_anova.tsv'),
+            sep='\t',
+            index=False,
+        )
+        post1.to_csv(
+            os.path.join(out_dir, base + 'taskcat_posthoc.tsv'),
+            sep='\t',
+            index=False,
+        )
+        post2.to_csv(
+            os.path.join(out_dir, base + 'cattask_posthoc.tsv'),
+            sep='\t',
+            index=False,
         )
 
 
@@ -1602,6 +1710,12 @@ if __name__ == '__main__':
                     # ######### Two-way ANOVA #########
                     tm_dir = os.path.join(anovas_dir, '2way-anova_modtask')
                     twoway_rm_modtask(df_path, tm_dir, tag, rlab)
+
+                if folder_name == 'main_tasks':
+
+                    # ######### Two-way ANOVA #########
+                    tc_dir = os.path.join(anovas_dir, '2way-anova_taskcat')
+                    twoway_rm_taskcat(df_path, tc_dir, tag, rlab)
 
         # Save concatenated ROI dataframe
         df_dir = os.path.join(msdtb_dir, 'df_rois_volume')
