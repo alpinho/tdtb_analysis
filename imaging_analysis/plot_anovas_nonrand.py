@@ -742,6 +742,8 @@ def plot_psc_boxplots(
             ax_vis = ax_lookup["Visual"]
             for level, ann in enumerate(spec["eligible_cross"]):
                 text = pval_label_converter([float(ann["pvalue"])])[0]
+                h_data = cross_h_frac * spec["yr"]
+
                 y_data = (
                     spec["y_max_data"]
                     + spec["pad"]
@@ -751,7 +753,10 @@ def plot_psc_boxplots(
                         + level * spec["cross_step_frac"]
                     ) * spec["yr"]
                 )
-                h_data = cross_h_frac * spec["yr"]
+
+                y_top_allowed = spec["y_lim"][1] - cross_headroom_frac * spec["yr"]
+                y_data = min(y_data, y_top_allowed - h_data)
+                
                 span_annotation_datay_figspan(
                     fig,
                     ax_left=ax_aud,
