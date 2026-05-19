@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 15th of April 2026
-Last update: April 2026
+Last update: May 2026
 
 Compatibility: Python 3.10.14
 """
@@ -912,47 +912,27 @@ WITHIN_ANNOTATIONS: List[dict] = [
     dict(
         roi="cerebellum",
         modality="Pooled",
-        pvalue=0.0000210418857266061,
+        pvalue=0.0143899704097716,
     ),
     dict(
         roi="presma",
         modality="Pooled",
-        pvalue=0.0000156873056962545,
-    ),
-    dict(
-        roi="sma",
-        modality="Pooled",
-        pvalue=0.00000000670842733504835,
+        pvalue=0.00122916990122567,
     ),
     dict(
         roi="pmd",
         modality="Pooled",
-        pvalue=0.000000257147159216042,
+        pvalue=0.000399959965496988,
     ),
     dict(
         roi="pmv",
         modality="Pooled",
-        pvalue=0.0000794646286807802,
-    ),
-    dict(
-        roi="heschl",
-        modality="Pooled",
-        pvalue=0.000031556368482059,
+        pvalue=0.000480355630824121,
     ),
     dict(
         roi="heschl",
         modality="Auditory",
-        pvalue=0.0000000559303322907296,
-    ),
-    dict(
-        roi="occipital",
-        modality="Pooled",
-        pvalue=0.0000554500364608825,
-    ),
-    dict(
-        roi="occipital",
-        modality="Visual",
-        pvalue=0.00000146503323769873,
+        pvalue=0.00432467050460228,
     ),
 ]
 
@@ -974,10 +954,10 @@ WITHIN_BRACKET_H_AX: Dict[Tuple[str, str, int], float] = {
 # =================== CROSS-MODALITY (AUDIO ↔ VISUAL) ============== #
 
 CROSS_AV_ANNOTATIONS: List[dict] = [
-    # dict(
-    #     roi="heschl",
-    #     pvalue=0.0008,
-    # ),
+    dict(
+        roi="occipital",
+        pvalue=0.00000000573693940467244,
+    ),
 ]
 
 
