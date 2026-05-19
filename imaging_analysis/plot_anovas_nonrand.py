@@ -756,7 +756,7 @@ def plot_psc_boxplots(
 
                 y_top_allowed = spec["y_lim"][1] - cross_headroom_frac * spec["yr"]
                 y_data = min(y_data, y_top_allowed - h_data)
-                
+
                 span_annotation_datay_figspan(
                     fig,
                     ax_left=ax_aud,
@@ -979,14 +979,14 @@ if __name__ == "__main__":
         )
 
     y_limits = {
-        "heschl": (-0.8, 3.4),
-        "occipital": (-0.8, 2.0),
-        "dstr": (-0.6, 1.0),
-        "cereb": (-0.6, 1.4),
-        "presma": (-0.4, 1.6),
-        "sma": (-0.4, 1.8),
-        "pmd": (-0.6, 2.0),
-        "pmv": (-0.2, 1.4),
+        "heschl": (-0.6, 1.8),
+        "occipital": (-0.4, 1.2),
+        "dstr": (-0.4, 0.6),
+        "cereb": (-0.4, 0.8),
+        "presma": (-0.2, 0.8),
+        "sma": (-0.2, 1.0),
+        "pmd": (-0.4, 1.0),
+        "pmv": (-0.2, 0.8),
     }
 
     show_yaxis = {

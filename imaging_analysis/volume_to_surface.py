@@ -1378,7 +1378,7 @@ surfparametric_folder = os.path.join(
     'surface')
 
 # Production/Perception/NTFD/NTFD Random/All Main Tasks
-task_tag = 'All Main Tasks'
+task_tag = 'NTFD Random'
  
 # To run every contrast:
 # contrast_name = 'ALL' and contrast_name2 = None.
@@ -1389,8 +1389,8 @@ task_tag = 'All Main Tasks'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'Encoding' # E.g. 'Beat', 'Interval', 'ALL', etc.
-contrast_name2 = None # E.g. 'Interval'
+contrast_name = 'Random' # E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = 'Non-Random' # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
 
@@ -1872,12 +1872,12 @@ if __name__ == '__main__':
         # ---- compute + group + mask for contrast 1 ------------------
         cdir1 = os.path.join(surf_folder, f"{contrast_id}_{cname.lower()}")
         os.makedirs(cdir1, exist_ok=True)
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
-                        contrast_id, surf_folder, 
-                        surfspace='fslr32k', save='gifti')
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
-                        contrast_id, surf_folder, 
-                        surfspace='fslr32k', save='cifti')
+        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
+        #                 contrast_id, surf_folder, 
+        #                 surfspace='fslr32k', save='gifti')
+        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
+        #                 contrast_id, surf_folder, 
+        #                 surfspace='fslr32k', save='cifti')
         z_values1 = group_surf(surf_folder, SUBJECTS, task_id, contrast_id,
                                cname, surfspace='fslr32k')
         zL1 = mask_cortical_activation(
@@ -1906,12 +1906,12 @@ if __name__ == '__main__':
         # ---- compute + group + mask for contrast 2 ------------------
         cdir2 = os.path.join(surf_folder, f"{contrast_id2}_{cname2.lower()}")
         os.makedirs(cdir2, exist_ok=True)
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
-                        contrast_id2, surf_folder, 
-                        surfspace='fslr32k', save='gifti')
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
-                        contrast_id2, surf_folder, 
-                        surfspace='fslr32k', save='cifti')
+        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
+        #                 contrast_id2, surf_folder, 
+        #                 surfspace='fslr32k', save='gifti')
+        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
+        #                 contrast_id2, surf_folder, 
+        #                 surfspace='fslr32k', save='cifti')
         z_values2 = group_surf(
             surf_folder, SUBJECTS, task_id, contrast_id2, cname2, 
             surfspace='fslr32k'
@@ -1949,10 +1949,11 @@ if __name__ == '__main__':
             contrasts_folder, 'rgba', cname.lower() + '_and_' + cname2.lower()
         )
         os.makedirs(rgbaplots_folder, exist_ok=True)
+        thr = max(thr1, thr2)
         vmax = max(v1, v2)
         plot_flatmap(
             stats=[[zL1, zR1], [zL2, zR2]],
-            threshold=[thr1, thr2],
+            threshold=[thr, thr],
             task_key=task_id,
             contrast_tag=cname + '_and_' + cname2,
             output_dir=rgbaplots_folder,

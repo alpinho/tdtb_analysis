@@ -1263,7 +1263,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'main_tasks'
+folder_name = 'rand_ntfd_pairs'
 
 tags = [
     'i', 'i9a', 'i8a', 'i7a', 'i6a',
