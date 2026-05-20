@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: April 2026
+Last update: May 2026
 
 Compatibility: Python 3.10.14
 """
@@ -63,10 +63,13 @@ def symlog_transform(arr, shift):
 
 
 def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
-                         sesstag=None, sessions=None, audio_latency=133,
-                         visual_latency=35, button_press=20,
-                         tasks=['Auditory Production',
-                                'Visual Production']):
+                         subjects_batch,
+                         sesstag=None,
+                         sessions=None,
+                         audio_latency=0,
+                         visual_latency=0,
+                         button_press=0,
+                         tasks=['Auditory Production', 'Visual Production']):
 
     # Define columns of dataframe
     df = pd.DataFrame(columns=[
@@ -149,9 +152,11 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 
     # Save dataframe
     if sesstag:
-        outpath = os.path.join(output_dir, 'df_production_' + sesstag + '.tsv')
+        outpath = os.path.join(
+            output_dir, 
+            subjects_batch + '_' + sesstag + '.tsv')
     else:
-        outpath = os.path.join(output_dir, 'df_production.tsv')
+        outpath = os.path.join(output_dir, subjects_batch + '.tsv')
     df.to_csv(outpath, index=False, sep='\t', na_rep='NaN')
 
 
@@ -173,27 +178,31 @@ GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
 IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
                 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# Second batch
+SB_SUBJECTS = [48]
+
 # #######################################################################
 
 # TASKS = ['Visual Production']
 
 N_TRIALS = 30
 
-AUDIO_LATENCY = 133
-VISUAL_LATENCY = 35
-BUTTON_PRESS = 20
+AUDIO_LATENCY = 63 # Expy: 133 / Psychopy: 63
+VISUAL_LATENCY = 35 # Expy: 35
+BUTTON_PRESS = 20 # 20
 
 # ### For 'All Sessions' ###
-SUBJECTS = GOOD_SUBJECTS
-SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSIONS = None
-tag = 'allses'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSIONS = None
+# tag = 'allses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01']
-# tag = SESSIONS[0]
+SUBJECTS = SB_SUBJECTS # GOOD_SUBJECTS / SB_SUBJECTS
+SESSTYPES = ['behavioral_session']
+SESSIONS = ['ses-01']
+tag = SESSIONS[0]
+batch = 'df_production_sb' # 'df_production' / 'df_production_sb' 
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -235,7 +244,9 @@ if __name__ == "__main__":
 
     # Create the dataframe
     production_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                         N_TRIALS, sessions=SESSIONS,
+                         N_TRIALS, batch,
+                         sesstag=None, 
+                         sessions=SESSIONS,
                          audio_latency=AUDIO_LATENCY,
                          visual_latency=VISUAL_LATENCY,
                          button_press=BUTTON_PRESS)
