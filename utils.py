@@ -11,13 +11,90 @@ from nilearn.image import load_img, new_img_like, math_img
 
 def extract_timestamp(filename):
     """
-    Function to extract the timestamp from the filename
+    Function to extract the timestamp from the filename.
     """
-    # Match the last 12-digit timestamp
-    match = re.search(r"(\d{12})\.xpd$", filename)
-    
-    # Convert timestamp to an integer for sorting and return
-    return int(match.group(1)) if match else 0 
+    # Match the last 12-digit timestamp before .xpd or .csv.
+    match = re.search(r"(\d{12})(?=\.(xpd|csv)$)", filename)
+
+    # Convert timestamp to an integer for sorting and return.
+    return int(match.group(1)) if match else 0
+
+
+def _get_metadata_value(inputs_list, field):
+    """Return the value of a '#x field: value' metadata line."""
+    prefix = field + ':'
+    for row in inputs_list:
+        if row and row[0].startswith(prefix):
+            return row[0].split(':', 1)[1].strip()
+
+    return None
+
+
+def _normalise_session(value):
+    """Remove leading zeroes from a numeric session label."""
+    if value.isdigit():
+        return str(int(value))
+
+    return value
+
+
+def _normalise_csv_logfile(inputs_list, subject_no):
+    """Convert newer CSV rows to the legacy XPD row layout."""
+    header_idx = None
+    for i, row in enumerate(inputs_list):
+        if row and row[0] == 'session_id':
+            header_idx = i
+            break
+
+    if header_idx is None:
+        return inputs_list
+
+    subject = _get_metadata_value(inputs_list, '#s id')
+    if subject is None:
+        subject = str(subject_no)
+
+    header = [[
+        'subject_id', 'session_number', 'run_number', 'trial_number',
+        'trial_id', 'condition', 'onset', 'duration',
+        'theoretical_isi/feedback', 'real_isi/feedback', 'rt', 'key'
+    ]]
+
+    trials = []
+    for row in inputs_list[header_idx + 1:]:
+        if not row:
+            continue
+
+        condition = row[4]
+        if condition.startswith('isi_'):
+            condition = condition.replace('isi_', 'interval_', 1)
+
+        trials.append([
+            subject, _normalise_session(row[0]), row[1], row[2],
+            row[3], condition, row[5], row[6], row[7], row[8],
+            row[9], row[10]
+        ])
+
+    return inputs_list[:header_idx] + header + trials
+
+
+def _is_selected_task(inputs_list, task, sesstype):
+    """Return True if a logfile corresponds to the selected task."""
+    sesstype_tag = sesstype.replace('_', ' ')
+    xpd_task = task + ' - ' + sesstype_tag
+    csv_modality = task.partition(' ')[0].lower()
+    csv_modality = {'auditory': 'audio'}.get(csv_modality, csv_modality)
+    csv_task = 'st ' + csv_modality + ' PRODUCTION'
+
+    for row in inputs_list[:12]:
+        if not row:
+            continue
+
+        line = row[0]
+        if line.startswith('#e Task:'):
+            task_label = line.split(':', 1)[1].strip()
+            return task_label in [xpd_task, csv_task]
+
+    return False
 
 
 def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
@@ -47,21 +124,28 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
 
         for session in sessions:
             logpath = os.path.join(sesstype_path, session)
-            logfiles = glob.glob(os.path.join(logpath, '*.xpd'))
+            logfiles = [
+                f for ext in ('*.xpd', '*.csv')
+                for f in glob.glob(os.path.join(logpath, ext))
+            ]
             logfiles.sort(key=extract_timestamp)
 
-            inputs_lists = [[line for line in csv.reader(open(logfile),
-                                                         delimiter=',')]
-                            for logfile in logfiles]
+            inputs_lists = []
+            for logfile in logfiles:
+                with open(logfile, newline='') as open_file:
+                    inputs_list = [
+                        line for line in csv.reader(open_file, delimiter=',')
+                    ]
+                if logfile.endswith('.csv'):
+                    inputs_list = _normalise_csv_logfile(
+                        inputs_list, subject_no)
+                inputs_lists.append(inputs_list)
 
             # Pick log files of selected task
             allruns = []
             for i, inputs_list in enumerate(inputs_lists, 1):
-                sesstype_tag = sesstype.replace('_', ' ')
-                ttag = task + ' - ' + sesstype_tag
-                # print('ttag: ', ttag)
-                if ttag in inputs_list[8][0][9:] or \
-                   ttag in inputs_list[9][0][9:]:
+                ttag = task + ' - ' + sesstype.replace('_', ' ')
+                if _is_selected_task(inputs_list, task, sesstype):
                     liste = inputs_list
                     # Extract trial information from log file
                     for r, row in enumerate(liste):
