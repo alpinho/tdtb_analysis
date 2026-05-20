@@ -81,9 +81,11 @@ def _is_selected_task(inputs_list, task, sesstype):
     """Return True if a logfile corresponds to the selected task."""
     sesstype_tag = sesstype.replace('_', ' ')
     xpd_task = task + ' - ' + sesstype_tag
-    csv_modality = task.partition(' ')[0].lower()
+
+    modality, _, task_name = task.partition(' ')
+    csv_modality = modality.lower()
     csv_modality = {'auditory': 'audio'}.get(csv_modality, csv_modality)
-    csv_task = 'st ' + csv_modality + ' PRODUCTION'
+    csv_task = 'st ' + csv_modality + ' ' + task_name.upper()
 
     for row in inputs_list[:12]:
         if not row:
