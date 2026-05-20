@@ -6,14 +6,13 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: 28th of January 2025
-Last update: February, 2025
+Last update: May 2026
 
 Compatibility: Python 3.10.14
 """
 
 import sys
 import os
-
 import warnings
 
 import numpy as np
@@ -91,7 +90,7 @@ def perception_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 
             # Append modality info in the third position of the row
             modality = np.array([task.partition(' ')[0].lower()])
-            
+
             mbeat = np.repeat(modality, beat_trials.shape[0])
             table_beat = np.insert(beat_trials, 3, mbeat, axis=1)
 
@@ -131,26 +130,36 @@ GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
 IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
                 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# Second batch
+SB_SUBJECTS = [48]
+
 # #######################################################################
+
+sessions_dic = {'allses': 'All Sessions',
+                'ses-01': 'Session 1',
+                'ses-02': 'Session 2',
+                'ses-03': 'Session 3',
+                'ses-04': 'Session 4',
+                'ses-05': 'Session 5'}
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
 N_TRIALS = 30
 
 # ### For 'All Sessions' ###
-SUBJECTS = GOOD_SUBJECTS
-SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSIONS = None
-tag = 'allses'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSIONS = None
+# tag = 'allses'
 
 # ### For 'All Behavioral Sessions' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = None
-# tag = 'behavses'
+SUBJECTS = GOOD_SUBJECTS
+SESSTYPES = ['behavioral_session']
+SESSIONS = None
+tag = 'behavses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = GOOD_SUBJECTS
+# SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-01']
 # tag = SESSIONS[0]
@@ -178,13 +187,6 @@ tag = 'allses'
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-02']
 # tag = 'ses-05'
-
-sessions_dic = {'allses': 'All Sessions',
-                'ses-01': 'Session 1',
-                'ses-02': 'Session 2',
-                'ses-03': 'Session 3',
-                'ses-04': 'Session 4',
-                'ses-05': 'Session 5'}
 
 # %%
 # ========================= PARAMETERS =================================

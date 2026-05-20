@@ -1,0 +1,143 @@
+Perception pipeline revision log
+Date: 2026-05-20
+
+Files revised
+-------------
+1. utils_revised.py
+2. perception_df_revised.py
+3. perception_analysis_revised.py
+
+1. Parser revisions: utils_revised.py
+------------------------------------
+- Kept the legacy XPD parsing pathway intact.
+- Kept the CSV-to-XPD-like normalization added previously.
+- Ensured every CSV trial row is rebuilt with subject_no forced into column 0.
+  This keeps the downstream fixed-index logic aligned with old XPD rows:
+  column 0 = subject, column 1 = session, column 2 = run, column 3 = trial,
+  column 4 = condition, column 5 = event, column 8 = ISI, column 10 = RT,
+  and column 11 = response key.
+- Kept CSV event-name normalization from isi_N to interval_N so production and
+  perception scripts can keep looking for interval_1.
+- Kept dynamic CSV task matching so both Production and Perception can be
+  matched from the same parser. For example, Auditory Perception maps to
+  st audio PERCEPTION and Visual Perception maps to st visual PERCEPTION.
+- Fixed a modularity issue in parse_logfile: when sessions is None, the old
+  code modified the sessions variable inside the sesstype loop. This could
+  accidentally reuse behavioral-session labels for imaging-session folders.
+  The revised code now uses a local selected_sessions variable per sesstype.
+- Sanity check performed on the uploaded subject-48 perception logs: the parser
+  finds 120 interval_1 rows and 120 feedback rows for Auditory Perception, and
+  120 interval_1 rows and 120 feedback rows for Visual Perception. The first
+  normalized visual row starts with ['48', '1', '1', '1', ...], confirming that
+  subject, session, run, and trial occupy the expected columns.
+
+2. Raw perception dataframe revisions: perception_df_revised.py
+--------------------------------------------------------------
+- No analytical logic was changed.
+- Only small PEP8-compatible formatting cleanup was applied.
+- The script still calls parse_logfile in the same way and still writes the raw
+  table to perception_results/raw_dataframes/df_perception.tsv unless sesstag is
+  explicitly passed.
+
+3. Perception analysis revisions: perception_analysis_revised.py
+---------------------------------------------------------------
+
+3.1 Frequency computation
+- Replaced the hard-coded denominator used for psychometric relative
+  frequencies. The old code estimated the number of repetitions from trials
+  where standard == 459 and comparison difference == .2. This was fragile
+  because it assumed a specific standard and comparison level would always be
+  present.
+- Added _relative_frequencies(), which computes the denominator separately for
+  each standard x comparison cell as n_shorter + n_longer.
+- This makes the relative frequencies robust to future batches, missing trials,
+  different numbers of repetitions, or incomplete cells.
+
+3.2 Fit validity
+- Added task-design fit validity thresholds:
+  FIT_MAX_ABS_PSE = 0.5
+  FIT_MAX_DL = 0.5
+  FIT_MIN_DL = 0.0
+- Added fit_is_valid(), which requires optimizer convergence, finite objective
+  values, finite PSE and DL, PSE within +/-50%, and DL within (0, 50%].
+- Invalid individual fits are stored as NaN for PSE and DL instead of keeping
+  extreme optimizer outputs.
+- The same validity rule is also applied to group-level psychometric fits.
+  Therefore, n=1 and larger batches use the same rule.
+
+3.3 Plotting of individual psychometric curves
+- Invalid individual fits are no longer drawn as extreme curves.
+- The individual plot now uses the correct estimator-specific curve:
+  normal CDF for mle_cdf and logistic sigmoid for mle_expit. The previous
+  individual plotting branch always drew a normal CDF curve.
+- Invalid fits still appear in the text fields as NaN, making them traceable
+  without distorting the axes.
+
+3.4 Plotting of group PSE
+- The PSE plotting function now ignores NaNs when setting y-limits.
+- Linear trend lines are only drawn when at least two finite PSE values are
+  available for a given modality x condition.
+- Finite points are still plotted when fewer than two values are available.
+  This prevents one invalid subject/standard from exploding the group PSE plot.
+
+3.5 ANOVA dataframe cleaning and traceability
+- The ANOVA dataframe now preserves raw fit values in DL_raw and PSE_raw.
+- Cleaned values used for analyses are stored separately in DL and PSE.
+- Added FitValid to indicate whether the original fit produced finite PSE and
+  DL after the fit-validity step.
+- Added DLImputed and PSEImputed flags to identify values replaced by a cell
+  median.
+- Outlier detection now ignores NaN values and returns no thresholding when too
+  few finite values are available.
+- Median replacement is still performed within each Standard x Modality x
+  Condition cell, but only when a finite median exists. If all values in a cell
+  are invalid, the value remains NaN instead of being replaced by NaN silently.
+- dataframe() no longer relies on the global SUBJECTS variable. The subject
+  list is now passed explicitly to make the function safer across batches.
+
+3.6 Repeated-measures ANOVA safeguards
+- twoway_repanova() now drops rows with NaN DL values and keeps only subjects
+  with a complete Modality x Condition grid after averaging across standards.
+- Excluded incomplete subjects are written to
+  anovas/twoway/twoway_excluded_<sesstag>.tsv.
+- If fewer than two complete subjects remain, the script writes a small TSV
+  explaining that the ANOVA was skipped instead of returning an invalid ANOVA
+  table with zero denominator degrees of freedom.
+- The boxplot y-limits are now data-driven instead of fixed at [.01, .25].
+
+4. Hard-coded assumptions checked
+---------------------------------
+- Removed hard-coded psychometric denominator based on standard 459 and +20%.
+- Removed hard-coded significance stars and connection brackets from the ANOVA
+  boxplot. Those annotations encoded previous results by sesstag and could
+  become wrong when new data are integrated.
+- Removed fixed DL y-limits in the ANOVA boxplot.
+- Removed dataframe() dependence on the global SUBJECTS variable.
+- Preserved expected task structure assumptions that are still central to the
+  current pipeline: two modalities, two conditions, five standards, two
+  estimators, and averaging DL across standards before the 2-way RM ANOVA.
+- The parser still assumes that normalized perception rows preserve the legacy
+  event sequence expected by perception_data: interval_1, later interval_5,
+  response, and feedback at the same offsets. This was verified for the
+  uploaded audio CSV and visual XPD perception logs.
+
+5. Validation performed
+-----------------------
+- All revised Python files were syntax-checked with python -m py_compile.
+- Because this execution environment does not provide the full project runtime
+  environment, including nilearn and pingouin, I could not run the complete
+  end-to-end analysis script here.
+- I did run a parser-level sanity check by temporarily mocking the unavailable
+  nilearn import and parsing the uploaded subject-48 perception logs.
+
+Summary
+-------
+The revised pipeline keeps the old XPD parser behavior and the CSV adapter but
+makes CSV subject-column normalization explicit, fixes a sessions-loop parser
+modularity issue, replaces a hard-coded psychometric-frequency denominator with
+cell-wise denominators, applies the same objective fit-validity rule to
+individual and group fits, prevents invalid fits from distorting plots, preserves
+raw and cleaned estimates with validity/imputation flags, and safeguards the RM
+ANOVA against n=1 or incomplete repeated-measures grids. Hard-coded plotting
+annotations and fixed ANOVA y-limits were removed because they could become
+incorrect as new batches are added.
