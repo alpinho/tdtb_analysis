@@ -5,14 +5,12 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February, 2023
-Last update: April 2026
+Last update: May 2026
 
 Compatibility: Python 3.10.14
 """
 
-import sys
 import os
-
 import warnings
 
 import numpy as np
@@ -21,14 +19,7 @@ import pandas as pd
 import pingouin as pg
 from scipy import stats, optimize, special
 from matplotlib import pyplot as plt
-from matplotlib.patches import ConnectionPatch
 from statsmodels.stats.anova import AnovaRM
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-
-# setting path
-sys.path.append('../../')
-# importing
-from utils import parse_logfile
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -196,13 +187,50 @@ def errFit(hess_inv, resVariance):
     return np.sqrt(np.diag(hess_inv * resVariance))
 
 
+FIT_MAX_ABS_PSE = 0.5
+FIT_MAX_DL = 0.5
+FIT_MIN_DL = 0.0
+
+
 def outliers(arr):
+    arr = np.asarray(arr, dtype=float)
+    arr = arr[np.isfinite(arr)]
+    if arr.size < 4:
+        return np.inf, -np.inf
+
     q75, q25 = np.percentile(arr, [75, 25])
     iqr = q75 - q25
-    high_thresh = q75 + 1.7*iqr
-    low_thresh = q25 - 1.7*iqr
+    high_thresh = q75 + 1.7 * iqr
+    low_thresh = q25 - 1.7 * iqr
 
     return high_thresh, low_thresh
+
+
+def fit_is_valid(opt_res, pse, dl):
+    """Return True for finite, converged, and plausible fits."""
+    return (
+        opt_res.success and
+        np.isfinite(opt_res.fun) and
+        np.isfinite(pse) and
+        np.isfinite(dl) and
+        np.abs(pse) <= FIT_MAX_ABS_PSE and
+        FIT_MIN_DL < dl <= FIT_MAX_DL
+    )
+
+
+def _relative_frequencies(n_shorter, n_longer):
+    """Convert shorter/longer counts to response probabilities."""
+    rf_shorter = []
+    rf_longer = []
+    for short_row, long_row in zip(n_shorter, n_longer):
+        short_row = np.asarray(short_row, dtype=float)
+        long_row = np.asarray(long_row, dtype=float)
+        total = short_row + long_row
+        with np.errstate(divide='ignore', invalid='ignore'):
+            rf_shorter.append(np.divide(short_row, total).tolist())
+            rf_longer.append(np.divide(long_row, total).tolist())
+
+    return rf_shorter, rf_longer
 
 
 def individual_perception(
@@ -244,34 +272,16 @@ def individual_perception(
                 (df['condition'] == 'interval')][[
                     'standard', 'comparison', 'answer']].values.tolist()
 
-            # Count the number of trials
-            filtered_df = df[
-                (df['subject'] == subject) &
-                (df['modality'] == modality) &
-                (df['standard'] == 459)][
-                round(((df['comparison'] - df['standard']) / df['standard']),
-                      2) == .2]
-            total_beat_trials = filtered_df[
-                (filtered_df['condition'] == 'beat')].shape[0]
-            total_interval_trials = filtered_df[
-                (filtered_df['condition'] == 'interval')].shape[0]
-            
             if condition == 'beat':
-                # Calculate frequencies of comparisons per standard
+                # Calculate frequencies of comparisons per standard.
                 standards, comparisons, n1_beat, n2_beat, _, _ = \
                     perception_frequencies(beat_trials, interval_trials)
-
-                rf1 = [[n1/total_beat_trials for n1 in n1b] for n1b in n1_beat]
-                rf2 = [[n2/total_beat_trials for n2 in n2b] for n2b in n2_beat]
+                rf1, rf2 = _relative_frequencies(n1_beat, n2_beat)
             else:
                 assert condition == 'interval'
                 standards, comparisons, _, _, n1_interval, n2_interval = \
                     perception_frequencies(beat_trials, interval_trials)
-
-                rf1 = [[n1/total_interval_trials for n1 in n1i]
-                       for n1i in n1_interval]
-                rf2 = [[n2/total_interval_trials for n2 in n2i]
-                       for n2i in n2_interval]
+                rf1, rf2 = _relative_frequencies(n1_interval, n2_interval)
 
             # Aggregate data
             if modality == 'auditory':
@@ -290,7 +300,7 @@ def individual_perception(
 
             # Define subplot of bar charts and its position in the fig
             # plt.axes([left, bottom, width, height])
-            ax = plt.axes([.1 + m*.46, .9685 - s*.023, .428, .0125])
+            ax = plt.axes([.1 + m * .46, .9685 - s * .023, .428, .0125])
 
             std_pse_audio = []
             std_dl_audio = []
@@ -310,23 +320,25 @@ def individual_perception(
                 # x0: 1st arg of log_lik
                 # args: 2nd and 3rd args of func
                 opt_res = optimize.minimize(
-                    fun = func,
-                    x0 = [np.mean(comparisons), .1],
-                    args = (comparisons, rf2[i], rf1[i]))
+                    fun=func,
+                    x0=[np.mean(comparisons), .1],
+                    args=(comparisons, rf2[i], rf1[i]))
 
                 # Estimates
                 pse = opt_res.x[0]
                 dl = opt_res.x[1] * constant
-                # Standard Errors estimated from Fisher information
-                se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
-                se_dl = np.sqrt(
-                    np.diag(opt_res.hess_inv))[1] * constant
-                # Correlation between mu (pse) and sigma (opt_res.x[1])
-                # r = opt_res.hess_inv[0][1] / \
-                #     np.sqrt(np.prod(np.diag(opt_res.hess_inv)))
-                # 95%CIs
-                ci95_pse = se_pse * 1.96
-                ci95_dl = se_dl * 1.96
+                is_valid = fit_is_valid(opt_res, pse, dl)
+                if is_valid:
+                    # Standard errors from Fisher information.
+                    se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
+                    se_dl = np.sqrt(np.diag(opt_res.hess_inv))[1] * constant
+                    ci95_pse = se_pse * 1.96
+                    ci95_dl = se_dl * 1.96
+                else:
+                    pse = np.nan
+                    dl = np.nan
+                    ci95_pse = np.nan
+                    ci95_dl = np.nan
 
                 # Append
                 if modality == 'auditory':
@@ -346,8 +358,14 @@ def individual_perception(
                 # ax.plot(comparisons, rf2[i], 'bo', color=colors[i],
                 #         markersize=3)
                 # Plot fit
-                ax.plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
-                        color=colors[i], label='Standard = ' + str(st) + 'ms')
+                if is_valid and estimator == 'mle_cdf':
+                    ax.plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
+                            color=colors[i],
+                            label='Standard = ' + str(st) + 'ms')
+                elif is_valid:
+                    ax.plot(x, special.expit((x - pse) / opt_res.x[1]),
+                            color=colors[i],
+                            label='Standard = ' + str(st) + 'ms')
                 # Add horizontal dashed line at y = 0.5
                 ax.axhline(.5, linestyle='--', color='silver', linewidth=1)
                 # Hide the right and top spines
@@ -359,7 +377,7 @@ def individual_perception(
                 ax.set_xticks(x_values, x_labels)
                 # Add estimates info
                 ax.text(-.21, 1.53, 'For 95% CI,', fontsize=7.5)
-                ax.text(-.21, 1.41 - i*.098,
+                ax.text(-.21, 1.41 - i * .098,
                         'PSE=%.02f' % (pse*100) +
                         '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
                         'DL=%.02f' % (dl*100) +
@@ -395,7 +413,7 @@ def individual_perception(
                 all_pse_visual.append(std_pse_visual)
                 all_dl_visual.append(std_dl_visual)
 
-        fig.text(.03, .9765 - s*.023, 'Subject %d' % subject, ha='center',
+        fig.text(.03, .9765 - s * .023, 'Subject %d' % subject, ha='center',
                  fontsize=10, weight='bold')
 
     # Title
@@ -429,7 +447,7 @@ def individual_perception(
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
                      standards, comparisons, condition, output_dir, sesstag,
-                     estimator = 'mle_expit'):
+                     estimator= 'mle_expit'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
     group_rf2_audio = np.mean(all_rf2_audio, axis=0)
@@ -487,25 +505,27 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             # Estimates
             pse = opt_res.x[0]
             dl = opt_res.x[1] * constant
-            # Standard Errors estimated from Fisher information
-            se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
-            se_dl = np.sqrt(
-                np.diag(opt_res.hess_inv))[1] * constant
-            # Correlation between mu (pse) and sigma (opt_res.x[1])
-            # r = opt_res.hess_inv[0][1] / \
-            #     np.sqrt(np.prod(np.diag(opt_res.hess_inv)))
-            # 95%CIs
-            ci95_pse = se_pse * 1.96
-            ci95_dl = se_dl * 1.96
-
-            # Estimate the goodness of the fit
-            dFit = errFit(opt_res.hess_inv,
-                          opt_res.fun/(len(rf2[i]) - \
-                                       len([np.mean(comparisons), 1.])))
+            is_valid = fit_is_valid(opt_res, pse, dl)
+            if is_valid:
+                # Standard errors from Fisher information.
+                se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
+                se_dl = np.sqrt(np.diag(opt_res.hess_inv))[1] * constant
+                ci95_pse = se_pse * 1.96
+                ci95_dl = se_dl * 1.96
+                dFit = errFit(
+                    opt_res.hess_inv,
+                    opt_res.fun / (len(rf2[i]) - 2))
+            else:
+                pse = np.nan
+                dl = np.nan
+                ci95_pse = np.nan
+                ci95_dl = np.nan
+                dFit = np.array([np.nan, np.nan])
 
             print(modality, '-', condition)
             print('estimator:', estimator)
             print('standard:', st)
+            print('valid fit:', is_valid)
             print('minimize:\n\tx: ', opt_res.x, '\n\tdx: ', dFit)
 
             # Plot each fit in one image
@@ -516,13 +536,13 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             ax[m].plot(comparisons, rf2[i], 'bo', color=colors[i],
                        markersize=6, alpha=.5)
             # Plot fit
-            if estimator == 'mle_cdf':
+            if is_valid and estimator == 'mle_cdf':
                 ax[m].plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
                            color=colors[i], linewidth=6, markersize=12,
                            alpha=.5, label='Standard = ' + str(st) + 'ms')
-            else:
+            elif is_valid:
                 assert estimator == 'mle_expit'
-                ax[m].plot(x, special.expit((x - opt_res.x[0]) / opt_res.x[1]),
+                ax[m].plot(x, special.expit((x - pse) / opt_res.x[1]),
                            color=colors[i], linewidth=6, markersize=12,
                            alpha=.5, label='Standard = ' + str(st) + 'ms')
             # Add horizontal dashed line at y = 0.5
@@ -601,47 +621,53 @@ def group_perception(all_rf1_audio, all_rf2_audio,
 
 def plotfit_perception(x, y, estimator, output_dir, sesstag):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
-
-    # left   # the left side of the subplots of the figure
-    # right  # the right side of the subplots of the figure
-    # bottom # the bottom of the subplots of the figure
-    # top    # the top of the subplots of the figure
-    # wspace # the amount of width reserved for blank space between subplots
-    # hspace # the amount of height reserved for white space between subplots
     plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15, top=.8)
+
+    all_vals = [
+        v for modality in y for condition in modality for v in condition
+        if np.isfinite(v)
+    ]
+    if all_vals:
+        data_min, data_max = min(all_vals), max(all_vals)
+        data_range = data_max - data_min if data_max != data_min else 1.0
+        pad = data_range * 0.15
+        y_min_auto = data_min - pad
+        y_max_auto = data_max + pad
+        raw_ticks = np.linspace(y_min_auto, y_max_auto, 5)
+        tick_magnitude = 10 ** np.floor(np.log10(abs(data_range) + 1e-12))
+        decimals = max(0, int(-np.floor(np.log10(tick_magnitude + 1e-12))))
+        y_values = np.round(raw_ticks, max(decimals, 2))
+        y_lim = (y_min_auto, y_max_auto)
+    else:
+        y_values = np.linspace(-.25, .25, 5)
+        y_lim = (-.25, .25)
 
     colors = ['tab:blue', 'tab:orange']
     legend_labels = ['Beat', 'Interval']
 
     for m, modality_y in enumerate(y):
         for c, condition_y in enumerate(modality_y):
-            # Linear fit
-            a, b = np.polyfit(x, condition_y, deg=1)
-            y_est = a * x + b
-            # y_err = x.std() * \
-            #     np.sqrt(1/len(x) + (x - x.mean())**2 / np.sum((x - x.mean())**2))
+            condition_y = np.asarray(condition_y, dtype=float)
+            valid = np.isfinite(condition_y)
 
-            # Plot the linear fit
-            ax[m].plot(x, y_est, '-', color=colors[c], linewidth=12,
-                       label=legend_labels[c], alpha=.5)
-            # ax[0].fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
-            ax[m].plot(x, condition_y, 'bo', color=colors[c],
-                       markersize=16, alpha=.5)
-            # Hide the right and top spines
+            if np.sum(valid) >= 2:
+                a, b = np.polyfit(np.asarray(x)[valid], condition_y[valid],
+                                  deg=1)
+                y_est = a * np.asarray(x) + b
+                ax[m].plot(x, y_est, '-', color=colors[c], linewidth=12,
+                           label=legend_labels[c], alpha=.5)
+
+            ax[m].plot(np.asarray(x)[valid], condition_y[valid], 'bo',
+                       color=colors[c], markersize=16, alpha=.5)
             ax[m].spines['right'].set_visible(False)
             ax[m].spines['top'].set_visible(False)
-            # Set x axis
-            x_labels = [str(xl) for xl in x]
-            ax[m].set_xticks(x, x_labels, fontsize=24)
-            # Set limits of y-axis
-            y_values = np.linspace(-0.16, 0.16, 9)
-            y_labels = [str(int(yl*100)) for yl in y_values]
+            ax[m].set_xticks(x, [str(xl) for xl in x], fontsize=24)
+            ax[m].set_ylim(y_lim)
+            y_labels = [str(int(yl * 100)) for yl in y_values]
             ax[m].set_yticks(y_values, y_labels, fontsize=24)
-            # Add horizontal dashed line at y = 0.5
             ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
                           alpha=.5)
 
-        # Add legend
         if m == 0:
             ax[m].set_title('Auditory Perception', weight='bold', pad=-5,
                             fontsize=22)
@@ -652,34 +678,24 @@ def plotfit_perception(x, y, estimator, output_dir, sesstag):
             ax[m].set_title('Visual Perception', weight='bold', pad=-5,
                             fontsize=22)
 
-        # Name of x-axis
         fig.text(.47, .018, 'Standards (ms)', fontsize=24)
-        # Name of y-axis
         fig.text(.0175, .35, 'Group PSE (%)', fontsize=24, rotation=90)
-        # Legends for horizontal dashed lines
         fig.text(.42, .525, 'No Bias', fontsize=24, color='dimgrey')
         fig.text(.895, .525, 'No Bias', fontsize=24, color='dimgrey')
 
-    # Title
     if estimator == 'mle_cdf':
         suffix = '(Estimator: MLE of Norm CDF)'
     else:
         assert estimator == 'mle_expit'
         suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
     plt.suptitle(
-        'Point of Subjective Equality (PSE) for the Perception Tasks: ' + \
+        'Point of Subjective Equality (PSE) for the Perception Tasks: ' +
         sessions_dic[sesstag] + '\n\n' + suffix,
         x=.5, y=.97, size=24, linespacing=.75)
 
-    # plt.suptitle(
-    #     'Point of Subjective Equality (PSE) for the Perception Tasks',
-    #     x=.5, y=.97, size=26, linespacing=.75)
-
     output_folder = os.path.join(output_dir, 'pse')
-    # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
-    # Save figure
     plt.savefig(os.path.join(
         output_folder,
         'pse-vs-standard_' + estimator + '_' + sesstag + '.pdf'))
@@ -688,83 +704,77 @@ def plotfit_perception(x, y, estimator, output_dir, sesstag):
 
 
 def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
-              estimator='mle_expit'):
+              subjects, estimator='mle_expit'):
     # Shape of pse and dl arrays:
     # (estimators, conditions, modality, subjects, standards)
-
-    # Stack multidimensional numpy array to produce a dataframe
-    estim_pse = np.array(estim_pse)
-    estim_dl = np.array(estim_dl)
+    estim_pse = np.array(estim_pse, dtype=float)
+    estim_dl = np.array(estim_dl, dtype=float)
     pse_flatten = np.ravel(estim_pse)
     dl_flatten = np.ravel(estim_dl)
 
-    # ## Standards column
     standards = np.tile(
         stand_numbers,
-        estim_pse.shape[3] * estim_pse.shape[2] * estim_pse.shape[1] * \
+        estim_pse.shape[3] * estim_pse.shape[2] * estim_pse.shape[1] *
         estim_pse.shape[0])
-    # ## Individual column
-    itag = ['sub-%02d' % s for s in SUBJECTS]
+    itag = ['sub-%02d' % s for s in subjects]
     stand_individuals = np.repeat(itag, len(stand_numbers))
     individuals = np.tile(
         stand_individuals,
         estim_pse.shape[2] * estim_pse.shape[1] * estim_pse.shape[0])
-    # ## Modality column
     stand_modalities = np.repeat(['audio', 'visual'], len(stand_individuals))
     modalities = np.tile(
         stand_modalities,
         estim_pse.shape[1] * estim_pse.shape[0])
-    # ## Conditions column
     crossind_conditions = np.repeat(['beat', 'interval'],
                                     len(stand_modalities))
     conditions = np.tile(crossind_conditions, estim_pse.shape[0])
-    # ## Estimator column
     estimators = np.repeat(['mle_cdf', 'mle_expit'],
                            len(crossind_conditions))
-    # ## Session
     sessions = np.repeat(sesstag, len(dl_flatten))
 
-    # ## Build tables and dataframes
-    table = np.vstack((dl_flatten, pse_flatten, standards, individuals, 
-                       modalities, conditions, estimators, sessions)).T
+    table = np.vstack((
+        dl_flatten, pse_flatten, standards, individuals, modalities,
+        conditions, estimators, sessions)).T
 
-    df = pd.DataFrame(table, columns=['DL', 'PSE', 'Standard', 'Subject',
-                                      'Modality', 'Condition', 'Estimator',
-                                      'Session'])
-    df['DL'] = df['DL'].apply(pd.to_numeric)
-    df['PSE'] = df['PSE'].apply(pd.to_numeric)
-    df = df[df.Estimator == estimator]
+    df = pd.DataFrame(table, columns=['DL_raw', 'PSE_raw', 'Standard',
+                                      'Subject', 'Modality', 'Condition',
+                                      'Estimator', 'Session'])
+    df['DL_raw'] = pd.to_numeric(df['DL_raw'], errors='coerce')
+    df['PSE_raw'] = pd.to_numeric(df['PSE_raw'], errors='coerce')
+    df['Standard'] = pd.to_numeric(df['Standard'], errors='coerce')
+    df = df[df.Estimator == estimator].copy()
 
-    # Replace outliers by median across subjects
-    ht_dl, lt_dl = outliers(dl_flatten)
+    df['DL'] = df['DL_raw']
+    df['PSE'] = df['PSE_raw']
+    df['FitValid'] = np.isfinite(df['DL']) & np.isfinite(df['PSE'])
+
+    ht_dl, lt_dl = outliers(df['DL'].values)
     df['DL'] = np.where(df['DL'] > ht_dl, np.nan, df['DL'])
     df['DL'] = np.where(df['DL'] < lt_dl, np.nan, df['DL'])
 
-    ht_pse, lt_pse = outliers(pse_flatten)
+    ht_pse, lt_pse = outliers(df['PSE'].values)
     df['PSE'] = np.where(df['PSE'] > ht_pse, np.nan, df['PSE'])
     df['PSE'] = np.where(df['PSE'] < lt_pse, np.nan, df['PSE'])
 
+    df['DLImputed'] = False
+    df['PSEImputed'] = False
+    group_cols = ['Standard', 'Modality', 'Condition']
     for index, row in df.iterrows():
+        same_cell = np.logical_and.reduce([
+            df[col] == row[col] for col in group_cols
+        ])
         if np.isnan(df.loc[index, 'DL']):
-            std_val = df.loc[index, 'Standard']
-            mod_val = df.loc[index, 'Modality']
-            cond_val = df.loc[index, 'Condition']
-            dl = np.nanmedian(df[df.Standard == std_val][
-                df.Modality == mod_val][df.Condition == cond_val].DL.values)
+            dl = np.nanmedian(df.loc[same_cell, 'DL'].values)
             df.loc[index, 'DL'] = dl
+            df.loc[index, 'DLImputed'] = np.isfinite(dl)
         if np.isnan(df.loc[index, 'PSE']):
-            std_val = df.loc[index, 'Standard']
-            mod_val = df.loc[index, 'Modality']
-            cond_val = df.loc[index, 'Condition']
-            pse = np.nanmedian(df[df.Standard == std_val][
-                df.Modality == mod_val][df.Condition == cond_val].PSE.values)
+            pse = np.nanmedian(df.loc[same_cell, 'PSE'].values)
             df.loc[index, 'PSE'] = pse
+            df.loc[index, 'PSEImputed'] = np.isfinite(pse)
 
     output_folder = os.path.join(output_dir, 'anovas')
-    # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
-    # Save dataframe
     outpath = os.path.join(output_folder, 'df_perception_' + sesstag + '.tsv')
     df.to_csv(outpath, index=False, sep='\t')
 
@@ -772,181 +782,107 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
 
 
 def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
-    # Open dataframe
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
-    # Averaged DL across Standards, i.e. grouped by ...
-    # ... Condition, Modality and Subject and averaged afterwards
-    df = df.drop(['Standard'], axis=1)
-    df = df.drop(['Estimator'], axis=1)
-    df = df.drop(['Session'], axis=1)
-    df = df.groupby(['Condition', 'Modality', 'Subject']).mean().reset_index()
-
-    # Create AnovaRM object
-    model = AnovaRM(data=df, depvar='DL', subject='Subject',
-                    within=['Modality', 'Condition'])
-
-    # Run the 2-way repeated measures ANOVA
-    results = model.fit()
-
     output_folder = os.path.join(output_dir, 'anovas/twoway')
-    # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
-    # Save ANOVA results in a TSV file
+
+    cols = ['Condition', 'Modality', 'Subject', 'DL']
+    df = df[cols].dropna(subset=['DL']).copy()
+    df = df.groupby(['Condition', 'Modality', 'Subject']).mean().reset_index()
+
+    grid_counts = df.groupby('Subject').size()
+    complete_subjects = grid_counts[grid_counts == 4].index.tolist()
+    excluded_subjects = grid_counts[grid_counts < 4].index.tolist()
+
+    if excluded_subjects:
+        excluded_df = pd.DataFrame({'Subject': excluded_subjects})
+        excluded_df.to_csv(
+            os.path.join(output_folder, 'twoway_excluded_' + sesstag + '.tsv'),
+            sep='\t', index=False)
+
+    df = df[df['Subject'].isin(complete_subjects)].copy()
+    if df['Subject'].nunique() < 2:
+        msg = 'Skipped: repeated-measures ANOVA requires at least 2 subjects.'
+        skip_df = pd.DataFrame({'Reason': [msg]})
+        skip_df.to_csv(
+            os.path.join(output_folder, 'twoway_anova_' + sesstag + '.tsv'),
+            sep='\t', index=False)
+        return None
+
+    model = AnovaRM(data=df, depvar='DL', subject='Subject',
+                    within=['Modality', 'Condition'])
+    results = model.fit()
     results.anova_table.to_csv(
         os.path.join(output_folder, 'twoway_anova_' + sesstag + '.tsv'),
         sep='\t')
 
-    # Posthoc pairwise tests
     posthoc_results = pg.pairwise_tests(
         data=df, dv='DL', within=['Condition', 'Modality'],
         subject='Subject', alternative=alternative, return_desc=True,
         padjust='holm', effsize='eta-square')
-
-    # Save Posthoc results
     posthoc_results.to_csv(
         os.path.join(output_folder, 'twoway_posthoc_' + sesstag + '.tsv'),
         sep='\t', index=False)
 
-    # Plot
     modalities = np.unique(df.Modality).tolist()
     conditions = np.unique(df.Condition).tolist()
+    y_values_all = df['DL'].values
+    y_min = np.nanmin(y_values_all)
+    y_max = np.nanmax(y_values_all)
+    y_pad = (y_max - y_min) * .15 if y_max != y_min else .02
 
+    fig = plt.figure(figsize=(3.75, 4))
     for m, modality in enumerate(modalities):
-        if modality == 'audio':
-            fig = plt.figure(figsize=(3.75, 4))
-
-        # Define subplot of bar charts and its position in the fig
-        # plt.axes([left, bottom, width, height])
-        ax = plt.axes([.175 + m*.425, .15, .39, .775])
-
+        ax = plt.axes([.175 + m * .425, .15, .39, .775])
         x_labels = [str(cd).capitalize() for cd in conditions]
-        x = np.arange(len(x_labels))  # the label locations
-        width = .275  # the width of the bars
+        width = .275
 
-        dl_beat = df[df.Modality==modality][
-            df.Condition=='beat'].DL.values.tolist()
+        dl_beat = df[(df.Modality == modality) &
+                     (df.Condition == 'beat')].DL.values.tolist()
+        dl_interval = df[(df.Modality == modality) &
+                         (df.Condition == 'interval')].DL.values.tolist()
 
-        dl_interval = df[df.Modality==modality][
-            df.Condition=='interval'].DL.values.tolist()
-
-        beat = ax.boxplot(dl_beat,
-                          bootstrap=100,
-                          positions=[.2],
-                          widths=width,
-                          flierprops={'marker': '', 'markersize': 5},
-                          patch_artist=True,
-                          medianprops = dict(color="black",linewidth=0.),
-                          notch=True,
-                          meanline=True,
-                          showmeans=True,
-                          meanprops = dict(color="tab:brown",linewidth=1.5))
-        interval = ax.boxplot(dl_interval,
-                              bootstrap=100,
-                              positions=[.8],
-                              widths=width,
-                              flierprops={'marker': '', 'markersize': 5},
-                              patch_artist=True,
-                              medianprops = dict(color="black",linewidth=0.),
-                              notch=True,
-                              meanline=True,
-                              showmeans=True,
-                              meanprops = dict(color="tab:brown",linewidth=1.5))
+        beat = ax.boxplot(
+            dl_beat, bootstrap=100, positions=[.2], widths=width,
+            flierprops={'marker': '', 'markersize': 5}, patch_artist=True,
+            medianprops=dict(color='black', linewidth=0.), notch=True,
+            meanline=True, showmeans=True,
+            meanprops=dict(color='tab:brown', linewidth=1.5))
+        interval = ax.boxplot(
+            dl_interval, bootstrap=100, positions=[.8], widths=width,
+            flierprops={'marker': '', 'markersize': 5}, patch_artist=True,
+            medianprops=dict(color='black', linewidth=0.), notch=True,
+            meanline=True, showmeans=True,
+            meanprops=dict(color='tab:brown', linewidth=1.5))
 
         colors = [[.0, .66, .47, .5], [.89, .61, .06, .5]]
         for patch1, patch2 in zip(beat['boxes'], interval['boxes']):
             patch1.set_facecolor(colors[m])
             patch2.set_facecolor(colors[m])
 
-        # Set ticks labels in x-axis
         ax.set_xticks([.2, .8], x_labels, fontsize=11)
-
-        # Hide the right and top spines
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
+        ax.set_ylim([y_min - y_pad, y_max + y_pad])
 
-        # For the first plot,
         if m == 0:
-            # Place legend
-            ax.legend([beat["boxes"][0]], ['Auditory'],
-                       loc=(.075, .92), frameon=False,
-                       prop={'size': 12})
-            # # Title of each plot
-            # ax.set_title('Auditory Perception', fontweight='semibold',
-            #              size=9, y=.95)
-            # Set name for y-axis
+            ax.legend([beat['boxes'][0]], ['Auditory'], loc=(.075, .92),
+                      frameon=False, prop={'size': 12})
             ax.set_ylabel('Group DL', fontsize=14)
-            # Copy axis object to draw connection patch
-            ax0 = ax
-            # Draw small vertical line for annotation
-            if sesstag in ['allses', 'behavses', 'imgses',
-                           'ses-01', 'ses-02', 'ses-03', 'ses-04',
-                           'behav12', 'behav13', 'behav23']:
-                plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
-            else:
-                assert sesstag == 'ses-05'
-                plt.vlines(.77, .16, .165, colors='k', linewidths=1.)
-
-        # For the second plot
         else:
-            # Place legend
-            ax.legend([beat["boxes"][0]], ['Visual'],
-                       loc=(.075, .92), frameon=False,
-                       prop={'size': 12})
-            # ... remove y frame on the left
+            ax.legend([beat['boxes'][0]], ['Visual'], loc=(.075, .92),
+                      frameon=False, prop={'size': 12})
             ax.spines['left'].set_visible(False)
-            # ... remove labels and ticks
             ax.axes.get_yaxis().set_visible(False)
-            # # Title of each plot
-            # ax.set_title('Visual Perception', fontweight='semibold', size=9,
-            #              y=.95)
-            # Draw small vertical line for annotation
-            if sesstag in ['allses', 'behavses', 'imgses',
-                           'ses-01', 'ses-02', 'ses-03', 'ses-04', 
-                           'behav12', 'behav13', 'behav23']:
-                plt.vlines(.5, .19, .195, colors='k', linewidths=1.)
-            else:
-                assert sesstag == 'ses-05'
-                plt.vlines(.77, .16, .165, colors='k', linewidths=1.)
 
-        # Set limits of ticks in y axis
-        plt.ylim([.01, .25])
-
-        # Set name for x-axis
         fig.text(.435, .025, 'Conditions', size=14)
 
-    # Annotation
-    if sesstag in ['allses', 'behavses', 'imgses',
-                   'ses-01', 'ses-02', 'ses-03',
-                   'behav12', 'behav13', 'behav23']:
-        xa = (.5, .195)
-        xb = (.5, .195)
-        fig.text(.53, .75, '****', size=12)
-    elif sesstag == 'ses-04':
-        xa = (.5, .195)
-        xb = (.5, .195)
-        fig.text(.57, .71, '*', size=12)
-    else:
-        assert sesstag == 'ses-05'
-        xa = (.77, .165)
-        xb = (.77, .165)
-        fig.text(.585, .65, '****', size=12)
-
-    con1 = ConnectionPatch(xyA=xa, xyB=xb,
-                           coordsA="data", coordsB="data", axesA=ax0, axesB=ax,
-                           color='black', linewidth=1.)
-    ax.add_artist(con1)
-
-    # Title
-    # plt.suptitle(
-    #     'Descriptive Stats of Group DL for 2-way RM-ANOVA',
-    #     x=.5, y=.98, size=10, linespacing=.75)
-
-    # Save figure
     plt.savefig(os.path.join(output_folder,
                              'twoway_boxplot_' + sesstag + '.pdf'))
+
 
 # %%
 # =========================== INPUTS ===================================
@@ -971,6 +907,9 @@ IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
 BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# Second batch
+SB_SUBJECTS = [48]
+
 # #######################################################################
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
@@ -982,18 +921,18 @@ N_TRIALS = 30
 # SESSIONS = [1, 2, 3, 4, 5]
 # tag = 'allses'
 
-# # ### For 'All Behavioral Sessionss' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSIONS = [1, 2, 3]
-# tag = 'behavses'
+# # ### For 'All Behavioral Sessions' ###
+SUBJECTS = GOOD_SUBJECTS
+SESSIONS = [1, 2, 3]
+tag = 'behavses'
 
 # # ### For 'All Imaging Sessionss' ###
-SUBJECTS = BEHAVIMG_RAND_SUBJECTS
-SESSIONS = [4, 5]
-tag = 'imgses'
+# SUBJECTS = BEHAVIMG_RAND_SUBJECTS
+# SESSIONS = [4, 5]
+# tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = GOOD_SUBJECTS
+# SUBJECTS = SB_SUBJECTS # SB_SUBJECTS / GOOD_SUBJECTS
 # SESSIONS = [1]
 # tag = 'ses-01'
 
@@ -1078,17 +1017,18 @@ if __name__ == "__main__":
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
                 individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
                                       cond, N_TRIALS, SESSIONS, tag,
-                                      estimator=estimator)
+                                       estimator=estimator)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
                                        rftwo_visual, stand, comp, cond,
-                                       RESULTS_FOLDER, tag, estimator=estimator)
+                                       RESULTS_FOLDER, tag,
+                                       estimator=estimator)
 
             # Start concatenating and appending
             ipse = np.concatenate(([ipse_audio], [ipse_visual]),
-                                  axis = 0).tolist()
-            idl = np.concatenate(([idl_audio], [idl_visual]), axis = 0).tolist()
+                                  axis=0).tolist()
+            idl = np.concatenate(([idl_audio], [idl_visual]), axis=0).tolist()
 
             cond_pse.append(ipse)
             cond_dl.append(idl)
@@ -1117,5 +1057,6 @@ if __name__ == "__main__":
         if estimator == 'mle_cdf':
             continue
         else:
-            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER, tag)
+            db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER, tag,
+                           SUBJECTS)
             twoway_repanova(db, RESULTS_FOLDER, tag)
