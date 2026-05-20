@@ -286,8 +286,8 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
         )
 
 
-def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
-                output_folder, fname, legend_loc='lower left',
+def plot_ancova(x, y, yaxis_name, yname_pos, title,
+                output_folder, fname, y_values=None, legend_loc='lower left',
                 hline_legend=None, hline_yloc=[.4275, .435]):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
 
@@ -300,6 +300,28 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
     # hspace # the amount of height reserved for white space between 
              # subplots
     plt.subplots_adjust(left=.095, bottom=.15, right=.98, wspace=.175)
+
+    # --- Automatic y-limits: audio and visual share the same range --------
+    # Flatten all data values across both modalities and all conditions
+    all_vals = [v for modality in y for condition in modality for v in condition]
+    data_min, data_max = min(all_vals), max(all_vals)
+    data_range = data_max - data_min if data_max != data_min else 1.0
+    pad = data_range * 0.15
+    y_min_auto = data_min - pad
+    y_max_auto = data_max + pad
+
+    if y_values is None:
+        # Generate ~5 evenly-spaced, rounded tick values spanning the data
+        raw_ticks = np.linspace(y_min_auto, y_max_auto, 5)
+        # Round to 2 significant decimal places for clean labels
+        tick_magnitude = 10 ** np.floor(np.log10(abs(data_range) + 1e-12))
+        decimals = max(0, int(-np.floor(np.log10(tick_magnitude + 1e-12))))
+        y_values = np.round(raw_ticks, max(decimals, 2))
+        y_lim = (y_min_auto, y_max_auto)
+    else:
+        # Honour explicit ticks but still derive shared limits from data
+        y_lim = (y_min_auto, y_max_auto)
+    # ----------------------------------------------------------------------
 
     colors = ['tab:blue', 'tab:orange']
     legend_labels = ['Beat', 'Interval']
@@ -326,7 +348,8 @@ def plot_ancova(x, y, y_values, yaxis_name, yname_pos, title,
             # Set x axis
             x_labels = [str(xl) for xl in x]
             ax[m].set_xticks(x, x_labels, fontsize=24)
-            # Set limits of y-axis
+            # Set limits of y-axis (shared across both subplots)
+            ax[m].set_ylim(y_lim)
             y_labels = [str(yl) for yl in y_values]
             ax[m].set_yticks(y_values, y_labels, fontsize=24)
             # Add horizontal dashed line at y = 0.5
@@ -411,9 +434,9 @@ ANCOVA_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
 
 # First Batch
 
-# JASP_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'jasp')
-# PLOTS_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'plots')
-# TABLES_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'tables')
+JASP_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'jasp')
+PLOTS_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'plots')
+TABLES_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'tables')
 
 # sessions_dic = {'allses': 'All Sessions',
 #                 'ses-01': 'Session 1',
@@ -514,16 +537,15 @@ if __name__ == "__main__":
 
         # Plot ANCOVA
         plot_ancova(
-            standards, mean_async, np.around(np.arange(-.1, .2, .05), 2),
+            standards, mean_async,
             'Mean of Signed Asynchrony', .165,
             'Mean of Signed Asynchrony for every Standard: ' + value,
             PLOTS_FOLDER, 'mean_ancova_production_' + key,
             hline_legend=r'$RT=Standard$', hline_yloc=[.41, .41],
             legend_loc='upper right')
 
-        ylimits = np.around(np.arange(.06, .34, .04), 3)
         plot_ancova(
-            standards, std_async, ylimits,
+            standards, std_async,
             'SD of Signed Asynchrony', .165,
             'Standard Deviation (SD) of Signed Asynchrony ' + \
             'for every Standard: ' + value, PLOTS_FOLDER,

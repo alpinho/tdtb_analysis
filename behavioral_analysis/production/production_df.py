@@ -196,37 +196,42 @@ BUTTON_PRESS = 20 # 20
 # SESSTYPES = ['behavioral_session', 'imaging_session']
 # SESSIONS = None
 # tag = 'allses'
+# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # ### For first behav session: 'ses-01' ###
 SUBJECTS = SB_SUBJECTS # GOOD_SUBJECTS / SB_SUBJECTS
 SESSTYPES = ['behavioral_session']
 SESSIONS = ['ses-01']
 tag = SESSIONS[0]
-batch = 'df_production_sb' # 'df_production' / 'df_production_sb' 
+batch = 'df_production_sb' # 'df_production' / 'df_production_sb'
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-02']
 # tag = SESSIONS[0]
+# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # ### For third behav session: 'ses-03' ###
 # SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-03']
 # tag = SESSIONS[0]
+# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # ### For first img session: 'ses-04' ###
 # SUBJECTS = IMG_SUBJECTS
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-01']
 # tag = 'ses-04'
+# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # ### For second img session: 'ses-05' ###
 # SUBJECTS = IMG_SUBJECTS
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-02']
 # tag = 'ses-05'
+# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # %%
 # ========================= PARAMETERS =================================
