@@ -97,15 +97,27 @@ def _normalise_csv_logfile(inputs_list, subject_no):
     return inputs_list[:header_idx] + header + trials
 
 
+def _csv_task_label(task):
+    """Return the newer CSV task label for a legacy task name."""
+    modality, _, task_name = task.partition(' ')
+    csv_modality = modality.lower()
+    csv_modality = {'auditory': 'audio'}.get(csv_modality, csv_modality)
+
+    task_map = {
+        'Production': 'PRODUCTION',
+        'Perception': 'PERCEPTION',
+        'No-Temporal Feature Discrimination': 'NTFD',
+    }
+    csv_task_name = task_map.get(task_name, task_name.upper())
+
+    return 'st ' + csv_modality + ' ' + csv_task_name
+
+
 def _is_selected_task(inputs_list, task, sesstype):
     """Return True if a logfile corresponds to the selected task."""
     sesstype_tag = sesstype.replace('_', ' ')
     xpd_task = task + ' - ' + sesstype_tag
-
-    modality, _, task_name = task.partition(' ')
-    csv_modality = modality.lower()
-    csv_modality = {'auditory': 'audio'}.get(csv_modality, csv_modality)
-    csv_task = 'st ' + csv_modality + ' ' + task_name.upper()
+    csv_task = _csv_task_label(task)
 
     for row in inputs_list[:12]:
         if not row:
@@ -260,8 +272,8 @@ def set_axis_style(ax, labels):
     ax.set_xlabel('Sample name')
 
 
-def change_width(ax, new_value) :
-    for patch in ax.patches :
+def change_width(ax, new_value):
+    for patch in ax.patches:
         current_width = patch.get_width()
         diff = current_width - new_value
 

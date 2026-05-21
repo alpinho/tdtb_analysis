@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 5, 2024
-Last update: April, 2026
+Last update: May 2026
 
 Compatibility: Python 3.10.14
 """
@@ -39,12 +39,37 @@ def ffx_dvar(df):
     return df_ffx
 
 
+def get_ylim(data, pad_ratio=.15, default=(0., 1.), bounds=None):
+    """Return padded y-limits from finite data values."""
+    data = np.asarray(data, dtype=float)
+    data = data[np.isfinite(data)]
+
+    if data.size == 0:
+        return default
+
+    ymin = np.min(data)
+    ymax = np.max(data)
+    pad = (ymax - ymin) * pad_ratio if ymax != ymin else 1.
+
+    ylim_b = ymin - pad
+    ylim_t = ymax + pad
+
+    if bounds is not None:
+        lower, upper = bounds
+        if lower is not None:
+            ylim_b = max(lower, ylim_b)
+        if upper is not None:
+            ylim_t = min(upper, ylim_t)
+
+    return ylim_b, ylim_t
+
+
 def plot_pttest(data_audio, data_visual,
-                y, ylim_b, ylim_t, title, output_dir, fname,
+                y, title, output_dir, fname,
                 pval_audio_bi, pval_visual_bi,
                 pval_audio_br=None, pval_audio_ir=None,
                 pval_visual_br=None, pval_visual_ir=None,
-                norand=False, loc='inside'):
+                norand=False, loc='inside', y_bounds=None):
 
     modalities = ['audio', 'visual']
     fig, ax = plt.subplots(1, len(modalities))
@@ -59,6 +84,10 @@ def plot_pttest(data_audio, data_visual,
     else:
         pval_audio = [pval_audio_bi, pval_audio_br, pval_audio_ir]
         pval_visual = [pval_visual_bi, pval_visual_br, pval_visual_ir]
+
+    ylim_b, ylim_t = get_ylim(
+        data_audio + data_visual,
+        bounds=y_bounds)
 
     for m, modality in enumerate(modalities):
         if modality == 'audio':
@@ -160,40 +189,58 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32,
                           34, 35, 38, 39, 40, 41, 42, 43, 44, 45,
                           46, 47]
 
-audio_latency = 133
-visual_latency = 35
-button_press = 20
+# Second batch
+SB_SUBJECTS = [48]
+
+# #####################################################################
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
-RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results')
+
+visual_latency = 35  # Expy: 35
+button_press = 20  # 20
+
+# #### First Batch ####
+
+# audio_latency = 133  # Expy: 133 / Psychopy: 63
+
+# sessions_dic = {'allses': 'All Sessions',
+#                 'ses-01': 'Session 1',
+#                 'ses-02': 'Session 2',
+#                 'ses-03': 'Session 3',
+#                 'ses-04': 'Session 4',
+#                 'ses-05': 'Session 5',
+#                 'behavses': 'Behavioral Sessions',
+#                 'behavses12': 'Behavioral Sessions',
+#                 'behavses13': 'Behavioral Sessions',
+#                 'behavses23': 'Behavioral Sessions',
+#                 'imgses': 'Imaging Sessions',
+#                 'imgses_ntfd': 'Imaging Sessions'}
+
+# subjects_dic = {'allses': BEHAVIMG_RAND_SUBJECTS,
+#                 'ses-01': BEHAV_RAND_SUBJECTS,
+#                 'ses-02': BEHAV_RAND_SUBJECTS,
+#                 'ses-03': BEHAV_RAND_SUBJECTS,
+#                 'ses-04': IMG_SUBJECTS,
+#                 'ses-05': IMG_SUBJECTS,
+#                 'behavses': BEHAVIMG_RAND_SUBJECTS,
+#                 'behavses12': BEHAVIMG_RAND_SUBJECTS,
+#                 'behavses13': BEHAVIMG_RAND_SUBJECTS,
+#                 'behavses23': BEHAVIMG_RAND_SUBJECTS,
+#                 'imgses': BEHAVIMG_RAND_SUBJECTS,
+#                 'imgses_ntfd': BEHAVIMG_RAND_SUBJECTS}
+
+# RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results_first_batch')
+
+# #### Second Batch ####
+audio_latency = 63  # Expy: 133 / Psychopy: 63
+sessions_dic = {'ses-01': 'Session 1'}
+subjects_dic = {'ses-01': SB_SUBJECTS}
+RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results_second_batch')
+
+# #####################################################################
+
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
 PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'rt_and_success')
-
-sessions_dic = {'allses': 'All Sessions',
-                'ses-01': 'Session 1',
-                'ses-02': 'Session 2',
-                'ses-03': 'Session 3',
-                'ses-04': 'Session 4',
-                'ses-05': 'Session 5',
-                'behavses': 'Behavioral Sessions',
-                'behavses12': 'Behavioral Sessions',
-                'behavses13': 'Behavioral Sessions',
-                'behavses23': 'Behavioral Sessions',
-                'imgses': 'Imaging Sessions',
-                'imgses_ntfd': 'Imaging Sessions'}
-
-subjects_dic = {'allses': BEHAVIMG_RAND_SUBJECTS,
-                'ses-01': BEHAV_RAND_SUBJECTS,
-                'ses-02': BEHAV_RAND_SUBJECTS,
-                'ses-03': BEHAV_RAND_SUBJECTS,
-                'ses-04': IMG_SUBJECTS,
-                'ses-05': IMG_SUBJECTS,
-                'behavses': BEHAVIMG_RAND_SUBJECTS,
-                'behavses12': BEHAVIMG_RAND_SUBJECTS,
-                'behavses13': BEHAVIMG_RAND_SUBJECTS,
-                'behavses23': BEHAVIMG_RAND_SUBJECTS,
-                'imgses': BEHAVIMG_RAND_SUBJECTS,
-                'imgses_ntfd': BEHAVIMG_RAND_SUBJECTS}
 
 # %%
 # ============================ RUN =====================================
@@ -226,7 +273,7 @@ if __name__ == "__main__":
             assert key in ['imgses', 'imgses_ntfd']
             sessions_list = [4, 5]
 
-        db_path = os.path.join(DATAFRAMES_FOLDER, 'df_ntfd.tsv')
+        db_path = os.path.join(DATAFRAMES_FOLDER, f'df_ntfd_{key}.tsv')
         db = pd.read_csv(db_path, sep='\t')
 
         df_subfiltered = db[db['subject'].isin(subjects_dic[key])]
@@ -245,6 +292,15 @@ if __name__ == "__main__":
             visual_latency + button_press)
 
         df_ffx = ffx_dvar(df)
+        n_subjects = df_ffx['subject'].nunique()
+
+        if n_subjects < 2:
+            print(
+                'Skipping group statistics and plotting for ' + key +
+                ': at least 2 subjects are required; found ' +
+                str(n_subjects) + '.'
+            )
+            continue
 
         rt_ab = (
             df_ffx[df_ffx.modality == 'auditory']
@@ -376,34 +432,37 @@ if __name__ == "__main__":
         if key in ['ses-04', 'imgses_ntfd']:
             plot_pttest(rt_audio,
                         rt_visual,
-                        'Reaction Time (ms)', 100., 700.,
+                        'Reaction Time (ms)',
                         rt_title, PLOTS_FOLDER, rt_fname,
                         pval_rt_abi,
                         pval_rt_vbi,
                         norand=True, loc='inside')
             plot_pttest(np.multiply(score_audio, 100).tolist(),
                         np.multiply(score_visual, 100).tolist(),
-                        'Group Mean Score (%)', 0, 100,
+                        'Group Mean Score (%)',
                         score_title, PLOTS_FOLDER, score_fname,
                         pval_score_abi,
                         pval_score_vbi,
-                        norand=True, loc='outside')
+                        norand=True, loc='outside',
+                        y_bounds=(0, 100))
         else:
             plot_pttest(rt_audio,
                         rt_visual,
-                        'Reaction Time (ms)', 100., 700.,
+                        'Reaction Time (ms)',
                         rt_title, PLOTS_FOLDER, rt_fname,
                         pval_rt_abi, pval_rt_vbi,
                         pval_audio_br=pval_rt_abr,
                         pval_audio_ir=pval_rt_air,
                         pval_visual_br=pval_rt_vbr,
                         pval_visual_ir=pval_rt_vir, loc='inside')
-            plot_pttest(np.multiply(score_audio, 100).tolist(),
+            plot_pttest(
+                        np.multiply(score_audio, 100).tolist(),
                         np.multiply(score_visual, 100).tolist(),
-                        'Group Mean Score (%)', 70, 100,
+                        'Group Mean Score (%)',
                         score_title, PLOTS_FOLDER, score_fname,
                         pval_score_abi, pval_score_vbi,
                         pval_audio_br=pval_score_abr,
                         pval_audio_ir=pval_score_air,
                         pval_visual_br=pval_score_vbr,
-                        pval_visual_ir=pval_score_vir, loc='outside')
+                        pval_visual_ir=pval_score_vir, loc='outside',
+                        y_bounds=(70, 100))

@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: April 2026
+Last update: May 2026
 
 Compatibility: Python 3.10.14
 """
@@ -190,6 +190,9 @@ IMG_SUBJECTS = [
     3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# Second batch
+SB_SUBJECTS = [48]
+
 # #######################################################################
 
 # TASKS = ['Auditory No-Temporal Feature Discrimination',
@@ -208,13 +211,15 @@ N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_session
 SUBJECTS = GOOD_SUBJECTS
 SESSTYPES = ['behavioral_session', 'imaging_session']
 SESSIONS = None
-# tag = 'allses'
+tag = 'allses'
+results_subfolder = 'ntfd_results_first_batch'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = GOOD_SUBJECTS
+# SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-01']
 # tag = SESSIONS[0]
+# results_subfolder = 'ntfd_results_second_batch'
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -245,7 +250,7 @@ SESSIONS = None
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
-RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results', 'dataframes')
+RESULTS_FOLDER = os.path.join(MAIN_DIR, results_subfolder, 'dataframes')
 
 if SESSTYPES == ['behavioral_session', 'imaging_session']:
     N_ISI_TRIALS = N_ISI_TRIALS_BEHAV + N_ISI_TRIALS_IMG
@@ -265,4 +270,4 @@ if __name__ == "__main__":
 
     # Create dataframes
     ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
-                   sessions=SESSIONS)
+                   sesstag=tag, sessions=SESSIONS)
