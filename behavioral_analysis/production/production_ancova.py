@@ -13,6 +13,8 @@ Compatibility: Python 3.10.14
 
 import os
 import warnings
+
+from music_sdtb.tdtb_analysis.behavioral_analysis.production.production_df import tag
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -465,7 +467,7 @@ ANCOVA_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
 sessions_dic = {'ses-01': 'Session 1'}
 subjects_dic = {'ses-01': SB_SUBJECTS}
 
-db_fname = 'df_production_sb_63_35_20.tsv'
+db_fname = 'df_production_sb_63_35_20'
 BATCH_FOLDER = 'second_batch_63_35_20'
 
 # #####################################################################
@@ -507,7 +509,7 @@ if __name__ == "__main__":
             sessions_list = [4, 5]
             
         # Open dataframe     
-        db_path = os.path.join(DATAFRAMES_FOLDER, db_fname)
+        db_path = os.path.join(DATAFRAMES_FOLDER, f'{db_fname}_{key}.tsv')
         db = pd.read_csv(db_path, sep='\t')
 
         # Filter Dataframe according to list of subjects

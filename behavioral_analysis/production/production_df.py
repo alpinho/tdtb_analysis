@@ -250,7 +250,7 @@ if __name__ == "__main__":
     # Create the dataframe
     production_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
                          N_TRIALS, batch,
-                         sesstag=None, 
+                         sesstag=tag,
                          sessions=SESSIONS,
                          audio_latency=AUDIO_LATENCY,
                          visual_latency=VISUAL_LATENCY,

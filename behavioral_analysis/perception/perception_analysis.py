@@ -910,6 +910,18 @@ SB_SUBJECTS = [48]
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
+sessions_dic = {'allses': 'All Sessions',
+                'behavses': 'All Behavioral Sessions',
+                'imgses': 'All Imaging Sessions',
+                'ses-01': 'Session 1',
+                'ses-02': 'Session 2',
+                'ses-03': 'Session 3',
+                'ses-04': 'Session 4',
+                'ses-05': 'Session 5',
+                'behav12': 'Sessions 1 and 2',
+                'behav13': 'Sessions 1 and 3',
+                'behav23': 'Sessions 2 and 3'}
+
 N_TRIALS = 30
 
 # ### For 'All Sessions' ###
@@ -972,18 +984,6 @@ results_subfolder = 'perception_results_second_batch'
 # SESSIONS = [2, 3]
 # tag = 'behav23'
 
-
-sessions_dic = {'allses': 'All Sessions',
-                'behavses': 'All Behavioral Sessions',
-                'imgses': 'All Imaging Sessions',
-                'ses-01': 'Session 1',
-                'ses-02': 'Session 2',
-                'ses-03': 'Session 3',
-                'ses-04': 'Session 4',
-                'ses-05': 'Session 5',
-                'behav12': 'Sessions 1 and 2',
-                'behav13': 'Sessions 1 and 3',
-                'behav23': 'Sessions 2 and 3'}
 
 # %%
 # ========================= PARAMETERS =================================
