@@ -153,16 +153,18 @@ N_TRIALS = 30
 # tag = 'allses'
 
 # ### For 'All Behavioral Sessions' ###
-SUBJECTS = GOOD_SUBJECTS
-SESSTYPES = ['behavioral_session']
-SESSIONS = None
-tag = 'behavses'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = None
+# tag = 'behavses'
+# results_subfolder = 'perception_results_first_batch'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01']
-# tag = SESSIONS[0]
+SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
+SESSTYPES = ['behavioral_session']
+SESSIONS = ['ses-01']
+tag = SESSIONS[0]
+results_subfolder = 'perception_results_second_batch'
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -192,7 +194,9 @@ tag = 'behavses'
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
-RESULTS_FOLDER = os.path.join(MAIN_DIR, 'perception_results/raw_dataframes')
+RESULTS_FOLDER = os.path.join(MAIN_DIR, 
+                              results_subfolder,
+                              'raw_dataframes')
 
 # %%
 # ============================ RUN =====================================
@@ -204,4 +208,4 @@ if __name__ == "__main__":
 
     # Create the dataframe
     perception_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                         N_TRIALS, sessions=SESSIONS)
+                         N_TRIALS, sesstag=tag, sessions=SESSIONS)

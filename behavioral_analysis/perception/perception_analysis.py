@@ -187,8 +187,8 @@ def errFit(hess_inv, resVariance):
     return np.sqrt(np.diag(hess_inv * resVariance))
 
 
-FIT_MAX_ABS_PSE = 0.5
-FIT_MAX_DL = 0.5
+FIT_MAX_ABS_PSE = 0.2
+FIT_MAX_DL = 0.2
 FIT_MIN_DL = 0.0
 
 
@@ -234,15 +234,21 @@ def _relative_frequencies(n_shorter, n_longer):
 
 
 def individual_perception(
-        subjects, this_dir, output_dir, condition, n_trials,
+        subjects, this_dir, output_dir, condition,
         sessions, sesstag, estimator='mle_expit',
-        modalities=['auditory', 'visual']):
+        modalities=None):
+    if modalities is None:
+        modalities = ['auditory', 'visual']
 
     df_path = os.path.join(
         os.path.abspath(
-            os.path.join(this_dir, 'perception_results',
-                         'raw_dataframes')),
-        'df_perception.tsv')
+            os.path.join(output_dir, 'raw_dataframes')),
+        'df_perception_' + sesstag + '.tsv')
+
+    if not os.path.exists(df_path):
+        raise FileNotFoundError(
+            'Raw perception dataframe not found: ' + df_path)
+
     df = pd.read_csv(df_path, sep='\t')
 
     # Filter Dataframe according to list of sessions
@@ -256,6 +262,9 @@ def individual_perception(
     all_dl_audio = []
     all_pse_visual = []
     all_dl_visual = []
+
+    fig = None
+
     for s, subject in enumerate(subjects):
         for m, modality in enumerate(modalities):
             if modality not in ['auditory', 'visual']:
@@ -266,6 +275,7 @@ def individual_perception(
                 (df['modality'] == modality) &
                 (df['condition'] == 'beat')][[
                     'standard', 'comparison', 'answer']].values.tolist()
+
             interval_trials = df[
                 (df['subject'] == subject) &
                 (df['modality'] == modality) &
@@ -273,7 +283,6 @@ def individual_perception(
                     'standard', 'comparison', 'answer']].values.tolist()
 
             if condition == 'beat':
-                # Calculate frequencies of comparisons per standard.
                 standards, comparisons, n1_beat, n2_beat, _, _ = \
                     perception_frequencies(beat_trials, interval_trials)
                 rf1, rf2 = _relative_frequencies(n1_beat, n2_beat)
@@ -283,7 +292,6 @@ def individual_perception(
                     perception_frequencies(beat_trials, interval_trials)
                 rf1, rf2 = _relative_frequencies(n1_interval, n2_interval)
 
-            # Aggregate data
             if modality == 'auditory':
                 all_rf1_audio.append(rf1)
                 all_rf2_audio.append(rf2)
@@ -292,22 +300,20 @@ def individual_perception(
                 all_rf1_visual.append(rf1)
                 all_rf2_visual.append(rf2)
 
-            # ################## Plotting ###############################
             colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red',
                       'tab:purple']
-            if s == 0 and m == 0:
+
+            if fig is None:
                 fig = plt.figure(figsize=(16, 100))
 
-            # Define subplot of bar charts and its position in the fig
-            # plt.axes([left, bottom, width, height])
             ax = plt.axes([.1 + m * .46, .9685 - s * .023, .428, .0125])
 
             std_pse_audio = []
             std_dl_audio = []
             std_pse_visual = []
             std_dl_visual = []
+
             for i, st in enumerate(standards):
-                # Choose estimator
                 if estimator == 'mle_cdf':
                     func = loglik_cdf
                     constant = stats.norm.ppf(0.75)
@@ -315,32 +321,25 @@ def individual_perception(
                     assert estimator == 'mle_expit'
                     func = loglik_expit
                     constant = np.log(3)
-                # Fit the model with a MLE estimator
-                # fun: MLE estimator
-                # x0: 1st arg of log_lik
-                # args: 2nd and 3rd args of func
+
                 opt_res = optimize.minimize(
                     fun=func,
                     x0=[np.mean(comparisons), .1],
                     args=(comparisons, rf2[i], rf1[i]))
 
-                # Estimates
                 pse = opt_res.x[0]
                 dl = opt_res.x[1] * constant
                 is_valid = fit_is_valid(opt_res, pse, dl)
+
                 if is_valid:
-                    # Standard errors from Fisher information.
                     se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
                     se_dl = np.sqrt(np.diag(opt_res.hess_inv))[1] * constant
-                    ci95_pse = se_pse * 1.96
-                    ci95_dl = se_dl * 1.96
+                    ci95_pse_val = se_pse * 1.96
+                    ci95_dl_val = se_dl * 1.96
                 else:
                     pse = np.nan
                     dl = np.nan
-                    ci95_pse = np.nan
-                    ci95_dl = np.nan
 
-                # Append
                 if modality == 'auditory':
                     std_pse_audio.append(pse)
                     std_dl_audio.append(dl)
@@ -349,15 +348,9 @@ def individual_perception(
                     std_pse_visual.append(pse)
                     std_dl_visual.append(dl)
 
-                # Plot
-                # Plot each fit in one image
-                # fig, ax = plt.subplots(1, 1)
                 x = np.linspace(np.amin(comparisons), np.amax(comparisons),
                                 100)
-                # Plot data
-                # ax.plot(comparisons, rf2[i], 'bo', color=colors[i],
-                #         markersize=3)
-                # Plot fit
+
                 if is_valid and estimator == 'mle_cdf':
                     ax.plot(x, stats.norm(pse, opt_res.x[1]).cdf(x),
                             color=colors[i],
@@ -366,45 +359,41 @@ def individual_perception(
                     ax.plot(x, special.expit((x - pse) / opt_res.x[1]),
                             color=colors[i],
                             label='Standard = ' + str(st) + 'ms')
-                # Add horizontal dashed line at y = 0.5
+
                 ax.axhline(.5, linestyle='--', color='silver', linewidth=1)
-                # Hide the right and top spines
                 ax.spines['right'].set_visible(False)
                 ax.spines['top'].set_visible(False)
-                # Set x axis
+
                 x_values = np.insert(comparisons, 3, 0)
-                x_labels = [str(int(xl*100)) + '%' for xl in x_values]
+                x_labels = [str(int(xl * 100)) + '%' for xl in x_values]
                 ax.set_xticks(x_values, x_labels)
-                # Add estimates info
+
                 ax.text(-.21, 1.53, 'For 95% CI,', fontsize=7.5)
-                ax.text(-.21, 1.41 - i * .098,
-                        'PSE=%.02f' % (pse*100) +
-                        '\u00B1%.02f' % (ci95_pse*100) + '%; ' +
-                        'DL=%.02f' % (dl*100) +
-                        '\u00B1%.02f' % (ci95_dl*100) + '%', fontsize=7.5,
-                        color=colors[i])
-                # Set limits of y-axis
+                if is_valid:
+                    ax.text(-.21, 1.41 - i * .098,
+                            'PSE=%.02f' % (pse * 100) +
+                            '\u00B1%.02f' % (ci95_pse_val * 100) + '%; ' +
+                            'DL=%.02f' % (dl * 100) +
+                            '\u00B1%.02f' % (ci95_dl_val * 100) + '%',
+                            fontsize=7.5, color=colors[i])
+
                 ax.set_ylim([-.1, 1.1])
 
-            # Add legend
             if s == 0:
                 if m == 0:
                     ax.legend(loc='lower right', frameon=False,
                               prop={'size': 6})
-                    ax.set_title('Auditory Perception', weight='bold', pad=60,
-                                 fontsize=16)
+                    ax.set_title('Auditory Perception', weight='bold',
+                                 pad=60, fontsize=16)
                 else:
                     assert m == 1
-                    ax.set_title('Visual Perception', weight='bold', pad=60,
-                                 fontsize=16)
+                    ax.set_title('Visual Perception', weight='bold',
+                                 pad=60, fontsize=16)
 
-            # Name of x-axis
             fig.text(.495, .0025, 'Comparisons (%)', fontsize=14)
-            # Name of y-axis
             fig.text(.062, .46, 'Relative Frequency of "longer" responses',
                      fontsize=14, rotation=90)
 
-            # Append
             if modality == 'auditory':
                 all_pse_audio.append(std_pse_audio)
                 all_dl_audio.append(std_dl_audio)
@@ -413,25 +402,24 @@ def individual_perception(
                 all_pse_visual.append(std_pse_visual)
                 all_dl_visual.append(std_dl_visual)
 
-        fig.text(.03, .9765 - s * .023, 'Subject %d' % subject, ha='center',
-                 fontsize=10, weight='bold')
+        fig.text(.03, .9765 - s * .023, 'Subject %d' % subject,
+                 ha='center', fontsize=10, weight='bold')
 
-    # Title
     if estimator == 'mle_cdf':
         suffix = '(Estimator: MLE of Norm CDF)'
     else:
         assert estimator == 'mle_expit'
         suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
+
     plt.suptitle(
         'Individual Relative Frequencies for the ' + condition.capitalize() +
         ' condition of the Perception Tasks: ' + sessions_dic[sesstag] + ' ' +
         suffix, x=.5, y=.9975, size=16, linespacing=.75)
 
     output_folder = os.path.join(output_dir, 'individual_psychometric')
-    # Create output_folder, if it does not exist
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
-    # Save figure
+
     plt.savefig(os.path.join(
         this_dir, output_folder,
         'individual_psychometric_' + condition + '_' + estimator + '_' +
@@ -447,7 +435,7 @@ def individual_perception(
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
                      standards, comparisons, condition, output_dir, sesstag,
-                     estimator= 'mle_expit'):
+                     estimator='mle_expit'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
     group_rf2_audio = np.mean(all_rf2_audio, axis=0)
@@ -748,17 +736,24 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
     df['PSE'] = df['PSE_raw']
     df['FitValid'] = np.isfinite(df['DL']) & np.isfinite(df['PSE'])
 
-    ht_dl, lt_dl = outliers(df['DL'].values)
-    df['DL'] = np.where(df['DL'] > ht_dl, np.nan, df['DL'])
-    df['DL'] = np.where(df['DL'] < lt_dl, np.nan, df['DL'])
+    group_cols = ['Standard', 'Modality', 'Condition']
+    for _, group_df in df.groupby(group_cols):
+        idx = group_df.index
 
-    ht_pse, lt_pse = outliers(df['PSE'].values)
-    df['PSE'] = np.where(df['PSE'] > ht_pse, np.nan, df['PSE'])
-    df['PSE'] = np.where(df['PSE'] < lt_pse, np.nan, df['PSE'])
+        ht_dl, lt_dl = outliers(group_df['DL'].values)
+        df.loc[idx, 'DL'] = np.where(
+            df.loc[idx, 'DL'] > ht_dl, np.nan, df.loc[idx, 'DL'])
+        df.loc[idx, 'DL'] = np.where(
+            df.loc[idx, 'DL'] < lt_dl, np.nan, df.loc[idx, 'DL'])
+
+        ht_pse, lt_pse = outliers(group_df['PSE'].values)
+        df.loc[idx, 'PSE'] = np.where(
+            df.loc[idx, 'PSE'] > ht_pse, np.nan, df.loc[idx, 'PSE'])
+        df.loc[idx, 'PSE'] = np.where(
+            df.loc[idx, 'PSE'] < lt_pse, np.nan, df.loc[idx, 'PSE'])
 
     df['DLImputed'] = False
     df['PSEImputed'] = False
-    group_cols = ['Standard', 'Modality', 'Condition']
     for index, row in df.iterrows():
         same_cell = np.logical_and.reduce([
             df[col] == row[col] for col in group_cols
@@ -775,7 +770,8 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
     output_folder = os.path.join(output_dir, 'anovas')
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
-    outpath = os.path.join(output_folder, 'df_perception_' + sesstag + '.tsv')
+    outpath = os.path.join(output_folder, 
+                           'df_perception_postfit_' + sesstag + '.tsv')
     df.to_csv(outpath, index=False, sep='\t')
 
     return df
@@ -922,9 +918,10 @@ N_TRIALS = 30
 # tag = 'allses'
 
 # # ### For 'All Behavioral Sessions' ###
-SUBJECTS = GOOD_SUBJECTS
-SESSIONS = [1, 2, 3]
-tag = 'behavses'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSIONS = [1, 2, 3]
+# tag = 'behavses'
+# results_subfolder = 'perception_results_first_batch'
 
 # # ### For 'All Imaging Sessionss' ###
 # SUBJECTS = BEHAVIMG_RAND_SUBJECTS
@@ -932,9 +929,10 @@ tag = 'behavses'
 # tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = SB_SUBJECTS # SB_SUBJECTS / GOOD_SUBJECTS
-# SESSIONS = [1]
-# tag = 'ses-01'
+SUBJECTS = SB_SUBJECTS # SB_SUBJECTS / GOOD_SUBJECTS
+SESSIONS = [1]
+tag = 'ses-01'
+results_subfolder = 'perception_results_second_batch'
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -991,7 +989,7 @@ sessions_dic = {'allses': 'All Sessions',
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
-RESULTS_FOLDER = os.path.join(MAIN_DIR, 'perception_results')
+RESULTS_FOLDER = os.path.join(MAIN_DIR, results_subfolder)
 
 # %%
 # ============================ RUN =====================================
@@ -1016,8 +1014,8 @@ if __name__ == "__main__":
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
                 individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
-                                      cond, N_TRIALS, SESSIONS, tag,
-                                       estimator=estimator)
+                                      cond, SESSIONS, tag,
+                                      estimator=estimator)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,

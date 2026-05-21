@@ -55,11 +55,11 @@ Files revised
 
 3.2 Fit validity
 - Added task-design fit validity thresholds:
-  FIT_MAX_ABS_PSE = 0.5
-  FIT_MAX_DL = 0.5
+  FIT_MAX_ABS_PSE = 0.2
+  FIT_MAX_DL = 0.2
   FIT_MIN_DL = 0.0
 - Added fit_is_valid(), which requires optimizer convergence, finite objective
-  values, finite PSE and DL, PSE within +/-50%, and DL within (0, 50%].
+  values, finite PSE and DL, PSE within +/-20%, and DL within (0, 20%].
 - Invalid individual fits are stored as NaN for PSE and DL instead of keeping
   extreme optimizer outputs.
 - The same validity rule is also applied to group-level psychometric fits.
