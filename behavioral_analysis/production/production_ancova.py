@@ -432,11 +432,7 @@ RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results')
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
 ANCOVA_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
 
-# First Batch
-
-JASP_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'jasp')
-PLOTS_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'plots')
-TABLES_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'tables')
+# #### First Batch ####
 
 # sessions_dic = {'allses': 'All Sessions',
 #                 'ses-01': 'Session 1',
@@ -462,15 +458,21 @@ TABLES_FOLDER = os.path.join(ANCOVA_FOLDER, 'first_batch', 'tables')
 #                 'behav23': GOOD_SUBJECTS,
 #                 'imgses': IMG_SUBJECTS}
 
-# db_fname = 'df_production.tsv'
+# db_fname = 'df_production_fb_133_35_20.tsv'
+# BATCH_FOLDER = 'first_batch_133_35_20'
 
-# Second Batch
-JASP_FOLDER = os.path.join(ANCOVA_FOLDER, 'second_batch', 'jasp')
-PLOTS_FOLDER = os.path.join(ANCOVA_FOLDER, 'second_batch', 'plots')
-TABLES_FOLDER = os.path.join(ANCOVA_FOLDER, 'second_batch', 'tables')
+# #### Second Batch ####
 sessions_dic = {'ses-01': 'Session 1'}
 subjects_dic = {'ses-01': SB_SUBJECTS}
-db_fname = 'df_production_sb.tsv'
+
+db_fname = 'df_production_sb_63_35_20.tsv'
+BATCH_FOLDER = 'second_batch_63_35_20'
+
+# #####################################################################
+
+JASP_FOLDER = os.path.join(ANCOVA_FOLDER, BATCH_FOLDER, 'jasp')
+PLOTS_FOLDER = os.path.join(ANCOVA_FOLDER, BATCH_FOLDER, 'plots')
+TABLES_FOLDER = os.path.join(ANCOVA_FOLDER, BATCH_FOLDER, 'tables')
 
 # %%
 # ============================ RUN ====================================

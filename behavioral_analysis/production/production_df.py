@@ -187,23 +187,23 @@ SB_SUBJECTS = [48]
 
 N_TRIALS = 30
 
-AUDIO_LATENCY = 63 # Expy: 133 / Psychopy: 63
-VISUAL_LATENCY = 35 # Expy: 35
-BUTTON_PRESS = 20 # 20
+AUDIO_LATENCY = 63  # Expy: 133 / Psychopy: 63
+VISUAL_LATENCY = 35  # Expy: 35
+BUTTON_PRESS = 20  # 20
 
 # ### For 'All Sessions' ###
 # SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session', 'imaging_session']
 # SESSIONS = None
 # tag = 'allses'
-# batch = 'df_production' # 'df_production' / 'df_production_sb'
+# batch = 'df_production_fb_133_35_20'
 
 # ### For first behav session: 'ses-01' ###
-SUBJECTS = SB_SUBJECTS # GOOD_SUBJECTS / SB_SUBJECTS
+SUBJECTS = SB_SUBJECTS  # GOOD_SUBJECTS / SB_SUBJECTS
 SESSTYPES = ['behavioral_session']
 SESSIONS = ['ses-01']
 tag = SESSIONS[0]
-batch = 'df_production_sb' # 'df_production' / 'df_production_sb'
+batch = 'df_production_sb_63_35_20'
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS

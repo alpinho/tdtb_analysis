@@ -10,14 +10,18 @@ from nilearn.image import load_img, new_img_like, math_img
 
 
 def extract_timestamp(filename):
-    """
-    Function to extract the timestamp from the filename.
-    """
-    # Match the last 12-digit timestamp before .xpd or .csv.
+    """Function to extract a timestamp from XPD and CSV filenames."""
+    # Old XPD names use YYYYMMDDHHMM before the extension.
     match = re.search(r"(\d{12})(?=\.(xpd|csv)$)", filename)
+    if match:
+        return int(match.group(1))
 
-    # Convert timestamp to an integer for sorting and return.
-    return int(match.group(1)) if match else 0
+    # New CSV names use YYYYMMDD_HHMM before the extension.
+    match = re.search(r"(\d{8})_(\d{4})(?=\.(xpd|csv)$)", filename)
+    if match:
+        return int(match.group(1) + match.group(2))
+
+    return 0
 
 
 def _get_metadata_value(inputs_list, field):
@@ -39,7 +43,14 @@ def _normalise_session(value):
 
 
 def _normalise_csv_logfile(inputs_list, subject_no):
-    """Convert newer CSV rows to the legacy XPD row layout."""
+    """Convert newer CSV rows to the legacy XPD row layout.
+
+    Newer CSV logs start with ``session_id`` in the first data
+    column. Legacy XPD-derived rows start with the subject number.
+    The downstream parsers use fixed column indices, so every CSV
+    trial row is rebuilt with ``subject_no`` explicitly forced into
+    column 0. This applies to production and perception logs.
+    """
     header_idx = None
     for i, row in enumerate(inputs_list):
         if row and row[0] == 'session_id':
@@ -49,9 +60,7 @@ def _normalise_csv_logfile(inputs_list, subject_no):
     if header_idx is None:
         return inputs_list
 
-    subject = _get_metadata_value(inputs_list, '#s id')
-    if subject is None:
-        subject = str(subject_no)
+    subject = str(subject_no)
 
     header = [[
         'subject_id', 'session_number', 'run_number', 'trial_number',
@@ -63,15 +72,26 @@ def _normalise_csv_logfile(inputs_list, subject_no):
     for row in inputs_list[header_idx + 1:]:
         if not row:
             continue
+        if len(row) < 11:
+            continue
 
-        condition = row[4]
-        if condition.startswith('isi_'):
-            condition = condition.replace('isi_', 'interval_', 1)
+        event = row[4]
+        if event.startswith('isi_'):
+            event = event.replace('isi_', 'interval_', 1)
 
         trials.append([
-            subject, _normalise_session(row[0]), row[1], row[2],
-            row[3], condition, row[5], row[6], row[7], row[8],
-            row[9], row[10]
+            subject,
+            _normalise_session(row[0]),
+            row[1],
+            row[2],
+            row[3],
+            event,
+            row[5],
+            row[6],
+            row[7],
+            row[8],
+            row[9],
+            row[10],
         ])
 
     return inputs_list[:header_idx] + header + trials
@@ -118,13 +138,12 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
               and subject_no == 4 and reject_pilot):
             break
         elif sessions is None:
-            sessions = []
-            sessions = os.listdir(sesstype_path)
-            sessions.sort()
+            selected_sessions = os.listdir(sesstype_path)
+            selected_sessions.sort()
         else:
-            assert sessions is not None
+            selected_sessions = sessions
 
-        for session in sessions:
+        for session in selected_sessions:
             logpath = os.path.join(sesstype_path, session)
             logfiles = [
                 f for ext in ('*.xpd', '*.csv')
