@@ -179,7 +179,7 @@ IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
                 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48]
+SB_SUBJECTS = [48, 49]
 
 # #######################################################################
 
@@ -187,57 +187,64 @@ SB_SUBJECTS = [48]
 
 N_TRIALS = 30
 
-AUDIO_LATENCY = 63  # Expy: 133 / Psychopy: 63
-VISUAL_LATENCY = 35  # Expy: 35
-BUTTON_PRESS = 20  # 20
+AUDIO_LATENCY = 0  # Expy: 133 / Psychopy: 63
+VISUAL_LATENCY = 0  # Expy: 35
+BUTTON_PRESS = 0  # 20
 
 # ### For 'All Sessions' ###
 # SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session', 'imaging_session']
 # SESSIONS = None
 # tag = 'allses'
-# batch = 'df_production_fb_133_35_20'
+
+# ### For 'All Behavioral Sessions' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = None
+# tag = 'behavses'
 
 # ### For first behav session: 'ses-01' ###
 SUBJECTS = SB_SUBJECTS  # GOOD_SUBJECTS / SB_SUBJECTS
 SESSTYPES = ['behavioral_session']
 SESSIONS = ['ses-01']
 tag = SESSIONS[0]
-batch = 'df_production_sb_63_35_20'
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-02']
 # tag = SESSIONS[0]
-# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # ### For third behav session: 'ses-03' ###
 # SUBJECTS = GOOD_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-03']
 # tag = SESSIONS[0]
-# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # ### For first img session: 'ses-04' ###
 # SUBJECTS = IMG_SUBJECTS
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-01']
 # tag = 'ses-04'
-# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # ### For second img session: 'ses-05' ###
 # SUBJECTS = IMG_SUBJECTS
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-02']
 # tag = 'ses-05'
-# batch = 'df_production' # 'df_production' / 'df_production_sb'
 
 # %%
 # ========================= PARAMETERS =================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results', 'dataframes')
+
+if SUBJECTS == SB_SUBJECTS:
+    batch_tag = 'sb'
+else:
+    batch_tag = 'fb'
+batch = f'df_production_' \
+    f'{batch_tag}_{AUDIO_LATENCY}_{VISUAL_LATENCY}_{BUTTON_PRESS}'
 
 # %%
 # ============================ RUN =====================================
