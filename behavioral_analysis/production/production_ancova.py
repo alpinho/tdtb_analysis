@@ -290,16 +290,16 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
 
 def plot_ancova(x, y, yaxis_name, yname_pos, title,
                 output_folder, fname, y_values=None, legend_loc='lower left',
-                hline_legend=None, hline_yloc=[.4275, .435]):
+                hline_legend=None, hline_label_pad=10):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
 
     # left   # the left side of the subplots of the figure
     # right  # the right side of the subplots of the figure
     # bottom # the bottom of the subplots of the figure
     # top    # the top of the subplots of the figure
-    # wspace # the amount of width reserved for blank space between 
-             # subplots
-    # hspace # the amount of height reserved for white space between 
+    # wspace # the amount of width reserved for blank space between
+    #          subplots
+    # hspace # the amount of height reserved for white space between
              # subplots
     plt.subplots_adjust(left=.095, bottom=.15, right=.98, wspace=.175)
 
@@ -354,10 +354,10 @@ def plot_ancova(x, y, yaxis_name, yname_pos, title,
             ax[m].set_ylim(y_lim)
             y_labels = [str(yl) for yl in y_values]
             ax[m].set_yticks(y_values, y_labels, fontsize=24)
-            # Add horizontal dashed line at y = 0.5
+            # Add horizontal dashed line at y = 0
             if hline_legend:
-                ax[m].axhline(0., linestyle='--', color='grey', linewidth=12,
-                              alpha=.5)
+                ax[m].axhline(0., linestyle='--', color='grey',
+                              linewidth=12, alpha=.5)
 
         # Add legend
         if m == 0:
@@ -371,12 +371,21 @@ def plot_ancova(x, y, yaxis_name, yname_pos, title,
         fig.text(.465, .025, 'Standards (ms)', fontsize=30)
         # Name of y-axis
         fig.text(.005, yname_pos, yaxis_name, fontsize=30, rotation=90)
-        # Legends for horizontal dashed lines
+
+        # Label horizontal dashed line using y = 0 data coordinates.
+        # The vertical offset is in points, so it does not depend on ylim.
         if hline_legend:
-            fig.text(.355, hline_yloc[0], hline_legend, fontsize=24,
-                     color='dimgrey')
-            fig.text(.825, hline_yloc[1], hline_legend, fontsize=24,
-                     color='dimgrey')
+            ax[m].annotate(
+                hline_legend,
+                xy=(0.5, 0.),
+                xycoords=('axes fraction', 'data'),
+                xytext=(0, hline_label_pad),
+                textcoords='offset points',
+                ha='center',
+                va='bottom',
+                fontsize=24,
+                color='dimgrey',
+            )
 
     # if fname[:4] == 'mean' and fname[-6:] == 'allses':
     #     fig.text(.125, .2, r'$p_{Condition*Standard}=2\mathrm{e}{-3}$',
@@ -425,7 +434,7 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48]
+SB_SUBJECTS = [48, 49]
 
 # #####################################################################
 
@@ -436,39 +445,41 @@ ANCOVA_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
 
 # #### First Batch ####
 
-# sessions_dic = {'allses': 'All Sessions',
-#                 'ses-01': 'Session 1',
-#                 'ses-02': 'Session 2',
-#                 'ses-03': 'Session 3',
-#                 'ses-04': 'Session 4',
-#                 'ses-05': 'Session 5',
-#                 'behavses': 'Behavioral Sessions',
-#                 'behav12': 'Behavioral Sessions 1 and 2',
-#                 'behav13': 'Behavioral Sessions 1 and 3',
-#                 'behav23': 'Behavioral Sessions 2 and 3',
-#                 'imgses': 'Imaging Sessions'}
+sessions_dic = {'allses': 'All Sessions',
+                'ses-01': 'Session 1',
+                # 'ses-02': 'Session 2',
+                # 'ses-03': 'Session 3',
+                # 'ses-04': 'Session 4',
+                # 'ses-05': 'Session 5',
+                'behavses': 'Behavioral Sessions',
+                # 'behav12': 'Behavioral Sessions 1 and 2',
+                # 'behav13': 'Behavioral Sessions 1 and 3',
+                # 'behav23': 'Behavioral Sessions 2 and 3',
+                # 'imgses': 'Imaging Sessions'
+                }
 
-# subjects_dic = {'allses': GOOD_SUBJECTS,
-#                 'ses-01': GOOD_SUBJECTS,
-#                 'ses-02': GOOD_SUBJECTS,
-#                 'ses-03': GOOD_SUBJECTS,
-#                 'ses-04': IMG_SUBJECTS,
-#                 'ses-05': IMG_SUBJECTS,
-#                 'behavses': GOOD_SUBJECTS,
-#                 'behav12': GOOD_SUBJECTS,
-#                 'behav13': GOOD_SUBJECTS,
-#                 'behav23': GOOD_SUBJECTS,
-#                 'imgses': IMG_SUBJECTS}
+subjects_dic = {'allses': GOOD_SUBJECTS,
+                'ses-01': GOOD_SUBJECTS,
+                # 'ses-02': GOOD_SUBJECTS,
+                # 'ses-03': GOOD_SUBJECTS,
+                # 'ses-04': IMG_SUBJECTS,
+                # 'ses-05': IMG_SUBJECTS,
+                'behavses': GOOD_SUBJECTS,
+                # 'behav12': GOOD_SUBJECTS,
+                # 'behav13': GOOD_SUBJECTS,
+                # 'behav23': GOOD_SUBJECTS,
+                # 'imgses': IMG_SUBJECTS
+                }
 
-# db_fname = 'df_production_fb_133_35_20.tsv'
-# BATCH_FOLDER = 'first_batch_133_35_20'
+db_fname = 'df_production_fb_133_35_20'
+BATCH_FOLDER = 'first_batch_133_35_20'
 
 # #### Second Batch ####
-sessions_dic = {'ses-01': 'Session 1'}
-subjects_dic = {'ses-01': SB_SUBJECTS}
+# sessions_dic = {'ses-01': 'Session 1'}
+# subjects_dic = {'ses-01': SB_SUBJECTS}
 
-db_fname = 'df_production_sb_63_35_20'
-BATCH_FOLDER = 'second_batch_63_35_20'
+# db_fname = 'df_production_sb_0_0_0'
+# BATCH_FOLDER = 'second_batch_0_0_0'
 
 # #####################################################################
 
@@ -545,7 +556,7 @@ if __name__ == "__main__":
             'Mean of Signed Asynchrony', .165,
             'Mean of Signed Asynchrony for every Standard: ' + value,
             PLOTS_FOLDER, 'mean_ancova_production_' + key,
-            hline_legend=r'$RT=Standard$', hline_yloc=[.41, .41],
+            hline_legend=r'$RT=Standard$',
             legend_loc='upper right')
 
         plot_ancova(
