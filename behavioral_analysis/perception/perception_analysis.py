@@ -235,7 +235,7 @@ def _relative_frequencies(n_shorter, n_longer):
 
 def individual_perception(
         subjects, this_dir, output_dir, condition,
-        sessions, sesstag, estimator='mle_expit',
+        sessions, sesstag, session_label, estimator='mle_expit',
         modalities=None):
     if modalities is None:
         modalities = ['auditory', 'visual']
@@ -413,7 +413,7 @@ def individual_perception(
 
     plt.suptitle(
         'Individual Relative Frequencies for the ' + condition.capitalize() +
-        ' condition of the Perception Tasks: ' + sessions_dic[sesstag] + ' ' +
+        ' condition of the Perception Tasks: ' + session_label + ' ' +
         suffix, x=.5, y=.9975, size=16, linespacing=.75)
 
     output_folder = os.path.join(output_dir, 'individual_psychometric')
@@ -435,7 +435,7 @@ def individual_perception(
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
                      standards, comparisons, condition, output_dir, sesstag,
-                     estimator='mle_expit'):
+                     session_label, estimator='mle_expit'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
     group_rf2_audio = np.mean(all_rf2_audio, axis=0)
@@ -587,9 +587,9 @@ def group_perception(all_rf1_audio, all_rf2_audio,
     plt.suptitle(
         'Group Mean of Relative Frequencies for the ' +
         condition.capitalize() + ' condition of the Perception Tasks: ' +
-        sessions_dic[sesstag] + ' ' + suffix, x=.5, y=.97, size=14,
+        session_label + ' ' + suffix, x=.5, y=.97, size=14,
         linespacing=.75)
-    plt.title(sessions_dic[sesstag])
+    plt.title(session_label)
 
     output_folder = os.path.join(output_dir, 'group_psychometric')
     # Create output_folder, if it does not exist
@@ -607,7 +607,8 @@ def group_perception(all_rf1_audio, all_rf2_audio,
     return group_pse, group_dl
 
 
-def plotfit_perception(x, y, estimator, output_dir, sesstag):
+def plotfit_perception(x, y, estimator, output_dir, sesstag,
+                       session_label):
     fig, ax = plt.subplots(1, 2, figsize=(16, 8))
     plt.subplots_adjust(left=.085, bottom=.11, right=.975, wspace=.15, top=.8)
 
@@ -678,7 +679,7 @@ def plotfit_perception(x, y, estimator, output_dir, sesstag):
         suffix = '(Estimator: MLE of Logistic-Sigmoid Function)'
     plt.suptitle(
         'Point of Subjective Equality (PSE) for the Perception Tasks: ' +
-        sessions_dic[sesstag] + '\n\n' + suffix,
+        session_label + '\n\n' + suffix,
         x=.5, y=.97, size=24, linespacing=.75)
 
     output_folder = os.path.join(output_dir, 'pse')
@@ -904,7 +905,7 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48]
+SB_SUBJECTS = [48, 49]
 
 # #######################################################################
 
@@ -941,7 +942,7 @@ N_TRIALS = 30
 # tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
-SUBJECTS = SB_SUBJECTS # SB_SUBJECTS / GOOD_SUBJECTS
+SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
 SESSIONS = [1]
 tag = 'ses-01'
 results_subfolder = 'perception_results_second_batch'
@@ -990,6 +991,7 @@ results_subfolder = 'perception_results_second_batch'
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, results_subfolder)
+SESSION_LABEL = sessions_dic[tag]
 
 # %%
 # ============================ RUN =====================================
@@ -1014,13 +1016,13 @@ if __name__ == "__main__":
             rfone_audio, rftwo_audio, rfone_visual, rftwo_visual, stand, \
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
                 individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
-                                      cond, SESSIONS, tag,
+                                      cond, SESSIONS, tag, SESSION_LABEL,
                                       estimator=estimator)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
                                        rftwo_visual, stand, comp, cond,
-                                       RESULTS_FOLDER, tag,
+                                       RESULTS_FOLDER, tag, SESSION_LABEL,
                                        estimator=estimator)
 
             # Start concatenating and appending
@@ -1049,7 +1051,8 @@ if __name__ == "__main__":
 
         # Plot PSE
         mod_gpse = np.swapaxes(cond_gpse, 0, 1)
-        plotfit_perception(stand, mod_gpse, estimator, RESULTS_FOLDER, tag)
+        plotfit_perception(stand, mod_gpse, estimator, RESULTS_FOLDER, tag,
+                           SESSION_LABEL)
 
         # Compute ANOVAS and plot DL
         if estimator == 'mle_cdf':
