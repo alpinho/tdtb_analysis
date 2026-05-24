@@ -158,14 +158,12 @@ N_TRIALS = 30
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = None
 # tag = 'behavses'
-# results_subfolder = 'perception_results_first_batch'
 
 # ### For first behav session: 'ses-01' ###
 SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
 SESSTYPES = ['behavioral_session']
 SESSIONS = ['ses-01']
 tag = SESSIONS[0]
-results_subfolder = 'perception_results_second_batch'
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -194,11 +192,16 @@ results_subfolder = 'perception_results_second_batch'
 # %%
 # ========================= PARAMETERS =================================
 
+if SUBJECTS == SB_SUBJECTS:
+    batch_tag = 'second'
+else:
+    batch_tag = 'first'
+results_subfolder = 'perception_results_' + batch_tag + '_batch'
+
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 
                               results_subfolder,
                               'raw_dataframes')
-
 # %%
 # ============================ RUN =====================================
 
