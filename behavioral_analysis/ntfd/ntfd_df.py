@@ -191,7 +191,7 @@ IMG_SUBJECTS = [
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48]
+SB_SUBJECTS = [48, 49]
 
 # #######################################################################
 
@@ -205,21 +205,20 @@ N_TRIALS = 30
 N_ISI_TRIALS_BEHAV = 36  # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 # Total number of trials per isi per condition (without random condition)...
 # ... across all runs of every imaging sessions
-N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) --> (n_trials * n_ntfd_runs * n_sessions)
+N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) -->
+                       # --> (n_trials * n_ntfd_runs * n_sessions)
 
 # ### For 'All Sessions' ###
-SUBJECTS = GOOD_SUBJECTS
-SESSTYPES = ['behavioral_session', 'imaging_session']
-SESSIONS = None
-tag = 'allses'
-results_subfolder = 'ntfd_results_first_batch'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session', 'imaging_session']
+# SESSIONS = None
+# tag = 'allses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01']
-# tag = SESSIONS[0]
-# results_subfolder = 'ntfd_results_second_batch'
+SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
+SESSTYPES = ['behavioral_session']
+SESSIONS = ['ses-01']
+tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -248,6 +247,12 @@ results_subfolder = 'ntfd_results_first_batch'
 
 # %%
 # ========================= PARAMETERS =================================
+
+if SUBJECTS == SB_SUBJECTS:
+    batch_tag = 'second'
+else:
+    batch_tag = 'first'
+results_subfolder = 'ntfd_results_' + batch_tag + '_batch'
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, results_subfolder, 'dataframes')
