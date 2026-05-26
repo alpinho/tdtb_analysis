@@ -434,7 +434,7 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49]
+SB_SUBJECTS = [48, 49, 50]
 
 # #####################################################################
 
@@ -445,41 +445,41 @@ ANCOVA_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
 
 # #### First Batch ####
 
-sessions_dic = {'allses': 'All Sessions',
-                'ses-01': 'Session 1',
-                # 'ses-02': 'Session 2',
-                # 'ses-03': 'Session 3',
-                # 'ses-04': 'Session 4',
-                # 'ses-05': 'Session 5',
-                'behavses': 'Behavioral Sessions',
-                # 'behav12': 'Behavioral Sessions 1 and 2',
-                # 'behav13': 'Behavioral Sessions 1 and 3',
-                # 'behav23': 'Behavioral Sessions 2 and 3',
-                # 'imgses': 'Imaging Sessions'
-                }
+# sessions_dic = {'allses': 'All Sessions',
+#                 'ses-01': 'Session 1',
+#                 # 'ses-02': 'Session 2',
+#                 # 'ses-03': 'Session 3',
+#                 # 'ses-04': 'Session 4',
+#                 # 'ses-05': 'Session 5',
+#                 'behavses': 'Behavioral Sessions',
+#                 # 'behav12': 'Behavioral Sessions 1 and 2',
+#                 # 'behav13': 'Behavioral Sessions 1 and 3',
+#                 # 'behav23': 'Behavioral Sessions 2 and 3',
+#                 # 'imgses': 'Imaging Sessions'
+#                 }
 
-subjects_dic = {'allses': GOOD_SUBJECTS,
-                'ses-01': GOOD_SUBJECTS,
-                # 'ses-02': GOOD_SUBJECTS,
-                # 'ses-03': GOOD_SUBJECTS,
-                # 'ses-04': IMG_SUBJECTS,
-                # 'ses-05': IMG_SUBJECTS,
-                'behavses': GOOD_SUBJECTS,
-                # 'behav12': GOOD_SUBJECTS,
-                # 'behav13': GOOD_SUBJECTS,
-                # 'behav23': GOOD_SUBJECTS,
-                # 'imgses': IMG_SUBJECTS
-                }
+# subjects_dic = {'allses': GOOD_SUBJECTS,
+#                 'ses-01': GOOD_SUBJECTS,
+#                 # 'ses-02': GOOD_SUBJECTS,
+#                 # 'ses-03': GOOD_SUBJECTS,
+#                 # 'ses-04': IMG_SUBJECTS,
+#                 # 'ses-05': IMG_SUBJECTS,
+#                 'behavses': GOOD_SUBJECTS,
+#                 # 'behav12': GOOD_SUBJECTS,
+#                 # 'behav13': GOOD_SUBJECTS,
+#                 # 'behav23': GOOD_SUBJECTS,
+#                 # 'imgses': IMG_SUBJECTS
+#                 }
 
-db_fname = 'df_production_fb_133_35_20'
-BATCH_FOLDER = 'first_batch_133_35_20'
+# db_fname = 'df_production_fb_133_35_20'
+# BATCH_FOLDER = 'first_batch_133_35_20'
 
 # #### Second Batch ####
-# sessions_dic = {'ses-01': 'Session 1'}
-# subjects_dic = {'ses-01': SB_SUBJECTS}
+sessions_dic = {'ses-01': 'Session 1'}
+subjects_dic = {'ses-01': SB_SUBJECTS}
 
-# db_fname = 'df_production_sb_0_0_0'
-# BATCH_FOLDER = 'second_batch_0_0_0'
+db_fname = 'df_production_sb_63_35_20'
+BATCH_FOLDER = 'second_batch_63_35_20'
 
 # #####################################################################
 

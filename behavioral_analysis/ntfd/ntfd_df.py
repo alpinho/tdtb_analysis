@@ -43,7 +43,7 @@ def ntfd_data(data):
             if datum[11] in ['o', 'p', 'b', 'y']:
                 rt = int(data[dt - 1][7]) + int(datum[10])
                 answer = datum[11]
-            elif datum[10] == 'None':
+            elif datum[10] in ['None', '-']:
                 rt = np.nan
                 answer = 'None'
             else:
@@ -191,7 +191,7 @@ IMG_SUBJECTS = [
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49]
+SB_SUBJECTS = [48, 49, 50]
 
 # #######################################################################
 
