@@ -187,11 +187,6 @@ def errFit(hess_inv, resVariance):
     return np.sqrt(np.diag(hess_inv * resVariance))
 
 
-FIT_MAX_ABS_PSE = 0.2
-FIT_MAX_DL = 0.2
-FIT_MIN_DL = 0.0
-
-
 def outliers(arr):
     arr = np.asarray(arr, dtype=float)
     arr = arr[np.isfinite(arr)]
@@ -206,15 +201,16 @@ def outliers(arr):
     return high_thresh, low_thresh
 
 
-def fit_is_valid(opt_res, pse, dl):
+def fit_is_valid(opt_res, pse, dl, fit_max_abs_pse, fit_max_dl,
+                 fit_min_dl):
     """Return True for finite, converged, and plausible fits."""
     return (
         opt_res.success and
         np.isfinite(opt_res.fun) and
         np.isfinite(pse) and
         np.isfinite(dl) and
-        np.abs(pse) <= FIT_MAX_ABS_PSE and
-        FIT_MIN_DL < dl <= FIT_MAX_DL
+        np.abs(pse) <= fit_max_abs_pse and
+        fit_min_dl < dl <= fit_max_dl
     )
 
 
@@ -235,7 +231,8 @@ def _relative_frequencies(n_shorter, n_longer):
 
 def individual_perception(
         subjects, this_dir, output_dir, condition,
-        sessions, sesstag, session_label, estimator='mle_expit',
+        sessions, sesstag, session_label, fit_max_abs_pse,
+        fit_max_dl, fit_min_dl, estimator='mle_expit',
         modalities=None):
     if modalities is None:
         modalities = ['auditory', 'visual']
@@ -329,7 +326,9 @@ def individual_perception(
 
                 pse = opt_res.x[0]
                 dl = opt_res.x[1] * constant
-                is_valid = fit_is_valid(opt_res, pse, dl)
+                is_valid = fit_is_valid(opt_res, pse, dl,
+                                        fit_max_abs_pse,
+                                        fit_max_dl, fit_min_dl)
 
                 if is_valid:
                     se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
@@ -435,7 +434,8 @@ def individual_perception(
 def group_perception(all_rf1_audio, all_rf2_audio,
                      all_rf1_visual, all_rf2_visual,
                      standards, comparisons, condition, output_dir, sesstag,
-                     session_label, estimator='mle_expit'):
+                     session_label, fit_max_abs_pse, fit_max_dl, fit_min_dl,
+                     estimator='mle_expit'):
 
     group_rf1_audio = np.mean(all_rf1_audio, axis=0)
     group_rf2_audio = np.mean(all_rf2_audio, axis=0)
@@ -493,7 +493,9 @@ def group_perception(all_rf1_audio, all_rf2_audio,
             # Estimates
             pse = opt_res.x[0]
             dl = opt_res.x[1] * constant
-            is_valid = fit_is_valid(opt_res, pse, dl)
+            is_valid = fit_is_valid(opt_res, pse, dl,
+                                    fit_max_abs_pse,
+                                    fit_max_dl, fit_min_dl)
             if is_valid:
                 # Standard errors from Fisher information.
                 se_pse = np.sqrt(np.diag(opt_res.hess_inv))[0]
@@ -755,18 +757,6 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
 
     df['DLImputed'] = False
     df['PSEImputed'] = False
-    for index, row in df.iterrows():
-        same_cell = np.logical_and.reduce([
-            df[col] == row[col] for col in group_cols
-        ])
-        if np.isnan(df.loc[index, 'DL']):
-            dl = np.nanmedian(df.loc[same_cell, 'DL'].values)
-            df.loc[index, 'DL'] = dl
-            df.loc[index, 'DLImputed'] = np.isfinite(dl)
-        if np.isnan(df.loc[index, 'PSE']):
-            pse = np.nanmedian(df.loc[same_cell, 'PSE'].values)
-            df.loc[index, 'PSE'] = pse
-            df.loc[index, 'PSEImputed'] = np.isfinite(pse)
 
     output_folder = os.path.join(output_dir, 'anovas')
     if not os.path.exists(output_folder):
@@ -778,7 +768,8 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
     return df
 
 
-def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
+def twoway_repanova(df, output_dir, sesstag, min_valid_standards,
+                    alternative='two-sided'):
     if isinstance(df, str):
         df = pd.read_csv(df, sep='\t')
 
@@ -786,16 +777,31 @@ def twoway_repanova(df, output_dir, sesstag, alternative='two-sided'):
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
-    cols = ['Condition', 'Modality', 'Subject', 'DL']
-    df = df[cols].dropna(subset=['DL']).copy()
-    df = df.groupby(['Condition', 'Modality', 'Subject']).mean().reset_index()
+    cols = ['Condition', 'Modality', 'Subject', 'Standard', 'DL']
+    df = df[cols].copy()
+
+    cell_df = df.groupby(
+        ['Condition', 'Modality', 'Subject'],
+        as_index=False).agg(
+            DL=('DL', 'mean'),
+            ValidStandards=('DL', 'count'))
+
+    excluded_cells = cell_df[cell_df['ValidStandards'] <
+                            min_valid_standards].copy()
+    if not excluded_cells.empty:
+        excluded_cells.to_csv(
+            os.path.join(output_folder,
+                         'twoway_excluded_cells_' + sesstag + '.tsv'),
+            sep='\t', index=False)
+
+    df = cell_df[cell_df['ValidStandards'] >= min_valid_standards].copy()
 
     grid_counts = df.groupby('Subject').size()
     complete_subjects = grid_counts[grid_counts == 4].index.tolist()
-    excluded_subjects = grid_counts[grid_counts < 4].index.tolist()
+    incomplete_subjects = grid_counts[grid_counts < 4].index.tolist()
 
-    if excluded_subjects:
-        excluded_df = pd.DataFrame({'Subject': excluded_subjects})
+    if incomplete_subjects:
+        excluded_df = pd.DataFrame({'Subject': incomplete_subjects})
         excluded_df.to_csv(
             os.path.join(output_folder, 'twoway_excluded_' + sesstag + '.tsv'),
             sep='\t', index=False)
@@ -905,7 +911,7 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49]
+SB_SUBJECTS = [48, 49, 50]
 
 # #######################################################################
 
@@ -925,6 +931,11 @@ sessions_dic = {'allses': 'All Sessions',
 
 N_TRIALS = 30
 
+FIT_MAX_ABS_PSE = 0.50
+FIT_MAX_DL = 0.50
+FIT_MIN_DL = 0.0
+MIN_VALID_STANDARDS = 0
+
 # ### For 'All Sessions' ###
 # SUBJECTS = BEHAVIMG_RAND_SUBJECTS
 # SESSIONS = [1, 2, 3, 4, 5]
@@ -934,7 +945,6 @@ N_TRIALS = 30
 # SUBJECTS = GOOD_SUBJECTS
 # SESSIONS = [1, 2, 3]
 # tag = 'behavses'
-# results_subfolder = 'perception_results_first_batch'
 
 # # ### For 'All Imaging Sessionss' ###
 # SUBJECTS = BEHAVIMG_RAND_SUBJECTS
@@ -945,7 +955,6 @@ N_TRIALS = 30
 SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
 SESSIONS = [1]
 tag = 'ses-01'
-results_subfolder = 'perception_results_second_batch'
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -989,6 +998,12 @@ results_subfolder = 'perception_results_second_batch'
 # %%
 # ========================= PARAMETERS =================================
 
+if SUBJECTS == SB_SUBJECTS:
+    batch_tag = 'second'
+else:
+    batch_tag = 'first'
+results_subfolder = 'perception_results_' + batch_tag + '_batch'
+
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, results_subfolder)
 SESSION_LABEL = sessions_dic[tag]
@@ -1017,13 +1032,15 @@ if __name__ == "__main__":
                 comp, ipse_audio, idl_audio, ipse_visual, idl_visual = \
                 individual_perception(SUBJECTS, MAIN_DIR, RESULTS_FOLDER,
                                       cond, SESSIONS, tag, SESSION_LABEL,
-                                      estimator=estimator)
+                                      FIT_MAX_ABS_PSE, FIT_MAX_DL,
+                                      FIT_MIN_DL, estimator=estimator)
 
             # Compute group psychometric functions
             gpse, _ = group_perception(rfone_audio, rftwo_audio, rfone_visual,
                                        rftwo_visual, stand, comp, cond,
                                        RESULTS_FOLDER, tag, SESSION_LABEL,
-                                       estimator=estimator)
+                                       FIT_MAX_ABS_PSE, FIT_MAX_DL,
+                                       FIT_MIN_DL, estimator=estimator)
 
             # Start concatenating and appending
             ipse = np.concatenate(([ipse_audio], [ipse_visual]),
@@ -1060,4 +1077,5 @@ if __name__ == "__main__":
         else:
             db = dataframe(estim_pse, estim_dl, stand, RESULTS_FOLDER, tag,
                            SUBJECTS)
-            twoway_repanova(db, RESULTS_FOLDER, tag)
+            twoway_repanova(db, RESULTS_FOLDER, tag,
+                            MIN_VALID_STANDARDS)
