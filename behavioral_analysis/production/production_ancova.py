@@ -434,7 +434,7 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49, 50, 51]
+SB_SUBJECTS = [48, 49, 50, 51, 52]
 
 # #####################################################################
 
@@ -478,8 +478,8 @@ ANCOVA_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
 sessions_dic = {'ses-01': 'Session 1'}
 subjects_dic = {'ses-01': SB_SUBJECTS}
 
-db_fname = 'df_production_sb_0_0_0'
-BATCH_FOLDER = 'second_batch_0_0_0'
+db_fname = 'df_production_sb_63_35_20'
+BATCH_FOLDER = 'second_batch_63_35_20'
 
 # #####################################################################
 
