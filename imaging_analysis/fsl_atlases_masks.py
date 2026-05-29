@@ -145,11 +145,11 @@ superior_temporal_gyrus_posterior_division_rh_probmap = os.path.join(
     'posterior_division.nii.gz')
 
 auditory_cortex_lh_maskpath = os.path.join(
-    auditory_cortex_dir, 'hos_auditory-cortex_lh_mask.nii.gz')
+    auditory_cortex_dir, 'hos_auditory_cortex_lh_mask.nii.gz')
 auditory_cortex_rh_maskpath = os.path.join(
-    auditory_cortex_dir, 'hos_auditory-cortex_rh_mask.nii.gz')
+    auditory_cortex_dir, 'hos_auditory_cortex_rh_mask.nii.gz')
 auditory_cortex_bh_maskpath = os.path.join(
-    auditory_cortex_dir, 'hos_auditory-cortex_bh_mask.nii.gz')
+    auditory_cortex_dir, 'hos_auditory_cortex_bh_mask.nii.gz')
 
 occipital_pole_lh_probmap = os.path.join(
     visual_cortex_dir,
@@ -186,11 +186,11 @@ occipital_fusiform_rh_probmap = os.path.join(
     'Fusiform_Gyrus.nii.gz')
 
 visual_cortex_lh_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_visual-cortex_lh_mask.nii.gz')
+    visual_cortex_dir, 'hos_visual_cortex_lh_mask.nii.gz')
 visual_cortex_rh_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_visual-cortex_rh_mask.nii.gz')
+    visual_cortex_dir, 'hos_visual_cortex_rh_mask.nii.gz')
 visual_cortex_maskpath = os.path.join(
-    visual_cortex_dir, 'hos_visual-cortex_bh_mask.nii.gz')
+    visual_cortex_dir, 'hos_visual_cortex_bh_mask.nii.gz')
 
 # ############################# INPUTS ################################
 
