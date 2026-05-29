@@ -69,7 +69,16 @@ def plot_pttest(data_audio, data_visual,
                 pval_audio_bi, pval_visual_bi,
                 pval_audio_br=None, pval_audio_ir=None,
                 pval_visual_br=None, pval_visual_ir=None,
-                norand=False, loc='inside', y_bounds=None):
+                norand=False, loc='inside',
+                annotation_text_format='star',
+                hide_non_significant=True,
+                y_bounds=None):
+
+    allowed_formats = ['star', 'simple', 'full']
+    if annotation_text_format not in allowed_formats:
+        raise ValueError(
+            'annotation_text_format must be one of: ' +
+            ', '.join(allowed_formats))
 
     modalities = ['audio', 'visual']
     fig, ax = plt.subplots(1, len(modalities))
@@ -135,14 +144,21 @@ def plot_pttest(data_audio, data_visual,
 
         annotator = Annotator(ax[m], pairs, data=df, x=x, y=y)
         annotator.configure(test=None,
-                            text_format="star",
+                            text_format=annotation_text_format,
                             fontsize=10.,
-                            hide_non_significant=True,
+                            hide_non_significant=hide_non_significant,
                             loc=loc,
                             line_offset_to_group=1.,
                             line_height=0.05)
+        
         annotator.set_pvalues(pvalue)
         annotator.annotate()
+
+        if annotation_text_format == 'full':
+            for text in ax[m].texts:
+                current = text.get_text()
+                if current.startswith('None '):
+                    text.set_text(current.replace('None ', ''))
 
         ax[m].set_ylim(bottom=ylim_b, top=ylim_t)
 
@@ -163,7 +179,10 @@ def plot_pttest(data_audio, data_visual,
         ax[m].spines['right'].set_visible(False)
         ax[m].spines['top'].set_visible(False)
 
-    plt.savefig(os.path.join(output_dir, fname + '.pdf'))
+    plt.savefig(
+        os.path.join(output_dir, fname + '.png'),
+        dpi=300,
+        bbox_inches='tight')
 
 
 # %%
@@ -190,7 +209,7 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32,
                           46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49, 50, 51, 52]
+SB_SUBJECTS = [48, 49, 50, 51, 52, 53]
 
 # #####################################################################
 
@@ -203,31 +222,35 @@ button_press = 20  # 20
 
 # audio_latency = 133  # Expy: 133 / Psychopy: 63
 
-# sessions_dic = {'allses': 'All Sessions',
-#                 'ses-01': 'Session 1',
-#                 'ses-02': 'Session 2',
-#                 'ses-03': 'Session 3',
-#                 'ses-04': 'Session 4',
-#                 'ses-05': 'Session 5',
-#                 'behavses': 'Behavioral Sessions',
-#                 'behavses12': 'Behavioral Sessions',
-#                 'behavses13': 'Behavioral Sessions',
-#                 'behavses23': 'Behavioral Sessions',
-#                 'imgses': 'Imaging Sessions',
-#                 'imgses_ntfd': 'Imaging Sessions'}
+# sessions_dic = {
+#     'allses': 'All Sessions',
+#     'ses-01': 'Session 1',
+#     'ses-02': 'Session 2',
+#     'ses-03': 'Session 3',
+#     'ses-04': 'Session 4',
+#     'ses-05': 'Session 5',
+#     'behavses': 'Behavioral Sessions',
+#     # 'behavses12': 'Behavioral Sessions',
+#     # 'behavses13': 'Behavioral Sessions',
+#     # 'behavses23': 'Behavioral Sessions',
+#     'imgses': 'Imaging Sessions',
+#     # 'imgses_ntfd': 'Imaging Sessions'
+# }
 
-# subjects_dic = {'allses': BEHAVIMG_RAND_SUBJECTS,
-#                 'ses-01': BEHAV_RAND_SUBJECTS,
-#                 'ses-02': BEHAV_RAND_SUBJECTS,
-#                 'ses-03': BEHAV_RAND_SUBJECTS,
-#                 'ses-04': IMG_SUBJECTS,
-#                 'ses-05': IMG_SUBJECTS,
-#                 'behavses': BEHAVIMG_RAND_SUBJECTS,
-#                 'behavses12': BEHAVIMG_RAND_SUBJECTS,
-#                 'behavses13': BEHAVIMG_RAND_SUBJECTS,
-#                 'behavses23': BEHAVIMG_RAND_SUBJECTS,
-#                 'imgses': BEHAVIMG_RAND_SUBJECTS,
-#                 'imgses_ntfd': BEHAVIMG_RAND_SUBJECTS}
+# subjects_dic = {
+#     'allses': BEHAVIMG_RAND_SUBJECTS,
+#     'ses-01': BEHAV_RAND_SUBJECTS,
+#     'ses-02': BEHAV_RAND_SUBJECTS,
+#     'ses-03': BEHAV_RAND_SUBJECTS,
+#     'ses-04': IMG_SUBJECTS,
+#     'ses-05': IMG_SUBJECTS,
+#     'behavses': BEHAVIMG_RAND_SUBJECTS,
+#     # 'behavses12': BEHAVIMG_RAND_SUBJECTS,
+#     # 'behavses13': BEHAVIMG_RAND_SUBJECTS,
+#     # 'behavses23': BEHAVIMG_RAND_SUBJECTS,
+#     'imgses': BEHAVIMG_RAND_SUBJECTS,
+#     # 'imgses_ntfd': BEHAVIMG_RAND_SUBJECTS
+# }
 
 # RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results_first_batch')
 
@@ -241,6 +264,12 @@ RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results_second_batch')
 
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
 PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'rt_and_success')
+
+# Plot annotation options.
+# Use 'star' for significance stars, 'simple' for p-values, or
+# 'full' for the verbose statannotations format.
+ANNOTATION_TEXT_FORMAT = 'full'
+HIDE_NON_SIGNIFICANT = False
 
 # %%
 # ============================ RUN =====================================
@@ -436,7 +465,9 @@ if __name__ == "__main__":
                         rt_title, PLOTS_FOLDER, rt_fname,
                         pval_rt_abi,
                         pval_rt_vbi,
-                        norand=True, loc='inside')
+                        norand=True, loc='inside',
+                        annotation_text_format=ANNOTATION_TEXT_FORMAT,
+                        hide_non_significant=HIDE_NON_SIGNIFICANT)
             plot_pttest(np.multiply(score_audio, 100).tolist(),
                         np.multiply(score_visual, 100).tolist(),
                         'Group Mean Score (%)',
@@ -444,6 +475,8 @@ if __name__ == "__main__":
                         pval_score_abi,
                         pval_score_vbi,
                         norand=True, loc='outside',
+                        annotation_text_format=ANNOTATION_TEXT_FORMAT,
+                        hide_non_significant=HIDE_NON_SIGNIFICANT,
                         y_bounds=(0, 100))
         else:
             plot_pttest(rt_audio,
@@ -454,7 +487,9 @@ if __name__ == "__main__":
                         pval_audio_br=pval_rt_abr,
                         pval_audio_ir=pval_rt_air,
                         pval_visual_br=pval_rt_vbr,
-                        pval_visual_ir=pval_rt_vir, loc='inside')
+                        pval_visual_ir=pval_rt_vir, loc='inside',
+                        annotation_text_format=ANNOTATION_TEXT_FORMAT,
+                        hide_non_significant=HIDE_NON_SIGNIFICANT)
             plot_pttest(
                         np.multiply(score_audio, 100).tolist(),
                         np.multiply(score_visual, 100).tolist(),
@@ -465,4 +500,6 @@ if __name__ == "__main__":
                         pval_audio_ir=pval_score_air,
                         pval_visual_br=pval_score_vbr,
                         pval_visual_ir=pval_score_vir, loc='outside',
+                        annotation_text_format=ANNOTATION_TEXT_FORMAT,
+                        hide_non_significant=HIDE_NON_SIGNIFICANT,
                         y_bounds=(70, 100))

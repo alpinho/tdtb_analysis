@@ -133,17 +133,18 @@ IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
                 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49, 50, 51, 52]
+SB_SUBJECTS = [48, 49, 50, 51, 52, 53]
 
 # #######################################################################
 
-sessions_dic = {'allses': 'All Sessions',
-                'ses-01': 'Session 1',
-                'ses-02': 'Session 2',
-                'ses-03': 'Session 3',
-                'ses-04': 'Session 4',
-                'ses-05': 'Session 5'
-                }
+sessions_dic = {
+    'allses': 'All Sessions',
+    'ses-01': 'Session 1',
+    'ses-02': 'Session 2',
+    'ses-03': 'Session 3',
+    'ses-04': 'Session 4',
+    'ses-05': 'Session 5',
+}
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 

@@ -419,10 +419,13 @@ def individual_perception(
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
-    plt.savefig(os.path.join(
-        this_dir, output_folder,
-        'individual_psychometric_' + condition + '_' + estimator + '_' +
-        sesstag + '.pdf'))
+    plt.savefig(
+        os.path.join(
+            this_dir, output_folder,
+            'individual_psychometric_' + condition + '_' + estimator + '_' +
+            sesstag + '.png'),
+        dpi=150,
+        bbox_inches='tight')
 
     plt.close('all')
 
@@ -599,10 +602,13 @@ def group_perception(all_rf1_audio, all_rf2_audio,
         os.mkdir(output_folder)
 
     # Save figure
-    plt.savefig(os.path.join(
-        output_folder,
-        'group_psychometric_' + condition + '_' + estimator + '_' + sesstag + \
-        '.pdf'))
+    plt.savefig(
+        os.path.join(
+            output_folder,
+            'group_psychometric_' + condition + '_' + estimator + '_' +
+            sesstag + '.png'),
+        dpi=300,
+        bbox_inches='tight')
 
     plt.close('all')
 
@@ -687,9 +693,12 @@ def plotfit_perception(x, y, estimator, output_dir, sesstag,
     output_folder = os.path.join(output_dir, 'pse')
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
-    plt.savefig(os.path.join(
-        output_folder,
-        'pse-vs-standard_' + estimator + '_' + sesstag + '.pdf'))
+    plt.savefig(
+        os.path.join(
+            output_folder,
+            'pse-vs-standard_' + estimator + '_' + sesstag + '.png'),
+        dpi=300,
+        bbox_inches='tight')
 
     plt.close('all')
 
@@ -883,8 +892,11 @@ def twoway_repanova(df, output_dir, sesstag, min_valid_standards,
 
         fig.text(.435, .025, 'Conditions', size=14)
 
-    plt.savefig(os.path.join(output_folder,
-                             'twoway_boxplot_' + sesstag + '.pdf'))
+    plt.savefig(
+        os.path.join(output_folder,
+                     'twoway_boxplot_' + sesstag + '.png'),
+        dpi=300,
+        bbox_inches='tight')
 
 
 # %%
@@ -911,23 +923,25 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49, 50, 51, 52]
+SB_SUBJECTS = [48, 49, 50, 51, 52, 53]
 
 # #######################################################################
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
 
-sessions_dic = {'allses': 'All Sessions',
-                'behavses': 'All Behavioral Sessions',
-                'imgses': 'All Imaging Sessions',
-                'ses-01': 'Session 1',
-                'ses-02': 'Session 2',
-                'ses-03': 'Session 3',
-                'ses-04': 'Session 4',
-                'ses-05': 'Session 5',
-                'behav12': 'Sessions 1 and 2',
-                'behav13': 'Sessions 1 and 3',
-                'behav23': 'Sessions 2 and 3'}
+sessions_dic = {
+    'allses': 'All Sessions',
+    'behavses': 'All Behavioral Sessions',
+    'imgses': 'All Imaging Sessions',
+    'ses-01': 'Session 1',
+    'ses-02': 'Session 2',
+    'ses-03': 'Session 3',
+    'ses-04': 'Session 4',
+    'ses-05': 'Session 5',
+    'behav12': 'Sessions 1 and 2',
+    'behav13': 'Sessions 1 and 3',
+    'behav23': 'Sessions 2 and 3',
+}
 
 N_TRIALS = 30
 
@@ -946,10 +960,10 @@ MIN_VALID_STANDARDS = 0
 # SESSIONS = [1, 2, 3]
 # tag = 'behavses'
 
-# # ### For 'All Imaging Sessionss' ###
-# SUBJECTS = BEHAVIMG_RAND_SUBJECTS
-# SESSIONS = [4, 5]
-# tag = 'imgses'
+# # ### For 'All Imaging Sessions' ###
+SUBJECTS = IMG_SUBJECTS
+SESSIONS = [4, 5]
+tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
 SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
