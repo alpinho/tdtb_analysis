@@ -495,7 +495,11 @@ t_threshold = 3.385
 working_dir = os.path.dirname(os.path.abspath(__file__))
 atlases_dir = os.path.join(working_dir, 'atlases')
 fsl_dir = os.path.join(atlases_dir, 'fsl_atlases')
-atag_dir = os.path.join(atlases_dir, 'atag_atlas')
+
+fsl_dstr_dir = os.path.join(fsl_dir, 'dstr')
+fsl_ac_dir = os.path.join(fsl_dir, 'auditory_cortex')
+fsl_vc_dir = os.path.join(fsl_dir, 'visual_cortex')
+
 ntk_dir = os.path.join(atlases_dir, 'nettekoven_atlas')
 hmat_dir = os.path.join(atlases_dir, 'hmat_atlas')
 roi_dir = os.path.join(
@@ -505,30 +509,37 @@ roi_dir = os.path.join(
 contrast_type = 'wbmasked'  # or 'sm8wbmasked'
 
 # All ROIs: 10 ROIs
-atlas_dirnames = [fsl_dir,
-                  ntk_dir, ntk_dir, ntk_dir,
-                  hmat_dir, hmat_dir, hmat_dir, hmat_dir,
-                  fsl_dir,
-                  fsl_dir]
+atlas_dirnames = [
+    fsl_dstr_dir,
+    # ntk_dir, ntk_dir, ntk_dir,
+    # hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+    fsl_ac_dir,
+    fsl_vc_dir
+]
 
-atlas_names = ['hos',
-               'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-               'hmat', 'hmat', 'hmat', 'hmat',
-               'hos', 
-               'hos']
+atlas_names = [
+    'hos',
+    # 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+    # 'hmat', 'hmat', 'hmat', 'hmat',
+    'hos',
+    'hos'
+]
 
-region_names = ['dorsal_striatum',
-                'cerebellum', 'cerebellum', 'cerebellum',
-                'motor_area', 'motor_area', 'motor_area', 'motor_area', 
-                'heschl_gyrus', 
-                'occipital_lobe']
+region_names = [
+    'dorsal_striatum',
+    # 'cerebellum', 'cerebellum', 'cerebellum',
+    # 'motor_area', 'motor_area', 'motor_area', 'motor_area', 
+    'auditory_cortex',
+    'visual_cortex'
+]
 
-roi_names = ['dstr',
-             'cereb-s', 'cereb-i', 'cereb',
-             'pmd', 'pmv', 'sma', 'presma',
-             'heschl',
-             'occipital']
-
+roi_names = [
+    'dstr',
+    # 'cereb-s', 'cereb-i', 'cereb',
+    # 'pmd', 'pmv', 'sma', 'presma',
+    'auditory_cortex',
+    'visual_cortex'
+]
 
 # Weights (individual, group) via two-vector average
 weights_list = [
