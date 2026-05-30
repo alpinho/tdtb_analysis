@@ -191,7 +191,7 @@ N_TRIALS = 30
 
 AUDIO_LATENCY = 0  # Expy: 133 / Psychopy: 63
 VISUAL_LATENCY = 0  # Expy: 35
-BUTTON_PRESS = 0 # 20
+BUTTON_PRESS = 0  # 20
 
 # ### For 'All Sessions' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -204,6 +204,12 @@ BUTTON_PRESS = 0 # 20
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = None
 # tag = 'behavses'
+
+# ### For 'All Imaging Sessions' ###
+# SUBJECTS = IMG_SUBJECTS
+# SESSTYPES = ['imaging_session']
+# SESSIONS = None
+# tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
 SUBJECTS = SB_SUBJECTS  # GOOD_SUBJECTS / SB_SUBJECTS
@@ -234,6 +240,27 @@ tag = SESSIONS[0]
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-02']
 # tag = 'ses-05'
+
+# ### For first and second behav sessions: ###
+# 'ses-01' and 'ses-02' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01', 'ses-02']
+# tag = 'behav12'
+
+# ### For first and third behav sessions: ###
+# 'ses-01' and 'ses-03' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01', 'ses-03']
+# tag = 'behav13'
+
+# ### For second and third behav sessions: ###
+# 'ses-02' and 'ses-03' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-02', 'ses-03']
+# tag = 'behav23'
 
 # %%
 # ========================= PARAMETERS =================================
