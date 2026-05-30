@@ -365,7 +365,8 @@ SUBJECTS = [
 task_roidef = 'All Main Tasks' # use 'All Main Tasks' (others might give an error)
 
 # Tasks to extract from
-tasks_roiextract_vals = ['Production', 'Perception', 'NTFD', 'All Main Tasks']
+# tasks_roiextract_vals = ['Production', 'Perception', 'NTFD', 'All Main Tasks']
+tasks_roiextract_vals = ['NTFD Random']
 
 # ============================ PARAMETERS =============================
 
