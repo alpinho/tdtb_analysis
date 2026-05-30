@@ -227,10 +227,10 @@ N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) -->
 # tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
-SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
-SESSTYPES = ['behavioral_session']
-SESSIONS = ['ses-01']
-tag = SESSIONS[0]
+# SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01']
+# tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -255,6 +255,27 @@ tag = SESSIONS[0]
 # SESSTYPES = ['imaging_session']
 # SESSIONS = ['ses-02']
 # tag = 'ses-05'
+
+# ### For first and second behav sessions: ###
+# ### 'ses-01' and 'ses-02' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01', 'ses-02']
+# tag = 'behav12'
+
+# ### For first and third behav sessions: ###
+# ### 'ses-01' and 'ses-03' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01', 'ses-03']
+# tag = 'behav13'
+
+# ### For second and third behav sessions: ###
+# ### 'ses-02' and 'ses-03' ###
+SUBJECTS = GOOD_SUBJECTS
+SESSTYPES = ['behavioral_session']
+SESSIONS = ['ses-02', 'ses-03']
+tag = 'behav23'
 
 
 # %%

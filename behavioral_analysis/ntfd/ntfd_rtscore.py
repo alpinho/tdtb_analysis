@@ -11,7 +11,6 @@ Compatibility: Python 3.10.14
 """
 
 import os
-import sys
 import warnings
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -185,85 +184,171 @@ def plot_pttest(data_audio, data_visual,
         bbox_inches='tight')
 
 
+def condition_arrays(df, modality, conditions, value_col):
+    """Return subject-aligned arrays for one modality and value column."""
+    sub_df = df[
+        (df['modality'] == modality) &
+        (df['condition'].isin(conditions))
+    ].copy()
+
+    wide = sub_df.pivot(
+        index='subject',
+        columns='condition',
+        values=value_col,
+    )
+
+    available = [cond for cond in conditions if cond in wide.columns]
+    if len(available) != len(conditions):
+        return [np.array([]) for _ in conditions]
+
+    wide = wide.dropna(subset=conditions).sort_index()
+    return [wide[cond].to_numpy() for cond in conditions]
+
+
+def paired_pvalue(values_a, values_b):
+    """Return paired t-test p-value, or NaN when n < 2."""
+    if len(values_a) < 2 or len(values_b) < 2:
+        return np.nan
+
+    _, p_value = stats.ttest_rel(
+        values_a,
+        values_b,
+        alternative='two-sided',
+    )
+    return p_value
+
+
+def flatten_arrays(arrays):
+    """Flatten a list of condition arrays preserving condition order."""
+    return [value for array in arrays for value in array.tolist()]
+
+
+def has_random_condition(df):
+    """Return True when random trials exist for both modalities."""
+    random_df = df[df['condition'] == 'random']
+    modalities = set(random_df['modality'].unique())
+    return {'auditory', 'visual'}.issubset(modalities)
+
 # %%
 # ========================== INPUTS ====================================
 
-SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-            18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32,
-            34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+# All good subjects including img pilot (sub-04)
+GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32,
+                 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# Excludes subjects 4, 5, and 9 from GOOD_SUBJECTS.
 RAND_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
                  20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32, 34,
                  35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# Imaging subjects only, without the pilot subject.
 IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21,
                 22, 23, 26, 28, 29, 32, 34, 35, 38, 39, 40, 41,
                 42, 43, 44, 45, 46, 47]
 
+# Subjects who completed behavioral sessions with the random condition.
 BEHAV_RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
                        26, 27, 28, 29, 32, 34, 35, 38, 39, 40,
                        41, 42, 43, 44, 45, 46, 47]
 
-BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32,
-                          34, 35, 38, 39, 40, 41, 42, 43, 44, 45,
-                          46, 47]
-
-# Second batch
+# Second batch.
 SB_SUBJECTS = [48, 49, 50, 51, 52, 53]
 
 # #####################################################################
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
-visual_latency = 35  # Expy: 35
-button_press = 20  # 20
-
 # #### First Batch ####
 
-# audio_latency = 133  # Expy: 133 / Psychopy: 63
+fb_sessions_dic = {
+    'allses': 'All Sessions',
+    'behavses': 'Behavioral Sessions',
+    'imgses': 'Imaging Sessions',
+    'ses-01': 'Session 1',
+    'ses-02': 'Session 2',
+    'ses-03': 'Session 3',
+    'ses-04': 'Session 4',
+    'ses-05': 'Session 5',
+    'behav12': 'Behavioral Sessions 1 and 2',
+    'behav13': 'Behavioral Sessions 1 and 3',
+    'behav23': 'Behavioral Sessions 2 and 3',
+}
 
-# sessions_dic = {
-#     'allses': 'All Sessions',
-#     'ses-01': 'Session 1',
-#     'ses-02': 'Session 2',
-#     'ses-03': 'Session 3',
-#     'ses-04': 'Session 4',
-#     'ses-05': 'Session 5',
-#     'behavses': 'Behavioral Sessions',
-#     # 'behavses12': 'Behavioral Sessions',
-#     # 'behavses13': 'Behavioral Sessions',
-#     # 'behavses23': 'Behavioral Sessions',
-#     'imgses': 'Imaging Sessions',
-#     # 'imgses_ntfd': 'Imaging Sessions'
-# }
-
-# subjects_dic = {
-#     'allses': BEHAVIMG_RAND_SUBJECTS,
-#     'ses-01': BEHAV_RAND_SUBJECTS,
-#     'ses-02': BEHAV_RAND_SUBJECTS,
-#     'ses-03': BEHAV_RAND_SUBJECTS,
-#     'ses-04': IMG_SUBJECTS,
-#     'ses-05': IMG_SUBJECTS,
-#     'behavses': BEHAVIMG_RAND_SUBJECTS,
-#     # 'behavses12': BEHAVIMG_RAND_SUBJECTS,
-#     # 'behavses13': BEHAVIMG_RAND_SUBJECTS,
-#     # 'behavses23': BEHAVIMG_RAND_SUBJECTS,
-#     'imgses': BEHAVIMG_RAND_SUBJECTS,
-#     # 'imgses_ntfd': BEHAVIMG_RAND_SUBJECTS
-# }
-
-# RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results_first_batch')
+fb_subjects_dic = {
+    'allses': RAND_SUBJECTS,
+    'behavses': BEHAV_RAND_SUBJECTS,
+    'imgses': IMG_SUBJECTS,
+    'ses-01': BEHAV_RAND_SUBJECTS,
+    'ses-02': BEHAV_RAND_SUBJECTS,
+    'ses-03': BEHAV_RAND_SUBJECTS,
+    'ses-04': IMG_SUBJECTS,
+    'ses-05': IMG_SUBJECTS,
+    'behav12': BEHAV_RAND_SUBJECTS,
+    'behav13': BEHAV_RAND_SUBJECTS,
+    'behav23': BEHAV_RAND_SUBJECTS,
+}
 
 # #### Second Batch ####
-audio_latency = 63  # Expy: 133 / Psychopy: 63
-sessions_dic = {'ses-01': 'Session 1'}
-subjects_dic = {'ses-01': SB_SUBJECTS}
-RESULTS_FOLDER = os.path.join(MAIN_DIR, 'ntfd_results_second_batch')
 
-# #####################################################################
+sb_sessions_dic = {
+    'ses-01': 'Session 1',
+}
 
-DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
-PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'rt_and_success')
+sb_subjects_dic = {
+    'ses-01': SB_SUBJECTS,
+}
+
+# #### Map tag -> integer session list ####
+
+sessions_list_dic = {
+    'allses': [1, 2, 3, 4, 5],
+    'behavses': [1, 2, 3],
+    'imgses': [4, 5],
+    'ses-01': [1],
+    'ses-02': [2],
+    'ses-03': [3],
+    'ses-04': [4],
+    'ses-05': [5],
+    'behav12': [1, 2],
+    'behav13': [1, 3],
+    'behav23': [2, 3],
+}
+
+# #### Batch configurations ####
+
+# Reaction times are always latency-corrected in this script.
+# First batch: Expyriment auditory latency.
+# Second batch: PsychoPy auditory latency.
+
+fb_audio_latency = 133
+sb_audio_latency = 63
+visual_latency = 35
+button_press = 20
+
+# Keep this list explicit so each batch can be run one at a time
+# by commenting out any entry if needed.
+# BATCHES_TO_RUN = ['first', 'second']
+BATCHES_TO_RUN = ['second']
+
+batch_dic = {
+    'first': {
+        'sessions': fb_sessions_dic,
+        'subjects': fb_subjects_dic,
+        'audio_latency': fb_audio_latency,
+        'visual_latency': visual_latency,
+        'button_press': button_press,
+        'results_folder': os.path.join(MAIN_DIR, 'ntfd_results_first_batch'),
+    },
+    'second': {
+        'sessions': sb_sessions_dic,
+        'subjects': sb_subjects_dic,
+        'audio_latency': sb_audio_latency,
+        'visual_latency': visual_latency,
+        'button_press': button_press,
+        'results_folder': os.path.join(MAIN_DIR, 'ntfd_results_second_batch'),
+    },
+}
 
 # Plot annotation options.
 # Use 'star' for significance stars, 'simple' for p-values, or
@@ -271,235 +356,172 @@ PLOTS_FOLDER = os.path.join(RESULTS_FOLDER, 'rt_and_success')
 ANNOTATION_TEXT_FORMAT = 'full'
 HIDE_NON_SIGNIFICANT = False
 
+
 # %%
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
 
-    for key, value in sessions_dic.items():
+    for batch_tag in BATCHES_TO_RUN:
+        batch_info = batch_dic[batch_tag]
+        sessions_dic = batch_info['sessions']
+        subjects_dic = batch_info['subjects']
+        audio_latency = batch_info['audio_latency']
+        visual_latency = batch_info['visual_latency']
+        button_press = batch_info['button_press']
+        results_folder = batch_info['results_folder']
+        dataframes_folder = os.path.join(results_folder, 'dataframes')
+        plots_folder = os.path.join(results_folder, 'rt_and_success')
 
-        if key == 'allses':
-            sessions_list = [1, 2, 3, 4, 5]
-        elif key == 'ses-01':
-            sessions_list = [1]
-        elif key == 'ses-02':
-            sessions_list = [2]
-        elif key == 'ses-03':
-            sessions_list = [3]
-        elif key == 'ses-04':
-            sessions_list = [4]
-        elif key == 'ses-05':
-            sessions_list = [5]
-        elif key == 'behavses':
-            sessions_list = [1, 2, 3]
-        elif key == 'behavses12':
-            sessions_list = [1, 2]
-        elif key == 'behavses13':
-            sessions_list = [1, 3]
-        elif key == 'behavses23':
-            sessions_list = [2, 3]
-        else:
-            assert key in ['imgses', 'imgses_ntfd']
-            sessions_list = [4, 5]
+        print('\n' + '=' * 60)
+        print(f'Batch: {batch_tag}')
+        print(
+            'Latencies: '
+            f'audio={audio_latency}, visual={visual_latency}, '
+            f'button={button_press}')
+        print(f'Results folder: {results_folder}')
+        print('=' * 60)
 
-        db_path = os.path.join(DATAFRAMES_FOLDER, f'df_ntfd_{key}.tsv')
-        db = pd.read_csv(db_path, sep='\t')
+        for key, value in sessions_dic.items():
+            sessions_list = sessions_list_dic[key]
 
-        df_subfiltered = db[db['subject'].isin(subjects_dic[key])]
-        df = df_subfiltered[df_subfiltered['session'].isin(sessions_list)]
+            print(f'\nSession tag: {key}  |  {value}')
 
-        if key == 'imgses_ntfd':
-            df = df[df['task'] == 'NTFD']
+            db_path = os.path.join(dataframes_folder, f'df_ntfd_{key}.tsv')
+            if not os.path.exists(db_path):
+                raise FileNotFoundError(
+                    'Could not find NTFD dataframe for tag ' + key +
+                    ' in ' + dataframes_folder)
 
-        df = df.dropna(subset=['reaction_time'])
-        df = df.drop(columns=['answer'])
+            db = pd.read_csv(db_path, sep='\t')
 
-        df['reaction_time'] = df['reaction_time'].astype(float)
-        df.loc[df['modality'] == 'auditory', 'reaction_time'] -= (
-            audio_latency + button_press)
-        df.loc[df['modality'] == 'visual', 'reaction_time'] -= (
-            visual_latency + button_press)
+            df_subfiltered = db[db['subject'].isin(subjects_dic[key])]
+            df = df_subfiltered[
+                df_subfiltered['session'].isin(sessions_list)]
 
-        df_ffx = ffx_dvar(df)
-        n_subjects = df_ffx['subject'].nunique()
+            df = df.dropna(subset=['reaction_time'])
+            df = df.drop(columns=['answer'])
 
-        if n_subjects < 2:
-            print(
-                'Skipping group statistics and plotting for ' + key +
-                ': at least 2 subjects are required; found ' +
-                str(n_subjects) + '.'
-            )
-            continue
+            df['reaction_time'] = df['reaction_time'].astype(float)
+            df.loc[df['modality'] == 'auditory', 'reaction_time'] -= (
+                audio_latency + button_press)
+            df.loc[df['modality'] == 'visual', 'reaction_time'] -= (
+                visual_latency + button_press)
 
-        rt_ab = (
-            df_ffx[df_ffx.modality == 'auditory']
-                  [df_ffx.condition == 'beat']
-            .reaction_time
-            .values
-        )
-        rt_ai = (
-            df_ffx[df_ffx.modality == 'auditory']
-                  [df_ffx.condition == 'interval']
-            .reaction_time
-            .values
-        )
-        rt_ar = (
-            df_ffx[df_ffx.modality == 'auditory']
-                  [df_ffx.condition == 'random']
-            .reaction_time
-            .values
-        )
-        rt_vb = (
-            df_ffx[df_ffx.modality == 'visual']
-                  [df_ffx.condition == 'beat']
-            .reaction_time
-            .values
-        )
-        rt_vi = (
-            df_ffx[df_ffx.modality == 'visual']
-                  [df_ffx.condition == 'interval']
-            .reaction_time
-            .values
-        )
-        rt_vr = (
-            df_ffx[df_ffx.modality == 'visual']
-                  [df_ffx.condition == 'random']
-            .reaction_time
-            .values
-        )
+            df_ffx = ffx_dvar(df)
+            has_random = has_random_condition(df_ffx)
+            conditions = ['beat', 'interval']
+            if has_random:
+                conditions.append('random')
 
-        score_ab = (
-            df_ffx[df_ffx.modality == 'auditory']
-                  [df_ffx.condition == 'beat']
-            .score
-            .values
-        )
-        score_ai = (
-            df_ffx[df_ffx.modality == 'auditory']
-                  [df_ffx.condition == 'interval']
-            .score
-            .values
-        )
-        score_ar = (
-            df_ffx[df_ffx.modality == 'auditory']
-                  [df_ffx.condition == 'random']
-            .score
-            .values
-        )
-        score_vb = (
-            df_ffx[df_ffx.modality == 'visual']
-                  [df_ffx.condition == 'beat']
-            .score
-            .values
-        )
-        score_vi = (
-            df_ffx[df_ffx.modality == 'visual']
-                  [df_ffx.condition == 'interval']
-            .score
-            .values
-        )
-        score_vr = (
-            df_ffx[df_ffx.modality == 'visual']
-                  [df_ffx.condition == 'random']
-            .score
-            .values
-        )
+            rt_audio_arrays = condition_arrays(
+                df_ffx, 'auditory', conditions, 'reaction_time')
+            rt_visual_arrays = condition_arrays(
+                df_ffx, 'visual', conditions, 'reaction_time')
+            score_audio_arrays = condition_arrays(
+                df_ffx, 'auditory', conditions, 'score')
+            score_visual_arrays = condition_arrays(
+                df_ffx, 'visual', conditions, 'score')
 
-        if key in ['ses-04', 'imgses_ntfd']:
-            rt_audio = rt_ab.tolist() + rt_ai.tolist()
-            rt_visual = rt_vb.tolist() + rt_vi.tolist()
+            n_audio = len(rt_audio_arrays[0])
+            n_visual = len(rt_visual_arrays[0])
+            if n_audio < 2 or n_visual < 2:
+                print(
+                    'Skipping group statistics and plotting for ' +
+                    key + ': at least 2 complete subjects are required; '
+                    f'found auditory={n_audio}, visual={n_visual}.')
+                continue
 
-            score_audio = score_ab.tolist() + score_ai.tolist()
-            score_visual = score_vb.tolist() + score_vi.tolist()
-        else:
-            rt_audio = rt_ab.tolist() + rt_ai.tolist() + rt_ar.tolist()
-            rt_visual = rt_vb.tolist() + rt_vi.tolist() + rt_vr.tolist()
+            rt_ab, rt_ai = rt_audio_arrays[0], rt_audio_arrays[1]
+            rt_vb, rt_vi = rt_visual_arrays[0], rt_visual_arrays[1]
+            score_ab = score_audio_arrays[0]
+            score_ai = score_audio_arrays[1]
+            score_vb = score_visual_arrays[0]
+            score_vi = score_visual_arrays[1]
 
-            score_audio = score_ab.tolist() + score_ai.tolist() + \
-                score_ar.tolist()
-            score_visual = score_vb.tolist() + score_vi.tolist() + \
-                score_vr.tolist()
+            rt_audio = flatten_arrays(rt_audio_arrays)
+            rt_visual = flatten_arrays(rt_visual_arrays)
+            score_audio = flatten_arrays(score_audio_arrays)
+            score_visual = flatten_arrays(score_visual_arrays)
 
-        _, pval_rt_abi = stats.ttest_rel(rt_ab, rt_ai,
-                                         alternative='two-sided')
-        _, pval_rt_vbi = stats.ttest_rel(rt_vb, rt_vi,
-                                         alternative='two-sided')
+            pval_rt_abi = paired_pvalue(rt_ab, rt_ai)
+            pval_rt_vbi = paired_pvalue(rt_vb, rt_vi)
+            pval_score_abi = paired_pvalue(score_ab, score_ai)
+            pval_score_vbi = paired_pvalue(score_vb, score_vi)
 
-        _, pval_score_abi = stats.ttest_rel(score_ab, score_ai,
-                                            alternative='two-sided')
-        _, pval_score_vbi = stats.ttest_rel(score_vb, score_vi,
-                                            alternative='two-sided')
+            if has_random:
+                rt_ar = rt_audio_arrays[2]
+                rt_vr = rt_visual_arrays[2]
+                score_ar = score_audio_arrays[2]
+                score_vr = score_visual_arrays[2]
 
-        if key not in ['ses-04', 'imgses_ntfd']:
-            _, pval_rt_abr = stats.ttest_rel(rt_ab, rt_ar,
-                                             alternative='two-sided')
-            _, pval_rt_air = stats.ttest_rel(rt_ai, rt_ar,
-                                             alternative='two-sided')
-            _, pval_rt_vbr = stats.ttest_rel(rt_vb, rt_vr,
-                                             alternative='two-sided')
-            _, pval_rt_vir = stats.ttest_rel(rt_vi, rt_vr,
-                                             alternative='two-sided')
+                pval_rt_abr = paired_pvalue(rt_ab, rt_ar)
+                pval_rt_air = paired_pvalue(rt_ai, rt_ar)
+                pval_rt_vbr = paired_pvalue(rt_vb, rt_vr)
+                pval_rt_vir = paired_pvalue(rt_vi, rt_vr)
 
-            _, pval_score_abr = stats.ttest_rel(score_ab, score_ar,
-                                                alternative='two-sided')
-            _, pval_score_air = stats.ttest_rel(score_ai, score_ar,
-                                                alternative='two-sided')
-            _, pval_score_vbr = stats.ttest_rel(score_vb, score_vr,
-                                                alternative='two-sided')
-            _, pval_score_vir = stats.ttest_rel(score_vi, score_vr,
-                                                alternative='two-sided')
+                pval_score_abr = paired_pvalue(score_ab, score_ar)
+                pval_score_air = paired_pvalue(score_ai, score_ar)
+                pval_score_vbr = paired_pvalue(score_vb, score_vr)
+                pval_score_vir = paired_pvalue(score_vi, score_vr)
 
-        if not os.path.exists(PLOTS_FOLDER):
-            os.mkdir(PLOTS_FOLDER)
+            if not os.path.exists(plots_folder):
+                os.makedirs(plots_folder)
 
-        rt_title = 'Group Mean of Reaction Time for the NTFD tasks: ' + value
-        rt_fname = 'group_rt_ntfd_' + key
-        score_title = \
-            'Group Mean of the Success Rate for the NTFD tasks: ' + value
-        score_fname = 'group_scores_ntfd_' + key
+            rt_title = (
+                'Group Mean of Reaction Time for the NTFD tasks: ' +
+                value)
+            rt_fname = 'group_rt_ntfd_' + key
+            score_title = (
+                'Group Mean of the Success Rate for the NTFD tasks: ' +
+                value)
+            score_fname = 'group_scores_ntfd_' + key
 
-        if key in ['ses-04', 'imgses_ntfd']:
-            plot_pttest(rt_audio,
-                        rt_visual,
-                        'Reaction Time (ms)',
-                        rt_title, PLOTS_FOLDER, rt_fname,
-                        pval_rt_abi,
-                        pval_rt_vbi,
-                        norand=True, loc='inside',
-                        annotation_text_format=ANNOTATION_TEXT_FORMAT,
-                        hide_non_significant=HIDE_NON_SIGNIFICANT)
-            plot_pttest(np.multiply(score_audio, 100).tolist(),
-                        np.multiply(score_visual, 100).tolist(),
-                        'Group Mean Score (%)',
-                        score_title, PLOTS_FOLDER, score_fname,
-                        pval_score_abi,
-                        pval_score_vbi,
-                        norand=True, loc='outside',
-                        annotation_text_format=ANNOTATION_TEXT_FORMAT,
-                        hide_non_significant=HIDE_NON_SIGNIFICANT,
-                        y_bounds=(0, 100))
-        else:
-            plot_pttest(rt_audio,
-                        rt_visual,
-                        'Reaction Time (ms)',
-                        rt_title, PLOTS_FOLDER, rt_fname,
-                        pval_rt_abi, pval_rt_vbi,
-                        pval_audio_br=pval_rt_abr,
-                        pval_audio_ir=pval_rt_air,
-                        pval_visual_br=pval_rt_vbr,
-                        pval_visual_ir=pval_rt_vir, loc='inside',
-                        annotation_text_format=ANNOTATION_TEXT_FORMAT,
-                        hide_non_significant=HIDE_NON_SIGNIFICANT)
-            plot_pttest(
-                        np.multiply(score_audio, 100).tolist(),
-                        np.multiply(score_visual, 100).tolist(),
-                        'Group Mean Score (%)',
-                        score_title, PLOTS_FOLDER, score_fname,
-                        pval_score_abi, pval_score_vbi,
-                        pval_audio_br=pval_score_abr,
-                        pval_audio_ir=pval_score_air,
-                        pval_visual_br=pval_score_vbr,
-                        pval_visual_ir=pval_score_vir, loc='outside',
-                        annotation_text_format=ANNOTATION_TEXT_FORMAT,
-                        hide_non_significant=HIDE_NON_SIGNIFICANT,
-                        y_bounds=(70, 100))
+            if not has_random:
+                plot_pttest(
+                    rt_audio,
+                    rt_visual,
+                    'Reaction Time (ms)',
+                    rt_title, plots_folder, rt_fname,
+                    pval_rt_abi,
+                    pval_rt_vbi,
+                    norand=True, loc='inside',
+                    annotation_text_format=ANNOTATION_TEXT_FORMAT,
+                    hide_non_significant=HIDE_NON_SIGNIFICANT)
+                plot_pttest(
+                    np.multiply(score_audio, 100).tolist(),
+                    np.multiply(score_visual, 100).tolist(),
+                    'Group Mean Score (%)',
+                    score_title, plots_folder, score_fname,
+                    pval_score_abi,
+                    pval_score_vbi,
+                    norand=True, loc='outside',
+                    annotation_text_format=ANNOTATION_TEXT_FORMAT,
+                    hide_non_significant=HIDE_NON_SIGNIFICANT,
+                    y_bounds=(0, 100))
+            else:
+                plot_pttest(
+                    rt_audio,
+                    rt_visual,
+                    'Reaction Time (ms)',
+                    rt_title, plots_folder, rt_fname,
+                    pval_rt_abi, pval_rt_vbi,
+                    pval_audio_br=pval_rt_abr,
+                    pval_audio_ir=pval_rt_air,
+                    pval_visual_br=pval_rt_vbr,
+                    pval_visual_ir=pval_rt_vir, loc='inside',
+                    annotation_text_format=ANNOTATION_TEXT_FORMAT,
+                    hide_non_significant=HIDE_NON_SIGNIFICANT)
+                plot_pttest(
+                    np.multiply(score_audio, 100).tolist(),
+                    np.multiply(score_visual, 100).tolist(),
+                    'Group Mean Score (%)',
+                    score_title, plots_folder, score_fname,
+                    pval_score_abi, pval_score_vbi,
+                    pval_audio_br=pval_score_abr,
+                    pval_audio_ir=pval_score_air,
+                    pval_visual_br=pval_score_vbr,
+                    pval_visual_ir=pval_score_vir, loc='outside',
+                    annotation_text_format=ANNOTATION_TEXT_FORMAT,
+                    hide_non_significant=HIDE_NON_SIGNIFICANT,
+                    y_bounds=(70, 100))
