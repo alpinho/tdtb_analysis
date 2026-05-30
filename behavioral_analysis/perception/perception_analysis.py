@@ -30,7 +30,6 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # %%
 # ======================== MAIN FUNCTIONS ==============================
 
-
 def perception_data(data):
     trials = []
     for dt, datum in enumerate(data):
@@ -455,7 +454,6 @@ def individual_perception(
             all_pse_visual, all_dl_visual)
 
 
-
 def _fit_perception_estimates(beat_trials, interval_trials, condition,
                               fit_max_abs_pse, fit_max_dl, fit_min_dl,
                               estimator='mle_expit'):
@@ -498,8 +496,6 @@ def _fit_perception_estimates(beat_trials, interval_trials, condition,
         dl_values.append(dl)
 
     return standards, comparisons, pse_values, dl_values
-
-
 
 
 def _has_trial_pair(beat_trials, interval_trials):
@@ -626,7 +622,6 @@ def session_average_individual_estimates(
 
     return (reference_standards, reference_comparisons,
             all_pse_audio, all_dl_audio, all_pse_visual, all_dl_visual)
-
 
 
 def session_average_group_frequencies(
@@ -1083,7 +1078,6 @@ def dataframe(estim_pse, estim_dl, stand_numbers, output_dir, sesstag,
     df.to_csv(outpath, index=False, sep='\t')
 
     return df
-
 
 
 def _format_pval(p, style='stars', show_ns=True):
