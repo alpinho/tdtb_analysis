@@ -14,7 +14,6 @@ Compatibility: Python 3.10.14
 import os
 import warnings
 
-from music_sdtb.tdtb_analysis.behavioral_analysis.production.production_df import tag
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -26,6 +25,7 @@ from matplotlib import pyplot as plt
 
 # %%
 # ======================== MAIN FUNCTIONS ==============================
+
 
 def ffx_dvar(df, estimator='mean'):
     """Subject-level dependent variable for ANCOVA analyses."""
@@ -96,7 +96,6 @@ def wide_dataframe(df, output_folder, estimator_id, sesstag):
         output_folder, 'wide_df_production_' + estimator_id + '_' + sesstag +
         '.tsv')
     wdf.to_csv(wdf_outpath, index=False, sep='\t')
-
 
 
 def _fit_mixedlm(formula, df, group_col, re_formula=None):
@@ -305,7 +304,9 @@ def plot_ancova(x, y, yaxis_name, yname_pos, title,
 
     # --- Automatic y-limits: audio and visual share the same range --------
     # Flatten all data values across both modalities and all conditions
-    all_vals = [v for modality in y for condition in modality for v in condition]
+    all_vals = [
+        v for modality in y for condition in modality for v in condition
+    ]
     data_min, data_max = min(all_vals), max(all_vals)
     data_range = data_max - data_min if data_max != data_min else 1.0
     pad = data_range * 0.15
@@ -448,125 +449,184 @@ ANCOVA_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
 
 # #### First Batch ####
 
-# sessions_dic = {
-#     'allses': 'All Sessions',
-#     'ses-01': 'Session 1',
-#     'ses-02': 'Session 2',
-#     'ses-03': 'Session 3',
-#     'ses-04': 'Session 4',
-#     'ses-05': 'Session 5',
-#     'behavses': 'Behavioral Sessions',
-#     'behav12': 'Behavioral Sessions 1 and 2',
-#     'behav13': 'Behavioral Sessions 1 and 3',
-#     'behav23': 'Behavioral Sessions 2 and 3',
-#     'imgses': 'Imaging Sessions'
-# }
+fb_sessions_dic = {
+    'allses': 'All Sessions',
+    'behavses': 'Behavioral Sessions',
+    'imgses': 'Imaging Sessions',
+    'ses-01': 'Session 1',
+    'ses-02': 'Session 2',
+    'ses-03': 'Session 3',
+    'ses-04': 'Session 4',
+    'ses-05': 'Session 5',
+    'behav12': 'Behavioral Sessions 1 and 2',
+    'behav13': 'Behavioral Sessions 1 and 3',
+    'behav23': 'Behavioral Sessions 2 and 3',
+}
 
-# subjects_dic = {
-#     'allses': GOOD_SUBJECTS,
-#     'ses-01': GOOD_SUBJECTS,
-#     'ses-02': GOOD_SUBJECTS,
-#     'ses-03': GOOD_SUBJECTS,
-#     'ses-04': IMG_SUBJECTS,
-#     'ses-05': IMG_SUBJECTS,
-#     'behavses': GOOD_SUBJECTS,
-#     'behav12': GOOD_SUBJECTS,
-#     'behav13': GOOD_SUBJECTS,
-#     'behav23': GOOD_SUBJECTS,
-#     'imgses': IMG_SUBJECTS
-# }
-
-# db_fname = 'df_production_fb_133_35_20'
-# BATCH_FOLDER = 'first_batch_133_35_20'
+fb_subjects_dic = {
+    'allses': GOOD_SUBJECTS,
+    'behavses': GOOD_SUBJECTS,
+    'imgses': IMG_SUBJECTS,
+    'ses-01': GOOD_SUBJECTS,
+    'ses-02': GOOD_SUBJECTS,
+    'ses-03': GOOD_SUBJECTS,
+    'ses-04': IMG_SUBJECTS,
+    'ses-05': IMG_SUBJECTS,
+    'behav12': GOOD_SUBJECTS,
+    'behav13': GOOD_SUBJECTS,
+    'behav23': GOOD_SUBJECTS,
+}
 
 # #### Second Batch ####
-sessions_dic = {'ses-01': 'Session 1'}
-subjects_dic = {'ses-01': SB_SUBJECTS}
 
-db_fname = 'df_production_sb_63_35_20'
-BATCH_FOLDER = 'second_batch_63_35_20'
+sb_sessions_dic = {
+    'ses-01': 'Session 1',
+}
 
-# #####################################################################
+sb_subjects_dic = {
+    'ses-01': SB_SUBJECTS,
+}
 
-JASP_FOLDER = os.path.join(ANCOVA_FOLDER, BATCH_FOLDER, 'jasp')
-PLOTS_FOLDER = os.path.join(ANCOVA_FOLDER, BATCH_FOLDER, 'plots')
-TABLES_FOLDER = os.path.join(ANCOVA_FOLDER, BATCH_FOLDER, 'tables')
+# #### Map tag -> integer session list ####
+
+sessions_list_dic = {
+    'allses': [1, 2, 3, 4, 5],
+    'behavses': [1, 2, 3],
+    'imgses': [4, 5],
+    'ses-01': [1],
+    'ses-02': [2],
+    'ses-03': [3],
+    'ses-04': [4],
+    'ses-05': [5],
+    'behav12': [1, 2],
+    'behav13': [1, 3],
+    'behav23': [2, 3],
+}
+
+# #### Dataframe/output configurations ####
+
+fb_inputs_dic = {
+    'latency_corrected': {
+        'db_fname': 'df_production_fb_133_35_20',
+        'batch_folder': 'first_batch_133_35_20',
+    },
+    'uncorrected': {
+        'db_fname': 'df_production_fb_0_0_0',
+        'batch_folder': 'first_batch_0_0_0',
+    },
+}
+
+sb_inputs_dic = {
+    'latency_corrected': {
+        'db_fname': 'df_production_sb_63_35_20',
+        'batch_folder': 'second_batch_63_35_20',
+    },
+    'uncorrected': {
+        'db_fname': 'df_production_sb_0_0_0',
+        'batch_folder': 'second_batch_0_0_0',
+    },
+}
+
+# Keep these lists explicit so each input/output type can be run one at a
+# time by commenting out any entry if needed.
+BATCHES_TO_RUN = ['first', 'second']
+INPUT_TYPES_TO_RUN = ['latency_corrected', 'uncorrected']
+
+batch_dic = {
+    'first': {
+        'sessions': fb_sessions_dic,
+        'subjects': fb_subjects_dic,
+        'inputs': fb_inputs_dic,
+    },
+    'second': {
+        'sessions': sb_sessions_dic,
+        'subjects': sb_subjects_dic,
+        'inputs': sb_inputs_dic,
+    },
+}
 
 # %%
 # ============================ RUN ====================================
 
 if __name__ == "__main__":
 
-    for key, value in sessions_dic.items():
+    for batch_tag in BATCHES_TO_RUN:
+        batch_info = batch_dic[batch_tag]
+        sessions_dic = batch_info['sessions']
+        subjects_dic = batch_info['subjects']
+        inputs_dic = batch_info['inputs']
 
-        # Define sessions_list
-        if key == 'allses':
-            sessions_list = [1, 2, 3, 4, 5]
-        elif key == 'ses-01':
-            sessions_list = [1]
-        elif key == 'ses-02':
-            sessions_list = [2]
-        elif key == 'ses-03':
-            sessions_list = [3]
-        elif key == 'ses-04':
-            sessions_list = [4]
-        elif key == 'ses-05':
-            sessions_list = [5]
-        elif key == 'behavses':
-            sessions_list = [1, 2, 3]
-        elif key == 'behav12':
-            sessions_list = [1, 2]
-        elif key == 'behav13':
-            sessions_list = [1, 3]
-        elif key == 'behav23':
-            sessions_list = [2, 3]
-        else:
-            assert key == 'imgses'
-            sessions_list = [4, 5]
-            
-        # Open dataframe     
-        db_path = os.path.join(DATAFRAMES_FOLDER, f'{db_fname}_{key}.tsv')
-        db = pd.read_csv(db_path, sep='\t')
+        for input_type in INPUT_TYPES_TO_RUN:
+            input_info = inputs_dic[input_type]
+            db_fname = input_info['db_fname']
+            batch_folder = input_info['batch_folder']
 
-        # Filter Dataframe according to list of subjects
-        df_subfiltered = db[db['subject'].isin(subjects_dic[key])]
+            jasp_folder = os.path.join(
+                ANCOVA_FOLDER, batch_folder, 'jasp')
+            plots_folder = os.path.join(
+                ANCOVA_FOLDER, batch_folder, 'plots')
+            tables_folder = os.path.join(
+                ANCOVA_FOLDER, batch_folder, 'tables')
 
-        # Filter Dataframe according to list of sessions
-        df = df_subfiltered[df_subfiltered['session'].isin(sessions_list)]
+            print('\n' + '=' * 60)
+            print(f'Batch: {batch_tag}  |  Input: {input_type}')
+            print(f'Dataframe prefix: {db_fname}')
+            print(f'Output folder: {batch_folder}')
+            print('=' * 60)
 
-        # Remove rows with 'NaN' entries
-        df = df.dropna(subset=['signed_asynchrony'])
+            for key, value in sessions_dic.items():
+                sessions_list = sessions_list_dic[key]
 
-        # Extract covariate
-        standards = np.unique(df['standard'])
+                print(f'\nSession tag: {key}  |  {value}')
 
-        # Extract dependent variable
-        db_ffx_mean = ffx_dvar(df, estimator='mean')
-        db_ffx_std = ffx_dvar(df, estimator='std')
-        mean_async = group_dvar(db_ffx_mean, estimator='mean')
-        std_async = group_dvar(db_ffx_std, estimator='mean')
+                # Open dataframe.
+                db_path = os.path.join(
+                    DATAFRAMES_FOLDER, f'{db_fname}_{key}.tsv')
+                db = pd.read_csv(db_path, sep='\t')
 
-        # Convert dataframe in the wide format for ancova analyses...
-        # ... with JASP
-        wide_dataframe(db_ffx_mean, JASP_FOLDER, 'mean', key)
-        wide_dataframe(db_ffx_std, JASP_FOLDER, 'std', key)
+                # Filter Dataframe according to list of subjects.
+                df_subfiltered = db[db['subject'].isin(subjects_dic[key])]
 
-        # Fit LMM ANCOVA-style models and save tables
-        mixed_ancova_tables(db_ffx_mean, TABLES_FOLDER, 'mean', key)
-        mixed_ancova_tables(db_ffx_std, TABLES_FOLDER, 'std', key)
+                # Filter Dataframe according to list of sessions.
+                df = df_subfiltered[
+                    df_subfiltered['session'].isin(sessions_list)]
 
-        # Plot ANCOVA
-        plot_ancova(
-            standards, mean_async,
-            'Mean of Signed Asynchrony', .165,
-            'Mean of Signed Asynchrony for every Standard: ' + value,
-            PLOTS_FOLDER, 'mean_ancova_production_' + key,
-            hline_legend=r'$RT=Standard$',
-            legend_loc='upper right')
+                # Remove rows with 'NaN' entries.
+                df = df.dropna(subset=['signed_asynchrony'])
 
-        plot_ancova(
-            standards, std_async,
-            'SD of Signed Asynchrony', .165,
-            'Standard Deviation (SD) of Signed Asynchrony ' + \
-            'for every Standard: ' + value, PLOTS_FOLDER,
-            'std_ancova_production_' + key, legend_loc='upper right')
+                # Extract covariate.
+                standards = np.unique(df['standard'])
+
+                # Extract dependent variable.
+                db_ffx_mean = ffx_dvar(df, estimator='mean')
+                db_ffx_std = ffx_dvar(df, estimator='std')
+                mean_async = group_dvar(db_ffx_mean, estimator='mean')
+                std_async = group_dvar(db_ffx_std, estimator='mean')
+
+                # Convert dataframe in the wide format for JASP.
+                wide_dataframe(db_ffx_mean, jasp_folder, 'mean', key)
+                wide_dataframe(db_ffx_std, jasp_folder, 'std', key)
+
+                # Fit LMM ANCOVA-style models and save tables.
+                mixed_ancova_tables(
+                    db_ffx_mean, tables_folder, 'mean', key)
+                mixed_ancova_tables(
+                    db_ffx_std, tables_folder, 'std', key)
+
+                # Plot ANCOVA.
+                plot_ancova(
+                    standards, mean_async,
+                    'Mean of Signed Asynchrony', .165,
+                    'Mean of Signed Asynchrony for every Standard: ' +
+                    value,
+                    plots_folder, 'mean_ancova_production_' + key,
+                    hline_legend=r'$RT=Standard$',
+                    legend_loc='upper right')
+
+                plot_ancova(
+                    standards, std_async,
+                    'SD of Signed Asynchrony', .165,
+                    'Standard Deviation (SD) of Signed Asynchrony '
+                    'for every Standard: ' + value,
+                    plots_folder, 'std_ancova_production_' + key,
+                    legend_loc='upper right')
