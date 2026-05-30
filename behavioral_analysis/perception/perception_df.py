@@ -198,6 +198,27 @@ tag = SESSIONS[0]
 # SESSIONS = ['ses-02']
 # tag = 'ses-05'
 
+# ### For first and second behav sessions: ###
+# ### 'ses-01' and 'ses-02' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01', 'ses-02']
+# tag = 'behav12'
+
+# ### For first and third behav sessions: ###
+# ### 'ses-01' and 'ses-03' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01', 'ses-03']
+# tag = 'behav13'
+
+# ### For second and third behav sessions: ###
+# ### 'ses-02' and 'ses-03' ###
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-02', 'ses-03']
+# tag = 'behav23'
+
 # %%
 # ========================= PARAMETERS =================================
 
