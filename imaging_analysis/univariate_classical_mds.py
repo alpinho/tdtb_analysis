@@ -68,47 +68,6 @@ def build_fixed_ticks(vmin, vmax, step):
     return np.arange(start, stop + step / 2.0, step, dtype=float)
 
 
-def nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30):
-    """Nudge 2D text labels so their bboxes fit inside axes box."""
-    fig.canvas.draw()
-    renderer = fig.canvas.get_renderer()
-    ax_bbox = ax.get_window_extent(renderer=renderer)
-
-    x0 = ax_bbox.x0 + pad_px
-    x1 = ax_bbox.x1 - pad_px
-    y0 = ax_bbox.y0 + pad_px
-    y1 = ax_bbox.y1 - pad_px
-
-    inv = ax.transData.inverted()
-
-    for txt in texts:
-        for _ in range(max_iter):
-            fig.canvas.draw()
-            renderer = fig.canvas.get_renderer()
-            bbox = txt.get_window_extent(renderer=renderer)
-
-            shift_x = 0.0
-            shift_y = 0.0
-
-            if bbox.x0 < x0:
-                shift_x += (x0 - bbox.x0)
-            if bbox.x1 > x1:
-                shift_x -= (bbox.x1 - x1)
-            if bbox.y0 < y0:
-                shift_y += (y0 - bbox.y0)
-            if bbox.y1 > y1:
-                shift_y -= (bbox.y1 - y1)
-
-            if shift_x == 0.0 and shift_y == 0.0:
-                break
-
-            x_dat, y_dat = txt.get_position()
-            p0 = ax.transData.transform((x_dat, y_dat))
-            p1 = (p0[0] + shift_x, p0[1] + shift_y)
-            x_new, y_new = inv.transform(p1)
-            txt.set_position((x_new, y_new))
-
-
 def get_spec(specs, key, default=None):
     """Return a spec value with a default fallback."""
     return specs.get(key, default)
@@ -162,6 +121,10 @@ def plot_mds_2d(
 
     point_color = get_spec(specs, "point_color", "mediumblue")
     point_alpha = get_spec(specs, "point_alpha", 0.8)
+    point_radius = get_spec(specs, "point_radius", None)
+    point_size = None
+    if point_radius is not None:
+        point_size = np.pi * float(point_radius) ** 2
     zero_color = get_spec(specs, "zero_line_color", "mediumblue")
 
     if not use_custom:
@@ -171,6 +134,7 @@ def plot_mds_2d(
             coords[:, c2],
             color=point_color,
             alpha=point_alpha,
+            s=point_size,
         )
 
         for x_val, y_val, name in zip(
@@ -235,6 +199,7 @@ def plot_mds_2d(
         coords[:, c2],
         color=point_color,
         alpha=point_alpha,
+        s=point_size,
     )
 
     remove_linebreak = get_spec(specs, "remove_linebreak_labels", {})
@@ -351,8 +316,6 @@ def plot_mds_2d(
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-
-    nudge_texts_inside_axes(fig, ax, texts, pad_px=8, max_iter=30)
 
     fig.savefig(out_path, bbox_inches="tight", pad_inches=0.08)
     plt.close(fig)
@@ -1058,9 +1021,6 @@ ROI_LABELS = {
     "sma": "SMA",
     'auditory_cortex': 'Auditory Cortex',
     'visual_cortex': 'Visual Cortex',
-    # "heschl": "Heschl's Gyrus",
-    # "occipital": "Occipital\nLobe",
-    # "occipital_lobe": "Occipital Lobe",
 }
 
 # MDS dimensions to flip manually, using 1-based indexing.
@@ -1089,6 +1049,9 @@ MDS_2D_SPECS = {
     # Shared appearance for 2D point markers.
     "point_color": MDS_POINT_COLOR,
     "point_alpha": MDS_POINT_ALPHA,
+
+    # Marker radius in points. Converted internally to scatter area.
+    "point_radius": 1.5,
 
     # Color of x=0 and y=0 reference lines in 2D plots.
     "zero_line_color": ZERO_LINE_COLOR,
@@ -1131,34 +1094,34 @@ MDS_2D_SPECS = {
     # If a label is missing, an automatic small offset is used.
     "label_offsets": {
         (2, 1): {
-            "Dorsal Striatum": (-0.175, 0.000),
+            "Dorsal Striatum": (-0.17, 0.000),
             "Cerebellum": (-0.09, 0.035),
-            "PreSMA": (-0.0825, -0.01),
-            "SMA": (-0.055, 0.0005),
-            "PMD": (0.01, -0.12),
-            "PMV": (0.0125, 0.001),
-            "Auditory Cortex": (0.015, -0.0015),
-            "Visual\nCortex": (0.0, 0.035),
+            "PreSMA": (-0.0775, -0.015),
+            "SMA": (-0.0525, 0.0005),
+            "PMD": (0.0075, -0.008),
+            "PMV": (0.008, 0.003),
+            "Auditory Cortex": (0.012, -0.001),
+            "Visual Cortex": (-0.147, 0.),
         },
         (1, 3): {
-            "Dorsal Striatum": (0.015, 0.000),
-            "Cerebellum": (-0.0075, 0.0175),  # (0.009, 0.0075),
-            "PreSMA": (0.012, -0.0025),
-            "SMA": (0.0095, 0.009),  # (0.012, 0.000),
-            "PMD": (0.01, -0.001),
-            "PMV": (0.0125, -0.001),
-            "Auditory Cortex": (-0.085, -0.025),
-            "Visual Cortex": (0.085, 0.0),
+            "Dorsal Striatum": (0.012, 0.000),
+            "Cerebellum": (0.009, 0.00085),
+            "PreSMA": (0.022, -0.00275),
+            "SMA": (0.01, 0.00095),
+            "PMD": (-0.005, -0.0175),
+            "PMV": (-0.004, 0.0125),
+            "Auditory Cortex": (-0.085, -0.0215),
+            "Visual Cortex": (0.011, 0.0),
         },
         (2, 3): {
-            "Dorsal Striatum": (-0.1725, 0.000),
-            "Cerebellum": (-0.11, 0.02),  # (-0.126, 0.0085),
-            "PreSMA": (-0.0675, -0.024),  # (-0.087, -0.006),
-            "SMA": (-0.042, 0.0175),  # (-0.057, 0.0001),
-            "PMD": (0.015, -0.001),
-            "PMV": (0.015, -0.001),
-            "Auditory Cortex": (0.015, -0.001),
-            "Visual\nCortex": (0.0, 0.02),
+            "Dorsal Striatum": (-0.17, 0.002),
+            "Cerebellum": (-0.125, 0.),  # (-0.126, 0.0085),
+            "PreSMA": (-0.0875, 0.),  # (-0.087, -0.006),
+            "SMA": (-0.055, 0.),  # (-0.057, 0.0001),
+            "PMD": (0.008, -0.0075),
+            "PMV": (0.0105, 0.004),
+            "Auditory Cortex": (0.014, 0.0),
+            "Visual Cortex": (-0.0625, -0.025),
         },
     },
 
