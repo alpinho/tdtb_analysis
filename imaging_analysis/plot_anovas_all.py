@@ -67,7 +67,7 @@ ROI_PRETTY = {
     "sma": "SMA",
     "pmd": "PMD",
     "pmv": "PMV",
-    "auditory Cortex": "Auditory Cortex",
+    "auditory_cortex": "Auditory Cortex",
     "visual_cortex": "Visual Cortex",
 }
 
@@ -82,6 +82,63 @@ FIG_W_SCALE = 0.50
 # Annotation vertical pin heights in figure-fraction units.
 WITHIN_MODALITY_BRACKET_HEIGHT_FIG = 0.0015
 BETWEEN_MODALITY_BRACKET_HEIGHT_FIG = 0.0025
+
+# ===================================================================== #
+# VERTICAL-SPACING MODEL (the single source of truth for all gaps).
+#
+# The whole point of this block is modularity: change a y-limit anywhere
+# and NOTHING here needs to be re-tuned, because every distance is stored
+# in a unit that maps to a CONSTANT distance on the printed page.
+#
+#   * Annotation distances are in MULTIPLES OF ONE Y-TICK INTERVAL.
+#     One tick interval always equals INCHES_PER_STEP inches of row height
+#     (see _RowGeometry below), so a step of e.g. 0.7 ticks is the same
+#     number of millimetres on paper whether the panel spans (-0.4, 1.0)
+#     or (-0.2, 2.0). They are converted to data coordinates on the fly by
+#     multiplying by the panel's ytick_step.
+#
+#   * Legend / title / label distances are in ABSOLUTE POINTS, converted
+#     to figure fractions at draw time via _pts_to_figfrac_y(). A point is
+#     a point regardless of how tall the figure ends up being, so legend
+#     rows never overlap and titles never collide with the row above.
+# ===================================================================== #
+
+# -- In-panel significance brackets (units: multiples of one y-tick) --
+ANNOT_ANCHOR_PAD_TICKS = 0.25     # gap from data top to where stacks start
+ANNOT_CLEARANCE_TICKS = 0.35      # extra gap before the first across-task span
+ANNOT_LAYER_TICKS = 0.7          # vertical step between stacked span brackets
+ANNOT_CAP_TICKS = 0.12            # height of each bracket's vertical end-caps
+ANNOT_HEADROOM_TICKS = 0.45       # blank space kept above the topmost bracket
+
+WITHIN_CLEARANCE_TICKS = 0.30     # gap from data top to first within-axis span
+WITHIN_LAYER_TICKS = 0.55         # step between stacked within-axis brackets
+WITHIN_CAP_TICKS = 0.10           # within-axis bracket cap height
+
+CROSS_GAP_TICKS = 0.65            # gap before the cross-modality stack begins
+
+# How enforced y-limits interact with the annotation stack:
+#   False (default) -> your y_limits are honored EXACTLY. The data box is
+#       always the range you set; significance brackets that don't fit are
+#       drawn in the margin ABOVE the top spine, and the row above is given
+#       just enough extra room so brackets never touch the title.
+#   True -> the top is instead raised to the next tick to swallow the stack
+#       (axes get taller; your enforced top is treated as a floor).
+EXPAND_TOP_FOR_ANNOTATIONS = True
+
+
+# -- Legend / title spacing (units: absolute points) --
+LEGEND_CI_GAP_PT = 16.0       # CI caption above the Beat swatch row
+LEGEND_ROW_GAP_PT = 15.0      # gap between the Beat and Interval swatch rows
+LEGEND_TOP_PAD_PT = 30.0      # gap from the top panel up to the Beat row
+LEGEND_TITLE_CLEAR_PT = 16.0  # min clearance between legend block and 1st title
+TITLE_GAP_PT = 14.0           # ROI title above its row of panels
+MODLABEL_GAP_PT = 20.0        # modality label below the task x-labels
+
+# Vertical breathing room (inches) added into every inter-row gap on top of
+# the space already reserved for that row's title, bracket overflow, and the
+# modality labels of the row above. Bumping this loosens the whole figure
+# uniformly; it does NOT need changing when ylims change.
+ROW_BREATHING_IN = 0.18
 
 
 # ============================ UTILITIES ============================ #
@@ -132,9 +189,9 @@ def _roi_key(name: str) -> str | None:
         return "pmd"
     if "pmv" in tok:
         return "pmv"
-    if "auditory_cortex" in tok:
+    if "auditorycortex" in tok or "heschl" in tok:
         return "auditory_cortex"
-    if "occip" in tok:
+    if "visualcortex" in tok or "occip" in tok:
         return "visual_cortex"
 
     return None
@@ -205,6 +262,16 @@ def _paired_by_subject(
         return pd.DataFrame(columns=list(categories))
 
     return sub[list(categories)]
+
+
+def _pts_to_figfrac_y(fig: plt.Figure, pts: float) -> float:
+    """Convert a vertical distance in points to a figure-height fraction.
+
+    This is the key to ylim-independent legend/title spacing: a point is a
+    fixed physical distance, so the converted fraction automatically shrinks
+    as the figure grows taller, keeping the on-page gap constant.
+    """
+    return float(pts) / (fig.get_figheight() * 72.0)
 
 
 def _ydata_to_yfig(fig: plt.Figure, ax: plt.Axes, y_data: float) -> float:
@@ -315,13 +382,17 @@ def within_axis_annotation(
     lw: float = 1.2,
     fs: float = 14.0,
 ) -> None:
-    """Draw a bracket within a single axis (data coords)."""
+    """Draw a bracket within a single axis (data coords).
+
+    clip_on is False so a bracket sitting above the enforced y-limit is drawn
+    in the margin rather than being chopped off at the top spine.
+    """
     y0 = y_data
     y1 = y_data + h_data
 
-    ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=True)
-    ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=True)
-    ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=True)
+    ax.plot([x1, x1], [y0, y1], lw=lw, c="k", clip_on=False)
+    ax.plot([x1, x2], [y1, y1], lw=lw, c="k", clip_on=False)
+    ax.plot([x2, x2], [y1, y0], lw=lw, c="k", clip_on=False)
     ax.text(
         (x1 + x2) / 2.0,
         y1,
@@ -330,7 +401,7 @@ def within_axis_annotation(
         va="bottom",
         fontsize=fs,
         color="k",
-        clip_on=True,
+        clip_on=False,
     )
 
 
@@ -608,134 +679,18 @@ def plot_psc_boxplots(
 
     y_formatter = FormatStrFormatter("%.2f")
 
+    # ------------------------------------------------------------------
+    # Bottom y-padding below the data (cosmetic only). Expressed as a
+    # fraction of the whisker range so a panel never clips its lowest box.
+    # ------------------------------------------------------------------
     ypad_frac = 0.06
-    annot_y_frac_base = 0.04
-    annot_y_frac_step = 0.09
-    annot_h_frac = 0.03
-    annot_headroom_frac = 0.03
-    within_annot_y_frac_base = 0.02
-    within_annot_y_frac_step = 0.07
-    within_annot_h_frac = 0.02
-    within_annot_headroom_frac = 0.012
 
-    within_to_span_gap_frac = 0.11
-
-    roi_annot_overrides = {
-        # Explicit params for ALL ROIs (current values).
-        #
-        # Keys used by the code:
-        # - pad_frac (fallback is ypad_frac, 
-        #             except auditory_cortex fallback 0.045)
-        # - base_frac (fallback annot_y_frac_base)
-        # - step_frac (fallback annot_y_frac_step)
-        # - headroom_frac 
-        #   (fallback annot_headroom_frac, 
-        #    except auditory_cortex fallback 0.006)
-        # - step_min_frac / step_max_frac (fallback step_frac)
-        # - step_scale_per_layer (currently present in your overrides)
-
-        "dstr": {
-            "pad_frac": 0.06,
-            "base_frac": 0.04,
-            "step_frac": 0.20,
-            "step_min_frac": 0.20,
-            "step_max_frac": 0.20,
-            "step_scale_per_layer": 0.0,
-            "headroom_frac": 0.0,
-        },
-        "cereb": {
-            "pad_frac": 0.06,
-            "base_frac": 0.04,
-            "step_frac": 0.20,
-            "step_min_frac": 0.20,
-            "step_max_frac": 0.20,
-            "step_scale_per_layer": 0.0,
-            "headroom_frac": 0.0,
-        },
-        "presma": {
-            "pad_frac": 0.06,
-            "base_frac": 0.04,
-            "step_frac": 0.09,
-            "step_min_frac": 0.09,
-            "step_max_frac": 0.09,
-            "step_scale_per_layer": 0.0,
-            "headroom_frac": 0.0,
-        },
-        "sma": {
-            "pad_frac": 0.06,
-            "base_frac": 0.04,
-            "step_frac": 0.20,
-            "step_min_frac": 0.20,
-            "step_max_frac": 0.20,
-            "step_scale_per_layer": 0.0,
-            "headroom_frac": 0.0,
-        },
-        "pmd": {
-            "pad_frac": 0.06,
-            "base_frac": 0.04,
-            "step_frac": 0.09,
-            "step_min_frac": 0.09,
-            "step_max_frac": 0.09,
-            "step_scale_per_layer": 0.0,
-            "headroom_frac": 0.0,
-        },
-        "pmv": {
-            "pad_frac": 0.06,
-            "base_frac": 0.04,
-            "step_frac": 0.09,
-            "step_min_frac": 0.09,
-            "step_max_frac": 0.09,
-            "step_scale_per_layer": 0.0,
-            "headroom_frac": 0.0,
-        },
-        "auditory_cortex": {
-            "pad_frac": 0.020,
-            "base_frac": 0.020,
-            "step_frac": 0.05,
-            "step_min_frac": 0.10,
-            "step_max_frac": 0.10,
-            "step_scale_per_layer": 0.25,
-            "headroom_frac": 0.0,
-        },
-        "visual_cortex": {
-            "pad_frac": 0.06,
-            "base_frac": 0.020,
-            "step_frac": 0.16,
-            "step_min_frac": 0.16,
-            "step_max_frac": 0.16,
-            "step_scale_per_layer": 0.0,
-            "headroom_frac": 0.03,
-        },
-    }
-
-    # ------------------------------------------------------------------
-    # Legacy tuning block (kept for reference; disabled by request)
-    # ------------------------------------------------------------------
-    # roi_annot_overrides.update({
-    #     "auditory_cortex": {
-    #         "pad_frac": 0.020,
-    #         "base_frac": 0.020,
-    #         "step_frac": 0.05,               # default
-    #         "step_min_frac": 0.10,           # compact when few layers
-    #         "step_max_frac": 0.1,            # avoid huge gaps
-    #         "step_scale_per_layer": 0.25,    # grow when many layers
-    #         "headroom_frac": 0.,
-    #     },
-    #     "visual_cortex": {
-    #         "base_frac": 0.020,
-    #         "step_frac": 0.16,
-    #         "step_min_frac": 0.16,
-    #         "step_max_frac": 0.16,
-    #         "step_scale_per_layer": 0.0,
-    #     },
-    # })
-
-    if pooled_only:
-        annot_y_frac_step = 0.11
-        roi_annot_overrides = dict(roi_annot_overrides)
-        h_ov = dict(roi_annot_overrides.get("auditory_cortex", {}))
-        h_ov["step_frac"] = 0.13
-        roi_annot_overrides["auditory_cortex"] = h_ov
+    # Optional, normally-empty per-ROI nudges. With the tick-step model
+    # below these are NO LONGER NEEDED for correct spacing; they exist only
+    # if you ever want to hand-tweak a single ROI. Keys (all in tick units):
+    #   anchor_pad_ticks, clearance_ticks, layer_ticks, headroom_ticks,
+    #   within_clearance_ticks, within_layer_ticks, cross_gap_ticks
+    roi_annot_overrides: dict[str, dict[str, float]] = {}
 
     zero_line_color = "0.25"
     zero_line_ls = "--"
@@ -744,7 +699,7 @@ def plot_psc_boxplots(
 
     ytick_step = 0.20
 
-    inches_per_step = 0.68
+    inches_per_step = 0.4
     min_row_height = 2.0
 
     task_order = {
@@ -784,6 +739,7 @@ def plot_psc_boxplots(
                     "yr": 1.0,
                     "y_lim": (0.0, 1.0),
                     "y_ticks": np.array([0.0, 1.0]),
+                    "overflow_in": 0.0,
                     "eligible_by_mod": {k: [] for k in eligible_template},
                     "row_h": min_row_height,
                 }
@@ -874,6 +830,26 @@ def plot_psc_boxplots(
         for m in eligible_by_mod:
             eligible_by_mod[m].sort(key=_ann_sort_key)
 
+        # ---- per-ROI annotation spacing, in TICK units (ylim-independent) ----
+        rkey = _roi_key(roi)
+        ov = roi_annot_overrides.get(rkey or "", {})
+
+        anchor_pad_t = float(ov.get("anchor_pad_ticks", ANNOT_ANCHOR_PAD_TICKS))
+        clearance_t = float(ov.get("clearance_ticks", ANNOT_CLEARANCE_TICKS))
+        layer_t = float(ov.get("layer_ticks", ANNOT_LAYER_TICKS))
+        cap_t = float(ov.get("cap_ticks", ANNOT_CAP_TICKS))
+        headroom_t = float(ov.get("headroom_ticks", ANNOT_HEADROOM_TICKS))
+        within_clear_t = float(
+            ov.get("within_clearance_ticks", WITHIN_CLEARANCE_TICKS)
+        )
+        within_layer_t = float(
+            ov.get("within_layer_ticks", WITHIN_LAYER_TICKS)
+        )
+        within_cap_t = float(ov.get("within_cap_ticks", WITHIN_CAP_TICKS))
+        cross_gap_t = float(ov.get("cross_gap_ticks", CROSS_GAP_TICKS))
+
+        # Height (in ticks) of the within-axis bracket stack, per modality.
+        # Measured from the data top up to the top cap of the last bracket.
         within_stack_top_by_mod: Dict[str, float] = {
             k: 0.0 for k in eligible_template
         }
@@ -888,11 +864,13 @@ def plot_psc_boxplots(
             )
             if n_within > 0:
                 within_stack_top_by_mod[mm] = (
-                    within_annot_y_frac_base
-                    + (n_within - 1) * within_annot_y_frac_step
-                    + within_annot_h_frac
+                    within_clear_t
+                    + (n_within - 1) * within_layer_t
+                    + within_cap_t
                 )
 
+        # ---- data extent (whiskers), per axis and overall ----
+        axis_top_by_key: Dict[Tuple[str, str], float] = {}
         w_lows: List[float] = []
         w_highs: List[float] = []
         for mod, task in col_spec_block:
@@ -906,6 +884,7 @@ def plot_psc_boxplots(
                 task=task,
                 categories=cats,
             )
+            axis_hi: float | None = None
             for cat in cats:
                 vals = paired[cat].dropna().to_numpy()
                 if vals.size < 3:
@@ -913,6 +892,10 @@ def plot_psc_boxplots(
                 stats = cbook.boxplot_stats(vals, whis=whis)[0]
                 w_lows.append(float(stats["whislo"]))
                 w_highs.append(float(stats["whishi"]))
+                hi = float(stats["whishi"])
+                axis_hi = hi if axis_hi is None else max(axis_hi, hi)
+            if axis_hi is not None:
+                axis_top_by_key[(mod, task)] = axis_hi
 
         if w_lows:
             y_min, y_max = min(w_lows), max(w_highs)
@@ -921,115 +904,130 @@ def plot_psc_boxplots(
             y_min, y_max = float(roi_vals.min()), float(roi_vals.max())
 
         yr = max(y_max - y_min, 0.1)
+        pad = float(ov.get("pad_frac", ypad_frac)) * yr
 
-        rkey = _roi_key(roi)
-        ov = roi_annot_overrides.get(rkey or "", {})
+        def _axis_top(mod: str, task: str) -> float:
+            return axis_top_by_key.get((mod, task), y_max)
 
-        pad_frac_local = float(
-            ov.get("pad_frac", (0.045 if rkey == "auditory_cortex" else ypad_frac))
+        # Per-modality anchor for across-task spans = tallest box in that
+        # modality block (so a span hugs only the data it actually covers).
+        mod_anchor: Dict[str, float] = {}
+        for (mm, tt) in ax_keys:
+            mod_anchor[mm] = max(mod_anchor.get(mm, -np.inf), _axis_top(mm, tt))
+        # Cross-modality anchor = tallest box across Auditory+Visual blocks.
+        cross_anchor = max(
+            (_axis_top(mm, tt) for (mm, tt) in ax_keys
+             if mm in ("Auditory", "Visual")),
+            default=y_max,
         )
-        pad = pad_frac_local * yr
 
+        # ---- how tall is each annotation stack, in TICKS, above its anchor --
         max_stack_span = max(
-            (len(v) for v in eligible_by_mod.values()),
-            default=0,
+            (len(v) for v in eligible_by_mod.values()), default=0
         )
         max_stack_within = max(
-            (len(v) for v in eligible_within_by_ax.values()),
-            default=0,
+            (len(v) for v in eligible_within_by_ax.values()), default=0
         )
-        headroom_frac_local = float(
-            ov.get(
-                "headroom_frac",
-                (0.006 if rkey == "auditory_cortex" else annot_headroom_frac),
-            )
-        )
-        base_frac_local = float(ov.get("base_frac", annot_y_frac_base))
-        step_frac_local = float(ov.get("step_frac", annot_y_frac_step))
-        top_needed_span = 0.0
-        span_offset_max = max(
-            (
-                v + (within_to_span_gap_frac if v > 0.0 else 0.0)
-                for v in within_stack_top_by_mod.values()
-            ),
+        max_stack_cross = len(eligible_cross)
+
+        # Span brackets sit above any within-axis stack in the same modality.
+        within_offset_t = max(
+            (v + (clearance_t if v > 0.0 else 0.0)
+             for v in within_stack_top_by_mod.values()),
             default=0.0,
         )
+        span_top_t = 0.0
         if max_stack_span > 0:
-            top_needed_span = (
-                span_offset_max
-                + base_frac_local
-                + (max_stack_span - 1) * step_frac_local
-                + annot_h_frac
-                + headroom_frac_local
+            span_top_t = (
+                within_offset_t
+                + clearance_t
+                + (max_stack_span - 1) * layer_t
+                + cap_t
             )
 
-        max_stack_cross = len(eligible_cross)
-        cross_gap_frac = 0.12
-        cross_start_frac = 0.0
+        # Cross-modality brackets sit above the span stack.
+        cross_start_t = 0.0
+        cross_top_t = 0.0
         if max_stack_cross > 0:
-            span_stack_top = span_offset_max
-            if max_stack_span > 0:
-                span_stack_top = (
-                    span_offset_max
-                    + base_frac_local
-                    + (max_stack_span - 1) * step_frac_local
-                    + annot_h_frac
-                    + headroom_frac_local
-                )
-            cross_start_frac = span_stack_top + cross_gap_frac
-            top_needed_cross = (
-                cross_start_frac
-                + base_frac_local
-                + (max_stack_cross - 1) * step_frac_local
-                + annot_h_frac
-                + headroom_frac_local
+            base_for_cross = span_top_t if max_stack_span > 0 else within_offset_t
+            cross_start_t = base_for_cross + cross_gap_t
+            cross_top_t = (
+                cross_start_t
+                + clearance_t
+                + (max_stack_cross - 1) * layer_t
+                + cap_t
             )
-            top_needed_span = max(top_needed_span, top_needed_cross)
 
-        top_needed_within = 0.0
+        within_only_top_t = 0.0
         if max_stack_within > 0:
-            top_needed_within = (
-                within_annot_y_frac_base
-                + (max_stack_within - 1) * within_annot_y_frac_step
-                + within_annot_h_frac
-                + within_annot_headroom_frac
+            within_only_top_t = (
+                within_clear_t
+                + (max_stack_within - 1) * within_layer_t
+                + within_cap_t
             )
 
-        top_extra = max(top_needed_span, top_needed_within) * yr
-        y_lim_raw = (y_min - pad, y_max + pad + top_extra)
+        # Reserve head space using each family's OWN anchor (not the global
+        # top), so a low-block span does not inflate the whole panel.
+        span_anchor = max(
+            (mod_anchor.get(m, y_max) for m, v in eligible_by_mod.items() if v),
+            default=y_min,
+        )
+        needed_tops = [y_min]
+        if max_stack_span > 0:
+            needed_tops.append(
+                span_anchor + (anchor_pad_t + span_top_t + headroom_t) * ytick_step
+            )
+        if max_stack_cross > 0:
+            needed_tops.append(
+                cross_anchor
+                + (anchor_pad_t + cross_top_t + headroom_t) * ytick_step
+            )
+        if max_stack_within > 0:
+            win_anchor = max(
+                (_axis_top(m, t)
+                 for (m, t), v in eligible_within_by_ax.items() if v),
+                default=y_max,
+            )
+            needed_tops.append(
+                win_anchor
+                + (anchor_pad_t + within_only_top_t + headroom_t) * ytick_step
+            )
+        top_needed = max(needed_tops)
+        y_lim_raw = (y_min - pad, max(y_max, top_needed))
 
+        # ---- resolve the y-limits / ticks ----
         explicit_ylim = None
         if (y_limits is not None) and (rkey is not None):
             explicit_ylim = y_limits.get(rkey)
 
         if explicit_ylim is not None:
             y0, y1 = float(explicit_ylim[0]), float(explicit_ylim[1])
+            # Modularity guarantee: if the requested top cannot hold the
+            # annotation stack, lift it to the next tick (never overlap).
+            if EXPAND_TOP_FOR_ANNOTATIONS and (y1 < y_lim_raw[1] - 1e-9):
+                y1 = float(np.ceil((y_lim_raw[1] - 1e-9) / ytick_step)
+                           * ytick_step)
             y_ticks = np.arange(y0, y1 + 0.5 * ytick_step, ytick_step)
             if y_ticks.size < 2:
                 y_ticks = np.array([y0, y1])
         else:
             eps = 1e-9
-            y0 = float(
-                np.floor((y_lim_raw[0] + eps) / ytick_step) * ytick_step
-            )
-            y1 = float(
-                np.ceil((y_lim_raw[1] - eps) / ytick_step) * ytick_step
-            )
-
-            if (y1 - y_lim_raw[1]) < (0.22 * ytick_step):
-                y1_candidate = y1 - ytick_step
-                if y1_candidate >= (y_lim_raw[1] - 1e-12):
-                    y1 = y1_candidate
-
+            y0 = float(np.floor((y_lim_raw[0] + eps) / ytick_step) * ytick_step)
+            y1 = float(np.ceil((y_lim_raw[1] - eps) / ytick_step) * ytick_step)
             y0 = min(y0, 0.0)
             y1 = max(y1, 0.0)
-
             y_ticks = np.arange(y0, y1 + 0.5 * ytick_step, ytick_step)
             if y_ticks.size < 2:
                 y_ticks = np.array([y0, y1])
 
-        n_steps = max(int(np.ceil((y1 - y0) / ytick_step)), 1)
+        n_steps = max(int(round((y1 - y0) / ytick_step)), 1)
         row_h = max(min_row_height, n_steps * inches_per_step)
+
+        # How far the bracket stack reaches ABOVE the enforced top spine,
+        # converted to inches (one tick == inches_per_step inches). This is
+        # the room the row above must reserve so brackets never hit a title.
+        overflow_data = max(0.0, top_needed - y1)
+        overflow_in = (overflow_data / ytick_step) * inches_per_step
         roi_specs.append(
             {
                 "roi": roi,
@@ -1040,25 +1038,20 @@ def plot_psc_boxplots(
                 "pad": pad,
                 "y_lim": (y0, y1),
                 "y_ticks": y_ticks,
-                "ann_base_frac": base_frac_local,
-                "ann_step_frac": step_frac_local,
-                "ann_step_min_frac": float(
-                    ov.get("step_min_frac", step_frac_local)
-                ),
-                "ann_step_max_frac": float(
-                    ov.get("step_max_frac", step_frac_local)
-                ),
-                "ann_step_scale_per_layer": float(
-                    ov.get("step_scale_per_level", 0.0)
-                ),
-                "ann_h_frac": annot_h_frac,
+                "overflow_in": overflow_in,
+                # tick-unit annotation parameters (consumed in PASS 2)
+                "tick": ytick_step,
+                "anchor_pad_t": anchor_pad_t,
+                "clearance_t": clearance_t,
+                "layer_t": layer_t,
+                "cap_t": cap_t,
+                "within_clear_t": within_clear_t,
+                "within_layer_t": within_layer_t,
+                "within_cap_t": within_cap_t,
+                "cross_start_t": cross_start_t,
                 "eligible_by_mod": eligible_by_mod,
                 "eligible_within_by_ax": eligible_within_by_ax,
                 "eligible_cross": eligible_cross,
-                "cross_start_frac": cross_start_frac,
-                "within_base_frac": within_annot_y_frac_base,
-                "within_step_frac": within_annot_y_frac_step,
-                "within_h_frac": within_annot_h_frac,
                 "within_stack_top_by_mod": within_stack_top_by_mod,
                 "row_h": row_h,
             }
@@ -1083,12 +1076,12 @@ def plot_psc_boxplots(
     per_col = min(per_col, 1.55)
 
     fig_w = per_col * float(sum(width_ratios)) * figsize_scale * FIG_W_SCALE
-    fig_h = float(sum(height_ratios)) * figsize_scale
+    fig_h_axes = float(sum(d["row_h"] for d in roi_specs)) * figsize_scale
 
     fig, axes = plt.subplots(
         nrows=len(roi_specs),
         ncols=n_cols,
-        figsize=(fig_w, fig_h),
+        figsize=(fig_w, fig_h_axes),
         gridspec_kw={
             "width_ratios": width_ratios,
             "height_ratios": height_ratios,
@@ -1106,15 +1099,67 @@ def plot_psc_boxplots(
             continue
         if mod not in mods_present:
             mods_present.append(mod)
-        cols_by_mod.setdefault(mod, []).append(j)  
+        cols_by_mod.setdefault(mod, []).append(j)
 
+    # ================== manual vertical layout ==================
+    # Axes keep EXACTLY the y-limits requested. Each inter-row gap is sized to
+    # hold: the modality labels under the row above + the bracket overflow of
+    # the row below (brackets drawn in the margin) + that row's title. Rows
+    # without brackets stay tight; rows with tall stacks get just what they
+    # need. Nothing here depends on the ylim VALUES, only on the (already
+    # computed) overflow, so changing ylims can never cause a collision.
+    PT = 1.0 / 72.0
+
+    def _title_in(spec: dict) -> float:
+        if spec["roi"] is None:
+            return 0.0
+        n_lines = spec["roi_label"].count("\n") + 1
+        return (n_lines * (axis_label_fs + 8) * 1.30 + TITLE_GAP_PT) * PT
+
+    # Space below a row: x-tick labels + gap + modality block label.
+    modlabel_in = (
+        xlabel_fs * 1.30 + xlabel_pad + MODLABEL_GAP_PT
+        + (axis_label_fs + 2) * 1.30 + 6.0
+    ) * PT
+    breathing_in = ROW_BREATHING_IN
+    # Legend block sitting above the first ROI title.
+    legend_in = (
+        LEGEND_TITLE_CLEAR_PT + LEGEND_ROW_GAP_PT + LEGEND_CI_GAP_PT
+        + (axis_label_fs + 2) * 1.30 + 18.0
+    ) * PT
+
+    row_h_in = [d["row_h"] * figsize_scale for d in roi_specs]
+    ovf_in = [float(d.get("overflow_in", 0.0)) for d in roi_specs]
+    ttl_in = [_title_in(d) for d in roi_specs]
+
+    top_margin = ovf_in[0] + ttl_in[0] + legend_in + breathing_in
+    bottom_margin = modlabel_in + breathing_in
+    gaps = [
+        modlabel_in + ovf_in[r + 1] + ttl_in[r + 1] + breathing_in
+        for r in range(len(roi_specs) - 1)
+    ]
+
+    fig_h = top_margin + sum(row_h_in) + sum(gaps) + bottom_margin
+    fig.set_figheight(fig_h)
+
+    # x-layout comes from the gridspec (width_ratios / wspace); y is overwritten.
     fig.subplots_adjust(
-        top=0.965,
-        left=0.015,
-        right=0.990,
-        hspace=0.75,
-        wspace=0.22,
+        left=0.015, right=0.990, top=0.999, bottom=0.001, wspace=0.22
     )
+
+    y_top_in = fig_h - top_margin  # top edge (inches) of the current row
+    for r in range(len(roi_specs)):
+        h = row_h_in[r]
+        y0f = (y_top_in - h) / fig_h
+        hf = h / fig_h
+        for j, (_m, _t) in enumerate(col_spec_block):
+            ax = axes[r, j]
+            pos = ax.get_position()
+            ax.set_position([pos.x0, y0f, pos.width, hf])
+        y_top_in -= h + (gaps[r] if r < len(roi_specs) - 1 else 0.0)
+
+    # Per-row overflow in figure-fraction (used to lift titles above brackets).
+    ovf_frac = [o / fig_h for o in ovf_in]
 
     # --- Condition legend: 2 rows × N cols ---
     if not getattr(fig, "_top_canvas_drawn", False):
@@ -1132,10 +1177,18 @@ def plot_psc_boxplots(
         max(axes[0, j].get_position().y1 for j in cols_nonspacer)
     )
 
-    # Fixed vertical layout (stable across figures)
-    y_ci = y_top_axes + 0.060
-    y_beat = y_top_axes + 0.047
-    y_int = y_beat - float(row_gap)
+    # Legend vertical layout in ABSOLUTE POINTS (constant on the page).
+    # The bottom swatch row is lifted to clear the first ROI title, so the
+    # legend never lands on top of "Dorsal Striatum" regardless of fig height.
+    first_label = roi_specs[0]["roi_label"] if roi_specs else ""
+    n_title_lines = first_label.count("\n") + 1
+    title_h_pt = n_title_lines * (axis_label_fs + 8) * 1.25
+
+    y_int = y_top_axes + ovf_frac[0] + _pts_to_figfrac_y(
+        fig, TITLE_GAP_PT + title_h_pt + LEGEND_TITLE_CLEAR_PT
+    )
+    y_beat = y_int + _pts_to_figfrac_y(fig, LEGEND_ROW_GAP_PT)
+    y_ci = y_beat + _pts_to_figfrac_y(fig, LEGEND_CI_GAP_PT)
 
     fig.text(
         x_right,
@@ -1382,29 +1435,16 @@ def plot_psc_boxplots(
             if within_anns and ("Beat" in cats) and ("Interval" in cats):
                 x1 = float(positions[0])
                 x2 = float(positions[1])
+                tick = spec["tick"]
+                anchor = spec["y_max"] + spec["anchor_pad_t"] * tick
                 for level, ann in enumerate(within_anns):
                     p = float(ann["pvalue"])
                     text = pval_label_converter([p])[0]
-                    y_data = (
-                        spec["y_max"]
-                        + spec["pad"]
-                        + (
-                            spec.get(
-                                "within_base_frac",
-                                within_annot_y_frac_base,
-                            )
-                            + level
-                            * spec.get(
-                                "within_step_frac",
-                                within_annot_y_frac_step,
-                            )
-                        )
-                        * spec["yr"]
-                    )
-                    h_data = (
-                        spec.get("within_h_frac", within_annot_h_frac)
-                        * spec["yr"]
-                    )
+                    y_data = anchor + (
+                        spec["within_clear_t"]
+                        + level * spec["within_layer_t"]
+                    ) * tick
+                    h_data = spec["within_cap_t"] * tick
                     within_axis_annotation(
                         ax=ax,
                         x1=x1,
@@ -1433,7 +1473,7 @@ def plot_psc_boxplots(
             # available.
             fig.text(
                 (x0 + x1) / 2.0,
-                y1 + 0.010,
+                y1 + ovf_frac[r] + _pts_to_figfrac_y(fig, TITLE_GAP_PT),
                 spec["roi_label"],
                 ha="center",
                 va="bottom",
@@ -1448,7 +1488,7 @@ def plot_psc_boxplots(
             fig._modlabel_canvas_drawn = True
 
         renderer = fig.canvas.get_renderer()
-        gap_fig = 0.006
+        gap_fig = _pts_to_figfrac_y(fig, MODLABEL_GAP_PT)
 
         for mod in mods_present:
             cols = cols_by_mod.get(mod, [])
@@ -1494,29 +1534,18 @@ def plot_psc_boxplots(
                 within_top = float(
                     spec.get("within_stack_top_by_mod", {}).get(m, 0.0)
                 )
-                gap_frac = within_to_span_gap_frac if within_top > 0.0 else 0.0
-
-                # Adaptive vertical spacing: ...
-                # ... tighter when few spans, larger when many.
-                n_layers = len(anns)
-                step_default = spec.get("ann_step_frac", annot_y_frac_step)
-                step_min = float(spec.get("ann_step_min_frac", step_default))
-                step_max = float(spec.get("ann_step_max_frac", step_default))
-                step_scale = float(spec.get("ann_step_scale_per_layer", 0.0))
-
-                step_frac = step_default * (
-                    1.0 + step_scale * max(0, n_layers - 1)
+                tick = spec["tick"]
+                anchor = spec["y_max"] + spec["anchor_pad_t"] * tick
+                # within-axis stack (if any) plus a clearance gap sits below.
+                within_offset_t = (
+                    within_top + spec["clearance_t"] if within_top > 0.0 else 0.0
                 )
-                step_frac = max(step_min, min(step_max, step_frac))
-
-                y_data = (spec["y_max"] + spec["pad"]) + (
-                    within_top
-                    + gap_frac
-                    + spec.get("ann_base_frac", annot_y_frac_base)
-                    + level * step_frac
-                ) * spec["yr"]
-
-                h_data = annot_h_frac * spec["yr"]
+                y_data = anchor + (
+                    within_offset_t
+                    + spec["clearance_t"]
+                    + level * spec["layer_t"]
+                ) * tick
+                h_data = spec["cap_t"] * tick
 
                 span_annotation_datay_figspan(
                     fig,
@@ -1529,8 +1558,8 @@ def plot_psc_boxplots(
                 )
 
         eligible_cross = spec.get("eligible_cross", [])
-        cross_start_frac = float(spec.get("cross_start_frac", 0.0))
-        if eligible_cross and cross_start_frac > 0.0:
+        cross_start_t = float(spec.get("cross_start_t", 0.0))
+        if eligible_cross and cross_start_t > 0.0:
             for level, ann in enumerate(eligible_cross):
                 tasks = list(ann.get("tasks_resolved", []))
                 if not tasks:
@@ -1548,24 +1577,12 @@ def plot_psc_boxplots(
                 p = float(ann["pvalue"])
                 text = pval_label_converter([p])[0]
 
-                n_layers = len(eligible_cross)
-                step_default = spec.get("ann_step_frac", annot_y_frac_step)
-                step_min = float(spec.get("ann_step_min_frac", step_default))
-                step_max = float(spec.get("ann_step_max_frac", step_default))
-                step_scale = float(spec.get("ann_step_scale_per_layer", 0.0))
-
-                step_frac = step_default * (
-                    1.0 + step_scale * max(0, n_layers - 1)
-                )
-                step_frac = max(step_min, min(step_max, step_frac))
-
-                y_data = (spec["y_max"] + spec["pad"]) + (
-                    cross_start_frac
-                    + spec.get("ann_base_frac", annot_y_frac_base)
-                    + level * step_frac
-                ) * spec["yr"]
-
-                h_data = annot_h_frac * spec["yr"]
+                tick = spec["tick"]
+                anchor = spec["y_max"] + spec["anchor_pad_t"] * tick
+                y_data = anchor + (
+                    cross_start_t + level * spec["layer_t"]
+                ) * tick
+                h_data = spec["cap_t"] * tick
 
                 use_lower_lines = (
                     len(tasks) == len(TASKS_MAIN)
@@ -1752,61 +1769,49 @@ ANNOTATIONS: List[dict] = [
         roi="auditory_cortex",
         modality="Auditory",
         task_pair=("Production", "NTFD"),
-        pvalue=0.000000120078120129038,
+        pvalue=0.00000744213825471056,
     ),
     dict(
         roi="auditory_cortex",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0000000193038251748658,
-    ),
-    dict(
-        roi="auditory_cortex",
-        modality="Visual",
-        task_pair=("Production", "NTFD"),
-        pvalue=0.0081314046208235,
-    ),
-    dict(
-        roi="auditory_cortex",
-        modality="Visual",
-        task_pair=("Perception", "NTFD"),
-        pvalue=0.00442866858182365,
+        pvalue=0.00000145219763263706,
     ),
     dict(
         roi="visual_cortex",
         modality="Auditory",
         task_pair=("Production", "Perception"),
-        pvalue=0.000626114850557064,
+        pvalue=0.000793532154268527,
     ),
     dict(
         roi="visual_cortex",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
-        pvalue=0.0000127270315099403,
+        pvalue=0.0000151274029394139,
     ),
     dict(
         roi="visual_cortex",
         modality="Visual",
         task_pair=("Production", "Perception"),
-        pvalue=0.000636929873833315,
+        pvalue=0.000675594786736658,
     ),
     dict(
         roi="visual_cortex",
         modality="Visual",
         task_pair=("Production", "NTFD"),
-        pvalue=0.00106498769262454,
+        pvalue=0.000929304603146975,
     ),
     dict(
         roi="dorsal striatum",
         modality="Pooled",
         task_pair=("Production", "Perception"),
-        pvalue=0.00000000832811687173313,
+        pvalue=0.0000000207249593036707,
     ),
     dict(
         roi="dorsal striatum",
         modality="Pooled",
         task_pair=("Production", "NTFD"),
-        pvalue=0.0000000355953143817497,
+        pvalue=0.0000000737910684521213,
     ),
     dict(
         roi="cerebellum",
@@ -1870,23 +1875,24 @@ if __name__ == "__main__":
         audivisual_only=False,
         include_ntfd_random=False,
         y_limits={
-            "visual_cortex": (-0.6, 2.2),
-            "dstr": (-0.6, 2.2),
-            "cereb": (-0.2, 1.2),
+            "auditory_cortex": (-0.4, 1.6),
+            "visual_cortex": (-0.4, 1.6),
+            "dstr": (-0.4, 1.6),
             "presma": (-0.2, 1.2),
             "sma": (-0.2, 1.2),
             "pmd": (-0.2, 1.2),
             "pmv": (-0.2, 1.2),
+            "cereb": (-0.2, 1.2),
         },
         show_yaxis={
-            "auditory_cortex": True,
-            "visual_cortex": False,
-            "dstr": False,
-            "cereb": False,
-            "presma": True,
-            "sma": False,
-            "pmd": False,
-            "pmv": False,
+            # "auditory_cortex": True,
+            # "visual_cortex": False,
+            # "dstr": False,
+            # "presma": True,
+            # "sma": False,
+            # "pmd": False,
+            # "pmv": False,
+            # "cereb": False,
         },
         row_gap=0.004,
         tag_dx_beat=-0.056,
@@ -1899,6 +1905,7 @@ if __name__ == "__main__":
         ),
     )
 
+    # Only with audio and visual plots
     outpath_av = Path(OUTPUT_PATH)
     outpath_av = outpath_av.with_name(
         outpath_av.stem + "_audivisual_only" + outpath_av.suffix
@@ -1910,23 +1917,24 @@ if __name__ == "__main__":
         audivisual_only=True,
         include_ntfd_random=False,
         y_limits={
-            "visual_cortex": (-0.6, 2.2),
-            "dstr": (-0.6, 2.2),
-            "cereb": (-0.2, 1.2),
+            "auditory_cortex": (-0.4, 1.6),
+            "visual_cortex": (-0.4, 1.6),
+            "dstr": (-0.4, 1.6),
             "presma": (-0.2, 1.2),
             "sma": (-0.2, 1.2),
             "pmd": (-0.2, 1.2),
             "pmv": (-0.2, 1.2),
+            "cereb": (-0.2, 1.2),
         },
         show_yaxis={
-            "auditory_cortex": True,
-            "visual_cortex": False,
-            "dstr": False,
-            "cereb": False,
-            "presma": True,
-            "sma": False,
-            "pmd": False,
-            "pmv": False,
+            # "auditory_cortex": True,
+            # "visual_cortex": False,
+            # "dstr": False,
+            # "presma": True,
+            # "sma": False,
+            # "pmd": False,
+            # "pmv": False,
+            # "cereb": False,
         },
         x_leg_dx=-0.175,
         tag_dx_beat=-0.056,
@@ -1963,23 +1971,23 @@ if __name__ == "__main__":
     # )
 
     # 2) Extended figures (with NTFD Random panels)
-    outpath_rand = Path(OUTPUT_PATH)
-    outpath_rand = outpath_rand.with_name(
-        outpath_rand.stem + "_ntfd_random" + outpath_rand.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_rand,
-        figsize_scale=args.figscale,
-        audivisual_only=False,
-        include_ntfd_random=True,
-        within_modality_bracket_height_fig=(
-            WITHIN_MODALITY_BRACKET_HEIGHT_FIG
-        ),
-        between_modality_bracket_height_fig=(
-            BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
-        ),
-    )
+    # outpath_rand = Path(OUTPUT_PATH)
+    # outpath_rand = outpath_rand.with_name(
+    #     outpath_rand.stem + "_ntfd_random" + outpath_rand.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_rand,
+    #     figsize_scale=args.figscale,
+    #     audivisual_only=False,
+    #     include_ntfd_random=True,
+    #     within_modality_bracket_height_fig=(
+    #         WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
+    #     between_modality_bracket_height_fig=(
+    #         BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
+    # )
 
     # outpath_rand_av = Path(OUTPUT_PATH)
     # outpath_rand_av = outpath_rand_av.with_name(
