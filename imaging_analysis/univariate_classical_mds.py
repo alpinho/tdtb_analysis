@@ -8,7 +8,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 30th of October 2025
-Last Update: April 2026
+Last Update: June 2026
 
 Compatibility: Python 3.10.16
 """
@@ -1034,7 +1034,14 @@ def plot_mds_3d(
     plt.close(fig)
 
 
-# ============================= CONFIG ============================== #
+# ============================= INPUTS ============================== #
+
+ADD_REST: bool = True
+USE_RAND: bool = False
+# Use "encoding" for within-subject rm corr, and ...
+# ... "subjectcorr" for subject-wise corr.
+# corrtype_folder = "encoding_restrand"
+corrtype_folder = "subjectcorr_paired"
 
 N_COMPONENTS = 3
 INDIVID_LEVEL = "i"
@@ -1049,9 +1056,11 @@ ROI_LABELS = {
     "pmd": "PMD",
     "presma": "PreSMA",
     "sma": "SMA",
-    "heschl": "Heschl's Gyrus",
-    "occipital": "Occipital\nLobe",
-    "occipital_lobe": "Occipital Lobe",
+    'auditory_cortex': 'Auditory Cortex',
+    'visual_cortex': 'Visual Cortex',
+    # "heschl": "Heschl's Gyrus",
+    # "occipital": "Occipital\nLobe",
+    # "occipital_lobe": "Occipital Lobe",
 }
 
 # MDS dimensions to flip manually, using 1-based indexing.
@@ -1128,8 +1137,8 @@ MDS_2D_SPECS = {
             "SMA": (-0.055, 0.0005),
             "PMD": (0.01, -0.12),
             "PMV": (0.0125, 0.001),
-            "Heschl's Gyrus": (0.015, -0.0015),
-            "Occipital\nLobe": (0.0, 0.035),
+            "Auditory Cortex": (0.015, -0.0015),
+            "Visual\nCortex": (0.0, 0.035),
         },
         (1, 3): {
             "Dorsal Striatum": (0.015, 0.000),
@@ -1138,8 +1147,8 @@ MDS_2D_SPECS = {
             "SMA": (0.0095, 0.009),  # (0.012, 0.000),
             "PMD": (0.01, -0.001),
             "PMV": (0.0125, -0.001),
-            "Heschl's Gyrus": (-0.085, -0.025),
-            "Occipital Lobe": (0.085, 0.0),
+            "Auditory Cortex": (-0.085, -0.025),
+            "Visual Cortex": (0.085, 0.0),
         },
         (2, 3): {
             "Dorsal Striatum": (-0.1725, 0.000),
@@ -1148,8 +1157,8 @@ MDS_2D_SPECS = {
             "SMA": (-0.042, 0.0175),  # (-0.057, 0.0001),
             "PMD": (0.015, -0.001),
             "PMV": (0.015, -0.001),
-            "Heschl's Gyrus": (0.015, -0.001),
-            "Occipital Lobe": (0.0, 0.02),
+            "Auditory Cortex": (0.015, -0.001),
+            "Visual\nCortex": (0.0, 0.02),
         },
     },
 
@@ -1186,7 +1195,7 @@ MDS_3D_SPECS = {
     "axis_labelpad": {
         "x": 0.0,
         "y": 1.0,
-        "z": 8.0,
+        "z": 6.0,
     },
 
     # Distance between tick labels and axes.
@@ -1207,7 +1216,7 @@ MDS_3D_SPECS = {
     "view": {
         (1, 2, 3): {
             "elev": 15,
-            "azim": 55,  # 10,
+            "azim": 45,
         },
         (2, 3, 4): {
             "elev": 10,
@@ -1230,10 +1239,10 @@ MDS_3D_SPECS = {
     # Pixel offsets for projected x and y tick labels in 3D.
     "x_ticklabel_offsets": {
         (1, 2, 3): {
-            "dx_px": 55.0,  # 119.0,
-            "dy_px": -116.0,  # -78.0,
-            "spread_x_px": -32.0,  # -3.75,
-            "spread_y_px": -8.0,  # -15.0,
+            "dx_px": 83.0,  # 84.0,
+            "dy_px": -108.0,  # -109.0,
+            "spread_x_px": -25.0,  # -25.0,
+            "spread_y_px": -9.,  # -9.0,
         },
         "default": {
             "dx_px": 0.0,
@@ -1244,10 +1253,10 @@ MDS_3D_SPECS = {
     },
     "y_ticklabel_offsets": {
         (1, 2, 3): {
-            "dx_px": -96.0,
-            "dy_px": -82.0,
-            "spread_x_px": 48.0,
-            "spread_y_px": -22.0,
+            "dx_px": -86.0,
+            "dy_px": -92.0,
+            "spread_x_px": 60.0,
+            "spread_y_px": -19.0,
         },
         "default": {
             "dx_px": 0.0,
@@ -1260,9 +1269,9 @@ MDS_3D_SPECS = {
     # Pixel offsets and rotation for projected x-axis label in 3D.
     "xlabel_offsets": {
         (1, 2, 3): {
-            "dx_px": 70.0,  # 158.0,
-            "dy_px": -122.0,  # -78.0,
-            "rotation": 10.,  # 73.0,
+            "dx_px": 128.0,
+            "dy_px": -115.0,
+            "rotation": 20.,
         },
         "default": {
             "dx_px": 0.0,
@@ -1284,15 +1293,14 @@ MDS_3D_SPECS = {
     # If a label is missing, default offset (6, 6) is used.
     "label_offsets_px": {
         (1, 2, 3): {
-            "Dorsal Striatum": (-70, 128),  # (-98, 130),
-            "Cerebellum": (16, 43),  # (-8, 44),
-            "PreSMA": (22, 30),  # (-4, 32),
-            "SMA": (-45, 53),  # (-90, 38),
-            "PMD": (30, 7),  # (7, 8),
-            "PMV": (29, 17),  # (8, 18),
-            "Heschl's Gyrus": (-83, 19),  # (-85, 4),
-            "Occipital\nLobe": (90, -15),  # (58, 40),
-            "Occipital Lobe": (8, 6),
+            "Dorsal Striatum": (-98, 124),
+            "Cerebellum": (13, 41),
+            "PreSMA": (0, 39),
+            "SMA": (5, 51),
+            "PMD": (31, 7),
+            "PMV": (26, 20),
+            "Auditory Cortex": (-160, 28),
+            "Visual Cortex": (52, 8),
         },
         "default": {},
     },
@@ -1334,17 +1342,25 @@ MODEL = "rwls"
 MASKING = "wb"
 HRF = "hrf128"
 
-# Use "encoding_restrand" for within-subject rm corr, and ...
-# ... "subjectcorr_paired_restrand" for subject-wise corr.
-# corrtype_folder = "encoding_restrand"
-corrtype_folder = "subjectcorr_paired_restrand"
+if USE_RAND and ADD_REST:
+    MAIN_DIRNAME = corrtype_folder + '_restrand'
+    FILETAG = 'withrestrand'
+elif USE_RAND and not ADD_REST:
+    MAIN_DIRNAME = corrtype_folder + '_rand'
+    FILETAG = 'withrand'
+elif not USE_RAND and ADD_REST:
+    MAIN_DIRNAME = corrtype_folder + '_rest'
+    FILETAG = 'withrest'
+else:
+    MAIN_DIRNAME = corrtype_folder
+    FILETAG = 'norestrand'
 
 BASE_ALL = os.path.join(
     WORKING_DIR,
     f"roi_analyses_{MODEL}_{HRF}_{MASKING}_puncorr_unsmoothed",
     "bothmod_allmain_tasks",
     "profile_similarity",
-    corrtype_folder,
+    MAIN_DIRNAME,
     "i",
     "matrices",
 )
@@ -1360,20 +1376,20 @@ MDS_OUTPUT_DIR = os.path.join(
 
 if __name__ == "__main__":
 
-    if corrtype_folder == "encoding_restrand":
+    if corrtype_folder == "encoding":
         mtx_path = os.path.join(
             BASE_ALL,
             "matrix_r_"
             + INDIVID_LEVEL
-            + "_Both_bh_8-rois_withrestrand.tsv",
+            + "_Both_bh_8-rois_" + FILETAG + ".tsv"
         )
     else:
-        assert corrtype_folder == "subjectcorr_paired_restrand"
+        assert corrtype_folder == "subjectcorr_paired"
         mtx_path = os.path.join(
             BASE_ALL,
             "matrix_mean_r_"
             + INDIVID_LEVEL
-            + "_Both_bh_8-rois_withrestrand.tsv",
+            + "_Both_bh_8-rois_" + FILETAG + ".tsv"
         )
 
     df = pd.read_csv(mtx_path, sep="\t", index_col=0)

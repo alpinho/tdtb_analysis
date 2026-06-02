@@ -29,7 +29,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Date of creation: 9th of March 2026
-Last update: May 2026
+Last update: June 2026
 
 Compatibility: Python 3.10+
 """
@@ -892,9 +892,9 @@ ALPHA: float = 0.05
 N_ROIS: int = 8
 
 ADD_REST: bool = True
-USE_RAND: bool = True
+USE_RAND: bool = False
 
-INDIVID_LEVELS: List[str] = ['i']
+INDIVID_LEVELS: List[str] = ['i', 'g']
 HEMIS: List[str] = ['bh']
 MODALITIES: List[str] = ['Both']
 YLIM: tuple[float, float] = (-0.2, 1.0)
@@ -905,7 +905,7 @@ MATRIX_TEST_SCALE: str = 'fisher_z' # one-sample t-test of matrix...
                                     # ... values displayed as stars. 
                                     # It does not affect the ...
                                     # ... displayed matrix values ...
-                                    # ... themselves. These are the ...
+                                    # ... themselves: these are the ...
                                     # ... mean raw correlations.
 
 BASE_TASKS: List[str] = ['Production', 'Perception', 'NTFD']
@@ -925,9 +925,11 @@ ROI_LABELS: Dict[str, str] = {
     'pmd': 'PMD',
     'presma': 'preSMA',
     'sma': 'SMA',
-    'heschl': "Heschl's\nGyrus",
-    'occipital': 'Occipital\nLobe',
-    'occipital_lobe': 'Occipital\nLobe',
+    'auditory_cortex': 'Auditory Cortex',
+    'visual_cortex': 'Visual Cortex',
+    # 'heschl': "Heschl's\nGyrus",
+    # 'occipital': 'Occipital\nLobe',
+    # 'occipital_lobe': 'Occipital\nLobe',
 }
 
 ROI_ORDER_GROUPS: List[List[str]] = [
@@ -937,8 +939,10 @@ ROI_ORDER_GROUPS: List[List[str]] = [
     ['sma'],
     ['pmd'],
     ['pmv'],
-    ['heschl'],
-    ['occipital_lobe', 'occipital'],
+    ['auditory_cortex'],
+    ['visual_cortex'],
+    # ['heschl'],
+    # ['occipital_lobe', 'occipital'],
 ]
 
 SEEDS: List[str] = ['cereb', 'dstr']
