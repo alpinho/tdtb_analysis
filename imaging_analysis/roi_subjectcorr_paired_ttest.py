@@ -15,8 +15,8 @@ For the selected individualization X modality X hemisphere:
 - Optionally add one synthetic Rest row (PSC=0) per Subject X ROI.
 - Compute Pearson correlations separately for each subject.
 - Summarize all pairs involving cerebellum or dorsal striatum.
-- For each cortical ROI, run a paired t-test comparing:a
-  target-cerebellum vs target-dstr subject-wise correlations, usinga
+- For each cortical ROI, run a paired t-test comparing: a
+  target-cerebellum vs target-dstr subject-wise correlations, using
   either raw r or Fisher-z transformed subject-wise correlations.
 - Build a ROI X ROI matrix using mean raw subject-wise correlations.
 - Test each ROI-pair mean correlation against zero using either raw r
