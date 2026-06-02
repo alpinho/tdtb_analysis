@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 28th of January, 2026
-Last update: May 2026
+Last update: June 2026
 
 Compatibility: Python 3.10.14
 """
@@ -56,8 +56,8 @@ ROI_ORDER = [
     "sma",
     "pmd",
     "pmv",
-    "heschl",
-    "occipital",
+    "auditory_cortex",
+    "visual_cortex",
 ]
 
 ROI_PRETTY = {
@@ -67,8 +67,8 @@ ROI_PRETTY = {
     "sma": "SMA",
     "pmd": "PMD",
     "pmv": "PMV",
-    "heschl": "Heschl’s Gyrus",
-    "occipital": "Occipital Lobe",
+    "auditory Cortex": "Auditory Cortex",
+    "visual_cortex": "Visual Cortex",
 }
 
 # Geometry: make the 3-boxplot NTFD Random panels wider.
@@ -132,10 +132,10 @@ def _roi_key(name: str) -> str | None:
         return "pmd"
     if "pmv" in tok:
         return "pmv"
-    if "heschl" in tok:
-        return "heschl"
+    if "auditory_cortex" in tok:
+        return "auditory_cortex"
     if "occip" in tok:
-        return "occipital"
+        return "visual_cortex"
 
     return None
 
@@ -625,12 +625,12 @@ def plot_psc_boxplots(
         #
         # Keys used by the code:
         # - pad_frac (fallback is ypad_frac, 
-        #             except heschl fallback 0.045)
+        #             except auditory_cortex fallback 0.045)
         # - base_frac (fallback annot_y_frac_base)
         # - step_frac (fallback annot_y_frac_step)
         # - headroom_frac 
         #   (fallback annot_headroom_frac, 
-        #    except heschl fallback 0.006)
+        #    except auditory_cortex fallback 0.006)
         # - step_min_frac / step_max_frac (fallback step_frac)
         # - step_scale_per_layer (currently present in your overrides)
 
@@ -688,7 +688,7 @@ def plot_psc_boxplots(
             "step_scale_per_layer": 0.0,
             "headroom_frac": 0.0,
         },
-        "heschl": {
+        "auditory_cortex": {
             "pad_frac": 0.020,
             "base_frac": 0.020,
             "step_frac": 0.05,
@@ -697,7 +697,7 @@ def plot_psc_boxplots(
             "step_scale_per_layer": 0.25,
             "headroom_frac": 0.0,
         },
-        "occipital": {
+        "visual_cortex": {
             "pad_frac": 0.06,
             "base_frac": 0.020,
             "step_frac": 0.16,
@@ -712,7 +712,7 @@ def plot_psc_boxplots(
     # Legacy tuning block (kept for reference; disabled by request)
     # ------------------------------------------------------------------
     # roi_annot_overrides.update({
-    #     "heschl": {
+    #     "auditory_cortex": {
     #         "pad_frac": 0.020,
     #         "base_frac": 0.020,
     #         "step_frac": 0.05,               # default
@@ -721,7 +721,7 @@ def plot_psc_boxplots(
     #         "step_scale_per_layer": 0.25,    # grow when many layers
     #         "headroom_frac": 0.,
     #     },
-    #     "occipital": {
+    #     "visual_cortex": {
     #         "base_frac": 0.020,
     #         "step_frac": 0.16,
     #         "step_min_frac": 0.16,
@@ -733,9 +733,9 @@ def plot_psc_boxplots(
     if pooled_only:
         annot_y_frac_step = 0.11
         roi_annot_overrides = dict(roi_annot_overrides)
-        h_ov = dict(roi_annot_overrides.get("heschl", {}))
+        h_ov = dict(roi_annot_overrides.get("auditory_cortex", {}))
         h_ov["step_frac"] = 0.13
-        roi_annot_overrides["heschl"] = h_ov
+        roi_annot_overrides["auditory_cortex"] = h_ov
 
     zero_line_color = "0.25"
     zero_line_ls = "--"
@@ -926,7 +926,7 @@ def plot_psc_boxplots(
         ov = roi_annot_overrides.get(rkey or "", {})
 
         pad_frac_local = float(
-            ov.get("pad_frac", (0.045 if rkey == "heschl" else ypad_frac))
+            ov.get("pad_frac", (0.045 if rkey == "auditory_cortex" else ypad_frac))
         )
         pad = pad_frac_local * yr
 
@@ -941,7 +941,7 @@ def plot_psc_boxplots(
         headroom_frac_local = float(
             ov.get(
                 "headroom_frac",
-                (0.006 if rkey == "heschl" else annot_headroom_frac),
+                (0.006 if rkey == "auditory_cortex" else annot_headroom_frac),
             )
         )
         base_frac_local = float(ov.get("base_frac", annot_y_frac_base))
@@ -1725,19 +1725,19 @@ WITHIN_ANNOTATIONS: List[dict] = [
 # Pairwise comparisons only for the Modality factor, across all tasks
 CROSS_AV_ANNOTATIONS: List[dict] = [
     dict(
-        roi="heschl",
+        roi="auditory_cortex",
         tasks=["Production", "Perception", "NTFD"],
-        pvalue=0.000000000000019175870689252,
+        pvalue=0.000000000000000013809316592507
     ),
     dict(
-        roi="occipital",
+        roi="visual_cortex",
         tasks=["Production", "Perception", "NTFD"],
-        pvalue=0.00000000306482935206361,
+        pvalue=0.00000000363753126470459,
     ),
     dict(
         roi="pmd",
         tasks=["Production", "Perception", "NTFD"],
-        pvalue=0.00366481397614982,
+        pvalue=0.00366481397614986,
     ),
 ]
 
@@ -1749,49 +1749,49 @@ CROSS_AV_ANNOTATIONS: List[dict] = [
 # Pairwise comparisons only for the Task factor, within each modality
 ANNOTATIONS: List[dict] = [
     dict(
-        roi="heschl",
+        roi="auditory_cortex",
         modality="Auditory",
         task_pair=("Production", "NTFD"),
         pvalue=0.000000120078120129038,
     ),
     dict(
-        roi="heschl",
+        roi="auditory_cortex",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
         pvalue=0.0000000193038251748658,
     ),
     dict(
-        roi="heschl",
+        roi="auditory_cortex",
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.0081314046208235,
     ),
     dict(
-        roi="heschl",
+        roi="auditory_cortex",
         modality="Visual",
         task_pair=("Perception", "NTFD"),
         pvalue=0.00442866858182365,
     ),
     dict(
-        roi="occipital",
+        roi="visual_cortex",
         modality="Auditory",
         task_pair=("Production", "Perception"),
         pvalue=0.000626114850557064,
     ),
     dict(
-        roi="occipital",
+        roi="visual_cortex",
         modality="Auditory",
         task_pair=("Perception", "NTFD"),
         pvalue=0.0000127270315099403,
     ),
     dict(
-        roi="occipital",
+        roi="visual_cortex",
         modality="Visual",
         task_pair=("Production", "Perception"),
         pvalue=0.000636929873833315,
     ),
     dict(
-        roi="occipital",
+        roi="visual_cortex",
         modality="Visual",
         task_pair=("Production", "NTFD"),
         pvalue=0.00106498769262454,
@@ -1870,7 +1870,7 @@ if __name__ == "__main__":
         audivisual_only=False,
         include_ntfd_random=False,
         y_limits={
-            "occipital": (-0.6, 2.2),
+            "visual_cortex": (-0.6, 2.2),
             "dstr": (-0.6, 2.2),
             "cereb": (-0.2, 1.2),
             "presma": (-0.2, 1.2),
@@ -1879,8 +1879,8 @@ if __name__ == "__main__":
             "pmv": (-0.2, 1.2),
         },
         show_yaxis={
-            "heschl": True,
-            "occipital": False,
+            "auditory_cortex": True,
+            "visual_cortex": False,
             "dstr": False,
             "cereb": False,
             "presma": True,
@@ -1910,7 +1910,7 @@ if __name__ == "__main__":
         audivisual_only=True,
         include_ntfd_random=False,
         y_limits={
-            "occipital": (-0.6, 2.2),
+            "visual_cortex": (-0.6, 2.2),
             "dstr": (-0.6, 2.2),
             "cereb": (-0.2, 1.2),
             "presma": (-0.2, 1.2),
@@ -1919,8 +1919,8 @@ if __name__ == "__main__":
             "pmv": (-0.2, 1.2),
         },
         show_yaxis={
-            "heschl": True,
-            "occipital": False,
+            "auditory_cortex": True,
+            "visual_cortex": False,
             "dstr": False,
             "cereb": False,
             "presma": True,
