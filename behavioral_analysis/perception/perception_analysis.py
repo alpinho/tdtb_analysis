@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February, 2023
-Last update: May 2026
+Last update: June 2026
 
 Compatibility: Python 3.10.14
 """
@@ -1495,7 +1495,7 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49, 50, 51, 52, 53]
+SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54]
 
 # #######################################################################
 
@@ -1600,7 +1600,7 @@ RAW_DF_DIR = None
 if __name__ == "__main__":
 
     for batch_tag, sessions_dic, subjects_dic in [
-        ('first',  fb_sessions_dic,  fb_subjects_dic),
+        # ('first',  fb_sessions_dic,  fb_subjects_dic),
         ('second', sb_sessions_dic,  sb_subjects_dic),
     ]:
 

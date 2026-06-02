@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 5, 2024
-Last update: May, 2026
+Last update: June 2026
 
 Compatibility: Python 3.10.14
 """
@@ -438,7 +438,7 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49, 50, 51, 52, 53]
+SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54]
 
 # #####################################################################
 
@@ -529,7 +529,9 @@ sb_inputs_dic = {
 
 # Keep these lists explicit so each input/output type can be run one at a
 # time by commenting out any entry if needed.
-BATCHES_TO_RUN = ['first', 'second']
+# BATCHES_TO_RUN = ['first', 'second']
+BATCHES_TO_RUN = ['second']
+
 INPUT_TYPES_TO_RUN = ['latency_corrected', 'uncorrected']
 
 batch_dic = {
