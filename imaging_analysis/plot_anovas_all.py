@@ -106,7 +106,7 @@ BETWEEN_MODALITY_BRACKET_HEIGHT_FIG = 0.0025
 # -- In-panel significance brackets (units: multiples of one y-tick) --
 ANNOT_ANCHOR_PAD_TICKS = 0.25     # gap from data top to where stacks start
 ANNOT_CLEARANCE_TICKS = 0.35      # extra gap before the first across-task span
-ANNOT_LAYER_TICKS = 0.7          # vertical step between stacked span brackets
+ANNOT_LAYER_TICKS = 0.9          # vertical step between stacked span brackets
 ANNOT_CAP_TICKS = 0.12            # height of each bracket's vertical end-caps
 ANNOT_HEADROOM_TICKS = 0.45       # blank space kept above the topmost bracket
 
@@ -114,7 +114,7 @@ WITHIN_CLEARANCE_TICKS = 0.30     # gap from data top to first within-axis span
 WITHIN_LAYER_TICKS = 0.55         # step between stacked within-axis brackets
 WITHIN_CAP_TICKS = 0.10           # within-axis bracket cap height
 
-CROSS_GAP_TICKS = 0.65            # gap before the cross-modality stack begins
+CROSS_GAP_TICKS = 0.9            # gap before the cross-modality stack begins
 
 # How enforced y-limits interact with the annotation stack:
 #   False (default) -> your y_limits are honored EXACTLY. The data box is
@@ -123,7 +123,7 @@ CROSS_GAP_TICKS = 0.65            # gap before the cross-modality stack begins
 #       just enough extra room so brackets never touch the title.
 #   True -> the top is instead raised to the next tick to swallow the stack
 #       (axes get taller; your enforced top is treated as a floor).
-EXPAND_TOP_FOR_ANNOTATIONS = True
+EXPAND_TOP_FOR_ANNOTATIONS = False
 
 
 # -- Legend / title spacing (units: absolute points) --
@@ -1885,14 +1885,14 @@ if __name__ == "__main__":
             "cereb": (-0.2, 1.2),
         },
         show_yaxis={
-            # "auditory_cortex": True,
-            # "visual_cortex": False,
-            # "dstr": False,
-            # "presma": True,
-            # "sma": False,
-            # "pmd": False,
-            # "pmv": False,
-            # "cereb": False,
+            "auditory_cortex": True,
+            "visual_cortex": False,
+            "dstr": False,
+            "cereb": True,
+            "presma": False,
+            "sma": False,
+            "pmd": False,
+            "pmv": False,
         },
         row_gap=0.004,
         tag_dx_beat=-0.056,
@@ -1927,14 +1927,14 @@ if __name__ == "__main__":
             "cereb": (-0.2, 1.2),
         },
         show_yaxis={
-            # "auditory_cortex": True,
-            # "visual_cortex": False,
-            # "dstr": False,
-            # "presma": True,
-            # "sma": False,
-            # "pmd": False,
-            # "pmv": False,
-            # "cereb": False,
+            "auditory_cortex": True,
+            "visual_cortex": False,
+            "dstr": False,
+            "cereb": True,
+            "presma": False,
+            "sma": False,
+            "pmd": False,
+            "pmv": False,
         },
         x_leg_dx=-0.175,
         tag_dx_beat=-0.056,
