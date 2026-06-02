@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: May 2026
+Last update: June 2026
 
 Compatibility: Python 3.10.14
 """
@@ -191,7 +191,7 @@ IMG_SUBJECTS = [
     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49, 50, 51, 52, 53]
+SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54]
 
 # #######################################################################
 
@@ -227,10 +227,10 @@ N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) -->
 # tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
-# SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01']
-# tag = SESSIONS[0]
+SUBJECTS = SB_SUBJECTS  # SB_SUBJECTS / GOOD_SUBJECTS
+SESSTYPES = ['behavioral_session']
+SESSIONS = ['ses-01']
+tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = GOOD_SUBJECTS
@@ -272,10 +272,10 @@ N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) -->
 
 # ### For second and third behav sessions: ###
 # ### 'ses-02' and 'ses-03' ###
-SUBJECTS = GOOD_SUBJECTS
-SESSTYPES = ['behavioral_session']
-SESSIONS = ['ses-02', 'ses-03']
-tag = 'behav23'
+# SUBJECTS = GOOD_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-02', 'ses-03']
+# tag = 'behav23'
 
 
 # %%
