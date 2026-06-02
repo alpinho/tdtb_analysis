@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2024
-Last update: May 2026
+Last update: June 2026
 
 Compatibility: Python 3.10.14
 
@@ -1263,17 +1263,21 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'rand_ntfd_pairs'
+folder_name = 'rand_ntfd_nonrandom'
 
 tags = [
-    'i', 'i9a', 'i8a', 'i7a', 'i6a',
+    'i', 
+    'i9a', 'i8a', 'i7a', 'i6a',
     'a',
-    'a4g', 'a3g', 'a2g', 'a1g', 'g'
+    'a4g', 'a3g', 'a2g', 'a1g', 
+    'g'
 ]
 weights_list = [
-    (1., 0.), (.9, .1), (.8, .2), (.7, .3), (.6, .4),
+    (1., 0.), 
+    (.9, .1), (.8, .2), (.7, .3), (.6, .4),
     (.5, .5),
-    (.4, .6), (.3, .7), (.2, .8), (.1, .9), (0., 1.)
+    (.4, .6), (.3, .7), (.2, .8), (.1, .9), 
+    (0., 1.)
 ]
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1406,63 +1410,84 @@ else:
 
 # ###### ROI sets ######
 atlas_dirnames10 = [
-    fsl_dir, ntk_dir, ntk_dir, ntk_dir, hmat_dir, hmat_dir, hmat_dir,
-    hmat_dir, fsl_dir, fsl_dir
+    fsl_dir,
+    ntk_dir, ntk_dir, ntk_dir,
+    hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+    fsl_dir,
+    fsl_dir
 ]
 atlas_names10 = [
-    'hos', 'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
-    'hmat', 'hmat', 'hmat', 'hmat', 'hos', 'hos'
+    'hos',
+    'ntk_symmni128', 'ntk_symmni128', 'ntk_symmni128',
+    'hmat', 'hmat', 'hmat', 'hmat',
+    'hos',
+    'hos'
 ]
 region_names10 = [
-    'dorsal_striatum', 'cerebellum', 'cerebellum', 'cerebellum',
+    'dorsal_striatum',
+    'cerebellum', 'cerebellum', 'cerebellum',
     'motor_area', 'motor_area', 'motor_area', 'motor_area',
-    'heschl_gyrus', 'occipital_lobe'
+    'auditory_cortex',
+    'visual_cortex'
 ]
 roi_names10 = [
-    'dstr', 'cereb-s', 'cereb-i', 'cereb',
+    'dstr',
+    'cereb-s', 'cereb-i', 'cereb',
     'pmd', 'pmv', 'sma', 'presma',
-    'heschl', 'occipital'
+    'auditory_cortex',
+    'visual_cortex'
 ]
 
 # #######################
 
 atlas_dirnames8 = [
-    fsl_dir, ntk_dir, hmat_dir, hmat_dir, hmat_dir, hmat_dir,
-    fsl_dir, fsl_dir
+    fsl_dir,
+    ntk_dir,
+    hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+    fsl_dir,
+    fsl_dir
 ]
 atlas_names8 = [
-    'hos', 'ntk_symmni128', 'hmat', 'hmat', 'hmat', 'hmat',
-    'hos', 'hos'
+    'hos',
+    'ntk_symmni128',
+    'hmat', 'hmat', 'hmat', 'hmat',
+    'hos',
+    'hos'
 ]
 region_names8 = [
-    'dorsal_striatum', 'cerebellum',
+    'dorsal_striatum',
+    'cerebellum',
     'motor_area', 'motor_area', 'motor_area', 'motor_area',
-    'heschl_gyrus', 'occipital_lobe'
+    'auditory_cortex',
+    'visual_cortex'
 ]
 roi_names8 = [
-    'dstr', 'cereb', 'pmd', 'pmv', 'sma', 'presma',
-    'heschl', 'occipital'
+    'dstr',
+    'cereb', 'pmd', 'pmv', 'sma', 'presma',
+    'auditory_cortex',
+    'visual_cortex'
 ]
-crossroi_label = ''
 
 # #######################
 
 atlas_dirnames6 = [
-    fsl_dir, ntk_dir, hmat_dir, hmat_dir, hmat_dir, hmat_dir,
-    fsl_dir, fsl_dir
+    hmat_dir, hmat_dir, hmat_dir, hmat_dir,
+    fsl_dir,
+    fsl_dir
 ]
 atlas_names6 = [
     'hmat', 'hmat', 'hmat', 'hmat', 'hos', 'hos'
 ]
 region_names6 = [
     'motor_area', 'motor_area', 'motor_area', 'motor_area',
-    'heschl_gyrus', 'occipital_lobe'
+    'auditory_cortex',
+    'visual_cortex'
 ]
 roi_names6 = [
     'pmd', 'pmv', 'sma', 'presma',
-    'heschl', 'occipital'
+    'auditory_cortex',
+    'visual_cortex'
 ]
-crossroi_label = 'premotor-sensory'
 
 # #######################
 
@@ -1470,7 +1495,6 @@ atlas_dirnames4 = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
 atlas_names4 = ['hmat', 'hmat', 'hmat', 'hmat']
 region_names4 = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
 roi_names4 = ['pmd', 'pmv', 'sma', 'presma']
-crossroi_label = 'premotor'
 
 # #######################
 
@@ -1478,85 +1502,138 @@ atlas_dirnames3 = [fsl_dir, ntk_dir, hmat_dir]
 atlas_names3 = ['hos', 'ntk_symmni128', 'hmat']
 region_names3 = ['dorsal_striatum', 'cerebellum', 'motor_area']
 roi_names3 = ['dstr', 'cereb', 'sma']
-crossroi_label = 'subcortical-sma'
 
-# #######################
 
-# atlas_dirnames2 = [fsl_dir, ntk_dir]
-# atlas_names2 = ['hos', 'ntk_symmni128']
-# region_names2 = ['dorsal_striatum', 'cerebellum']
-# roi_names2 = ['dstr', 'cereb']
-# crossroi_label = 'subcortical'
-
-# atlas_dirnames2 = [fsl_dir, fsl_dir]
-# atlas_names2 = ['hos', 'hos']
-# region_names2 = ['heschl_gyrus', 'occipital_lobe']
-# roi_names2 = ['heschl', 'occipital']
-# crossroi_label = 'sensory'
-
-# atlas_dirnames2 = [hmat_dir, hmat_dir]
-# atlas_names2 = ['hmat', 'hmat']
-# region_names2 = ['motor_area', 'motor_area']
-# roi_names2 = ['presma', 'sma']
-# crossroi_label = 'presma-sma'
-
-atlas_dirnames2 = [fsl_dir, hmat_dir]
-atlas_names2 = ['hos', 'hmat']
-region_names2 = ['dorsal_striatum', 'motor_area']
-roi_names2 = ['dstr', 'sma']
-crossroi_label = 'dstr-sma'
-
-# atlas_dirnames2 = [ntk_dir, hmat_dir]
-# atlas_names2 = ['ntk_symmni128', 'hmat']
-# region_names2 = ['cerebellum', 'motor_area']
-# roi_names2 = ['cereb', 'sma']
-# crossroi_label = 'cereb-sma'
+ROI_CONFIGS = {
+    10: {
+        'default': {
+            'atlas_dirnames': atlas_dirnames10,
+            'atlas_names': atlas_names10,
+            'region_names': region_names10,
+            'roi_names': roi_names10,
+            'crossroi_label': '',
+        },
+    },
+    8: {
+        'default': {
+            'atlas_dirnames': atlas_dirnames8,
+            'atlas_names': atlas_names8,
+            'region_names': region_names8,
+            'roi_names': roi_names8,
+            'crossroi_label': '',
+        },
+    },
+    6: {
+        'premotor-sensory': {
+            'atlas_dirnames': atlas_dirnames6,
+            'atlas_names': atlas_names6,
+            'region_names': region_names6,
+            'roi_names': roi_names6,
+            'crossroi_label': 'premotor-sensory',
+        },
+    },
+    4: {
+        'premotor': {
+            'atlas_dirnames': atlas_dirnames4,
+            'atlas_names': atlas_names4,
+            'region_names': region_names4,
+            'roi_names': roi_names4,
+            'crossroi_label': 'premotor',
+        },
+    },
+    3: {
+        'subcortical-sma': {
+            'atlas_dirnames': atlas_dirnames3,
+            'atlas_names': atlas_names3,
+            'region_names': region_names3,
+            'roi_names': roi_names3,
+            'crossroi_label': 'subcortical-sma',
+        },
+    },
+    2: {
+        # 'subcortical': {
+        #     'atlas_dirnames': [fsl_dir, ntk_dir],
+        #     'atlas_names': ['hos', 'ntk_symmni128'],
+        #     'region_names': ['dorsal_striatum', 'cerebellum'],
+        #     'roi_names': ['dstr', 'cereb'],
+        #     'crossroi_label': 'subcortical',
+        # },
+        # 'sensory': {
+        #     'atlas_dirnames': [fsl_dir, fsl_dir],
+        #     'atlas_names': ['hos', 'hos'],
+        #     'region_names': ['auditory_cortex', 'visual_cortex'],
+        #     'roi_names': ['auditory_cortex', 'visual_cortex'],
+        #     'crossroi_label': 'sensory',
+        # },
+        # 'presma-sma': {
+        #     'atlas_dirnames': [hmat_dir, hmat_dir],
+        #     'atlas_names': ['hmat', 'hmat'],
+        #     'region_names': ['motor_area', 'motor_area'],
+        #     'roi_names': ['presma', 'sma'],
+        #     'crossroi_label': 'presma-sma',
+        # },
+        'dstr-sma': {
+            'atlas_dirnames': [fsl_dir, hmat_dir],
+            'atlas_names': ['hos', 'hmat'],
+            'region_names': ['dorsal_striatum', 'motor_area'],
+            'roi_names': ['dstr', 'sma'],
+            'crossroi_label': 'dstr-sma',
+        },
+        # 'cereb-sma': {
+        #     'atlas_dirnames': [ntk_dir, hmat_dir],
+        #     'atlas_names': ['ntk_symmni128', 'hmat'],
+        #     'region_names': ['cerebellum', 'motor_area'],
+        #     'roi_names': ['cereb', 'sma'],
+        #     'crossroi_label': 'cereb-sma',
+        # },
+    },
+}
 
 # ============================= RUN ================================= #
 
 if __name__ == '__main__':
 
     assert len(sys.argv) > 2, (
-        "Usage: python roi_anova_msdtb.py <n_rois> <encoding_type>\n"
-        "  n_rois: 2|4|8|10\n"
-        "  encoding_type: bothmod|auditory|visual"
+        "Usage:\n"
+        "  python roi_anova_msdtb.py <n_rois> <encoding_type> "
+        "[roi_config_label]\n\n"
+        "  n_rois: 2|3|4|6|8|10\n"
+        "  encoding_type: bothmod|auditory|visual\n"
+        "  roi_config_label: required when there is more than one "
+        "ROI configuration for the selected n_rois"
     )
 
     n_rois = int(sys.argv[1])
-    if n_rois == 10:
-        atlas_dirnames = atlas_dirnames10
-        atlas_names = atlas_names10
-        region_names = region_names10
-        roi_names = roi_names10
-    elif n_rois == 8:
-        atlas_dirnames = atlas_dirnames8
-        atlas_names = atlas_names8
-        region_names = region_names8
-        roi_names = roi_names8
-    elif n_rois == 6:
-        atlas_dirnames = atlas_dirnames6
-        atlas_names = atlas_names6
-        region_names = region_names6
-        roi_names = roi_names6
-    elif n_rois == 4:
-        atlas_dirnames = atlas_dirnames4
-        atlas_names = atlas_names4
-        region_names = region_names4
-        roi_names = roi_names4
-    elif n_rois == 3:
-        atlas_dirnames = atlas_dirnames3
-        atlas_names = atlas_names3
-        region_names = region_names3
-        roi_names = roi_names3
-    elif n_rois == 2:
-        atlas_dirnames = atlas_dirnames2
-        atlas_names = atlas_names2
-        region_names = region_names2
-        roi_names = roi_names2
-    else:
-        raise ValueError("n_rois must be one of {2, 3, 4, 6, 8, 10}.")
-
     encoding_type = sys.argv[2]
+
+    if n_rois not in ROI_CONFIGS:
+        raise ValueError(
+            f"n_rois must be one of {sorted(ROI_CONFIGS.keys())}."
+        )
+
+    config_labels = list(ROI_CONFIGS[n_rois].keys())
+    if len(sys.argv) > 3:
+        roi_config_label = sys.argv[3]
+    elif len(config_labels) == 1:
+        roi_config_label = config_labels[0]
+    else:
+        raise ValueError(
+            f"For n_rois={n_rois}, provide a ROI configuration label. "
+            f"Valid options are: {config_labels}"
+        )
+
+    if roi_config_label not in ROI_CONFIGS[n_rois]:
+        raise ValueError(
+            f"Unknown ROI configuration '{roi_config_label}' for "
+            f"n_rois={n_rois}. Valid options are: {config_labels}"
+        )
+
+    roi_config = ROI_CONFIGS[n_rois][roi_config_label]
+    atlas_dirnames = roi_config['atlas_dirnames']
+    atlas_names = roi_config['atlas_names']
+    region_names = roi_config['region_names']
+    roi_names = roi_config['roi_names']
+    crossroi_label = roi_config['crossroi_label']
     msdtb_dir = os.path.join(
         roi_dir, f"{encoding_type}_{task_roidef_id}", folder_name
     )
