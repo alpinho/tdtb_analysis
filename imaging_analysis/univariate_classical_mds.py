@@ -1106,7 +1106,7 @@ MDS_2D_SPECS = {
         (1, 3): {
             "Dorsal Striatum": (0.012, 0.000),
             "Cerebellum": (0.009, 0.00085),
-            "PreSMA": (0.022, -0.00275),
+            "PreSMA": (0.035, -0.00275),
             "SMA": (0.01, 0.00095),
             "PMD": (-0.005, -0.0175),
             "PMV": (-0.004, 0.0125),
@@ -1129,8 +1129,17 @@ MDS_2D_SPECS = {
     "leader_lines": {
         (2, 1): {
             "Cerebellum": {
-                "start_offset": (-0.0025, 0.009),
+                "start_offset": (-0.0036, 0.0075),
                 "end_offset": (0.075, -0.01),
+                "color": "black",
+                "linewidth": 0.8,
+                "zorder": 5,
+            },
+        },
+        (1, 3): {
+            "PreSMA": {
+                "start_offset": (0.008, -0.00175),
+                "end_offset": (-0.004, 0.001),
                 "color": "black",
                 "linewidth": 0.8,
                 "zorder": 5,
