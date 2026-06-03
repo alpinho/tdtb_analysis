@@ -106,8 +106,8 @@ BETWEEN_MODALITY_BRACKET_HEIGHT_FIG = 0.0025
 # -- In-panel significance brackets (units: multiples of one y-tick) --
 ANNOT_ANCHOR_PAD_TICKS = 0.25     # gap from data top to where stacks start
 ANNOT_CLEARANCE_TICKS = 0.35      # extra gap before the first across-task span
-ANNOT_LAYER_TICKS = 0.9           # vertical step between stacked span brackets
-ANNOT_CAP_TICKS = 0.3             # end-cap height of across-task & cross
+ANNOT_LAYER_TICKS = 0.9          # vertical step between stacked span brackets
+ANNOT_CAP_TICKS = 0.22            # end-cap height of across-task & cross
                                   # brackets, in y-tick units (responsive;
                                   # one tick == inches_per_step inches)
 ANNOT_HEADROOM_TICKS = 0.45       # blank space kept above the topmost bracket
@@ -134,13 +134,21 @@ LEGEND_ROW_GAP_PT = 15.0      # gap between the Beat and Interval swatch rows
 LEGEND_TOP_PAD_PT = 30.0      # gap from the top panel up to the Beat row
 LEGEND_TITLE_CLEAR_PT = 16.0  # min clearance between legend block and 1st title
 TITLE_GAP_PT = 14.0           # ROI title above its row of panels
-MODLABEL_GAP_PT = 28.0        # modality label below the task x-labels
+MODLABEL_GAP_PT = 18.0        # modality label below the task x-labels
+                              # (also sets how close it sits to the plot;
+                              #  smaller -> modality label nearer the plot)
 
 # Vertical breathing room (inches) added into every inter-row gap on top of
 # the space already reserved for that row's title, bracket overflow, and the
-# modality labels of the row above. Bumping this loosens the whole figure
-# uniformly; it does NOT need changing when ylims change.
+# modality labels of the row above. Affects ONLY plot_psc_boxplots (the tall
+# stacked figure); it does NOT affect the assemble_panel grid.
 ROW_BREATHING_IN = 0.18
+
+# ----- assemble_panel (grid panel) spacing, in inches -----
+# These control the PANEL only. Edit these (not ROW_BREATHING_IN) to space
+# the panel rows or tighten the gap between a ROI title and its plot.
+PANEL_ROW_GAP_IN = 0.6       # vertical space between the two panel rows
+PANEL_TITLE_GAP_IN = 0.01     # gap between a ROI title and the plot below it
 
 
 # ============================ UTILITIES ============================ #
@@ -1717,13 +1725,29 @@ def plot_psc_boxplots(
 # ============================== I/O ================================ #
 
 
+def _content_right_frac(png_path) -> float:
+    """Fraction across an image at which the right-most non-white pixel sits.
+
+    Used to align the legend with a plot's *visible* right edge rather than the
+    cell's padded edge.
+    """
+    from PIL import Image
+    arr = np.asarray(Image.open(png_path).convert("L"))
+    cols = np.where((arr < 250).any(axis=0))[0]
+    if cols.size == 0:
+        return 1.0
+    return float(cols.max() + 1) / float(arr.shape[1])
+
+
 def _panel_legend(fig, x_right_fig, y_top_fig, mods, tasks, axis_label_fs,
                   swatch_w_in, swatch_h_in, row_gap_in, col_gap_in,
                   label_pad_in):
-    """Draw the Beat/Interval colour legend at a fixed top-right anchor.
+    """Draw the Beat/Interval colour legend with its RIGHT edge at x_right_fig.
 
-    Swatch sizes/gaps are in inches so the legend looks identical on any
-    panel. (x_right_fig, y_top_fig) is the top-right corner in figure coords.
+    The "Beat"/"Interval" labels are LEFT-aligned with each other; the longer
+    label ("Interval") reaches x_right_fig (the content / right-most plot edge)
+    and the swatches sit to their left, so the legend fits inside the figure
+    width with no blank margin. Swatch sizes/gaps are in inches.
     """
     fw = fig.get_figwidth()
     fh = fig.get_figheight()
@@ -1736,7 +1760,19 @@ def _panel_legend(fig, x_right_fig, y_top_fig, mods, tasks, axis_label_fs,
     pairs = [(m, t) for m in mods for t in tasks]
     n = len(pairs)
     total_w = n * sw + (n - 1) * cg
-    x0 = x_right_fig - total_w
+
+    # Measure the widest label so the swatches end just left of the labels.
+    renderer = fig.canvas.get_renderer()
+    tmp = [fig.text(0, 0, lab, fontsize=axis_label_fs + 2)
+           for lab in ("Beat", "Interval")]
+    label_w = max(t.get_window_extent(renderer=renderer).width
+                  for t in tmp) / float(fig.bbox.width)
+    for t in tmp:
+        t.remove()
+
+    x_label_left = x_right_fig - label_w            # labels left-aligned here
+    x_swatch_right = x_label_left - pad             # swatches end before labels
+    x0 = x_swatch_right - total_w                   # left-most swatch
 
     # Beat row (top), Interval row (below it).
     for ri, cat in enumerate(("Beat", "Interval")):
@@ -1746,7 +1782,7 @@ def _panel_legend(fig, x_right_fig, y_top_fig, mods, tasks, axis_label_fs,
             fig.add_artist(plt.matplotlib.patches.Rectangle(
                 (x, y - sh), sw, sh, transform=fig.transFigure,
                 facecolor=cat_color(m, t, cat), edgecolor="0.2", lw=0.8))
-        fig.text(x_right_fig + pad, y - sh / 2.0, cat, ha="left",
+        fig.text(x_label_left, y - sh / 2.0, cat, ha="left",
                  va="center", fontsize=axis_label_fs + 2, color="k")
 
 
@@ -1767,8 +1803,8 @@ def assemble_panel(
     include_ntfd_random: bool = False,
     legend: str | None = "full",
     col_gap_in: float = 0.30,
-    row_gap_in: float = 0.55,
-    title_gap_in: float = 0.10,
+    row_gap_in: float = PANEL_ROW_GAP_IN,
+    title_gap_in: float = PANEL_TITLE_GAP_IN,
     title_band_in: float = 0.42,
     side_pad_in: float = 0.20,
     top_pad_in: float = 0.20,
@@ -1848,7 +1884,7 @@ def assemble_panel(
             rv = _resolve_roi(roi_key, roi_values) or roi_key
             return _pretty_roi_label(rv).count("\n") + 1
 
-        line_h_in = title_fontsize * 1.35 / 72.0
+        line_h_in = title_fontsize * 1.15 / 72.0
         # title band per row scales with the tallest title in that row
         title_band = [
             line_h_in * max(_label_lines(rk) for rk, _ in row) + title_gap_in
@@ -1861,12 +1897,10 @@ def assemble_panel(
         content_w = max(row_w)
 
         legend_band = 0.0
-        legend_label_w = 0.0
         if legend is not None:
             legend_band = 0.70  # vertical room reserved above the first row
-            legend_label_w = 0.75  # right-hand room for "Beat"/"Interval"
 
-        fig_w = content_w + 2 * side_pad_in + legend_label_w
+        fig_w = content_w + 2 * side_pad_in
         fig_h = (top_pad_in + bottom_pad_in + legend_band
                  + sum(title_band[ri] + row_h[ri] for ri in range(len(rows)))
                  + row_gap_in * (len(rows) - 1))
@@ -1896,13 +1930,18 @@ def assemble_panel(
                 x += w + col_gap_in
             y_top = cell_bottom - row_gap_in
 
-        # 4) legend at top-right (swatches end at the content edge; labels in
-        #    the reserved right margin so nothing is clipped)
+        # 4) legend at top-right, right edge aligned with the right-most plot's
+        #    VISIBLE edge (PMV here) so there is no blank margin on the right.
         if legend is not None:
             mods, tasks = PANEL_LEGENDS[legend]
+            ri_max = max(range(len(rows)), key=lambda r: row_w[r])
+            w_last = cell_w[ri_max][-1]
+            last_left_in = side_pad_in + content_w - w_last
+            right_in = last_left_in + w_last * _content_right_frac(
+                cell_png[ri_max][-1])
             _panel_legend(
                 fig,
-                x_right_fig=(side_pad_in + content_w) / fig_w,
+                x_right_fig=right_in / fig_w,
                 y_top_fig=(fig_h - top_pad_in) / fig_h,
                 mods=mods, tasks=tasks, axis_label_fs=12,
                 swatch_w_in=0.16, swatch_h_in=0.16,
@@ -2220,7 +2259,6 @@ if __name__ == "__main__":
         row_ylims=panel_row_ylims,
         include_ntfd_random=False,
         legend="full",      # full Beat/Interval colour key at the top-right
-        row_gap_in=0.30,    # vertical space between rows
         cell_kwargs=dict(tag_dx_beat=-0.056, tag_dx_interval=-0.001),
     )
 
