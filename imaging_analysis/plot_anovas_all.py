@@ -106,8 +106,10 @@ BETWEEN_MODALITY_BRACKET_HEIGHT_FIG = 0.0025
 # -- In-panel significance brackets (units: multiples of one y-tick) --
 ANNOT_ANCHOR_PAD_TICKS = 0.25     # gap from data top to where stacks start
 ANNOT_CLEARANCE_TICKS = 0.35      # extra gap before the first across-task span
-ANNOT_LAYER_TICKS = 0.9          # vertical step between stacked span brackets
-ANNOT_CAP_TICKS = 0.12            # height of each bracket's vertical end-caps
+ANNOT_LAYER_TICKS = 0.9           # vertical step between stacked span brackets
+ANNOT_CAP_TICKS = 0.3             # end-cap height of across-task & cross
+                                  # brackets, in y-tick units (responsive;
+                                  # one tick == inches_per_step inches)
 ANNOT_HEADROOM_TICKS = 0.45       # blank space kept above the topmost bracket
 
 WITHIN_CLEARANCE_TICKS = 0.30     # gap from data top to first within-axis span
@@ -132,7 +134,7 @@ LEGEND_ROW_GAP_PT = 15.0      # gap between the Beat and Interval swatch rows
 LEGEND_TOP_PAD_PT = 30.0      # gap from the top panel up to the Beat row
 LEGEND_TITLE_CLEAR_PT = 16.0  # min clearance between legend block and 1st title
 TITLE_GAP_PT = 14.0           # ROI title above its row of panels
-MODLABEL_GAP_PT = 20.0        # modality label below the task x-labels
+MODLABEL_GAP_PT = 28.0        # modality label below the task x-labels
 
 # Vertical breathing room (inches) added into every inter-row gap on top of
 # the space already reserved for that row's title, bracket overflow, and the
@@ -159,6 +161,20 @@ def pval_label_converter(pvalues: Sequence[float]) -> List[str]:
         else:
             out.append("ns")
     return out
+
+
+def _to_bold_mathtext(label: str) -> str:
+    """Wrap a label as bold Computer Modern mathtext, one span per line.
+
+    Spaces are escaped (\\ ) so multi-word names stay on one line; this lets
+    the ROI title use the traditional LaTeX font while ticks/axis labels keep
+    the matplotlib defaults.
+    """
+    out: List[str] = []
+    for line in str(label).split("\n"):
+        esc = line.replace(" ", r"\ ")
+        out.append(rf"$\mathbf{{{esc}}}$")
+    return "\n".join(out)
 
 
 def _roi_token(name: str) -> str:
@@ -289,13 +305,16 @@ def span_annotation_datay_figspan(
     text: str,
     y_data: float,
     h_data: float,
-    bracket_height_fig: float,
+    bracket_height_fig: float = 0.0,  # deprecated/ignored (kept for compat)
     lw: float = 1.2,
     fs: float = 14.0,
 ) -> None:
     """Draw a bracket spanning ax_left -> ax_right.
 
     X uses figure coords (spans subplots). Y anchors to ax_left data coords.
+    The vertical end-cap height is `h_data` in data units, so it is driven by
+    ANNOT_CAP_TICKS and stays a constant size on the page (one tick always maps
+    to inches_per_step inches) regardless of the figure's height.
     """
     if not getattr(fig, "_ann_canvas_drawn", False):
         fig.canvas.draw()
@@ -307,7 +326,7 @@ def span_annotation_datay_figspan(
     x2 = b2.x0 + 0.5 * b2.width
 
     y0 = _ydata_to_yfig(fig, ax_left, y_data)
-    y1 = y0 + float(bracket_height_fig)
+    y1 = _ydata_to_yfig(fig, ax_left, y_data + float(h_data))
 
     fig.add_artist(
         Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
@@ -337,20 +356,21 @@ def span_annotation_figx_figspan(
     text: str,
     y_data: float,
     h_data: float,
-    bracket_height_fig: float,
+    bracket_height_fig: float = 0.0,  # deprecated/ignored (kept for compat)
     lw: float = 1.2,
     fs: float = 14.0,
 ) -> None:
     """Draw a bracket using figure x-coordinates.
 
-    Y anchors to ax_ref data coords.
+    Y anchors to ax_ref data coords; the cap height is `h_data` in data units
+    (driven by ANNOT_CAP_TICKS, constant on the page).
     """
     if not getattr(fig, "_ann_canvas_drawn", False):
         fig.canvas.draw()
         fig._ann_canvas_drawn = True
 
     y0 = _ydata_to_yfig(fig, ax_ref, y_data)
-    y1 = y0 + float(bracket_height_fig)
+    y1 = _ydata_to_yfig(fig, ax_ref, y_data + float(h_data))
 
     fig.add_artist(
         Line2D([x1, x1], [y0, y1], transform=fig.transFigure, lw=lw, c="k")
@@ -486,6 +506,92 @@ def _poly_xspan_at_y(
     return (min(xs), max(xs))
 
 
+
+# ===================== BOX COLOR PALETTE (module scope) ============= #
+
+COLOR_MAP = {
+    "Pooled": {
+        # Turquoise panel adjusted lighter
+        # Beat slightly lighter for black mean-line visibility
+        # Intervals rebalanced accordingly
+
+        "Production": {
+            "Beat": "#1ead9a",
+            "Interval": "#a6e5d3",
+        },
+
+        "Perception": {
+            "Beat": "#01e1e1",
+            "Interval": "#BBFCFA",
+        },
+
+        "NTFD": {
+            "Beat": "#16ace7",
+            "Interval": "#91d2e1",
+        },
+
+        "NTFD Random": {
+            "Beat": "#6fa9b6",
+            "Interval": "#cce1e4",
+        },
+    },
+
+    "Auditory": {
+        "Production": {
+            "Beat": "#d49a00",
+            "Interval": "#f6d56f",
+        },
+
+        "Perception": {
+            "Beat": "#ffb300",
+            "Interval": "#fffb8a",
+        },
+
+        "NTFD": {
+            "Beat": "#bfba33",
+            "Interval": "#efec9f",
+        },
+
+        "NTFD Random": {
+            "Beat": "#b5b18f",
+            "Interval": "#fffbe2",
+        },
+    },
+
+    "Visual": {
+
+        # Visual panel only
+
+        "Production": {
+            "Beat": "#8682e7",
+            "Interval": "#c2cbf0",   # darker
+        },
+
+        "Perception": {
+            "Beat": "#b06ff1",
+            "Interval": "#d8b4f5",   # mid-light
+        },
+
+        "NTFD": {
+            "Beat": "#d44ce6",
+            "Interval": "#fabaf5",   # lighter
+        },
+
+        "NTFD Random": {
+            "Beat": "#cc9cc2",
+            "Interval": "#f2e2f8",
+        },
+    },
+}
+
+def cat_color(mod: str, task: str, cat: str) -> str:
+    """Return explicit box color."""
+    if cat == "Random":
+        return "#bdbdbd"
+
+    return COLOR_MAP.get(mod, {}).get(task, {}).get(cat, "#808080")
+
+
 # ============================ PLOTTING ============================= #
 
 
@@ -503,6 +609,10 @@ def plot_psc_boxplots(
     tag_dx_interval: float = -0.0515,
     tag_dy: float = -0.001,
     row_gap: float = 0.005,
+    roi_subset: Sequence[str] | None = None,
+    draw_legend: bool = True,
+    draw_title: bool = True,
+    title_mathtext: bool = False,
     within_modality_bracket_height_fig: float = (
         WITHIN_MODALITY_BRACKET_HEIGHT_FIG
     ),
@@ -510,11 +620,24 @@ def plot_psc_boxplots(
         BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
     ),
 ) -> None:
-    """Plot PSC boxplots by ROI and modality/task blocks."""
+    """Plot PSC boxplots by ROI and modality/task blocks.
+
+    roi_subset:    if given, only these ROI short-keys are drawn, in order
+                   (otherwise the full ROI_ORDER is used).
+    draw_legend:   set False to omit the Beat/Interval legend at the top.
+    title_mathtext: render the ROI title in bold Computer Modern (mathtext)
+                   while leaving ticks and axis labels at matplotlib defaults.
+    """
     outpath = Path(outpath)
     if outpath.suffix == "":
         raise ValueError("outpath must end with .png or .pdf")
     outpath.parent.mkdir(parents=True, exist_ok=True)
+
+    # Render the title in Computer Modern (mathtext) without disturbing the
+    # default font used for ticks/axis labels. Restored at the end.
+    _saved_fontset = plt.rcParams["mathtext.fontset"]
+    if title_mathtext:
+        plt.rcParams["mathtext.fontset"] = "cm"
 
     df = df.copy()
     df = df[df["Hemisphere"] == "bh"].copy()
@@ -571,91 +694,13 @@ def plot_psc_boxplots(
 
     # ------------------------ ROI ordering -------------------------
     roi_values = list(pd.unique(df["ROI"]))
-    rois = [_resolve_roi(r, roi_values) for r in ROI_ORDER]
+    roi_source = list(roi_subset) if roi_subset is not None else list(ROI_ORDER)
+    rois = [_resolve_roi(r, roi_values) for r in roi_source]
     n_rows = len(rois)
 
     # ------------------------ style params -------------------------
-    color_map = {
-        "Pooled": {
-            # Turquoise panel adjusted lighter
-            # Beat slightly lighter for black mean-line visibility
-            # Intervals rebalanced accordingly
-
-            "Production": {
-                "Beat": "#1ead9a",
-                "Interval": "#a6e5d3",
-            },
-
-            "Perception": {
-                "Beat": "#01e1e1",
-                "Interval": "#BBFCFA",
-            },
-
-            "NTFD": {
-                "Beat": "#16ace7",
-                "Interval": "#91d2e1",
-            },
-
-            "NTFD Random": {
-                "Beat": "#6fa9b6",
-                "Interval": "#cce1e4",
-            },
-        },
-
-        "Auditory": {
-            "Production": {
-                "Beat": "#d49a00",
-                "Interval": "#f6d56f",
-            },
-
-            "Perception": {
-                "Beat": "#ffb300",
-                "Interval": "#fffb8a",
-            },
-
-            "NTFD": {
-                "Beat": "#bfba33",
-                "Interval": "#efec9f",
-            },
-
-            "NTFD Random": {
-                "Beat": "#b5b18f",
-                "Interval": "#fffbe2",
-            },
-        },
-
-        "Visual": {
-
-            # Visual panel only
-
-            "Production": {
-                "Beat": "#8682e7",
-                "Interval": "#c2cbf0",   # darker
-            },
-
-            "Perception": {
-                "Beat": "#b06ff1",
-                "Interval": "#d8b4f5",   # mid-light
-            },
-
-            "NTFD": {
-                "Beat": "#d44ce6",
-                "Interval": "#fabaf5",   # lighter
-            },
-
-            "NTFD Random": {
-                "Beat": "#cc9cc2",
-                "Interval": "#f2e2f8",
-            },
-        },
-    }
-
-    def _cat_color(mod: str, task: str, cat: str) -> str:
-        """Return explicit box color."""
-        if cat == "Random":
-            return "#bdbdbd"
-
-        return color_map.get(mod, {}).get(task, {}).get(cat, "#808080")
+    # Box colors live at module scope (see COLOR_MAP / cat_color).
+    _cat_color = cat_color
 
     box_alpha = 1.0
     whis = 1.5
@@ -1177,103 +1222,104 @@ def plot_psc_boxplots(
         max(axes[0, j].get_position().y1 for j in cols_nonspacer)
     )
 
-    # Legend vertical layout in ABSOLUTE POINTS (constant on the page).
-    # The bottom swatch row is lifted to clear the first ROI title, so the
-    # legend never lands on top of "Dorsal Striatum" regardless of fig height.
-    first_label = roi_specs[0]["roi_label"] if roi_specs else ""
-    n_title_lines = first_label.count("\n") + 1
-    title_h_pt = n_title_lines * (axis_label_fs + 8) * 1.25
+    if draw_legend:
+        # Legend vertical layout in ABSOLUTE POINTS (constant on the page).
+        # The bottom swatch row is lifted to clear the first ROI title, so the
+        # legend never lands on top of "Dorsal Striatum" regardless of fig height.
+        first_label = roi_specs[0]["roi_label"] if roi_specs else ""
+        n_title_lines = first_label.count("\n") + 1
+        title_h_pt = n_title_lines * (axis_label_fs + 8) * 1.25
 
-    y_int = y_top_axes + ovf_frac[0] + _pts_to_figfrac_y(
-        fig, TITLE_GAP_PT + title_h_pt + LEGEND_TITLE_CLEAR_PT
-    )
-    y_beat = y_int + _pts_to_figfrac_y(fig, LEGEND_ROW_GAP_PT)
-    y_ci = y_beat + _pts_to_figfrac_y(fig, LEGEND_CI_GAP_PT)
+        y_int = y_top_axes + ovf_frac[0] + _pts_to_figfrac_y(
+            fig, TITLE_GAP_PT + title_h_pt + LEGEND_TITLE_CLEAR_PT
+        )
+        y_beat = y_int + _pts_to_figfrac_y(fig, LEGEND_ROW_GAP_PT)
+        y_ci = y_beat + _pts_to_figfrac_y(fig, LEGEND_CI_GAP_PT)
 
-    fig.text(
-        x_right,
-        y_ci,
-        "95% bootstrap CI for the Median of PSC",
-        ha="right",
-        va="top",
-        fontsize=axis_label_fs + 2,
-        color="k",
-    )
+        fig.text(
+            x_right,
+            y_ci,
+            "95% bootstrap CI for the Median of PSC",
+            ha="right",
+            va="top",
+            fontsize=axis_label_fs + 2,
+            color="k",
+        )
 
-    legend_mods: list[str]
-    if pooled_only:
-        legend_mods = ["Pooled"]
-    elif audivisual_only:
-        legend_mods = ["Auditory", "Visual"]
-    else:
-        legend_mods = ["Auditory", "Visual", "Pooled"]
+        legend_mods: list[str]
+        if pooled_only:
+            legend_mods = ["Pooled"]
+        elif audivisual_only:
+            legend_mods = ["Auditory", "Visual"]
+        else:
+            legend_mods = ["Auditory", "Visual", "Pooled"]
 
-    beat_colors: list[tuple[float, float, float]] = []
-    interval_colors: list[tuple[float, float, float]] = []
+        beat_colors: list[tuple[float, float, float]] = []
+        interval_colors: list[tuple[float, float, float]] = []
 
-    for mod in legend_mods:
-        for task in tasks_per_block:
-            beat_colors.append(_cat_color(mod, task, "Beat"))
-            interval_colors.append(_cat_color(mod, task, "Interval"))
+        for mod in legend_mods:
+            for task in tasks_per_block:
+                beat_colors.append(_cat_color(mod, task, "Beat"))
+                interval_colors.append(_cat_color(mod, task, "Interval"))
 
-    beat_handles = [
-        Patch(facecolor=c, edgecolor="0.2")
-        for c in beat_colors
-    ]
-    int_handles = [
-        Patch(facecolor=c, edgecolor="0.2")
-        for c in interval_colors
-    ]
+        beat_handles = [
+            Patch(facecolor=c, edgecolor="0.2")
+            for c in beat_colors
+        ]
+        int_handles = [
+            Patch(facecolor=c, edgecolor="0.2")
+            for c in interval_colors
+        ]
 
-    x_leg = x_right + float(x_leg_dx)
+        x_leg = x_right + float(x_leg_dx)
 
-    fig.legend(
-        handles=beat_handles,
-        labels=[""] * len(beat_handles),
-        loc="upper right",
-        bbox_to_anchor=(x_leg, y_beat),
-        ncol=len(beat_handles),
-        frameon=False,
-        fontsize=axis_label_fs,
-        handlelength=0.95,
-        handletextpad=0.0,
-        columnspacing=0.45,
-        borderaxespad=0.0,
-    )
+        fig.legend(
+            handles=beat_handles,
+            labels=[""] * len(beat_handles),
+            loc="upper right",
+            bbox_to_anchor=(x_leg, y_beat),
+            ncol=len(beat_handles),
+            frameon=False,
+            fontsize=axis_label_fs,
+            handlelength=0.95,
+            handletextpad=0.0,
+            columnspacing=0.45,
+            borderaxespad=0.0,
+        )
 
-    fig.legend(
-        handles=int_handles,
-        labels=[""] * len(int_handles),
-        loc="upper right",
-        bbox_to_anchor=(x_leg, y_int),
-        ncol=len(int_handles),
-        frameon=False,
-        fontsize=axis_label_fs,
-        handlelength=0.95,
-        handletextpad=0.0,
-        columnspacing=0.45,
-        borderaxespad=0.0,
-    )
+        fig.legend(
+            handles=int_handles,
+            labels=[""] * len(int_handles),
+            loc="upper right",
+            bbox_to_anchor=(x_leg, y_int),
+            ncol=len(int_handles),
+            frameon=False,
+            fontsize=axis_label_fs,
+            handlelength=0.95,
+            handletextpad=0.0,
+            columnspacing=0.45,
+            borderaxespad=0.0,
+        )
 
-    fig.text(
-        x_right + float(tag_dx_beat),
-        y_beat + float(tag_dy),
-        "Beat",
-        ha="right",
-        va="top",
-        fontsize=axis_label_fs + 2,
-        color="k",
-    )
+        fig.text(
+            x_right + float(tag_dx_beat),
+            y_beat + float(tag_dy),
+            "Beat",
+            ha="right",
+            va="top",
+            fontsize=axis_label_fs + 2,
+            color="k",
+        )
 
-    fig.text(
-        x_right + float(tag_dx_interval),
-        y_int + float(tag_dy),
-        "Interval",
-        ha="right",
-        va="top",
-        fontsize=axis_label_fs + 2,
-        color="k",
-    )
+        fig.text(
+            x_right + float(tag_dx_interval),
+            y_int + float(tag_dy),
+            "Interval",
+            ha="right",
+            va="top",
+            fontsize=axis_label_fs + 2,
+            color="k",
+        )
 
     # --------------------- PASS 2: draw panels ----------------------
     for r, spec in enumerate(roi_specs):
@@ -1460,7 +1506,7 @@ def plot_psc_boxplots(
             for jj, (m_jj, _t_jj) in enumerate(col_spec_block)
             if m_jj != "SPACER"
         ]
-        if row_axes:
+        if row_axes and draw_title:
             x0 = min(a.get_position().x0 for a in row_axes)
             x1 = max(a.get_position().x1 for a in row_axes)
             y1 = max(a.get_position().y1 for a in row_axes)
@@ -1471,15 +1517,21 @@ def plot_psc_boxplots(
             # 'bold', 'heavy', 'extra bold', 'black'
             # Relative values like 'lighter' and 'bolder' are also 
             # available.
+            _title_txt = spec["roi_label"]
+            _title_kw = dict(fontweight="semibold")
+            if title_mathtext:
+                # Bold Computer Modern via mathtext; ticks/labels stay default.
+                _title_txt = _to_bold_mathtext(spec["roi_label"])
+                _title_kw = {}
             fig.text(
                 (x0 + x1) / 2.0,
                 y1 + ovf_frac[r] + _pts_to_figfrac_y(fig, TITLE_GAP_PT),
-                spec["roi_label"],
+                _title_txt,
                 ha="center",
                 va="bottom",
                 fontsize=axis_label_fs + 8,
                 color="k",
-                fontweight="semibold",
+                **_title_kw,
             )
 
         # Modality block labels under each block, below the task xlabels.
@@ -1554,7 +1606,6 @@ def plot_psc_boxplots(
                     text=text,
                     y_data=y_data,
                     h_data=h_data,
-                    bracket_height_fig=within_modality_bracket_height_fig,
                 )
 
         eligible_cross = spec.get("eligible_cross", [])
@@ -1638,7 +1689,6 @@ def plot_psc_boxplots(
 
                     x_mid_aud = (x_aud_left + x_aud_right) / 2.0
                     x_mid_vis = (x_vis_left + x_vis_right) / 2.0
-                    h_data_long = 0.0
 
                     span_annotation_figx_figspan(
                         fig,
@@ -1647,10 +1697,7 @@ def plot_psc_boxplots(
                         x2=x_mid_vis,
                         text=text,
                         y_data=y_data,
-                        h_data=h_data_long,
-                        bracket_height_fig=(
-                            between_modality_bracket_height_fig
-                        ),
+                        h_data=h_data,
                     )
                 else:
                     span_annotation_datay_figspan(
@@ -1660,16 +1707,213 @@ def plot_psc_boxplots(
                         text=text,
                         y_data=y_data,
                         h_data=h_data,
-                        bracket_height_fig=(
-                            between_modality_bracket_height_fig
-                        ),
                     )
 
         fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.22)
     plt.close(fig)
+    plt.rcParams["mathtext.fontset"] = _saved_fontset
 
 
 # ============================== I/O ================================ #
+
+
+def _panel_legend(fig, x_right_fig, y_top_fig, mods, tasks, axis_label_fs,
+                  swatch_w_in, swatch_h_in, row_gap_in, col_gap_in,
+                  label_pad_in):
+    """Draw the Beat/Interval colour legend at a fixed top-right anchor.
+
+    Swatch sizes/gaps are in inches so the legend looks identical on any
+    panel. (x_right_fig, y_top_fig) is the top-right corner in figure coords.
+    """
+    fw = fig.get_figwidth()
+    fh = fig.get_figheight()
+    sw = swatch_w_in / fw
+    sh = swatch_h_in / fh
+    cg = col_gap_in / fw
+    rg = row_gap_in / fh
+    pad = label_pad_in / fw
+
+    pairs = [(m, t) for m in mods for t in tasks]
+    n = len(pairs)
+    total_w = n * sw + (n - 1) * cg
+    x0 = x_right_fig - total_w
+
+    # Beat row (top), Interval row (below it).
+    for ri, cat in enumerate(("Beat", "Interval")):
+        y = y_top_fig - ri * (sh + rg)
+        for ci, (m, t) in enumerate(pairs):
+            x = x0 + ci * (sw + cg)
+            fig.add_artist(plt.matplotlib.patches.Rectangle(
+                (x, y - sh), sw, sh, transform=fig.transFigure,
+                facecolor=cat_color(m, t, cat), edgecolor="0.2", lw=0.8))
+        fig.text(x_right_fig + pad, y - sh / 2.0, cat, ha="left",
+                 va="center", fontsize=axis_label_fs + 2, color="k")
+
+
+# Named legend presets (extensible for future use).
+PANEL_LEGENDS = {
+    "full": (["Auditory", "Visual", "Pooled"], list(TASKS_MAIN)),
+    "audivisual": (["Auditory", "Visual"], list(TASKS_MAIN)),
+    "pooled": (["Pooled"], list(TASKS_MAIN)),
+}
+
+
+def assemble_panel(
+    df: pd.DataFrame,
+    outpath: str | Path,
+    rows: Sequence[Sequence[Tuple[str, str]]],
+    row_ylims: Sequence[Tuple[float, float]],
+    *,
+    include_ntfd_random: bool = False,
+    legend: str | None = "full",
+    col_gap_in: float = 0.30,
+    row_gap_in: float = 0.55,
+    title_gap_in: float = 0.10,
+    title_band_in: float = 0.42,
+    side_pad_in: float = 0.20,
+    top_pad_in: float = 0.20,
+    bottom_pad_in: float = 0.20,
+    legend_pad_in: float = 0.25,
+    title_fontsize: int = 20,
+    dpi: int = 300,
+    cell_kwargs: dict | None = None,
+) -> None:
+    """Compose existing single-ROI plots into a centered multi-row panel.
+
+    Each cell is rendered by ``plot_psc_boxplots`` (so it is exactly that
+    function's output) with its title and legend suppressed, then tiled with
+    Matplotlib. Within a row cells are bottom-aligned (PSC = 0 lines line up)
+    and the row is centred; ROI titles are drawn at a common height per row in
+    the default font; only the left-most cell of a row keeps its y-axis.
+
+    Parameters
+    ----------
+    rows :
+        One list per panel row; each entry is ``(roi_key, mode)`` where mode is
+        ``"audivisual"`` or ``"pooled"``. Edit this to re-arrange / aggregate.
+    row_ylims :
+        One ``(lo, hi)`` per row, applied to every cell in that row.
+    legend :
+        Which legend preset to draw at the top-right (see PANEL_LEGENDS), or
+        None for no legend. Kept as a parameter for future legend types.
+    """
+    import tempfile
+    import shutil
+    from PIL import Image
+
+    if len(rows) != len(row_ylims):
+        raise ValueError("row_ylims must have one (lo, hi) per row")
+    if legend is not None and legend not in PANEL_LEGENDS:
+        raise ValueError(f"unknown legend preset: {legend!r}")
+
+    outpath = Path(outpath)
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+    base_kwargs = dict(cell_kwargs or {})
+
+    tmpdir = Path(tempfile.mkdtemp(prefix="psc_panel_"))
+    try:
+        # 1) render each cell (no title, no legend) and record its inch size
+        cell_w: List[List[float]] = []
+        cell_h: List[List[float]] = []
+        cell_png: List[List[Path]] = []
+        for ri, row in enumerate(rows):
+            ylim = tuple(row_ylims[ri])
+            ws, hs, ps = [], [], []
+            for ci, (roi_key, mode) in enumerate(row):
+                png = tmpdir / f"cell_{ri}_{ci}.png"
+                plot_psc_boxplots(
+                    df=df, outpath=png,
+                    audivisual_only=(mode == "audivisual"),
+                    pooled_only=(mode == "pooled"),
+                    include_ntfd_random=include_ntfd_random,
+                    roi_subset=[roi_key],
+                    y_limits={roi_key: ylim},
+                    show_yaxis={roi_key: ci == 0},
+                    draw_legend=False, draw_title=False,
+                    **base_kwargs,
+                )
+                with Image.open(png) as im:
+                    w_px, h_px = im.size
+                ws.append(w_px / dpi)
+                hs.append(h_px / dpi)
+                ps.append(png)
+            cell_w.append(ws)
+            cell_h.append(hs)
+            cell_png.append(ps)
+
+        # 2) geometry (inches)
+        roi_values = list(pd.unique(df["ROI"]))
+
+        def _label_lines(roi_key: str) -> int:
+            rv = _resolve_roi(roi_key, roi_values) or roi_key
+            return _pretty_roi_label(rv).count("\n") + 1
+
+        line_h_in = title_fontsize * 1.35 / 72.0
+        # title band per row scales with the tallest title in that row
+        title_band = [
+            line_h_in * max(_label_lines(rk) for rk, _ in row) + title_gap_in
+            for row in rows
+        ]
+
+        row_w = [sum(cell_w[ri]) + col_gap_in * (len(cell_w[ri]) - 1)
+                 for ri in range(len(rows))]
+        row_h = [max(cell_h[ri]) for ri in range(len(rows))]
+        content_w = max(row_w)
+
+        legend_band = 0.0
+        legend_label_w = 0.0
+        if legend is not None:
+            legend_band = 0.70  # vertical room reserved above the first row
+            legend_label_w = 0.75  # right-hand room for "Beat"/"Interval"
+
+        fig_w = content_w + 2 * side_pad_in + legend_label_w
+        fig_h = (top_pad_in + bottom_pad_in + legend_band
+                 + sum(title_band[ri] + row_h[ri] for ri in range(len(rows)))
+                 + row_gap_in * (len(rows) - 1))
+
+        fig = plt.figure(figsize=(fig_w, fig_h), dpi=dpi)
+
+        # 3) place cells + titles, top to bottom (titles TOP-aligned per row)
+        y_top = fig_h - top_pad_in - legend_band
+        for ri, row in enumerate(rows):
+            cell_top = y_top - title_band[ri]
+            cell_bottom = cell_top - row_h[ri]
+            x = side_pad_in + (content_w - row_w[ri]) / 2.0  # centre row
+            title_y = y_top / fig_h  # common top for every title in the row
+            for ci, (roi_key, mode) in enumerate(row):
+                w, h = cell_w[ri][ci], cell_h[ri][ci]
+                ax = fig.add_axes([x / fig_w, cell_bottom / fig_h,
+                                   w / fig_w, h / fig_h])
+                with Image.open(cell_png[ri][ci]) as im:
+                    ax.imshow(np.asarray(im), aspect="auto",
+                              interpolation="lanczos")
+                ax.axis("off")
+                rv = _resolve_roi(roi_key, roi_values) or roi_key
+                label = _pretty_roi_label(rv)
+                fig.text((x + w / 2.0) / fig_w, title_y, label,
+                         ha="center", va="top", fontsize=title_fontsize,
+                         fontweight="semibold", color="k")
+                x += w + col_gap_in
+            y_top = cell_bottom - row_gap_in
+
+        # 4) legend at top-right (swatches end at the content edge; labels in
+        #    the reserved right margin so nothing is clipped)
+        if legend is not None:
+            mods, tasks = PANEL_LEGENDS[legend]
+            _panel_legend(
+                fig,
+                x_right_fig=(side_pad_in + content_w) / fig_w,
+                y_top_fig=(fig_h - top_pad_in) / fig_h,
+                mods=mods, tasks=tasks, axis_label_fs=12,
+                swatch_w_in=0.16, swatch_h_in=0.16,
+                row_gap_in=0.06, col_gap_in=0.045, label_pad_in=0.06,
+            )
+
+        fig.savefig(outpath, dpi=dpi)
+        plt.close(fig)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
 
 
 def parse_args() -> argparse.Namespace:
@@ -1947,6 +2191,37 @@ if __name__ == "__main__":
         between_modality_bracket_height_fig=(
             BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
         ),
+    )
+
+    # 1c) Combined panel: re-arrange the individual ROI plots into rows.
+    #     Each cell is the exact plot plot_psc_boxplots() produces; cells are
+    #     bottom-aligned within a row so the PSC = 0 lines align, and only the
+    #     left-most cell of each row shows the y-axis. Edit `panel_rows` /
+    #     `panel_row_ylims` to re-arrange or to aggregate other plots.
+    outpath_panel = Path(OUTPUT_PATH)
+    outpath_panel = outpath_panel.with_name(
+        outpath_panel.stem + "_panel" + outpath_panel.suffix
+    )
+    panel_rows = [
+        [("auditory_cortex", "audivisual"),
+         ("visual_cortex", "audivisual"),
+         ("dstr", "pooled")],
+        [("cereb", "pooled"),
+         ("presma", "pooled"),
+         ("sma", "pooled"),
+         ("pmd", "audivisual"),
+         ("pmv", "pooled")],
+    ]
+    panel_row_ylims = [(-0.4, 1.6), (-0.2, 1.2)]
+    assemble_panel(
+        df=df_in,
+        outpath=outpath_panel,
+        rows=panel_rows,
+        row_ylims=panel_row_ylims,
+        include_ntfd_random=False,
+        legend="full",      # full Beat/Interval colour key at the top-right
+        row_gap_in=0.30,    # vertical space between rows
+        cell_kwargs=dict(tag_dx_beat=-0.056, tag_dx_interval=-0.001),
     )
 
     # 1b) Pooled-only figure (pooled modality block only)
