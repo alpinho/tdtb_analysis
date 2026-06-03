@@ -22,7 +22,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 24th of February 2025
-Last Update: May 2026
+Last Update: June 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
@@ -990,8 +990,8 @@ def plot_multirois_flatmap(
         "SMA",
         "PMD",
         "PMV",
-        "Heschl's Gyrus",
-        "Occipital Lobe",
+        "Auditory Cortex",
+        "Visual Cortex",
     ]
 
     label_to_cmap = dict(zip(labels, colormaps))
@@ -1378,7 +1378,7 @@ surfparametric_folder = os.path.join(
     'surface')
 
 # Production/Perception/NTFD/NTFD Random/All Main Tasks
-task_tag = 'NTFD Random'
+task_tag = 'All Main Tasks'
  
 # To run every contrast:
 # contrast_name = 'ALL' and contrast_name2 = None.
@@ -1389,8 +1389,8 @@ task_tag = 'NTFD Random'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'Random' # E.g. 'Beat', 'Interval', 'ALL', etc.
-contrast_name2 = 'Non-Random' # E.g. 'Interval'
+contrast_name = 'ALL' # E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = None # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
 
@@ -1427,16 +1427,16 @@ IROI_LEVELS = ['i']
 
 # All ROIs: 8 ROIs
 region_names = ['motor_area', 'motor_area', 'motor_area', 'motor_area',
-                'heschl_gyrus',
-                'occipital_lobe']
+                'auditory_cortex',
+                'visual_cortex']
 
 atlas_names = ['hmat', 'hmat', 'hmat', 'hmat',
                'hos',
                'hos']
 
 roi_names = ['pmd', 'pmv', 'sma', 'presma',
-             'heschl',
-             'occipital']
+             'auditory_cortex',
+             'visual_cortex']
 
 ROI_LABELS = {
     "dstr": "Dorsal Striatum",
@@ -1445,8 +1445,8 @@ ROI_LABELS = {
     "pmd": "PMD",
     "presma": "PreSMA",
     "sma": "SMA",
-    "heschl": "Heschl's Gyrus",
-    "occipital": "Occipital Lobe",
+    "auditory_cortex": "Auditory Cortex",
+    "visual_cortex": "Visual Cortex",
 }
 
 # ###################### fs_LR32k Meshes ##############################
@@ -1598,7 +1598,8 @@ if __name__ == '__main__':
         iroi_cmaps = ['Blues_r', 'Oranges_r', 'Purples_r', 'Reds_r',
                       'PuBuGn_r', 'PuRd_r']
 
-        IROI_SELECTED = ['pmv', 'pmd', 'sma', 'presma', 'heschl', 'occipital']
+        IROI_SELECTED = ['pmv', 'pmd', 'sma', 'presma', 'auditory_cortex', 
+                         'visual_cortex']
 
         # Create directory to save outputs if does not exist
         irois_imgs_folder = os.path.join(irois_parfolder, 
