@@ -181,7 +181,7 @@ IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
                 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54]
+SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55]
 
 # #######################################################################
 
@@ -189,9 +189,9 @@ SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54]
 
 N_TRIALS = 30
 
-AUDIO_LATENCY = 63  # Expy: 133 / Psychopy: 63
-VISUAL_LATENCY = 35  # Expy: 35
-BUTTON_PRESS = 20  # 20
+AUDIO_LATENCY = 0  # Expy: 133 / Psychopy: 63
+VISUAL_LATENCY = 0  # Expy: 35
+BUTTON_PRESS = 0  # 20
 
 # ### For 'All Sessions' ###
 # SUBJECTS = GOOD_SUBJECTS
