@@ -7,7 +7,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 30th of March 2025
-Last Update: May 2026
+Last Update: June 2026
 
 Compatibility: Python 3.10.16, nilearn 0.11.1
 """
@@ -662,7 +662,7 @@ INNER_MESH_SCALE = .99
 EXTRAPOLATION = 1.
 
 # Smoothing parameters for ROI data (if desired)
-FWHM = 4.  # in mm
+FWHM = 5.15  # in mm
 
 # ###############################################
 
