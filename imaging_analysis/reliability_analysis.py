@@ -5,11 +5,12 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 23rd of March 2026
-Last Update: May 2026
+Last Update: June 2026
 
 Compatibility: Python 3.10.16
 """
 
+import itertools
 import os
 from pathlib import Path
 
@@ -96,6 +97,130 @@ def reliability_dataframe(
     df.to_csv(output_path, index=False, sep='\t')
 
     return df
+
+
+def build_condition_names(task_models, contrasts_main, contrasts_random):
+    """
+    Derive the ordered list of condition names from the task models.
+
+    The order matches exactly the order in which rows are created by
+    ``reliability_dataframe`` (task by task, contrast by contrast), and
+    therefore the order of the condition axis of the extracted ROI
+    signal arrays. Using this single source of truth means editing
+    ``glm_tasks`` is enough to keep the analysed conditions consistent
+    everywhere; there is no separate hand-maintained list to update.
+
+    Parameters
+    ----------
+    task_models : list of str
+        Task models, e.g. ['prod', 'percep', 'ntfd', 'rand_ntfd'].
+    contrasts_main : dict
+        Contrast mapping used for every non-'rand_ntfd' task.
+    contrasts_random : dict
+        Contrast mapping used for the 'rand_ntfd' task.
+
+    Returns
+    -------
+    list of str
+        Condition names such as 'auditory_beat_prod'.
+    """
+    names = []
+    for model in task_models:
+        if model == 'rand_ntfd':
+            mapping = contrasts_random
+        else:
+            mapping = contrasts_main
+        for value in mapping.values():
+            con_name = value.lower().replace(' ', '_')
+            names.append(f'{con_name}_{model}')
+    return names
+
+
+def generate_split_half_schemes(run_counts):
+    """
+    Build the distinct split-half schemes for the run cardinalities
+    present in the data, removing duplicates.
+
+    A split-half scheme assigns, for each run cardinality present, an
+    ordered split of that cardinality's runs into two halves
+    (half1, half2):
+        - a 4-run condition is split into two pairs of runs;
+        - a 2-run condition is split into one run versus one run.
+    All conditions sharing a cardinality use the same split within a
+    scheme, and a profile vector is built across all conditions for each
+    half before correlating.
+
+    Both the split-half correlation and the cross-validated similarity
+    are invariant under swapping half1 with half2 simultaneously across
+    every condition (a global half-swap). Schemes related by this global
+    swap therefore produce identical values and are duplicates; only one
+    representative of each pair is kept.
+
+    This is what prevents the duplicate schemes that would otherwise
+    appear (and be plotted twice) when, for example, only 4-run
+    conditions are analysed: the 2-run split becomes irrelevant, so the
+    6 schemes that are distinct when both cardinalities are present
+    collapse to fewer genuine schemes.
+
+    Resulting counts:
+        - only 4-run conditions present:           3 schemes
+        - only 2-run conditions present:           1 scheme
+        - both 2-run and 4-run conditions present: 6 schemes
+
+    Parameters
+    ----------
+    run_counts : iterable of int
+        Distinct run cardinalities present in the data (subset of
+        {2, 4}).
+
+    Returns
+    -------
+    list of dict
+        Each scheme maps a run cardinality (int) to a tuple
+        ``(half1_indices, half2_indices)`` of run-position tuples.
+    """
+    # All ordered half-splits for each supported run cardinality.
+    oriented_splits = {
+        2: [
+            ((0,), (1,)),
+            ((1,), (0,)),
+        ],
+        4: [
+            ((0, 1), (2, 3)), ((2, 3), (0, 1)),
+            ((0, 2), (1, 3)), ((1, 3), (0, 2)),
+            ((0, 3), (1, 2)), ((1, 2), (0, 3)),
+        ],
+    }
+
+    cards = sorted({int(c) for c in run_counts})
+    for card in cards:
+        if card not in oriented_splits:
+            raise ValueError(
+                f"Unsupported run cardinality {card}; expected 2 or 4."
+            )
+
+    if not cards:
+        return []
+
+    per_card_options = [oriented_splits[card] for card in cards]
+
+    seen = set()
+    schemes = []
+    for combo in itertools.product(*per_card_options):
+        scheme = dict(zip(cards, combo))
+        # Canonical key that is identical for a scheme and its global
+        # half-swap, so only one representative of each pair is kept.
+        key = tuple((card, scheme[card]) for card in cards)
+        key_swapped = tuple(
+            (card, (half2, half1))
+            for card, (half1, half2) in zip(cards, combo)
+        )
+        canonical = min(key, key_swapped)
+        if canonical not in seen:
+            seen.add(canonical)
+            schemes.append(scheme)
+
+    return schemes
 
 
 def taskglm_roi_extraction(df_input, base_dir, script_dir, tags,
@@ -823,6 +948,7 @@ def compute_split_half_pipeline(
     tag,
     sb_clip_min,
     sb_clip_max,
+    use_rest=True,
 ):
     """
     Compute split-half, Spearman-Brown, CV similarity, ceiling, and
@@ -833,16 +959,20 @@ def compute_split_half_pipeline(
     1. For each hemisphere, determine for every condition whether it has
        4 valid runs or 2 valid runs, and verify that run availability is
        consistent across ROIs and within subjects.
-    2. For each subject and each of the 6 mixed split schemes, build two
-       half-profiles per ROI across all conditions:
+    2. Build the set of distinct split-half schemes for the run
+       cardinalities actually present in the data (see
+       generate_split_half_schemes), which avoids duplicate schemes.
+       For each subject and each scheme, build two half-profiles per ROI
+       across all conditions:
        - 4-run conditions contribute as 2 runs vs 2 runs;
        - 2-run conditions contribute as 1 run vs 1 run.
-       Rest is appended as a final condition with value 0 in both
-       halves.
+       When use_rest is True, a 'rest' condition with value 0 in both
+       halves is appended as a final profile entry; when False, no rest
+       entry is added.
     3. For each ROI and scheme, compute the raw split-half correlation
        between the two half-profiles. Keep all scheme-level values.
     4. Summarize raw split-half correlations within subject using the
-       median across the 6 schemes. Save scheme-level, individual-level,
+       median across schemes. Save scheme-level, individual-level,
        and group-level summaries. Plot all scheme-level values and the
        subject medians. Report the percentage of negative schemes.
     5. Apply the Spearman-Brown correction to the individual-level
@@ -890,6 +1020,11 @@ def compute_split_half_pipeline(
         Lower clipping bound for Spearman-Brown values.
     sb_clip_max : float
         Upper clipping bound for Spearman-Brown values.
+    use_rest : bool, optional
+        If True (default), append a 'rest' entry (value 0 in both
+        halves) to each ROI profile before correlating. If False, no
+        rest entry is added and correlations are computed over the
+        conditions only.
 
     Returns
     -------
@@ -910,19 +1045,13 @@ def compute_split_half_pipeline(
         )
 
     n_roi = len(roi_names)
-    full_conditions = condition_names + ['rest']
+    if use_rest:
+        full_conditions = list(condition_names) + ['rest']
+    else:
+        full_conditions = list(condition_names)
     n_full = len(full_conditions)
 
     os.makedirs(output_dir, exist_ok=True)
-
-    schemes = [
-        {'part4': ((0, 1), (2, 3)), 'part2': ((0,), (1,))},
-        {'part4': ((0, 1), (2, 3)), 'part2': ((1,), (0,))},
-        {'part4': ((0, 2), (1, 3)), 'part2': ((0,), (1,))},
-        {'part4': ((0, 2), (1, 3)), 'part2': ((1,), (0,))},
-        {'part4': ((1, 2), (0, 3)), 'part2': ((0,), (1,))},
-        {'part4': ((1, 2), (0, 3)), 'part2': ((1,), (0,))},
-    ]
 
     results = {}
 
@@ -956,13 +1085,26 @@ def compute_split_half_pipeline(
 
             cond_n_runs.append(n_runs_ref)
 
+        # Build the distinct split-half schemes for the run
+        # cardinalities present in this hemisphere's data. This adapts
+        # the number of schemes to the analysed tasks and removes the
+        # duplicates that arise when a cardinality is absent.
+        present_cards = sorted(set(cond_n_runs))
+        schemes = generate_split_half_schemes(present_cards)
+        n_schemes = len(schemes)
+        print(
+            f"Hemisphere {hemi_label!r}: run cardinalities "
+            f"{present_cards} -> {n_schemes} distinct split-half "
+            f"scheme(s)."
+        )
+
         split_half_subj = np.full((n_subj, n_roi), np.nan)
         split_half_scheme_subj = np.full(
-            (n_subj, len(schemes), n_roi),
+            (n_subj, n_schemes, n_roi),
             np.nan,
         )
         cv_scheme_subj = np.full(
-            (n_subj, len(schemes), n_roi, n_roi),
+            (n_subj, n_schemes, n_roi, n_roi),
             np.nan,
         )
 
@@ -1009,25 +1151,25 @@ def compute_split_half_pipeline(
                     for c, valid_runs in enumerate(cond_valid_runs_subj):
                         vals = arr[h, c, :, s]
 
-                        if len(valid_runs) == 4:
-                            idx1 = valid_runs[list(scheme['part4'][0])]
-                            idx2 = valid_runs[list(scheme['part4'][1])]
-                        elif len(valid_runs) == 2:
-                            idx1 = valid_runs[list(scheme['part2'][0])]
-                            idx2 = valid_runs[list(scheme['part2'][1])]
-                        else:
+                        card = len(valid_runs)
+                        if card not in scheme:
                             raise ValueError(
                                 f"Condition {condition_names[c]!r} in "
-                                f"hemisphere {hemi_label!r} has "
-                                f"{len(valid_runs)} valid runs; "
-                                f"expected 2 or 4."
+                                f"hemisphere {hemi_label!r} has {card} "
+                                f"valid runs; no scheme split is defined "
+                                f"for this cardinality."
                             )
+
+                        half1, half2 = scheme[card]
+                        idx1 = valid_runs[list(half1)]
+                        idx2 = valid_runs[list(half2)]
 
                         y1[r, c] = np.nanmean(vals[idx1])
                         y2[r, c] = np.nanmean(vals[idx2])
 
-                    y1[r, -1] = 0.0
-                    y2[r, -1] = 0.0
+                    if use_rest:
+                        y1[r, -1] = 0.0
+                        y2[r, -1] = 0.0
 
                 split_half_vec = np.full(n_roi, np.nan)
                 for r in range(n_roi):
@@ -1267,9 +1409,25 @@ else:
     assert os.path.isdir('/home/UWO/agrilopi')
     data_storage = '/cifs/diedrichsen'
 
-# Define tasks in the glm
-glm_tasks = ['prod', 'percep', 'ntfd', 'rand_ntfd']
-# glm_tasks = ['rand_ntfd']
+# Tasks included in the GLM, in the order their conditions will appear
+# in every output. This is the single place to edit which tasks are
+# analysed; the condition list is derived from it (see condition_names
+# below). Supported task models and their run structure:
+#   'prod'      -> Production  (main task, 4 runs per condition)
+#   'percep'    -> Perception  (main task, 4 runs per condition)
+#   'ntfd'      -> NTFD        (main task, 4 runs per condition)
+#   'rand_ntfd' -> NTFD Random (2 runs per condition)
+# Removing 'rand_ntfd' leaves only 4-run conditions, which the pipeline
+# detects so that the split-half schemes adapt automatically and no
+# duplicate schemes are produced.
+# glm_tasks = ['prod', 'percep', 'ntfd', 'rand_ntfd']
+glm_tasks = ['prod', 'percep', 'ntfd']
+
+# Append a 'rest' anchor (value 0 in both halves) to each ROI profile
+# before computing the correlations?
+#   True  -> current behaviour (rest appended)
+#   False -> correlations computed over the conditions only
+USE_REST = True
 
 # Threshold of group-level contrast used to generate ROI
 thresh_type = 'puncorr'  # 'puncorr' or 'pcorr'
@@ -1378,26 +1536,30 @@ selected_contrasts_random = {
     107: 'Visual Random'
 }
 
-condition_names = [
-    'auditory_beat_prod',
-    'auditory_interval_prod',
-    'visual_beat_prod',
-    'visual_interval_prod',
-    'auditory_beat_percep',
-    'auditory_interval_percep',
-    'visual_beat_percep',
-    'visual_interval_percep',
-    'auditory_beat_ntfd',
-    'auditory_interval_ntfd',
-    'visual_beat_ntfd',
-    'visual_interval_ntfd',
-    'auditory_beat_rand_ntfd',
-    'auditory_interval_rand_ntfd',
-    'auditory_random_rand_ntfd',
-    'visual_beat_rand_ntfd',
-    'visual_interval_rand_ntfd',
-    'visual_random_rand_ntfd',
-]
+# Conditions analysed, derived from glm_tasks and the selected
+# contrasts so they always stay in sync with the chosen tasks. The
+# order matches how rows are built in reliability_dataframe and how the
+# condition axis of the ROI signal arrays is ordered. For the default
+# glm_tasks this is the 12 main-task conditions followed by the 6
+# NTFD Random conditions:
+#   'auditory_beat_prod', 'auditory_interval_prod',
+#   'visual_beat_prod', 'visual_interval_prod',
+#   'auditory_beat_percep', 'auditory_interval_percep',
+#   'visual_beat_percep', 'visual_interval_percep',
+#   'auditory_beat_ntfd', 'auditory_interval_ntfd',
+#   'visual_beat_ntfd', 'visual_interval_ntfd',
+#   'auditory_beat_rand_ntfd', 'auditory_interval_rand_ntfd',
+#   'auditory_random_rand_ntfd',
+#   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd',
+#   'visual_random_rand_ntfd'
+condition_names = build_condition_names(
+    glm_tasks,
+    selected_contrasts_main,
+    selected_contrasts_random,
+)
+print('Analysed conditions:')
+for cond in condition_names:
+    print(f'  {cond}')
 
 # ####################### ROIs ##############################
 atlas_names = ['hos',
@@ -1408,13 +1570,13 @@ atlas_names = ['hos',
 region_names = ['dorsal_striatum',
                 'cerebellum',
                 'motor_area', 'motor_area', 'motor_area', 'motor_area',
-                'heschl_gyrus',
-                'occipital_lobe']
+                'auditory_cortex',
+                'visual_cortex']
 ROI_NAMES = ['dstr',
              'cereb',
              'presma', 'sma', 'pmd', 'pmv',
-             'heschl',
-             'occipital']
+             'auditory_cortex',
+             'visual_cortex']
 
 # itags = ['i', 'i9a', 'i8a', 'i7a', 'i6a', 'a', 'a4g', 'a3g', 'a2g', 'a1g',
 #          'g']
@@ -1440,10 +1602,10 @@ if __name__ == '__main__':
     )
 
     # Create dataframes
-    reliability_dataframe(
-        SUBJECTS, glm_tasks, data_storage,
-        selected_contrasts_main, selected_contrasts_random,
-        db_taskglm_path, derivative_type, mask_type, smooth)
+    # reliability_dataframe(
+    #     SUBJECTS, glm_tasks, data_storage,
+    #     selected_contrasts_main, selected_contrasts_random,
+    #     db_taskglm_path, derivative_type, mask_type, smooth)
 
     # Open dataframe
     db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
@@ -1460,10 +1622,10 @@ if __name__ == '__main__':
     #   'auditory_random_rand_ntfd',
     #   'visual_beat_rand_ntfd', 'visual_interval_rand_ntfd',
     #   'visual_random_rand_ntfd'
-    taskglm_roi_extraction(db_taskglm_path, data_storage, main_dir,
-                           itags, region_names, atlas_names,
-                           ROI_NAMES, hemispheres, iroi_main_dir,
-                           smooth, roi_signals_folder)
+    # taskglm_roi_extraction(db_taskglm_path, data_storage, main_dir,
+    #                        itags, region_names, atlas_names,
+    #                        ROI_NAMES, hemispheres, iroi_main_dir,
+    #                        smooth, roi_signals_folder)
 
     for itag in itags:
         data_by_roi = load_roi_signal_arrays(
@@ -1479,6 +1641,7 @@ if __name__ == '__main__':
             itag,
             SB_CLIP_MIN,
             SB_CLIP_MAX,
+            use_rest=USE_REST,
         )
 
         for hemi in hemispheres:
