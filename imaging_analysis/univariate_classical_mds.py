@@ -1333,14 +1333,13 @@ BASE_ALL = os.path.join(
     "bothmod_allmain_tasks",
     "profile_similarity",
     MAIN_DIRNAME,
-    "i",
+    INDIVID_LEVEL,
     "matrices",
 )
 
 MDS_OUTPUT_DIR = os.path.join(
     BASE_ALL,
     "mds",
-    INDIVID_LEVEL,
     f"{N_COMPONENTS}comps",
 )
 
