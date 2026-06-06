@@ -595,14 +595,62 @@ def subjectcorr_matrix_stats(
     return r_mat, p_mat, sig_mat, z_mat
 
 
+def holm_matrix(
+    p_mat: pd.DataFrame,
+    alpha: float = 0.05,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Holm-Bonferroni correction over the off-diagonal ROI pairs.
+
+    The family is the set of unique upper-triangle pairwise tests (the
+    diagonal is excluded). Holm-adjusted p-values are computed with
+    pg.multicomp (same procedure used for the paired tests) and mirrored
+    into a symmetric matrix.
+
+    Returns
+    -------
+    p_holm_mat : pd.DataFrame
+        Holm-adjusted p-values (diagonal set to 0.0, mirroring p_uncorr).
+    reject_mat : pd.DataFrame
+        Boolean matrix, True where the pair survives correction at alpha
+        (diagonal set to False).
+    """
+    rois_order = list(p_mat.index)
+    n_rois = len(rois_order)
+
+    pairs = list(combinations(range(n_rois), 2))
+    pvals = np.array(
+        [float(p_mat.values[i, j]) for i, j in pairs], dtype=float
+    )
+
+    reject, p_corr = pg.multicomp(pvals, alpha=alpha, method='holm')
+
+    p_holm = np.zeros((n_rois, n_rois), dtype=float)
+    rej = np.zeros((n_rois, n_rois), dtype=bool)
+    for (i, j), p_c, r_j in zip(pairs, p_corr, reject):
+        p_holm[i, j] = p_holm[j, i] = float(p_c)
+        rej[i, j] = rej[j, i] = bool(r_j)
+
+    p_holm_mat = pd.DataFrame(p_holm, index=rois_order, columns=rois_order)
+    reject_mat = pd.DataFrame(rej, index=rois_order, columns=rois_order)
+    return p_holm_mat, reject_mat
+
+
 def plot_subjectcorr_matrix(
     mat: pd.DataFrame,
     p_mat: pd.DataFrame,
     out_png: Path,
     alpha_thr: float = 0.05,
+    reject_mat: pd.DataFrame | None = None,
 ) -> None:
     """
     Plot mean raw subject-wise correlation matrix with p-value stars.
+
+    Star symbols always reflect the UNCORRECTED p-values (p_mat). When
+    reject_mat is provided, a star is drawn only for pairs that survive
+    multiple-comparison correction (reject_mat == True); cells that do
+    not survive are left blank. When reject_mat is None, stars are drawn
+    for all pairs with uncorrected p < alpha_thr (legacy behaviour).
     """
     if mat.empty:
         raise ValueError("[ERROR] empty matrix for plotting.")
@@ -633,20 +681,27 @@ def plot_subjectcorr_matrix(
     for i in range(n_rois):
         for j in range(i + 1, n_rois):
             p_val = p_mat.values[i, j]
-            if np.isfinite(p_val) and p_val < alpha_thr:
-                stars = p_to_stars(p_val)
-                if stars:
-                    ax.text(
-                        j,
-                        i,
-                        stars,
-                        ha='center',
-                        va='center',
-                        fontsize=9,
-                        color='k',
-                        fontweight='bold',
-                        fontfamily='DejaVu Sans Mono',
-                    )
+            if not np.isfinite(p_val):
+                continue
+            if reject_mat is not None:
+                show_star = bool(reject_mat.values[i, j])
+            else:
+                show_star = p_val < alpha_thr
+            if not show_star:
+                continue
+            stars = p_to_stars(p_val)
+            if stars:
+                ax.text(
+                    j,
+                    i,
+                    stars,
+                    ha='center',
+                    va='center',
+                    fontsize=9,
+                    color='k',
+                    fontweight='bold',
+                    fontfamily='DejaVu Sans Mono',
+                )
 
     fig.subplots_adjust(left=0.28, bottom=0.22, right=0.94, top=0.92)
 
@@ -927,9 +982,6 @@ ROI_LABELS: Dict[str, str] = {
     'sma': 'SMA',
     'auditory_cortex': 'Auditory Cortex',
     'visual_cortex': 'Visual Cortex',
-    # 'heschl': "Heschl's\nGyrus",
-    # 'occipital': 'Occipital\nLobe',
-    # 'occipital_lobe': 'Occipital\nLobe',
 }
 
 ROI_ORDER_GROUPS: List[List[str]] = [
@@ -941,8 +993,6 @@ ROI_ORDER_GROUPS: List[List[str]] = [
     ['pmv'],
     ['auditory_cortex'],
     ['visual_cortex'],
-    # ['heschl'],
-    # ['occipital_lobe', 'occipital'],
 ]
 
 SEEDS: List[str] = ['cereb', 'dstr']
@@ -1114,17 +1164,25 @@ if __name__ == '__main__':
                 )
                 test_stem = f'{base_stem}_{MATRIX_TEST_SCALE}'
 
+                p_holm_mat, reject_mat = holm_matrix(mat_p, alpha=ALPHA)
+
                 r_tsv = mat_dir / f'matrix_mean_r_{base_stem}.tsv'
                 p_tsv = mat_dir / f'matrix_p_uncorr_{test_stem}.tsv'
                 sig_tsv = mat_dir / f'matrix_sig_uncorr_{test_stem}.tsv'
+                p_holm_tsv = mat_dir / f'matrix_p_holm_{test_stem}.tsv'
+                sig_holm_tsv = mat_dir / f'matrix_sig_holm_{test_stem}.tsv'
 
                 mat_r.to_csv(r_tsv, sep='\t')
                 mat_p.to_csv(p_tsv, sep='\t')
                 mat_sig.to_csv(sig_tsv, sep='\t')
+                p_holm_mat.to_csv(p_holm_tsv, sep='\t')
+                reject_mat.astype(int).to_csv(sig_holm_tsv, sep='\t')
 
                 print(f"[SAVED] {r_tsv}")
                 print(f"[SAVED] {p_tsv}")
                 print(f"[SAVED] {sig_tsv}")
+                print(f"[SAVED] {p_holm_tsv}")
+                print(f"[SAVED] {sig_holm_tsv}")
 
                 if mat_z is not None:
                     z_tsv = mat_dir / f'matrix_mean_z_{base_stem}.tsv'
@@ -1137,4 +1195,5 @@ if __name__ == '__main__':
                     p_mat=mat_p,
                     out_png=mat_png,
                     alpha_thr=ALPHA,
+                    reject_mat=reject_mat,
                 )
