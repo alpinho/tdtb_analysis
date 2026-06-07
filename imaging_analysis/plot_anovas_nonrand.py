@@ -156,7 +156,7 @@ EXPAND_TOP_FOR_ANNOTATIONS = False
 # -- Legend / title spacing (units: absolute points) --
 LEGEND_CI_GAP_PT = 16.0       # CI caption above the Non-Random swatch row
 LEGEND_ROW_GAP_PT = 15.0      # gap between the Non-Random and Random rows
-LEGEND_TITLE_CLEAR_PT = 16.0  # min clearance between legend block and 1st title
+LEGEND_TITLE_CLEAR_PT = 18.0  # min clearance between legend block and 1st title
 TITLE_GAP_PT = 14.0           # ROI title above its row of panels
 MODLABEL_GAP_PT = 6.0         # extra gap below the modality x-labels
 
@@ -164,7 +164,7 @@ MODLABEL_GAP_PT = 6.0         # extra gap below the modality x-labels
 ROW_BREATHING_IN = 0.18
 
 # ----- assemble_panel (grid panel) spacing, in inches -----
-PANEL_ROW_GAP_IN = 0.6
+PANEL_ROW_GAP_IN = 0.20
 PANEL_TITLE_GAP_IN = 0.01
 
 
@@ -525,6 +525,7 @@ def plot_psc_boxplots(
     tag_dy: float = 0.0,
     save_tight: bool = True,
     left_margin: float = 0.05,
+    extra_left_canvas_in: float = 0.0,
 ) -> None:
     """Plot PSC boxplots by ROI and modality blocks.
 
@@ -753,8 +754,9 @@ def plot_psc_boxplots(
 
     # -------------------------- figure width -------------------------
     # Keep the original nonrand width scaling (horizontal geometry unchanged).
-    fig_w = 4.6 * FIG_W_SCALE * figsize_scale
-    fig_w *= len(modality_blocks) / len(MODALITY_BLOCKS)
+    base_fig_w = 4.6 * FIG_W_SCALE * figsize_scale
+    base_fig_w *= len(modality_blocks) / len(MODALITY_BLOCKS)
+    fig_w = base_fig_w + float(extra_left_canvas_in)
 
     fig, axes = plt.subplots(
         nrows=n_rows,
@@ -813,8 +815,13 @@ def plot_psc_boxplots(
     fig_h = top_margin + sum(row_h_in) + sum(gaps) + bottom_margin
     fig.set_figheight(fig_h)
 
+    left_frac = (
+        float(extra_left_canvas_in) + float(left_margin) * base_fig_w
+    ) / fig_w
+    right_frac = (float(extra_left_canvas_in) + 0.98 * base_fig_w) / fig_w
     fig.subplots_adjust(
-        left=left_margin, right=0.98, top=0.999, bottom=0.001, wspace=0.24
+        left=left_frac, right=right_frac, top=0.999, bottom=0.001,
+        wspace=0.24
     )
 
     y_top_in = fig_h - top_margin
@@ -1133,7 +1140,7 @@ def assemble_panel(
     title_gap_in: float = PANEL_TITLE_GAP_IN,
     side_pad_in: float = 0.20,
     top_pad_in: float = 0.20,
-    bottom_pad_in: float = 0.20,
+    bottom_pad_in: float = -.2,
     title_fontsize: int = 14,
     dpi: int = 300,
     cell_kwargs: dict | None = None,
@@ -1180,7 +1187,8 @@ def assemble_panel(
                     show_yaxis={roi_key: ci == 0},
                     draw_legend=False, draw_title=False,
                     save_tight=False,
-                    left_margin=0.18 if ci == 0 else 0.05,
+                    left_margin=0.05,
+                    extra_left_canvas_in=0.65 if ci == 0 else 0.0,
                     **base_kwargs,
                 )
                 with Image.open(png) as im:
@@ -1209,7 +1217,7 @@ def assemble_panel(
         row_h = [max(cell_h[ri]) for ri in range(len(rows))]
         content_w = max(row_w)
 
-        legend_band = 0.70 if legend is not None else 0.0
+        legend_band = 0.76 if legend is not None else 0.0
 
         fig_w = content_w + 2 * side_pad_in
         fig_h = (top_pad_in + bottom_pad_in + legend_band
