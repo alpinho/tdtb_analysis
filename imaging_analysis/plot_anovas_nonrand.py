@@ -36,7 +36,7 @@ from typing import Dict, List, Sequence, Tuple
 import matplotlib.cbook as cbook
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch, Rectangle
+from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter, MultipleLocator
 import numpy as np
 import pandas as pd
@@ -213,9 +213,9 @@ def _roi_key(name: str) -> str | None:
         return "pmd"
     if "pmv" in tok:
         return "pmv"
-    if "auditory_cortex" in tok:
+    if "auditorycortex" in tok or "auditoryctx" in tok:
         return "auditory_cortex"
-    if "visual_cortex" in tok:
+    if "visualcortex" in tok or "visualctx" in tok:
         return "visual_cortex"
     return None
 
@@ -523,6 +523,8 @@ def plot_psc_boxplots(
     tag_dx_nonrandom: float = 0.0,
     tag_dx_random: float = 0.0,
     tag_dy: float = 0.0,
+    save_tight: bool = True,
+    left_margin: float = 0.05,
 ) -> None:
     """Plot PSC boxplots by ROI and modality blocks.
 
@@ -551,8 +553,6 @@ def plot_psc_boxplots(
     ypad_frac = 0.08
 
     # ---------------- PASS 1: per-ROI y-lims and row heights ----------------
-    eligible_template = {m: None for m in modality_blocks}
-
     specs: List[dict] = []
     for roi in rois:
         if roi is None:
@@ -773,10 +773,13 @@ def plot_psc_boxplots(
     PT = 1.0 / 72.0
 
     def _title_in(spec: dict) -> float:
-        if spec["roi"] is None:
+        # When panel cells are generated with draw_title=False, do not reserve
+        # hidden title space. This keeps the temporary cell canvas compact while
+        # preserving identical data-axis geometry across cells in the same row.
+        if (spec["roi"] is None) or (not draw_title):
             return 0.0
         n_lines = spec["roi_label"].count("\n") + 1
-        return (n_lines * (AXIS_LABEL_FS + 8) * 1.30 + TITLE_GAP_PT) * PT
+        return (n_lines * ROI_TITLE_FS * 1.30 + TITLE_GAP_PT) * PT
 
     # Space below a row = modality x-labels (1 or 2 lines) + gap.
     xlabel_map = MOD_LABEL_CENTERED if center_singleline_xlabels else MOD_LABEL
@@ -811,7 +814,7 @@ def plot_psc_boxplots(
     fig.set_figheight(fig_h)
 
     fig.subplots_adjust(
-        left=0.05, right=0.98, top=0.999, bottom=0.001, wspace=0.24
+        left=left_margin, right=0.98, top=0.999, bottom=0.001, wspace=0.24
     )
 
     y_top_in = fig_h - top_margin
@@ -1040,7 +1043,10 @@ def plot_psc_boxplots(
                     h_data=h_data,
                 )
 
-    fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.08)
+    if save_tight:
+        fig.savefig(outpath, dpi=300, bbox_inches="tight", pad_inches=0.08)
+    else:
+        fig.savefig(outpath, dpi=300)
     plt.close(fig)
 
 
@@ -1128,7 +1134,7 @@ def assemble_panel(
     side_pad_in: float = 0.20,
     top_pad_in: float = 0.20,
     bottom_pad_in: float = 0.20,
-    title_fontsize: int = 20,
+    title_fontsize: int = 14,
     dpi: int = 300,
     cell_kwargs: dict | None = None,
 ) -> None:
@@ -1173,6 +1179,8 @@ def assemble_panel(
                     y_limits={roi_key: ylim},
                     show_yaxis={roi_key: ci == 0},
                     draw_legend=False, draw_title=False,
+                    save_tight=False,
+                    left_margin=0.18 if ci == 0 else 0.05,
                     **base_kwargs,
                 )
                 with Image.open(png) as im:
@@ -1436,5 +1444,5 @@ if __name__ == "__main__":
         rows=panel_rows,
         row_ylims=panel_row_ylims,
         legend="full",
-        cell_kwargs=dict(center_singleline_xlabels=False),
+        cell_kwargs=dict(center_singleline_xlabels=True),
     )
