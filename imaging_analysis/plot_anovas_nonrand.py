@@ -1353,7 +1353,7 @@ WITHIN_ANNOTATIONS: List[dict] = [
     dict(
         roi="auditory_cortex",
         modality="Auditory",
-        pvalue=0.00432467050460228,
+        pvalue=0.00000261961870073949,
     ),
 ]
 
@@ -1363,8 +1363,12 @@ WITHIN_ANNOTATIONS: List[dict] = [
 
 CROSS_AV_ANNOTATIONS: List[dict] = [
     dict(
+        roi="auditory_cortex",
+        pvalue=0.00000000000000168588784426346,
+    ),
+    dict(
         roi="visual_cortex",
-        pvalue=0.00000000573693940467244,
+        pvalue=0.00000000296509869947305,
     ),
 ]
 
@@ -1445,7 +1449,7 @@ if __name__ == "__main__":
          ("pmv", "pooled")],
     ]
     # One uniform y-range per row (encompassing the regions in that row).
-    panel_row_ylims = [(-0.6, 1.4), (-0.2, 1.0)]
+    panel_row_ylims = [(-0.6, 1.6), (-0.2, 1.0)]
     assemble_panel(
         df=df_in,
         outpath=OUTPUT_PATH_PANEL,
