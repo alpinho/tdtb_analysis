@@ -156,7 +156,7 @@ EXPAND_TOP_FOR_ANNOTATIONS = False
 # -- Legend / title spacing (units: absolute points) --
 LEGEND_CI_GAP_PT = 16.0       # CI caption above the Non-Random swatch row
 LEGEND_ROW_GAP_PT = 15.0      # gap between the Non-Random and Random rows
-LEGEND_TITLE_CLEAR_PT = 18.0  # min clearance between legend block and 1st title
+LEGEND_TITLE_CLEAR_PT = 16.0  # min clearance between legend block and 1st title
 TITLE_GAP_PT = 14.0           # ROI title above its row of panels
 MODLABEL_GAP_PT = 6.0         # extra gap below the modality x-labels
 
@@ -164,7 +164,7 @@ MODLABEL_GAP_PT = 6.0         # extra gap below the modality x-labels
 ROW_BREATHING_IN = 0.18
 
 # ----- assemble_panel (grid panel) spacing, in inches -----
-PANEL_ROW_GAP_IN = 0.20
+PANEL_ROW_GAP_IN = 0.30
 PANEL_TITLE_GAP_IN = 0.01
 
 
@@ -1140,8 +1140,8 @@ def assemble_panel(
     title_gap_in: float = PANEL_TITLE_GAP_IN,
     side_pad_in: float = 0.20,
     top_pad_in: float = 0.20,
-    bottom_pad_in: float = -.2,
-    title_fontsize: int = 14,
+    bottom_pad_in: float = 0.06,
+    title_fontsize: int = 13,
     dpi: int = 300,
     cell_kwargs: dict | None = None,
 ) -> None:
@@ -1325,6 +1325,11 @@ OUTPUT_PATH_PANEL = os.path.join(
     "psc_boxplots_rand_ntfd_nonrandom_panel.png",
 )
 
+OUTPUT_PATH_PANEL_SINGLE_ROW = os.path.join(
+    OUTPUT_DIR,
+    "psc_boxplots_rand_ntfd_nonrandom_panel_single_row.png",
+)
+
 
 # ============= WITHIN-SUBPLOT ANNOTATIONS (Non-Random vs Random) ===== #
 # p-values UNCHANGED (update later as needed); stars derive from them.
@@ -1455,6 +1460,28 @@ if __name__ == "__main__":
         outpath=OUTPUT_PATH_PANEL,
         rows=panel_rows,
         row_ylims=panel_row_ylims,
+        legend="full",
+        cell_kwargs=dict(center_singleline_xlabels=True),
+    )
+
+    # 4) Combined panel in one single row.  The same broader y-range used for
+    #    the first row of the two-row panel is applied to every ROI.
+    panel_rows_single = [
+        [("auditory_cortex", "audivisual"),
+         ("visual_cortex", "audivisual"),
+         ("dstr", "pooled"),
+         ("cereb", "pooled"),
+         ("presma", "pooled"),
+         ("sma", "pooled"),
+         ("pmd", "pooled"),
+         ("pmv", "pooled")],
+    ]
+    panel_row_ylims_single = [panel_row_ylims[0]]
+    assemble_panel(
+        df=df_in,
+        outpath=OUTPUT_PATH_PANEL_SINGLE_ROW,
+        rows=panel_rows_single,
+        row_ylims=panel_row_ylims_single,
         legend="full",
         cell_kwargs=dict(center_singleline_xlabels=True),
     )
