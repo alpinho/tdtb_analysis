@@ -146,7 +146,7 @@ ANNOT_HEADROOM_TICKS = 0.45       # blank space kept above the topmost bracket
 
 WITHIN_CLEARANCE_TICKS = 0.30     # gap from data top to within-axis bracket
 WITHIN_LAYER_TICKS = 0.55         # step between stacked within-axis brackets
-WITHIN_CAP_TICKS = 0.10           # within-axis bracket cap height
+WITHIN_CAP_TICKS = 0.22           # within-axis bracket cap height
 
 CROSS_GAP_TICKS = 0.9             # gap before the cross-modality stack begins
 
@@ -1141,7 +1141,7 @@ def assemble_panel(
     side_pad_in: float = 0.20,
     top_pad_in: float = 0.20,
     bottom_pad_in: float = 0.06,
-    title_fontsize: int = 13,
+    title_fontsize: int = 14,
     dpi: int = 300,
     cell_kwargs: dict | None = None,
 ) -> None:
