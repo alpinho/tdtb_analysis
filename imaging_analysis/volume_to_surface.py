@@ -22,6 +22,15 @@ Use flatmaps (default) or dynamic HTML maps (Plotly) by passing a flag:
       (first filled, second as a thresholded outline):
         set contrast_name and contrast_name2 and run with --contour
 
+Sidedness of the FDR threshold / display (set in the INPUTS section):
+    contrast_sides : sidedness of the FILLED map (contrast_name).
+    contour_sides  : sidedness of the OUTLINE (contrast_name2, --contour only).
+    Each may be 'one-sided' (positive tail only, activations), 'two-sided'
+    (|z| FDR, both activations and deactivations, diverging colormap for the
+    fill), or None (auto: two-sided for signed difference contrasts such as
+    'Random vs Non-Random', one-sided otherwise). These options apply in every
+    branch that thresholds a contrast.
+
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
@@ -602,6 +611,38 @@ def overlay_region_contour(ax, surf_path, values, threshold,
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
     ax.set_autoscale_on(False)
+
+
+def resolve_signed(sides, contrast_name, signed_contrasts):
+    """Resolve the requested sidedness into a two-sided (signed) boolean.
+
+    Parameters
+    ----------
+    sides : {'one-sided', 'two-sided', None}
+        Explicit choice; None falls back to auto-detection, i.e. two-sided for
+        the signed difference contrasts listed in `signed_contrasts` and
+        one-sided otherwise (legacy behaviour).
+    contrast_name : str
+        Name of the contrast whose sidedness is being resolved.
+    signed_contrasts : sequence of str
+        Contrasts treated as two-sided when `sides` is None.
+
+    Returns
+    -------
+    bool
+        True  -> two-sided: |z| FDR, both tails (diverging fill / outline of
+                 activations + deactivations).
+        False -> one-sided: positive tail only (activations).
+    """
+    if sides is None:
+        return contrast_name in signed_contrasts
+    s = str(sides).strip().lower()
+    if s in ('two-sided', 'two_sided', 'twosided', 'two', '2'):
+        return True
+    if s in ('one-sided', 'one_sided', 'onesided', 'one', '1'):
+        return False
+    raise ValueError(
+        f"Invalid sidedness {sides!r}; use 'one-sided', 'two-sided', or None.")
 
 
 def make_signed_gray_threshold_cmap(
@@ -1763,7 +1804,19 @@ contrast_name2 = 'Encoding' # E.g. 'Interval'
 # contrast such as Encoding vs. Rest, the auto-FDR boundary is very extensive,
 # so a fixed value (e.g. 3.09 for p <= 0.001) usually gives a cleaner outline.
 contour_task_tag = 'All Main Tasks'  # e.g. 'All Main Tasks'
-contour_threshold_override = 2.7  # e.g. 3.09
+contour_threshold_override = None  # e.g. 3.09
+
+# Sidedness of the FDR threshold / display. Each is 'one-sided' (positive tail
+# only, activations), 'two-sided' (|z| FDR, both activations and deactivations;
+# diverging colormap for the fill), or None (auto: two-sided for signed
+# difference contrasts, one-sided otherwise).
+#   contrast_sides : applies to the FILLED map (contrast_name), every branch.
+#   contour_sides  : applies to the OUTLINE (contrast_name2), --contour only.
+# Note: with contour_threshold_override set, that fixed |z| value is used for
+# the outline regardless of contour_sides; contour_sides then only controls
+# whether the outline traces activations only or both tails.
+contrast_sides = 'two-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
+contour_sides = 'two-sided'  # outline of activations AND deactivations
 
 # ========================= PARAMETERS ================================
 
@@ -2166,7 +2219,7 @@ if __name__ == '__main__':
             'Auditory Random vs Auditory Non-Random',
             'Visual Random vs Visual Non-Random',
         )
-        if contrast_name in signed_contrasts:
+        if resolve_signed(contrast_sides, contrast_name, signed_contrasts):
             thr_s, vmax_s = whole_brain_thresholds_signed(
                 derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask)
             plot_flatmap(
@@ -2263,7 +2316,8 @@ if __name__ == '__main__':
                 'Auditory Random vs Auditory Non-Random',
                 'Visual Random vs Visual Non-Random',
             )
-            is_signed = contrast_name in signed_contrasts
+            is_signed = resolve_signed(
+                contrast_sides, contrast_name, signed_contrasts)
             if is_signed:
                 thr1, v1 = whole_brain_thresholds_signed(
                     derivatives_folder, SUBJECTS, task_id, contrast_id,
@@ -2273,10 +2327,20 @@ if __name__ == '__main__':
                     derivatives_folder, SUBJECTS, task_id, contrast_id,
                     wb_gmask)
 
+            # contour sidedness: two-sided traces activations AND
+            # deactivations (|z| FDR); one-sided traces activations only.
+            contour_twosided = resolve_signed(
+                contour_sides, contrast_name2, signed_contrasts)
+
             # contour threshold: explicit override, else whole-brain FDR of
-            # the contour contrast computed in ITS OWN task
+            # the contour contrast computed in ITS OWN task (two-sided FDR on
+            # |z| when the outline is two-sided, one-sided FDR otherwise).
             if contour_threshold_override is not None:
                 thr2 = float(contour_threshold_override)
+            elif contour_twosided:
+                thr2, _ = whole_brain_thresholds_signed(
+                    derivatives_folder, SUBJECTS, contour_task_id,
+                    contrast_id2, wb_gmask)
             else:
                 thr2, _ = whole_brain_thresholds(
                     derivatives_folder, SUBJECTS, contour_task_id,
@@ -2303,7 +2367,7 @@ if __name__ == '__main__':
                 contour_threshold=thr2,
                 contour_color='k',
                 contour_linewidth=1.0,
-                contour_positive_only=True,  # activation only (one-sided)
+                contour_positive_only=not contour_twosided,
             )
         else:
             contrast_id2 = \
