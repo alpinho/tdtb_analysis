@@ -18,6 +18,10 @@ Use flatmaps (default) or dynamic HTML maps (Plotly) by passing a flag:
     - Single or Multiple IROIs (flatmaps): 
         python volume_to_surface.py --irois
 
+    - Two-contrast overlay with the SECOND contrast drawn as a contour
+      (first filled, second as a thresholded outline):
+        set contrast_name and contrast_name2 and run with --contour
+
 Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
@@ -45,6 +49,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import to_rgb, Normalize, LinearSegmentedColormap
 from matplotlib.cm import ScalarMappable
 from matplotlib import colors as mcolors
+import matplotlib.tri as mtri
 
 from scipy import stats
 from nilearn.image import load_img
@@ -62,6 +67,75 @@ from utils import zval_conversion
 
 # %%
 # ========================== FUNCTIONS ================================
+
+
+def build_contrasts(task_id):
+    """Return the {id: name} contrast dictionary for a given task_id."""
+    if task_id != 'rand_ntfd':
+        return {
+            1: 'Encoding',
+            2: 'Auditory Encoding',
+            3: 'Visual Encoding',
+            4: 'Auditory vs Visual Encoding',
+            5: 'Visual vs Auditory Encoding',
+            6: 'Beat',
+            7: 'Interval',
+            8: 'Beat vs Interval',
+            9: 'Interval vs Beat',
+            10: 'Auditory Beat',
+            11: 'Auditory Interval',
+            12: 'Auditory Beat vs Auditory Interval',
+            13: 'Auditory Interval vs Auditory Beat',
+            14: 'Visual Beat',
+            15: 'Visual Interval',
+            16: 'Visual Beat vs Visual Interval',
+            17: 'Visual Interval vs Visual Beat',
+            18: 'Decision'
+        }
+    return {
+        1: 'Encoding',
+        2: 'Auditory Encoding',
+        3: 'Visual Encoding',
+        4: 'Auditory vs Visual Encoding',
+        5: 'Visual vs Auditory Encoding',
+        6: 'Beat',
+        7: 'Interval',
+        8: 'Non-Random',
+        9: 'Random',
+        10: 'Beat vs Interval',
+        11: 'Interval vs Beat',
+        12: 'Beat vs Random',
+        13: 'Random vs Beat',
+        14: 'Interval vs Random',
+        15: 'Random vs Interval',
+        16: 'Non-Random vs Random',
+        17: 'Random vs Non-Random',
+        18: 'Auditory Beat',
+        19: 'Auditory Interval',
+        20: 'Auditory Non-Random',
+        21: 'Auditory Random',
+        22: 'Auditory Beat vs Auditory Interval',
+        23: 'Auditory Interval vs Auditory Beat',
+        24: 'Auditory Beat vs Auditory Random',
+        25: 'Auditory Random vs Auditory Beat',
+        26: 'Auditory Interval vs Auditory Random',
+        27: 'Auditory Random vs Auditory Interval',
+        28: 'Auditory Non-Random vs Auditory Random',
+        29: 'Auditory Random vs Auditory Non-Random',
+        30: 'Visual Beat',
+        31: 'Visual Interval',
+        32: 'Visual Non-Random',
+        33: 'Visual Random',
+        34: 'Visual Beat vs Visual Interval',
+        35: 'Visual Interval vs Visual Beat',
+        36: 'Visual Beat vs Visual Random',
+        37: 'Visual Random vs Visual Beat',
+        38: 'Visual Interval vs Visual Random',
+        39: 'Visual Random vs Visual Interval',
+        40: 'Visual Non-Random vs Visual Random',
+        41: 'Visual Random vs Visual Non-Random',
+        42: 'Decision'
+    }
 
 
 def get_imeshes(derivatives_dir, subjects, surfspace='fslr32k'):
@@ -479,6 +553,107 @@ def whole_brain_thresholds_signed(derivatives_dir, subjects, task_key,
     return thr_signed, vmax
 
 
+def overlay_region_contour(ax, surf_path, values, threshold,
+                           color='k', linewidth=1.0, positive_only=True):
+    """
+    Draw the outline of the supra-threshold region of `values` on an
+    existing flatmap axis `ax`, using the flat-surface mesh in `surf_path`.
+
+    Parameters
+    ----------
+    ax : matplotlib axis already holding a flatmap (from flatmap.plot).
+    surf_path : str, path to the hemisphere flat .surf.gii (same one passed
+        to flatmap.plot, so coordinates align).
+    values : 1D np.array, per-vertex map of the second contrast.
+    threshold : float, defines the region to outline.
+    positive_only : if True (default), one-sided inference: only vertices
+        with value >= threshold (activations) are outlined. If False,
+        two-sided: |value| >= threshold (activations + deactivations).
+    color, linewidth : contour styling.
+    """
+    gii = nib.load(surf_path)
+    coords = gii.darrays[0].data
+    faces = np.asarray(gii.darrays[1].data, dtype=int)
+    x, y = coords[:, 0].astype(float), coords[:, 1].astype(float)
+
+    v = np.nan_to_num(values, nan=0.0)
+    if positive_only:
+        mask = (v >= threshold).astype(float)
+    else:
+        mask = (np.abs(v) >= threshold).astype(float)
+    if mask.sum() == 0:
+        return  # nothing supra-threshold -> no contour
+
+    # Guard against non-finite flat coordinates (e.g. medial wall cut)
+    good = np.isfinite(x) & np.isfinite(y)
+    if not good.all():
+        x = np.where(good, x, 0.0)
+        y = np.where(good, y, 0.0)
+    triang = mtri.Triangulation(x, y, faces)
+    if not good.all():
+        triang.set_mask(~good[faces].all(axis=1))
+
+    # Freeze the framing that flatmap.plot established: tricontour otherwise
+    # re-autoscales the axes, which (with bbox_inches='tight') clips the
+    # flatmap tips and shifts the colorbar.
+    xlim, ylim = ax.get_xlim(), ax.get_ylim()
+    ax.tricontour(triang, mask, levels=[0.5],
+                  colors=[color], linewidths=linewidth)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_autoscale_on(False)
+
+
+def make_signed_gray_threshold_cmap(
+    thr, vlim,
+    base_colors=('#1A85FF', '#FFFFFF', '#D41159'),
+    gray='#999999', n=256,
+):
+    """Diverging colormap for signed (two-sided) thresholded maps in which the
+    sub-threshold band [-thr, +thr] is rendered as a flat neutral gray and only
+    the two supra-threshold tails keep color.
+
+    Outside [-thr, +thr] the colormap is identical to the plain ``base_colors``
+    diverging map; inside that band it is overwritten with ``gray``. Data are
+    spread linearly over [-vlim, +vlim] both by SUITPy's ``flatmap.plot``
+    (cscale=[-vlim, vlim]) and by the colorbar's Normalize, so the gray band
+    occupies exactly the |z| < thr portion of the scale. On the surface the
+    sub-threshold vertices are set to NaN (transparent) before plotting, so the
+    gray entries appear only in the colorbar, while the colored tails match the
+    on-surface colors exactly.
+
+    Parameters
+    ----------
+    thr : float
+        FDR critical value Z(q), i.e. the |z| threshold. Expected 0 < thr < vlim.
+    vlim : float
+        Symmetric color limit; the scale spans [-vlim, +vlim].
+    base_colors : sequence of 3 colors
+        (negative, center, positive) anchors of the underlying diverging map.
+    gray : color
+        Color of the [-thr, +thr] band.
+    n : int
+        Number of lookup-table samples.
+
+    Returns
+    -------
+    matplotlib.colors.LinearSegmentedColormap
+    """
+    base = LinearSegmentedColormap.from_list(
+        'signed_base', list(base_colors), N=n)
+    if not (np.isfinite(thr) and np.isfinite(vlim)) or vlim <= 0 or thr <= 0:
+        return base
+    thr = min(float(thr), float(vlim))            # clamp degenerate thr >= vlim
+    pos = np.linspace(0.0, 1.0, n)                # normalized scale positions
+    rgba = base(pos)
+    # normalized positions of -thr and +thr over [-vlim, +vlim]
+    p_lo = 0.5 - thr / (2.0 * vlim)
+    p_hi = 0.5 + thr / (2.0 * vlim)
+    band = (pos >= p_lo) & (pos <= p_hi)
+    rgba[band] = mcolors.to_rgba(gray)
+    return LinearSegmentedColormap.from_list('signed_gray_thr', rgba, N=n)
+
+
 def plot_flatmap(
     stats,
     threshold,
@@ -495,6 +670,11 @@ def plot_flatmap(
     tick_decimals=1,
     show_colorbar=True,
     signed=False,
+    contour_stat=None,
+    contour_threshold=None,
+    contour_color='k',
+    contour_linewidth=1.0,
+    contour_positive_only=True,
 ):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -510,6 +690,14 @@ def plot_flatmap(
       threshold: [thr1, thr2]
       colors: [color1, color2]  # any matplotlib color
       vmax: [v1, v2]
+
+    Two-contrast contour overlay:
+      stats: [lh1, rh1]               # contrast 1, drawn filled
+      threshold: thr1                 # fill threshold (or signed |z| thr)
+      vmax: v1                        # fill vmax (symmetric if signed=True)
+      contour_stat: [lh2, rh2]        # contrast 2, drawn as an outline
+      contour_threshold: thr2         # |z| threshold defining the outline
+      (set signed=True to fill contrast 1 with the diverging colormap)
 
     Note on magnitude of co-activation for the RGB overlay:
     -------------------------------------------------------
@@ -580,6 +768,80 @@ def plot_flatmap(
         gridspec_kw={'wspace': 0.05}
     )
 
+    # contour-overlay branch: contrast 1 filled, contrast 2 as an outline
+    if contour_stat is not None:
+        lh, rh = stats
+        lh2, rh2 = contour_stat
+        cthr = float(contour_threshold)
+
+        if signed:
+            vlim = (vmax if (vmax is not None and np.isfinite(vmax))
+                    else np.nanmax([np.nanmax(np.abs(lh)),
+                                    np.nanmax(np.abs(rh))]))
+            if not np.isfinite(vlim) or vlim <= 0:
+                vlim = float(threshold) + 1e-6
+            # Gray [-Z(q), +Z(q)] band; color only on the significant tails.
+            fill_cmap = make_signed_gray_threshold_cmap(threshold, vlim)
+            cscale = [-vlim, vlim]
+        else:
+            cscale_lo = threshold
+            data_max = np.nanmax([np.nanmax(lh), np.nanmax(rh)])
+            cscale_hi = data_max if vmax is None else vmax
+            if not np.isfinite(cscale_hi) or cscale_hi <= cscale_lo:
+                cscale_hi = cscale_lo + 1e-6
+            fill_cmap = colormap
+            cscale = [cscale_lo, cscale_hi]
+
+        for ax, stat, c2, h in zip(axs, (lh, rh), (lh2, rh2), hemi):
+            s_arr = np.asarray(stat, float).copy()
+            plt.sca(ax)
+            plot_kwargs = dict(
+                surf=surfaces[h], underlay=underlays[h], undermap='gray',
+                underscale=[-1.5, 1], cscale=cscale, cmap=fill_cmap,
+                borders=None, new_figure=False, frame=None,
+            )
+            if signed:
+                s_arr[np.abs(s_arr) < threshold] = np.nan
+            else:
+                plot_kwargs['threshold'] = threshold
+            flatmap.plot(s_arr, **plot_kwargs)
+            overlay_region_contour(
+                ax, surfaces[h], c2, cthr,
+                color=contour_color, linewidth=contour_linewidth,
+                positive_only=contour_positive_only)
+
+        if show_colorbar:
+            lo, hi = (-vlim, vlim) if signed else (cscale[0], cscale[1])
+            sm = ScalarMappable(norm=Normalize(vmin=lo, vmax=hi),
+                                cmap=fill_cmap)
+            cbar = fig.colorbar(
+                sm, ax=list(axs), orientation='horizontal',
+                fraction=0.05, pad=0.02)
+            cbar.set_label(cbar_title, fontsize=12, labelpad=8)
+            if signed:
+                # Tick the edges of the gray (non-significant) band.
+                ticks = np.array([-vlim, -float(threshold),
+                                  float(threshold), vlim])
+            else:
+                ticks = np.linspace(lo, hi, n_ticks)
+            cbar.set_ticks(ticks)
+            dec = int(tick_decimals) if tick_decimals is not None else 2
+            cbar.ax.set_xticklabels(
+                [f'{t:.{dec}f}' for t in ticks], fontsize=12)
+
+        plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
+        fig.set_size_inches(6, 2.75)
+        fname = (
+            f'group_{task_name}_{contrast}_flat_contour_fslr32k.png'
+            if len(hemi) == 2 else
+            f'group_{task_name}_{contrast}_flat_contour_fslr32k_{hemi[0]}.png'
+        )
+        fig.savefig(
+            os.path.join(output_dir, fname),
+            dpi=300, bbox_inches='tight', pad_inches=0
+        )
+        return
+
     # signed (diverging) single-contrast branch
     if not two_rgb and signed:
         lh, rh = stats
@@ -587,9 +849,8 @@ def plot_flatmap(
             [np.nanmax(np.abs(lh)), np.nanmax(np.abs(rh))])
         if not np.isfinite(vlim) or vlim <= 0:
             vlim = float(threshold) + 1e-6
-        # blue (Non-Random > Random) <-> white <-> red (Random > Non-Random)
-        diverging = LinearSegmentedColormap.from_list(
-            'rwb', ['#1A85FF', '#FFFFFF', '#D41159'])
+        # blue (Non-Random > Random) <-> gray (n.s.) <-> red (Random > Non-Random)
+        diverging = make_signed_gray_threshold_cmap(threshold, vlim)
         for ax, stat, h in zip(axs, (lh, rh), hemi):
             s_arr = np.asarray(stat, float).copy()
             # blank sub-threshold vertices on BOTH tails (NaN -> transparent)
@@ -615,7 +876,9 @@ def plot_flatmap(
                 fraction=0.05, pad=0.02
             )
             cbar.set_label(cbar_title, fontsize=12, labelpad=8)
-            ticks = np.linspace(-vlim, vlim, n_ticks)
+            # Tick the edges of the gray (non-significant) band.
+            ticks = np.array([-vlim, -float(threshold),
+                              float(threshold), vlim])
             cbar.set_ticks(ticks)
             dec = int(tick_decimals) if tick_decimals is not None else 2
             cbar.ax.set_xticklabels(
@@ -1489,7 +1752,18 @@ task_tag = 'NTFD Random'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
 contrast_name = 'Random vs Non-Random' # E.g. 'Beat', 'Interval', 'ALL', etc.
-contrast_name2 = None # E.g. 'Interval'
+contrast_name2 = 'Encoding' # E.g. 'Interval'
+
+# Contour overlay (used only with --contour). The second contrast
+# (contrast_name2) is drawn as an outline and MAY come from a different task
+# than the filled map. Set contour_task_tag to that task (e.g.
+# 'All Main Tasks') or leave None to use the same task as contrast_name.
+# contour_threshold_override sets the |z| threshold of the outline directly;
+# leave None to use that contrast's whole-brain FDR threshold. For a dense
+# contrast such as Encoding vs. Rest, the auto-FDR boundary is very extensive,
+# so a fixed value (e.g. 3.09 for p <= 0.001) usually gives a cleaner outline.
+contour_task_tag = 'All Main Tasks'  # e.g. 'All Main Tasks'
+contour_threshold_override = 2.7  # e.g. 3.09
 
 # ========================= PARAMETERS ================================
 
@@ -1595,73 +1869,7 @@ tasks = {'prod': 'Production',
 task_id = {v: k for k, v in tasks.items()}.get(task_tag)
 
 # Contrast dictionary (id -> name)
-if task_id != 'rand_ntfd':
-    all_contrasts = {
-        1: 'Encoding',
-        2: 'Auditory Encoding',
-        3: 'Visual Encoding',
-        4: 'Auditory vs Visual Encoding',
-        5: 'Visual vs Auditory Encoding',
-        6: 'Beat',
-        7: 'Interval',
-        8: 'Beat vs Interval',
-        9: 'Interval vs Beat',
-        10: 'Auditory Beat',
-        11: 'Auditory Interval',
-        12: 'Auditory Beat vs Auditory Interval',
-        13: 'Auditory Interval vs Auditory Beat',
-        14: 'Visual Beat',
-        15: 'Visual Interval',
-        16: 'Visual Beat vs Visual Interval',
-        17: 'Visual Interval vs Visual Beat',
-        18: 'Decision'
-    }
-else:
-    assert task_id == 'rand_ntfd'   
-    all_contrasts = {
-        1: 'Encoding',
-        2: 'Auditory Encoding',
-        3: 'Visual Encoding',
-        4: 'Auditory vs Visual Encoding',
-        5: 'Visual vs Auditory Encoding',
-        6: 'Beat',
-        7: 'Interval',
-        8: 'Non-Random',
-        9: 'Random',
-        10: 'Beat vs Interval',
-        11: 'Interval vs Beat',
-        12: 'Beat vs Random',
-        13: 'Random vs Beat',
-        14: 'Interval vs Random',
-        15: 'Random vs Interval',
-        16: 'Non-Random vs Random',
-        17: 'Random vs Non-Random',
-        18: 'Auditory Beat',
-        19: 'Auditory Interval',
-        20: 'Auditory Non-Random',                   
-        21: 'Auditory Random',
-        22: 'Auditory Beat vs Auditory Interval',
-        23: 'Auditory Interval vs Auditory Beat',
-        24: 'Auditory Beat vs Auditory Random',
-        25: 'Auditory Random vs Auditory Beat',
-        26: 'Auditory Interval vs Auditory Random',
-        27: 'Auditory Random vs Auditory Interval',
-        28: 'Auditory Non-Random vs Auditory Random',
-        29: 'Auditory Random vs Auditory Non-Random',
-        30: 'Visual Beat',
-        31: 'Visual Interval',
-        32: 'Visual Non-Random',                   
-        33: 'Visual Random',
-        34: 'Visual Beat vs Visual Interval',
-        35: 'Visual Interval vs Visual Beat',
-        36: 'Visual Beat vs Visual Random',
-        37: 'Visual Random vs Visual Beat',                    
-        38: 'Visual Interval vs Visual Random',
-        39: 'Visual Random vs Visual Interval',
-        40: 'Visual Non-Random vs Visual Random',
-        41: 'Visual Random vs Visual Non-Random',
-        42: 'Decision'
-    }
+all_contrasts = build_contrasts(task_id)
 
 # Output folders
 surf_folder = os.path.join(surfparametric_folder, task_id, 
@@ -1827,6 +2035,9 @@ if __name__ == '__main__':
             contrast_name.strip().upper() == 'ALL':
         _batch = list(all_contrasts.values())
 
+    # draw the second contrast as a contour instead of an RGB overlay
+    _contour = '--contour' in sys.argv
+
     # =================== BATCH: multiple single runs =================
     if _batch is not None and not contrast_name2:
         for _cname in _batch:
@@ -1976,13 +2187,9 @@ if __name__ == '__main__':
     else:
         contrast_id = \
             {v: k for k, v in all_contrasts.items()}.get(contrast_name)
-        contrast_id2 = \
-            {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
-        if contrast_id is None or contrast_id2 is None:
-            raise ValueError(
-                f"Unknown contrasts: {contrast_name}, {contrast_name2}")
+        if contrast_id is None:
+            raise ValueError(f"Unknown contrast: {contrast_name}")
         cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
-        cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
 
         # ---- compute + group + mask for contrast 1 ------------------
         cdir1 = os.path.join(surf_folder, f"{contrast_id}_{cname.lower()}")
@@ -2018,61 +2225,143 @@ if __name__ == '__main__':
                 )
             )
 
-        # ---- compute + group + mask for contrast 2 ------------------
-        cdir2 = os.path.join(surf_folder, f"{contrast_id2}_{cname2.lower()}")
-        os.makedirs(cdir2, exist_ok=True)
-        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
-        #                 contrast_id2, surf_folder, 
-        #                 surfspace='fslr32k', save='gifti')
-        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
-        #                 contrast_id2, surf_folder, 
-        #                 surfspace='fslr32k', save='cifti')
-        z_values2 = group_surf(
-            surf_folder, SUBJECTS, task_id, contrast_id2, cname2, 
-            surfspace='fslr32k'
-        )
-        zL2 = mask_cortical_activation(
-            np.split(z_values2, 2, axis=0)[0], lh_medial_wall_mask_path)
-        zR2 = mask_cortical_activation(
-            np.split(z_values2, 2, axis=0)[1], rh_medial_wall_mask_path)
-        for zm, structure, hemi in zip([zL2, zR2], 
-                                       ['CortexLeft', 'CortexRight'],
-                                       ['lh', 'rh']):
-            gifti_img = nt.gifti.make_func_gifti(
-                zm, anatomical_struct=structure, column_names=[cname2])
-            nib.save(
-                gifti_img,
-                os.path.join(
-                    cdir2,
-                    'group_'
-                    + task_id.replace('_', '-')
-                    + '_'
-                    + cname2.lower()
-                    + '_'
-                    + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
-                )
-            )
-
         # ---- thresholds + overlay plot ------------------------------
-        thr1, v1 = whole_brain_thresholds(
-            derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask
-        )
-        thr2, v2 = whole_brain_thresholds(
-            derivatives_folder, SUBJECTS, task_id, contrast_id2, wb_gmask
-        )
-        rgbaplots_folder = os.path.join(
-            contrasts_folder, 'rgba', cname.lower() + '_and_' + cname2.lower()
-        )
-        os.makedirs(rgbaplots_folder, exist_ok=True)
-        thr = max(thr1, thr2)
-        vmax = max(v1, v2)
-        plot_flatmap(
-            stats=[[zL1, zR1], [zL2, zR2]],
-            threshold=[thr, thr],
-            task_key=task_id,
-            contrast_tag=cname + '_and_' + cname2,
-            output_dir=rgbaplots_folder,
-            hemi=['L', 'R'],
-            colors=["#FFF200", "#F42DFF"], # colors=['#D41159', '#1A85FF']
-            vmax=[vmax, vmax] # [vmax, vmax]
-        )
+        if _contour:
+            # Contrast 2 (the outline) may come from a DIFFERENT task than
+            # the filled contrast 1. Resolve its task, dictionary, surface
+            # folder and threshold independently.
+            contour_task_id = (
+                {v: k for k, v in tasks.items()}.get(contour_task_tag)
+                if contour_task_tag else task_id
+            )
+            if contour_task_id is None:
+                raise ValueError(f"Unknown contour_task_tag: {contour_task_tag}")
+            contour_contrasts = build_contrasts(contour_task_id)
+            contrast_id2 = \
+                {v: k for k, v in contour_contrasts.items()}.get(contrast_name2)
+            if contrast_id2 is None:
+                raise ValueError(
+                    f"Unknown contour contrast '{contrast_name2}' "
+                    f"for task '{contour_task_tag or task_tag}'")
+            cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
+            contour_surf_folder = os.path.join(
+                surfparametric_folder, contour_task_id, 'surface_files')
+
+            # group surface z-map of the contour contrast (read from its
+            # own task's surface files; no re-save into another task tree)
+            z_values2 = group_surf(
+                contour_surf_folder, SUBJECTS, contour_task_id, contrast_id2,
+                cname2, surfspace='fslr32k')
+            zL2 = mask_cortical_activation(
+                np.split(z_values2, 2, axis=0)[0], lh_medial_wall_mask_path)
+            zR2 = mask_cortical_activation(
+                np.split(z_values2, 2, axis=0)[1], rh_medial_wall_mask_path)
+
+            # contrast 1 fill threshold (signed for the Random-Non-Random map)
+            signed_contrasts = (
+                'Random vs Non-Random',
+                'Auditory Random vs Auditory Non-Random',
+                'Visual Random vs Visual Non-Random',
+            )
+            is_signed = contrast_name in signed_contrasts
+            if is_signed:
+                thr1, v1 = whole_brain_thresholds_signed(
+                    derivatives_folder, SUBJECTS, task_id, contrast_id,
+                    wb_gmask)
+            else:
+                thr1, v1 = whole_brain_thresholds(
+                    derivatives_folder, SUBJECTS, task_id, contrast_id,
+                    wb_gmask)
+
+            # contour threshold: explicit override, else whole-brain FDR of
+            # the contour contrast computed in ITS OWN task
+            if contour_threshold_override is not None:
+                thr2 = float(contour_threshold_override)
+            else:
+                thr2, _ = whole_brain_thresholds(
+                    derivatives_folder, SUBJECTS, contour_task_id,
+                    contrast_id2, wb_gmask)
+
+            contourplots_folder = os.path.join(
+                contrasts_folder, 'contour',
+                cname.lower() + '_with_' + cname2.lower()
+            )
+            os.makedirs(contourplots_folder, exist_ok=True)
+            plot_flatmap(
+                stats=[zL1, zR1],
+                threshold=thr1,
+                task_key=task_id,
+                contrast_tag=cname + '_with_' + cname2,
+                output_dir=contourplots_folder,
+                hemi=['L', 'R'],
+                colormap='viridis',
+                vmax=v1,
+                signed=is_signed,
+                cbar_title=('Z-values (Random \u2212 Non-Random)' if is_signed
+                            else 'Z-values'),
+                contour_stat=[zL2, zR2],
+                contour_threshold=thr2,
+                contour_color='k',
+                contour_linewidth=1.0,
+                contour_positive_only=True,  # activation only (one-sided)
+            )
+        else:
+            contrast_id2 = \
+                {v: k for k, v in all_contrasts.items()}.get(contrast_name2)
+            if contrast_id2 is None:
+                raise ValueError(f"Unknown contrast: {contrast_name2}")
+            cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
+
+            # ---- compute + group + mask for contrast 2 --------------
+            cdir2 = os.path.join(
+                surf_folder, f"{contrast_id2}_{cname2.lower()}")
+            os.makedirs(cdir2, exist_ok=True)
+            z_values2 = group_surf(
+                surf_folder, SUBJECTS, task_id, contrast_id2, cname2,
+                surfspace='fslr32k'
+            )
+            zL2 = mask_cortical_activation(
+                np.split(z_values2, 2, axis=0)[0], lh_medial_wall_mask_path)
+            zR2 = mask_cortical_activation(
+                np.split(z_values2, 2, axis=0)[1], rh_medial_wall_mask_path)
+            for zm, structure, hemi in zip([zL2, zR2],
+                                           ['CortexLeft', 'CortexRight'],
+                                           ['lh', 'rh']):
+                gifti_img = nt.gifti.make_func_gifti(
+                    zm, anatomical_struct=structure, column_names=[cname2])
+                nib.save(
+                    gifti_img,
+                    os.path.join(
+                        cdir2,
+                        'group_'
+                        + task_id.replace('_', '-')
+                        + '_'
+                        + cname2.lower()
+                        + '_'
+                        + 'fslr32k.' + hemi[0].capitalize() + '.func.gii',
+                    )
+                )
+
+            thr1, v1 = whole_brain_thresholds(
+                derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask
+            )
+            thr2, v2 = whole_brain_thresholds(
+                derivatives_folder, SUBJECTS, task_id, contrast_id2, wb_gmask
+            )
+            rgbaplots_folder = os.path.join(
+                contrasts_folder, 'rgba',
+                cname.lower() + '_and_' + cname2.lower()
+            )
+            os.makedirs(rgbaplots_folder, exist_ok=True)
+            thr = max(thr1, thr2)
+            vmax = max(v1, v2)
+            plot_flatmap(
+                stats=[[zL1, zR1], [zL2, zR2]],
+                threshold=[thr, thr],
+                task_key=task_id,
+                contrast_tag=cname + '_and_' + cname2,
+                output_dir=rgbaplots_folder,
+                hemi=['L', 'R'],
+                colors=["#FFF200", "#F42DFF"], # colors=['#D41159', '#1A85FF']
+                vmax=[vmax, vmax] # [vmax, vmax]
+            )
