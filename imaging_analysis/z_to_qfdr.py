@@ -126,7 +126,7 @@ wb_gmask = os.path.join(group_anat, 'group_mask_noskull.nii')
 z_star = 3.94
 
 # "one" = one-sided (greater-than), "two" = two-sided
-side = "one"
+side = "two"
 
 # Only used to report the corresponding FDR Z-threshold
 alpha = 0.05
