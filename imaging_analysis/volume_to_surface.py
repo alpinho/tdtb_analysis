@@ -436,6 +436,49 @@ def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
     return fdr_thresh, z_max
 
 
+def whole_brain_thresholds_signed(derivatives_dir, subjects, task_key,
+                                  contrast_key, gmask):
+    """Two-sided BH-FDR threshold (on |z|) and symmetric vmax for a signed
+    diverging map. Reuses the same second-level fit as
+    whole_brain_thresholds, but corrects both tails symmetrically."""
+
+    # Paths of the NORMALIZED individual contrast map for all subjects
+    encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
+                                  'estimates', task_key, 'ffx_rwls_dbb_hrf128',
+                                  'wcon_%04d' % contrast_key + '.nii')
+                     for sub in subjects]
+
+    # Create design matrix (one-sample t-test)
+    design_matrix = pd.DataFrame(
+        [1] * len(encoding_maps),
+        columns=['intercept'],
+    )
+
+    # Initialize a NiftiMasker (creates an implicit mask from the Z-map).
+    masker = NiftiMasker(mask_img=gmask)
+
+    # Initialize and fit the SecondLevelModel
+    second_level_model = SecondLevelModel(mask_img=masker, smoothing_fwhm=8)
+    second_level_model = second_level_model.fit(encoding_maps,
+                                                design_matrix=design_matrix)
+
+    # Compute the Z-Map and extract voxel values
+    z_map = second_level_model.compute_contrast(output_type='z_score')
+    z_values = masker.fit_transform(z_map).ravel()
+    z_values = z_values[~np.isnan(z_values)]
+
+    # Two-sided BH-FDR: threshold computed on the absolute z-values so that
+    # positive and negative tails are corrected symmetrically.
+    thr_signed = fdr_threshold(np.abs(z_values), alpha=0.05)
+
+    # Symmetric color limit
+    vmax = np.amax(np.abs(z_values))
+
+    print(f'Signed FDR threshold (|z|): {thr_signed}; symmetric vmax: {vmax}')
+
+    return thr_signed, vmax
+
+
 def plot_flatmap(
     stats,
     threshold,
@@ -451,6 +494,7 @@ def plot_flatmap(
     n_ticks=4,
     tick_decimals=1,
     show_colorbar=True,
+    signed=False,
 ):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -535,6 +579,61 @@ def plot_flatmap(
         1, len(hemi), figsize=(8, 4),
         gridspec_kw={'wspace': 0.05}
     )
+
+    # signed (diverging) single-contrast branch
+    if not two_rgb and signed:
+        lh, rh = stats
+        vlim = vmax if vmax is not None else np.nanmax(
+            [np.nanmax(np.abs(lh)), np.nanmax(np.abs(rh))])
+        if not np.isfinite(vlim) or vlim <= 0:
+            vlim = float(threshold) + 1e-6
+        # blue (Non-Random > Random) <-> white <-> red (Random > Non-Random)
+        diverging = LinearSegmentedColormap.from_list(
+            'rwb', ['#1A85FF', '#FFFFFF', '#D41159'])
+        for ax, stat, h in zip(axs, (lh, rh), hemi):
+            s_arr = np.asarray(stat, float).copy()
+            # blank sub-threshold vertices on BOTH tails (NaN -> transparent)
+            s_arr[np.abs(s_arr) < threshold] = np.nan
+            plt.sca(ax)
+            flatmap.plot(
+                s_arr,
+                surf=surfaces[h],
+                underlay=underlays[h],
+                undermap='gray',
+                underscale=[-1.5, 1],
+                cscale=[-vlim, vlim],
+                cmap=diverging,
+                borders=borders[h],
+                new_figure=False,
+                frame=None
+            )
+        if show_colorbar:
+            sm = ScalarMappable(
+                norm=Normalize(vmin=-vlim, vmax=vlim), cmap=diverging)
+            cbar = fig.colorbar(
+                sm, ax=list(axs), orientation='horizontal',
+                fraction=0.05, pad=0.02
+            )
+            cbar.set_label(cbar_title, fontsize=12, labelpad=8)
+            ticks = np.linspace(-vlim, vlim, n_ticks)
+            cbar.set_ticks(ticks)
+            dec = int(tick_decimals) if tick_decimals is not None else 2
+            cbar.ax.set_xticklabels(
+                [f'{t:.{dec}f}' for t in ticks], fontsize=12)
+        plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
+        fig.set_size_inches(6, 2.75)
+        contrast = contrast_tag.lower()
+        task_name = task_key.replace('_', '-')
+        fname = (
+            f'group_{task_name}_{contrast}_flat_signed_fslr32k.png'
+            if len(hemi) == 2 else
+            f'group_{task_name}_{contrast}_flat_signed_fslr32k_{hemi[0]}.png'
+        )
+        fig.savefig(
+            os.path.join(output_dir, fname),
+            dpi=300, bbox_inches='tight', pad_inches=0
+        )
+        return
 
     # single-contrast branch
     if not two_rgb:
@@ -1378,7 +1477,7 @@ surfparametric_folder = os.path.join(
     'surface')
 
 # Production/Perception/NTFD/NTFD Random/All Main Tasks
-task_tag = 'All Main Tasks'
+task_tag = 'NTFD Random'
  
 # To run every contrast:
 # contrast_name = 'ALL' and contrast_name2 = None.
@@ -1389,7 +1488,7 @@ task_tag = 'All Main Tasks'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'ALL' # E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name = 'Random vs Non-Random' # E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None # E.g. 'Interval'
 
 # ========================= PARAMETERS ================================
@@ -1851,12 +1950,27 @@ if __name__ == '__main__':
             contrasts_folder, f"{contrast_id}_{cname.lower()}"
         )
         os.makedirs(surfplots_folder, exist_ok=True)
-        plot_flatmap(
-            [zvals_lh_masked, zvals_rh_masked],
-            thresh, task_id, cname, surfplots_folder,
-            hemi=['L', 'R'], colormap='viridis', vmax=v_max,
-            show_colorbar=False
+        signed_contrasts = (
+            'Random vs Non-Random',
+            'Auditory Random vs Auditory Non-Random',
+            'Visual Random vs Visual Non-Random',
         )
+        if contrast_name in signed_contrasts:
+            thr_s, vmax_s = whole_brain_thresholds_signed(
+                derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask)
+            plot_flatmap(
+                [zvals_lh_masked, zvals_rh_masked],
+                thr_s, task_id, cname, surfplots_folder,
+                hemi=['L', 'R'], vmax=vmax_s, signed=True,
+                cbar_title='Z  (Random \u2212 Non-Random)'
+            )
+        else:
+            plot_flatmap(
+                [zvals_lh_masked, zvals_rh_masked],
+                thresh, task_id, cname, surfplots_folder,
+                hemi=['L', 'R'], colormap='viridis', vmax=v_max,
+                show_colorbar=False
+            )
 
     # ====================== TWO-CONTRAST OVERLAY =====================
     else:
