@@ -8,7 +8,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 20th of January 2026
-Last Update: May 2026
+Last Update: June 2026
 
 Compatibility: Python 3.10.16, nilearn 0.11.1
 """
@@ -100,19 +100,30 @@ inputs_dir = os.path.join(home_dir,
                           'mygit', 'music_sdtb', 'tdtb_analysis',
                           'imaging_analysis', 'results')
 
+# group_functional = os.path.join(inputs_dir, 'parametric_tests', 'volume',
+#                                 'allmain_tasks')
 group_functional = os.path.join(inputs_dir, 'parametric_tests', 'volume',
-                                'allmain_tasks')
+                                'rand_ntfd')
+
 group_anat = os.path.join(inputs_dir, 'spm_volume_files', 'group_anat')
 
 # =======================
 # Inputs
 # =======================
-zmap_path = os.path.join(group_functional, 
-                         '1_encoding', '1_encoding_zmap.nii.gz')
+# zmap_path = os.path.join(group_functional, 
+#                          '1_encoding', '1_encoding_zmap.nii.gz')
+zmap_path = os.path.join(
+    group_functional, 
+    '17_random_vs_non-random', '17_random_vs_non-random_zmap.nii.gz')
+# zmap_path = os.path.join(
+#     group_functional, 
+#     '29_auditory_random_vs_auditory_non-random', 
+#     '29_auditory_random_vs_auditory_non-random_zmap.nii.gz')
+
 wb_gmask = os.path.join(group_anat, 'group_mask_noskull.nii')
 
 # Z value to convert
-z_star = 6.80
+z_star = 3.94
 
 # "one" = one-sided (greater-than), "two" = two-sided
 side = "one"
