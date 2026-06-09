@@ -9,7 +9,7 @@
 # Compatibility: Python 3.10.14
 #
 # =============================================================================
-# Computation of the whole-brain peak table for the Random vs. Non-Random
+# Recomputation of the whole-brain peak table for the Random vs. Non-Random
 # contrast, directly from the group Z-maps and the provided atlases.
 #
 # For every region/hemisphere the script computes:
@@ -146,7 +146,10 @@ ROWS = [
     # --- Activations (Random > Non-Random >= Rest) ---
     ('SMG, posterior',     CORT == HO['SMGpost'], 'R', (68, -34, 18),  'activation',   'anchor', False),
     ('LPMC / PMV',         HMAT == HK['PMv_R'],   'R', (38, 8, 30),    'activation',   'anchor', False),
-    ('Cerebellum / D1Li',  CERE == CK['D1Li'],    'L', (-27, -67, -50),'activation',   'anchor', True),
+    # Cerebellum: the region mask is the whole Nettekoven gray-matter parcellation
+    # (CERE > 0), which isolates cerebellar gray matter from adjacent structures;
+    # D1Li (label 30, CK['D1Li']) is retained only as the functional label of the peak.
+    ('Cerebellum / D1Li',  CERE > 0,              'L', (-27, -67, -50),'activation',   'anchor', True),
     ('STG, posterior',     CORT == HO['STGpost'], 'R', (53, -20, -2),  'activation',   'anchor', False),
     ('Insula, anterior',   CORT == HO['Insula'],  'R', (30, 26, 0),    'activation',   'anchor', False),
     ('PT',                 CORT == HO['PT'],      'L', (-50, -42, 18), 'activation',   'anchor', False),
