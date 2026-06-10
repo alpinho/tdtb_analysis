@@ -97,12 +97,17 @@ import numpy as np
 import pandas as pd
 import nibabel as nib
 
+from scipy import ndimage
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import connected_components
+
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm.thresholding import fdr_threshold
 from nilearn.image import resample_to_img, load_img
 
 # Re-use the project's machinery (resource paths inside these functions
 # resolve relative to volume_to_surface.py / ols_permutation_tests.py).
+import volume_to_surface as _vts
 from ols_permutation_tests import plot_glass_brain_z
 from volume_to_surface import (
     build_contrasts,
@@ -268,22 +273,109 @@ def surface_group_z(task_key, cid, cname, surf_dir, subjects,
     return np.concatenate([zL, zR], axis=0)
 
 
+# ---- Cluster-extent filtering -----------------------------------------
+# A voxel/vertex-wise FDR conjunction controls the per-element false-discovery
+# rate but NOT spatial extent, so isolated elements can survive with no spatial
+# support. We drop connected components smaller than a minimum extent. Volume
+# extent is specified physically (mm^3) and converted to voxels at the data
+# resolution so it is independent of the grid; surface extent is in vertices.
+
+# fs_LR32k flat meshes, resolved exactly as plot_flatmap does
+VTS_MESH_DIR = os.path.join(os.path.dirname(os.path.abspath(_vts.__file__)),
+                            'fslr32k_meshes')
+
+
+def cluster_filter_volume(keep, ref_img, min_mm3):
+    """Drop 3-D connected components (26-connectivity) below `min_mm3`.
+    Returns (filtered_bool, min_voxels)."""
+    if not min_mm3 or min_mm3 <= 0:
+        return keep, 0
+    vox_mm3 = float(np.prod(ref_img.header.get_zooms()[:3]))
+    min_vox = int(np.ceil(min_mm3 / vox_mm3))
+    structure = ndimage.generate_binary_structure(3, 3)   # faces+edges+corners
+    lab, n = ndimage.label(keep, structure=structure)
+    if n == 0:
+        return keep, min_vox
+    sizes = np.bincount(lab.ravel())
+    small = np.where(sizes[1:] < min_vox)[0] + 1           # skip background (0)
+    out = keep.copy()
+    out[np.isin(lab, small)] = False
+    return out, min_vox
+
+
+def _hemi_vertex_adjacency(hemi, n_vert):
+    """Sparse vertex adjacency for one fs_LR32k hemisphere, from the flat-mesh
+    triangulation (darrays[1] = faces). Returns None if the mesh cannot be read
+    or does not match the data's vertex count (surface clustering then skipped).
+    """
+    surf = os.path.join(VTS_MESH_DIR, 'flat',
+                        f'fs_LR.32k.{hemi}.flat.surf.gii')
+    try:
+        faces = np.asarray(nib.load(surf).darrays[1].data, dtype=np.int64)
+    except Exception as exc:                                # noqa: BLE001
+        print(f"[surface] adjacency: cannot read {surf} ({exc}); "
+              f"skipping cluster filter for {hemi}")
+        return None
+    if faces.max() >= n_vert:
+        print(f"[surface] adjacency: {hemi} mesh has {faces.max() + 1} vertices "
+              f"but data has {n_vert}; skipping cluster filter")
+        return None
+    e = np.vstack([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [0, 2]]])
+    e = np.vstack([e, e[:, ::-1]])                          # undirected
+    data = np.ones(e.shape[0], dtype=np.int8)
+    return coo_matrix((data, (e[:, 0], e[:, 1])),
+                      shape=(n_vert, n_vert)).tocsr()
+
+
+def build_surface_adjacency(n_vert_per_hemi):
+    """(adjL, adjR) sparse adjacencies, or (None, None) if unavailable."""
+    return (_hemi_vertex_adjacency('L', n_vert_per_hemi),
+            _hemi_vertex_adjacency('R', n_vert_per_hemi))
+
+
+def _filter_hemi(keep_h, adj, min_vertices):
+    if adj is None or keep_h.sum() == 0:
+        return keep_h
+    idx = np.where(keep_h)[0]
+    n_comp, labels = connected_components(adj[idx][:, idx], directed=False)
+    out = keep_h.copy()
+    for c in range(n_comp):
+        members = idx[labels == c]
+        if members.size < min_vertices:
+            out[members] = False
+    return out
+
+
+def cluster_filter_surface(keep, min_vertices, adjL, adjR):
+    """Drop surface connected components (mesh adjacency) below `min_vertices`.
+    `keep` is the concatenated (L, R) boolean vector."""
+    if not min_vertices or min_vertices <= 0:
+        return keep
+    n = keep.shape[0] // 2
+    kL = _filter_hemi(keep[:n], adjL, min_vertices)
+    kR = _filter_hemi(keep[n:], adjR, min_vertices)
+    return np.concatenate([kL, kR])
+
+
 # %%
 # ========================== ANALYSIS STEPS =============================
 
 def compute_volume_category(category, spec, zcache, brain, net_bool):
-    """Build one conjunction in the volume, mask it to outside the predictive-
-    timing network, and write the signed minimum-statistic z-map, the binary
-    mask, and the glass brain.
+    """Build one conjunction in the volume and write the signed minimum-
+    statistic z-map, the binary mask, and the glass brain. If `net_bool` is
+    given, the conjunction is additionally intersected with ~NET (kept only
+    outside the predictive-timing network); if `net_bool` is None it is left
+    whole-brain.
 
     Steps: threshold each conjoined contrast (fdr_bool, per side) -> AND/AND-NOT
-    them (conjoin) -> intersect with ~NET (beyond timing) -> save."""
+    (conjoin) -> optionally intersect with ~NET -> save."""
     bools = {t: fdr_bool(zcache[t], brain, TERMS[t]['side'], FDR_ALPHA)[0]
              for t in set(spec['include'] + spec['exclude'] + spec['display'])}
     cat = conjoin(bools, spec['include'], spec['exclude'])
-    beyond = cat & ~net_bool
+    keep = cat if net_bool is None else (cat & ~net_bool)
+    keep, min_vox = cluster_filter_volume(keep, REF_IMG, MIN_CLUSTER_MM3)
 
-    stat = min_statistic(zcache, spec['display'], beyond)
+    stat = min_statistic(zcache, spec['display'], keep)
 
     out_dir = os.path.join(VOL_CONJ_ROOT, category)
     os.makedirs(out_dir, exist_ok=True)
@@ -293,7 +385,7 @@ def compute_volume_category(category, spec, zcache, brain, net_bool):
 
     z_path = os.path.join(out_dir, f"{category}_zmap.nii.gz")
     nib.save(nib.Nifti1Image(stat, REF_IMG.affine, REF_IMG.header), z_path)
-    nib.save(nib.Nifti1Image(beyond.astype(np.int16), REF_IMG.affine,
+    nib.save(nib.Nifti1Image(keep.astype(np.int16), REF_IMG.affine,
                              REF_IMG.header),
              os.path.join(out_dir, f"{category}_mask.nii.gz"))
 
@@ -303,26 +395,31 @@ def compute_volume_category(category, spec, zcache, brain, net_bool):
         z_map_path=z_path,
         z_threshold=1e-6,                 # the FDR cut is already in the mask
         two_sided=is_deact,
-        title=f"{category.replace('_', ' ')} (beyond predictive timing)",
+        title=(f"{category.replace('_', ' ')}"
+               + (' (beyond predictive timing)'
+                  if net_bool is not None else '')),
         out_png=png,
         cbar_contrast_label=cap_label(category.replace('_', ' ')),
     )
-    print(f"[volume] {category}: {int(beyond.sum())} voxels -> {z_path}")
+    print(f"[volume] {category}: {int(keep.sum())} voxels "
+          f"(>= {min_vox}-voxel clusters) -> {z_path}")
 
 
 def compute_surface_category(category, spec, zcache, cortex, net_bool,
-                             enc_zL, enc_zR, plot_contour, net_thr):
+                             enc_zL, enc_zR, plot_contour, net_thr,
+                             adjL, adjR):
     """Same conjunction on the fs_LR32k surface; plot the conjunction statistic
-    as a filled flatmap. When `plot_contour` is True the predictive-timing
-    network (Encoding) is drawn as a two-sided contour at `net_thr` -- the same
-    threshold that defined `net_bool`, so the outline matches the mask. Filled
-    regions of `beyond` lie outside that contour by construction."""
+    as a filled flatmap. If `net_bool` is None the conjunction is whole-brain;
+    otherwise it is intersected with ~NET. When `plot_contour` is True (and a
+    network map is available) the predictive-timing network (Encoding) is drawn
+    as a two-sided contour at `net_thr`."""
     bools = {t: fdr_bool(zcache[t], cortex, TERMS[t]['side'], FDR_ALPHA)[0]
              for t in set(spec['include'] + spec['exclude'] + spec['display'])}
     cat = conjoin(bools, spec['include'], spec['exclude'])
-    beyond = cat & ~net_bool
+    keep = cat if net_bool is None else (cat & ~net_bool)
+    keep = cluster_filter_surface(keep, MIN_CLUSTER_VERTICES, adjL, adjR)
 
-    stat = min_statistic(zcache, spec['display'], beyond)
+    stat = min_statistic(zcache, spec['display'], keep)
     statL, statR = np.split(stat, 2, axis=0)
 
     is_deact = {TERMS[t]['side'] for t in spec['display']} == {'neg'}
@@ -333,7 +430,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_bool,
         dict(contour_stat=[enc_zL, enc_zR], contour_threshold=net_thr,
              contour_color='k', contour_linewidth=1.0,
              contour_positive_only=False)        # two-sided Encoding network
-        if plot_contour else {})
+        if (plot_contour and enc_zL is not None) else {})
 
     out_dir = os.path.join(SURF_CONJ_IMGS, category)
     os.makedirs(out_dir, exist_ok=True)
@@ -351,7 +448,8 @@ def compute_surface_category(category, spec, zcache, cortex, net_bool,
                     else 'Conjunction z (activation)'),
         **contour_kwargs,
     )
-    print(f"[surface] {category}: {int(beyond.sum())} vertices -> {out_dir}")
+    print(f"[surface] {category}: {int(keep.sum())} vertices "
+          f"(>= {MIN_CLUSTER_VERTICES}-vertex clusters) -> {out_dir}")
 
 
 # %%
@@ -362,7 +460,7 @@ RUN_SURFACE = True
 
 # (Re)project each subject to the surface before grouping. Set False if the
 # per-subject fs_LR32k ciftis already exist for every contrast below.
-COMPUTE_INDIVIDUAL_SURF = False
+COMPUTE_INDIVIDUAL_SURF = True
 
 # Load volume z-maps already written by volume_maps.py when available
 # (else re-fit the second-level model here).
@@ -371,24 +469,36 @@ LOAD_PRECOMPUTED_VOLUME_ZMAPS = True
 FDR_ALPHA = 0.05
 SMOOTHING_FWHM = 8.0
 
-# Predictive-timing-network (Encoding) threshold. This SINGLE value is used in
-# BOTH the computation and the display, deliberately kept consistent:
-#   (1) COMPUTATION / masking: it defines the network, hence the ~NET in
-#       `beyond = cat & ~net_bool` -- changing it changes which voxels/vertices
-#       are kept as "beyond the predictive-timing network"; and
-#   (2) surface DISPLAY: the same |z| at which the network is drawn as a
-#       contour on the conjunction flatmaps (when PLOT_NETWORK_CONTOUR=True).
-# None -> two-sided BH-FDR of the Encoding map (principled definition); a float
-# forces |z| >= value (e.g. 2.7, as contour_threshold_override in
-# volume_to_surface.py), which both restricts the mask and gives a cleaner
-# outline for the dense Encoding contrast.
-NET_THRESHOLD_OVERRIDE = None
+# Minimum cluster EXTENT, to drop isolated voxels/vertices that pass the
+# voxelwise FDR conjunction but have no spatial support (FDR controls the
+# per-element rate, not extent). Volume is given in physical volume (mm^3) and
+# converted to a voxel count at the data resolution, so it does not depend on
+# the grid; surface is given directly in fs_LR32k vertices. Set either to 0 to
+# disable that space's filter. The defaults below are conventional minimal
+# extents for whole-brain reporting (small enough to retain genuine clusters,
+# large enough to remove specks); adjust if your reporting convention differs.
+MIN_CLUSTER_MM3 = 100.0       # volume; ~ a small contiguous cluster
+MIN_CLUSTER_VERTICES = 20     # surface (fs_LR32k; ~60 mm^2)
+
+# Mask each conjunction by the predictive-timing network (Encoding vs Rest),
+# keeping only what lies OUTSIDE it (`beyond = cat & ~NET`). The "beyond the
+# network" statement rests on absence of evidence -- a region being non-
+# significant for Encoding is not evidence the timing response is absent -- so
+# it is dropped by default: with MASK_BY_NETWORK = False the conjunctions are
+# reported whole-brain and the Encoding map is never computed (unless a contour
+# is explicitly requested below).
+MASK_BY_NETWORK = False
 
 # Surface DISPLAY only: draw the predictive-timing network as a contour on the
-# conjunction flatmaps (True) or omit it and show just the filled conjunction
-# statistic (False). This affects the figures only; the masking uses
-# NET_THRESHOLD_OVERRIDE either way.
+# conjunction flatmaps. Independent of the masking. With this and
+# MASK_BY_NETWORK both False, the network is dropped from the analysis entirely.
 PLOT_NETWORK_CONTOUR = False
+
+# Predictive-timing-network (Encoding) threshold; used ONLY when
+# MASK_BY_NETWORK or PLOT_NETWORK_CONTOUR is True. None -> two-sided BH-FDR of
+# the Encoding map; a float forces |z| >= value (e.g. 2.7) for a cleaner
+# mask/contour.
+NET_THRESHOLD_OVERRIDE = None
 
 
 # %%
@@ -524,15 +634,19 @@ def main():
 
         brain = mask_on_grid(FITTING_MASK_PATH, REF_IMG)
 
-        # predictive-timing network (Encoding, two-sided), resampled to grid
-        net_img = load_or_fit_volume_z(NET_TERM['cid'], NET_TERM['name'],
-                                       network_task_id, SUBJECTS,
-                                       ref_img=REF_IMG)
-        net_z = np.asanyarray(net_img.get_fdata(), dtype=float)
-        net_bool, net_thr = fdr_bool(net_z, brain, 'two', FDR_ALPHA,
-                                     thr_override=NET_THRESHOLD_OVERRIDE)
-        print(f"[VOLUME] predictive-timing network |z| >= {net_thr:.3f} "
-              f"({int(net_bool.sum())} voxels)")
+        # predictive-timing network (Encoding, two-sided) -- only if masking
+        net_bool = None
+        if MASK_BY_NETWORK:
+            net_img = load_or_fit_volume_z(NET_TERM['cid'], NET_TERM['name'],
+                                           network_task_id, SUBJECTS,
+                                           ref_img=REF_IMG)
+            net_z = np.asanyarray(net_img.get_fdata(), dtype=float)
+            net_bool, net_thr = fdr_bool(net_z, brain, 'two', FDR_ALPHA,
+                                         thr_override=NET_THRESHOLD_OVERRIDE)
+            print(f"[VOLUME] predictive-timing network |z| >= {net_thr:.3f} "
+                  f"({int(net_bool.sum())} voxels)")
+        else:
+            print('[VOLUME] whole-brain conjunctions (no network masking)')
 
         for category, spec in CONJUNCTIONS.items():
             compute_volume_category(category, spec, zcache, brain, net_bool)
@@ -551,21 +665,35 @@ def main():
                 d['name'], SURF_FOLDER, SUBJECTS,
                 compute_individual=COMPUTE_INDIVIDUAL_SURF)
 
-        # predictive-timing network on the surface (read from its own task)
-        net_z = surface_group_z(network_task_id, NET_TERM['cid'],
-                                NET_TERM['name'], NET_SURF_FOLDER, SUBJECTS,
-                                compute_individual=COMPUTE_INDIVIDUAL_SURF)
-        net_bool, net_thr = fdr_bool(net_z, cortex, 'two', FDR_ALPHA,
-                                     thr_override=NET_THRESHOLD_OVERRIDE)
-        enc_zL, enc_zR = np.split(net_z, 2, axis=0)
-        print(f"[SURFACE] predictive-timing network |z| >= {net_thr:.3f} "
-              f"({int(net_bool.sum())} vertices); "
-              f"contour {'on' if PLOT_NETWORK_CONTOUR else 'off'}")
+        # predictive-timing network on the surface -- only if masking and/or
+        # contour are requested
+        net_bool, net_thr, enc_zL, enc_zR = None, None, None, None
+        if MASK_BY_NETWORK or PLOT_NETWORK_CONTOUR:
+            net_z = surface_group_z(network_task_id, NET_TERM['cid'],
+                                    NET_TERM['name'], NET_SURF_FOLDER, SUBJECTS,
+                                    compute_individual=COMPUTE_INDIVIDUAL_SURF)
+            nb, net_thr = fdr_bool(net_z, cortex, 'two', FDR_ALPHA,
+                                   thr_override=NET_THRESHOLD_OVERRIDE)
+            net_bool = nb if MASK_BY_NETWORK else None
+            enc_zL, enc_zR = np.split(net_z, 2, axis=0)
+            print(f"[SURFACE] network |z| >= {net_thr:.3f}; "
+                  f"mask {'on' if MASK_BY_NETWORK else 'off'}, "
+                  f"contour {'on' if PLOT_NETWORK_CONTOUR else 'off'}")
+        else:
+            print('[SURFACE] whole-brain conjunctions '
+                  '(no network masking, no contour)')
+
+        # vertex adjacency for surface cluster filtering (built once)
+        n_vert = next(iter(zcache.values())).shape[0] // 2
+        if MIN_CLUSTER_VERTICES and MIN_CLUSTER_VERTICES > 0:
+            adjL, adjR = build_surface_adjacency(n_vert)
+        else:
+            adjL, adjR = None, None
 
         for category, spec in CONJUNCTIONS.items():
             compute_surface_category(category, spec, zcache, cortex, net_bool,
                                      enc_zL, enc_zR, PLOT_NETWORK_CONTOUR,
-                                     net_thr)
+                                     net_thr, adjL, adjR)
 
 
 if __name__ == '__main__':
