@@ -716,6 +716,7 @@ def plot_flatmap(
     contour_color='k',
     contour_linewidth=1.0,
     contour_positive_only=True,
+    show_borders=True,
 ):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -839,7 +840,7 @@ def plot_flatmap(
             plot_kwargs = dict(
                 surf=surfaces[h], underlay=underlays[h], undermap='gray',
                 underscale=[-1.5, 1], cscale=cscale, cmap=fill_cmap,
-                borders=None, new_figure=False, frame=None,
+                borders=(borders[h] if show_borders else None), new_figure=False, frame=None,
             )
             if signed:
                 s_arr[np.abs(s_arr) < threshold] = np.nan
@@ -905,7 +906,7 @@ def plot_flatmap(
                 underscale=[-1.5, 1],
                 cscale=[-vlim, vlim],
                 cmap=diverging,
-                borders=borders[h],
+                borders=(borders[h] if show_borders else None),
                 new_figure=False,
                 frame=None
             )
@@ -965,7 +966,7 @@ def plot_flatmap(
                 threshold=threshold,
                 cscale=[cscale_lo, cscale_hi],
                 cmap=colormap,
-                borders=borders[h],
+                borders=(borders[h] if show_borders else None),
                 new_figure=False,
                 frame=None
             )
@@ -1047,7 +1048,7 @@ def plot_flatmap(
                 underlay=underlays[h],
                 undermap='gray',
                 underscale=[-1.5, 1],
-                borders=borders[h],
+                borders=(borders[h] if show_borders else None),
                 bordersize=1.5,
                 bordercolor='k',
                 new_figure=False,
@@ -1804,7 +1805,7 @@ contrast_name2 = 'Encoding' # E.g. 'Interval'
 # contrast such as Encoding vs. Rest, the auto-FDR boundary is very extensive,
 # so a fixed value (e.g. 3.09 for p <= 0.001) usually gives a cleaner outline.
 contour_task_tag = 'All Main Tasks'  # e.g. 'All Main Tasks'
-contour_threshold_override = None  # e.g. 3.09
+contour_threshold_override = 2.7  # e.g. 3.09
 
 # Sidedness of the FDR threshold / display. Each is 'one-sided' (positive tail
 # only, activations), 'two-sided' (|z| FDR, both activations and deactivations;
@@ -1815,8 +1816,8 @@ contour_threshold_override = None  # e.g. 3.09
 # Note: with contour_threshold_override set, that fixed |z| value is used for
 # the outline regardless of contour_sides; contour_sides then only controls
 # whether the outline traces activations only or both tails.
-contrast_sides = 'two-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
-contour_sides = 'two-sided'  # outline of activations AND deactivations
+contrast_sides = None        # e.g. 'one-sided', 'two-sided', or None (auto)
+contour_sides = None  # outline of activations AND deactivations
 
 # ========================= PARAMETERS ================================
 
