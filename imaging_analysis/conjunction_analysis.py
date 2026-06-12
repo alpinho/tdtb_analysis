@@ -487,7 +487,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_bool,
 # %%
 # ============================ TOGGLES ==================================
 
-RUN_VOLUME = False
+RUN_VOLUME = True
 RUN_SURFACE = True
 
 # (Re)project each subject to the surface before grouping. Set False if the
@@ -498,7 +498,8 @@ COMPUTE_INDIVIDUAL_SURF = False
 # (else re-fit the second-level model here).
 LOAD_PRECOMPUTED_VOLUME_ZMAPS = True
 
-FDR_ALPHA = 0.05
+FDR_ALPHA = 0.05      # BH-FDR level: the conjunction arms (always) and any
+                      # network whose threshold is None
 SMOOTHING_FWHM = 8.0
 
 # Minimum cluster EXTENT, to drop isolated voxels/vertices that pass the
@@ -546,9 +547,9 @@ SHOW_FLATMAP_BORDERS = False
 #                 float -> forced |z| cut (e.g. 2.7), interpreted per `side`.
 CONJUNCTION_NETWORK = {
     'cross_modal_activation':
-        dict(network='encoding',     side='two', threshold=None),
+        dict(network='encoding',     side='pos', threshold=None),
     'cross_modal_deactivation':
-        dict(network='encoding',     side='two', threshold=None),
+        dict(network='encoding',     side='neg', threshold=None),
     'modality_specific_activation_auditory':
         dict(network='aud_encoding', side='pos', threshold=None),
     'modality_specific_activation_visual':
@@ -583,6 +584,11 @@ network_task_id = {v: k for k, v in tasks.items()}[network_task_tag]
 
 # ---- Conjunction arms (term -> contrast id / name / task / tail) ------
 # ids follow build_contrasts('rand_ntfd'); see volume_to_surface.py
+# 'side' is INTRINSIC to each arm and fixed by the conjunction's meaning
+# (effects/activations one-sided 'pos', deactivations one-sided 'neg'); it is
+# not a tunable choice. Every arm is BH-FDR thresholded at FDR_ALPHA -- this
+# fixed, FDR-corrected, one-sided thresholding is exactly what the Nichols
+# conjunction-null requires, so it is coded directly, not exposed as an input.
 TERMS = {
     'aud_eff':   dict(cid=29, name='Auditory Random vs Auditory Non-Random',
                       task=analysis_task_tag, side='pos'),
