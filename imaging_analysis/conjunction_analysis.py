@@ -62,11 +62,15 @@ it deliberately EXCLUDES the Random condition. It is built two-sided:
 
   NET = ( |z(Encoding, All Main Tasks)| >= FDR threshold )
 
-Each conjunction is related to a MODALITY-MATCHED network (set per category):
-pooled Encoding for the cross-modal conjunctions, Auditory Encoding for the
-auditory-specific map, Visual Encoding for the visual-specific map (the pooled
-Encoding cancels modality-specific cortex, so a modality-specific map must be
-related to its own modality's network).
+Each conjunction is related to its own network, set explicitly per case in
+CONJUNCTION_NETWORK: which Encoding variant ('network': pooled / Auditory /
+Visual), which tail defines it ('side': 'pos' = activations, 'neg' =
+deactivations, 'two' = both), and the cut ('threshold': None = data-driven
+qFDR, or a forced |z|). The cross-modal maps default to pooled Encoding,
+two-sided, qFDR; the modality-specific maps to their own modality's network
+(the pooled Encoding cancels modality-specific cortex). The SAME thresholded
+network is used for both the mask and the flatmap contour, so the outline
+traces exactly the masking region.
 
 Masking is OPTIONAL and OFF by default (MASK_BY_NETWORK). When on, each result
 C is intersected with ~NET (beyond timing = C & ~NET). Note this "beyond"
@@ -420,13 +424,13 @@ def compute_volume_category(category, spec, zcache, brain, net_bool):
 
 
 def compute_surface_category(category, spec, zcache, cortex, net_bool,
-                             enc_zL, enc_zR, plot_contour, net_thr,
-                             adjL, adjR):
+                             net_contour, adjL, adjR):
     """Same conjunction on the fs_LR32k surface; plot the conjunction statistic
     as a filled flatmap. If `net_bool` is None the conjunction is whole-brain;
-    otherwise it is intersected with ~NET. When `plot_contour` is True (and a
-    network map is available) the predictive-timing network (Encoding) is drawn
-    as a two-sided contour at `net_thr`."""
+    otherwise it is intersected with ~`net_bool`. If `net_contour` (a
+    concatenated L,R boolean) is given, its boundary is drawn as the network
+    outline -- this is the SAME thresholded network used for masking, so the
+    contour traces exactly the masking region."""
     bools = {t: fdr_bool(zcache[t], cortex, TERMS[t]['side'], FDR_ALPHA)[0]
              for t in set(spec['include'] + spec['exclude'] + spec['display'])}
     cat = conjoin(bools, spec['include'], spec['exclude'])
@@ -438,13 +442,20 @@ def compute_surface_category(category, spec, zcache, cortex, net_bool,
 
     is_deact = {TERMS[t]['side'] for t in spec['display']} == {'neg'}
     vmax = float(np.nanmax(np.abs(stat))) if np.any(stat) else 1.0
+    # colorbar starts at the display threshold = the lowest surviving |z|
+    # (the FDR cut is already applied via `keep`, so nothing below it is shown)
+    nz = np.abs(stat[stat != 0])
+    thr_disp = float(nz.min()) if nz.size else 1e-6
 
-    # Draw the network outline only if requested (display only).
-    contour_kwargs = (
-        dict(contour_stat=[enc_zL, enc_zR], contour_threshold=net_thr,
-             contour_color='k', contour_linewidth=1.0,
-             contour_positive_only=False)        # two-sided Encoding network
-        if (plot_contour and enc_zL is not None) else {})
+    # Outline the thresholded network boolean itself (boundary at 0.5), so the
+    # contour is exactly the masking region regardless of its side/threshold.
+    if net_contour is not None:
+        cbL, cbR = np.split(net_contour.astype(float), 2, axis=0)
+        contour_kwargs = dict(contour_stat=[cbL, cbR], contour_threshold=0.5,
+                              contour_color='k', contour_linewidth=1.0,
+                              contour_positive_only=True)
+    else:
+        contour_kwargs = {}
 
     out_dir = os.path.join(SURF_CONJ_IMGS, category)
     os.makedirs(out_dir, exist_ok=True)
@@ -457,7 +468,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_bool,
               "updated")
     plot_flatmap(
         stats=[statL, statR],
-        threshold=1e-6,
+        threshold=thr_disp,
         task_key=analysis_task_id,
         contrast_tag=category,
         output_dir=out_dir,
@@ -465,8 +476,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_bool,
         colormap=('Blues_r' if is_deact else 'autumn'),
         vmax=vmax,
         signed=is_deact,
-        cbar_title=('Conjunction z (deactivation)' if is_deact
-                    else 'Conjunction z (activation)'),
+        cbar_title='Z-values',
         **border_kw,
         **contour_kwargs,
     )
@@ -511,12 +521,6 @@ MIN_CLUSTER_VERTICES = 20     # surface (fs_LR32k; ~60 mm^2)
 # is explicitly requested below).
 MASK_BY_NETWORK = False
 
-# Predictive-timing-network (Encoding) threshold; used ONLY when
-# MASK_BY_NETWORK or PLOT_NETWORK_CONTOUR is True. None -> two-sided BH-FDR of
-# the Encoding map; a float forces |z| >= value (e.g. 2.7) for a cleaner
-# mask/contour.
-NET_THRESHOLD_OVERRIDE = None
-
 # Surface DISPLAY only: draw the predictive-timing network as a contour on the
 # conjunction flatmaps. Independent of the masking. With this and
 # MASK_BY_NETWORK both False, the network is dropped from the analysis entirely.
@@ -526,28 +530,29 @@ PLOT_NETWORK_CONTOUR = True
 # landmark lines) on the conjunction flatmaps. Purely cosmetic.
 SHOW_FLATMAP_BORDERS = False
 
-# Predictive-timing network related to EACH conjunction, set explicitly and
-# separately for masking (`mask`, the ~NET exclusion when MASK_BY_NETWORK is on)
-# and for the flatmap outline (`contour`, drawn when PLOT_NETWORK_CONTOUR is on).
-# Values are keys of NET_TERMS (defined in INPUTS):
-#     'encoding'     = pooled Encoding vs Rest        (Beat+Interval, All Tasks)
-#     'aud_encoding' = Auditory Encoding vs Rest
-#     'vis_encoding' = Visual Encoding vs Rest
-# Defaults relate each conjunction to its modality-matched network and use the
-# same network for mask and contour; set them independently if you want, e.g.,
-# a pooled contour over a modality-matched mask.
+# Predictive-timing network related to EACH conjunction. One explicit spec per
+# case, and the SAME thresholded network is used for both the mask (~NET, when
+# MASK_BY_NETWORK is on) and the flatmap contour (when PLOT_NETWORK_CONTOUR is
+# on) -- the contour outlines exactly the masking region.
+#   'network'   : which NET_TERMS entry (defined in INPUTS):
+#                   'encoding'     = pooled Encoding vs Rest   (Beat+Interval)
+#                   'aud_encoding' = Auditory Encoding vs Rest
+#                   'vis_encoding' = Visual Encoding vs Rest
+#   'side'      : which tail defines the network:
+#                   'pos' = z >= +thr        (Encoding activations only)
+#                   'neg' = z <= -thr        (Encoding deactivations only)
+#                   'two' = |z| >= thr       (both, two-sided)
+#   'threshold' : None  -> data-driven BH-FDR (qFDR) threshold on that tail;
+#                 float -> forced |z| cut (e.g. 2.7), interpreted per `side`.
 CONJUNCTION_NETWORK = {
-    # cross-modal activation  -> pooled predictive-timing network
     'cross_modal_activation':
-        dict(mask='encoding',     contour='encoding'),
-    # cross-modal deactivation -> pooled predictive-timing network
+        dict(network='encoding',     side='two', threshold=None),
     'cross_modal_deactivation':
-        dict(mask='encoding',     contour='encoding'),
-    # modality-specific activation -> that modality's network (aud / vis)
+        dict(network='encoding',     side='two', threshold=None),
     'modality_specific_activation_auditory':
-        dict(mask='aud_encoding', contour='aud_encoding'),
+        dict(network='aud_encoding', side='pos', threshold=None),
     'modality_specific_activation_visual':
-        dict(mask='vis_encoding', contour='vis_encoding'),
+        dict(network='vis_encoding', side='pos', threshold=None),
 }
 
 
@@ -594,18 +599,12 @@ TERMS = {
 }
 
 # Predictive-timing networks (masking / contour terms), all Encoding vs Rest
-# (Beat + Interval, Random excluded) from the network task. Pooled for the
-# cross-modal conjunctions; modality-matched for the modality-specific ones, so
-# e.g. the auditory-specific map is related to the AUDITORY predictive-timing
-# network rather than the pooled one (the pooled Encoding cancels modality-
-# specific cortex such as auditory regions).
+# (Beat + Interval, Random excluded) from the network task. The tail (`side`)
+# and threshold are set per conjunction in CONJUNCTION_NETWORK, not here.
 NET_TERMS = {
-    'encoding':     dict(cid=1, name='Encoding',
-                         task=network_task_tag, side='two'),
-    'aud_encoding': dict(cid=2, name='Auditory Encoding',
-                         task=network_task_tag, side='two'),
-    'vis_encoding': dict(cid=3, name='Visual Encoding',
-                         task=network_task_tag, side='two'),
+    'encoding':     dict(cid=1, name='Encoding',          task=network_task_tag),
+    'aud_encoding': dict(cid=2, name='Auditory Encoding', task=network_task_tag),
+    'vis_encoding': dict(cid=3, name='Visual Encoding',   task=network_task_tag),
 }
 
 # ---- The conjunctions (include = AND, exclude = AND-NOT) ---------------
@@ -681,14 +680,19 @@ SURF_CONJ_IMGS = os.path.join(SURFPARAMETRIC_FOLDER, analysis_task_id,
 # ============================ RUN ======================================
 
 def main():
-    # config check: every conjunction has an explicit, valid mask + contour net
+    # config check: every conjunction has a valid network spec
     for c in CONJUNCTIONS:
         assert c in CONJUNCTION_NETWORK, \
             f"CONJUNCTION_NETWORK has no entry for '{c}'"
-        for role in ('mask', 'contour'):
-            nk = CONJUNCTION_NETWORK[c][role]
-            assert nk in NET_TERMS, \
-                f"CONJUNCTION_NETWORK['{c}']['{role}']='{nk}' not in NET_TERMS"
+        cn = CONJUNCTION_NETWORK[c]
+        assert cn['network'] in NET_TERMS, \
+            f"CONJUNCTION_NETWORK['{c}']['network']='{cn['network']}' " \
+            f"not in NET_TERMS"
+        assert cn['side'] in ('pos', 'neg', 'two'), \
+            f"CONJUNCTION_NETWORK['{c}']['side'] must be 'pos'/'neg'/'two'"
+        assert cn['threshold'] is None or isinstance(cn['threshold'],
+                                                     (int, float)), \
+            f"CONJUNCTION_NETWORK['{c}']['threshold'] must be None or a number"
 
     # ---------------------------- VOLUME -------------------------------
     if RUN_VOLUME:
@@ -708,27 +712,29 @@ def main():
 
         brain = mask_on_grid(FITTING_MASK_PATH, REF_IMG)
 
-        # predictive-timing networks (two-sided) -- only if masking; one per
-        # distinct mask network actually used by the conjunctions
-        net_vol = {}
+        # predictive-timing network z-maps, cached per distinct network and
+        # thresholded per case with that case's own side + threshold
+        net_z_vol = {}
         if MASK_BY_NETWORK:
-            for nk in {CONJUNCTION_NETWORK[c]['mask'] for c in CONJUNCTIONS}:
+            for nk in {CONJUNCTION_NETWORK[c]['network'] for c in CONJUNCTIONS}:
                 nt = NET_TERMS[nk]
                 net_img = load_or_fit_volume_z(nt['cid'], nt['name'],
                                                network_task_id, SUBJECTS,
                                                ref_img=REF_IMG)
-                net_z = np.asanyarray(net_img.get_fdata(), dtype=float)
-                nb, net_thr = fdr_bool(net_z, brain, nt['side'], FDR_ALPHA,
-                                       thr_override=NET_THRESHOLD_OVERRIDE)
-                net_vol[nk] = nb
-                print(f"[VOLUME] network '{nt['name']}' |z| >= {net_thr:.3f} "
-                      f"({int(nb.sum())} voxels)")
+                net_z_vol[nk] = np.asanyarray(net_img.get_fdata(), dtype=float)
         else:
             print('[VOLUME] whole-brain conjunctions (no network masking)')
 
         for category, spec in CONJUNCTIONS.items():
-            net_bool = (net_vol[CONJUNCTION_NETWORK[category]['mask']]
-                        if MASK_BY_NETWORK else None)
+            net_bool = None
+            if MASK_BY_NETWORK:
+                cn = CONJUNCTION_NETWORK[category]
+                net_bool, net_thr = fdr_bool(net_z_vol[cn['network']], brain,
+                                             cn['side'], FDR_ALPHA,
+                                             thr_override=cn['threshold'])
+                print(f"[VOLUME] {category}: "
+                      f"{NET_TERMS[cn['network']]['name']} side={cn['side']} "
+                      f"thr={net_thr:.3f} ({int(net_bool.sum())} voxels)")
             compute_volume_category(category, spec, zcache, brain, net_bool)
 
     # ---------------------------- SURFACE ------------------------------
@@ -745,25 +751,16 @@ def main():
                 d['name'], SURF_FOLDER, SUBJECTS,
                 compute_individual=COMPUTE_INDIVIDUAL_SURF)
 
-        # predictive-timing networks on the surface; compute every distinct
-        # network used as a mask (if MASK_BY_NETWORK) or as a contour (if
-        # PLOT_NETWORK_CONTOUR), once each
-        net_surf = {}
-        need = set()
-        if MASK_BY_NETWORK:
-            need |= {CONJUNCTION_NETWORK[c]['mask'] for c in CONJUNCTIONS}
-        if PLOT_NETWORK_CONTOUR:
-            need |= {CONJUNCTION_NETWORK[c]['contour'] for c in CONJUNCTIONS}
-        for nk in need:
-            nt = NET_TERMS[nk]
-            net_z = surface_group_z(
-                network_task_id, nt['cid'], nt['name'], NET_SURF_FOLDER,
-                SUBJECTS, compute_individual=COMPUTE_INDIVIDUAL_SURF)
-            nb, net_thr = fdr_bool(net_z, cortex, nt['side'], FDR_ALPHA,
-                                   thr_override=NET_THRESHOLD_OVERRIDE)
-            zL, zR = np.split(net_z, 2, axis=0)
-            net_surf[nk] = dict(bool=nb, thr=net_thr, zL=zL, zR=zR)
-            print(f"[SURFACE] network '{nt['name']}' |z| >= {net_thr:.3f}")
+        # predictive-timing network z-maps, cached per distinct network used
+        # (as mask and/or contour); thresholded per case below
+        net_z_surf = {}
+        use_net = MASK_BY_NETWORK or PLOT_NETWORK_CONTOUR
+        if use_net:
+            for nk in {CONJUNCTION_NETWORK[c]['network'] for c in CONJUNCTIONS}:
+                nt = NET_TERMS[nk]
+                net_z_surf[nk] = surface_group_z(
+                    network_task_id, nt['cid'], nt['name'], NET_SURF_FOLDER,
+                    SUBJECTS, compute_individual=COMPUTE_INDIVIDUAL_SURF)
         print(f"[SURFACE] masking {'on' if MASK_BY_NETWORK else 'off'}, "
               f"contour {'on' if PLOT_NETWORK_CONTOUR else 'off'}")
 
@@ -775,16 +772,21 @@ def main():
             adjL, adjR = None, None
 
         for category, spec in CONJUNCTIONS.items():
-            net_bool = (net_surf[CONJUNCTION_NETWORK[category]['mask']]['bool']
-                        if MASK_BY_NETWORK else None)
-            if PLOT_NETWORK_CONTOUR:
-                cont = net_surf[CONJUNCTION_NETWORK[category]['contour']]
-                enc_zL, enc_zR, net_thr = cont['zL'], cont['zR'], cont['thr']
-            else:
-                enc_zL, enc_zR, net_thr = None, None, None
+            net_bool, net_contour = None, None
+            if use_net:
+                cn = CONJUNCTION_NETWORK[category]
+                nb, net_thr = fdr_bool(net_z_surf[cn['network']], cortex,
+                                       cn['side'], FDR_ALPHA,
+                                       thr_override=cn['threshold'])
+                if MASK_BY_NETWORK:
+                    net_bool = nb           # same thresholded network ...
+                if PLOT_NETWORK_CONTOUR:
+                    net_contour = nb        # ... used for the contour too
+                print(f"[SURFACE] {category}: "
+                      f"{NET_TERMS[cn['network']]['name']} side={cn['side']} "
+                      f"thr={net_thr:.3f} ({int(nb.sum())} vertices)")
             compute_surface_category(category, spec, zcache, cortex, net_bool,
-                                     enc_zL, enc_zR, PLOT_NETWORK_CONTOUR,
-                                     net_thr, adjL, adjR)
+                                     net_contour, adjL, adjR)
 
 
 if __name__ == '__main__':
