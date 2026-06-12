@@ -1,7 +1,8 @@
 """
-Script: Cross-modal vs. modality-specific unpredictability maps via
-        CONJUNCTION analysis, in both VOLUME and SURFACE (fs_LR32k), with the
-        predictive-timing network used as a mask.
+Script: Cross-modal vs. modality-specific unpredictability maps via CONJUNCTION
+        analysis, in both VOLUME and SURFACE (fs_LR32k). Everything is derived
+        WITHIN the NTFD-Random GLM; the predictive-timing network appears only
+        as an optional display contour, never as a mask.
 
 ----------------------------------------------------------------------------
 WHY A CONJUNCTION (and not the pooled Random - Non-Random contrast)
@@ -10,73 +11,82 @@ The pooled Random > Non-Random contrast collapses two distinctions that are
 actually orthogonal, and cannot recover either:
 
   (a) Is the unpredictability EFFECT (Random > Non-Random) present in BOTH
-      modalities (cross-modal) or in only ONE (modality-specific)?  A pooled
+      modalities (cross-modal) or in only ONE (modality-specific)? A pooled
       effect can be driven entirely by one modality, so pooled significance
-      does not imply cross-modality; and a purely modality-specific effect can
-      fail to survive pooling altogether.
+      does not imply cross-modality, and a purely modality-specific effect can
+      fail to survive pooling.
 
-  (b) Relative to REST, is the response an activation or a deactivation?  The
+  (b) Relative to REST, is the response an activation or a deactivation? The
       Random - Non-Random difference is orthogonal to the baseline level, so
-      its sign says nothing about activation vs. deactivation; that requires
-      the condition-vs-Rest maps.
+      its sign says nothing about activation vs. deactivation; that needs the
+      condition-vs-Rest maps.
 
 A conjunction under the conjunction-null / minimum-statistic logic (Nichols et
-al., 2005) requires each conjoined contrast to be INDIVIDUALLY significant,
-i.e. a logical AND. That is exactly the cross-modality guarantee, and because
-each arm is one-sided it also fixes the activation/deactivation sign. We run
-the conjunctions on the per-modality condition-vs-Rest contrasts, never on the
-difference.
+al., 2005) requires each conjoined contrast to be INDIVIDUALLY significant
+(a logical AND). That is exactly the cross-modality guarantee, and because each
+arm is one-sided it also fixes the activation/deactivation sign. The
+conjunctions run on the per-modality condition-vs-Rest contrasts, never on the
+pooled difference.
 
 ----------------------------------------------------------------------------
-THE THREE CONJUNCTIONS (intersections of FDR-thresholded maps)
+ARMS (per-modality, FDR-thresholded; NTFD-Random GLM)
 ----------------------------------------------------------------------------
-Per-modality FDR-thresholded maps (NTFD Random task):
-  A_eff / V_eff  = Auditory / Visual (Random > Non-Random)        [side 'pos']
-  A_act / V_act  = Auditory / Visual (Random vs Rest)             [side 'pos']
-  A_deact/V_deact= Auditory / Visual (Non-Random vs Rest)         [side 'neg']
+  A_eff / V_eff  = Auditory / Visual (Random > Non-Random)          [pos]
+  A_act / V_act  = Auditory / Visual (Random  vs Rest)              [pos]
+  A_NR  / V_NR   = Auditory / Visual (Non-Random vs Rest)           [neg]
+  AxV            = interaction (A_eff - V_eff), built WITHIN subject
+                   (con29 - con41) then taken to the group level; used in two
+                   tails, 'aud_gt_vis' (>0) and 'vis_gt_aud' (<0).
 
-  1. Cross-modal activation     = A_eff & V_eff & A_act & V_act
-        (unpredictability effect in both modalities AND Random above rest in
-         both -> activated cross-modally by unpredictability)
-
-  2. Cross-modal deactivation   = A_eff & V_eff & A_deact & V_deact
-        (effect in both AND Non-Random below rest in both -> the predictable
-         condition suppresses the region cross-modally)
-
-  3. Modality-specific activation
-        =  (A_eff & A_act & ~V_eff)            # auditory only
-        OR (V_eff & V_act & ~A_eff)            # visual only
-        (effect + activation in one modality, NO effect in the other; the
-         '~' is exclusive masking that isolates 'one modality only')
-
-The '&' across modalities is the conjunction (minimum statistic); the '~' is
-exclusive masking. Modality-specific deactivation and sensory dissociation are
-intentionally NOT computed here.
+The interaction is formed at the SUBJECT level and modelled once at the group
+level. It is NOT the difference of the two group z-maps (that would discard the
+within-subject covariance). con29 - con41 equals wcon_0029 - wcon_0041 because
+normalization is linear in the voxel values, so no GLM/normalization re-run is
+needed -- only access to each subject's individual contrast images (the two
+loaders flagged TODO(paths) below).
 
 ----------------------------------------------------------------------------
-MASKING / RELATING TO THE PREDICTIVE-TIMING NETWORK (optional)
+THE CONJUNCTIONS (intersections of FDR-thresholded maps)
 ----------------------------------------------------------------------------
-The predictive-timing network is Encoding vs. Rest = Beat + Interval, pooled
-over Production / Perception / NTFD (the 'All Main Tasks' Encoding contrast);
-it deliberately EXCLUDES the Random condition. It is built two-sided:
+Cross-modal (effect in both modalities AND condition-vs-rest in both):
+  1. cross_modal_activation    = A_eff & V_eff & A_act & V_act
+  2. cross_modal_deactivation  = A_eff & V_eff & A_NR  & V_NR
 
-  NET = ( |z(Encoding, All Main Tasks)| >= FDR threshold )
+Cross-modal CROSSOVER (the within-GLM replacement for "beyond predictable
+timing"): activated by the unpredictable condition AND suppressed by the
+predictable one, in both modalities --
+  3. cross_modal_crossover     = A_act & V_act & A_NR & V_NR
+A sign dissociation that is opposite the predictive-timing response and is
+established entirely within one GLM, with no absence-of-evidence step.
 
-Each conjunction is related to its own network, set explicitly per case in
-CONJUNCTION_NETWORK: which Encoding variant ('network': pooled / Auditory /
-Visual), which tail defines it ('side': 'pos' = activations, 'neg' =
-deactivations, 'two' = both), and the cut ('threshold': None = data-driven
-qFDR, or a forced |z|). The cross-modal maps default to pooled Encoding,
-two-sided, qFDR; the modality-specific maps to their own modality's network
-(the pooled Encoding cancels modality-specific cortex). The SAME thresholded
-network is used for both the mask and the flatmap contour, so the outline
-traces exactly the masking region.
+Modality-specific (one modality AND the interaction in that direction -- a
+TESTED specificity claim that replaces the old exclusive '~other' mask):
+  4. modality_specific_activation_auditory = A_eff & A_act & (AxV>0)
+  5. modality_specific_activation_visual   = V_eff & V_act & (AxV<0)
+  6. modality_specific_crossover_auditory  = A_act & A_NR & (AxV>0)
+  7. modality_specific_crossover_visual    = V_act & V_NR & (AxV<0)
 
-Masking is OPTIONAL and OFF by default (MASK_BY_NETWORK). When on, each result
-C is intersected with ~NET (beyond timing = C & ~NET). Note this "beyond"
-statement rests on absence of evidence (Encoding sub-threshold is not evidence
-the timing response is absent), which is why it is not run by default; the
-network can instead be shown only as a display contour (PLOT_NETWORK_CONTOUR).
+Every '&' is the conjunction (minimum statistic). There is no exclusive masking
+and no cross-task masking anywhere in the analysis.
+
+----------------------------------------------------------------------------
+PREDICTIVE-TIMING / PREDICTABLE NETWORK -- DISPLAY CONTOUR ONLY
+----------------------------------------------------------------------------
+No result is masked by any network. For orientation, the surface flatmaps can
+outline a reference network (PLOT_NETWORK_CONTOUR), chosen by CONTOUR_SOURCE:
+
+  'encoding'    : the canonical predictive-timing network, Encoding vs Rest
+                  (Beat + Interval, Random excluded) pooled over all main tasks;
+                  drawn two-sided. Cross-task, so kept purely descriptive.
+  'predictable' : the WITHIN-GLM predictable response, Non-Random vs Rest from
+                  the NTFD-Random task itself; drawn one-sided positive
+                  (Non-Random > Rest). Same GLM as the arms, and the crossover
+                  categories fall outside it by construction (they require
+                  Non-Random < Rest), so the outline visually confirms them.
+
+CONJUNCTION_CONTOUR maps each category to a contour key ('pooled' for cross-
+modal, 'auditory'/'visual' for the modality-specific ones); CONTOUR_TERMS holds
+the actual contrast (cid / side / threshold) for each key under both sources.
 
 A minimum cluster-EXTENT filter (MIN_CLUSTER_MM3 / MIN_CLUSTER_VERTICES) is
 applied to every result, since voxel/vertex-wise FDR does not control extent.
@@ -85,19 +95,19 @@ applied to every result, since voxel/vertex-wise FDR does not control extent.
 OUTPUTS
 ----------------------------------------------------------------------------
 Volume  : results/parametric_tests/volume/<task>/conjunctions/<category>/
-            <category>_zmap.nii.gz            (signed minimum-statistic map)
-            <category>_mask.nii.gz            (binary, beyond timing)
-            <category>_glassbrain_*.png
+            <category>_zmap.nii.gz   (signed minimum-statistic map)
+            <category>_mask.nii.gz   (binary surviving conjunction)
+            <category>_glassbrain.png
 Surface : results/parametric_tests/surface/<task>/surface_images/
           conjunction/<category>/
             group_<task>_<category>_flat_contour_fslr32k*.png
-          (flatmap of the conjunction statistic, filled, with the Encoding /
-           predictive-timing network drawn as a two-sided contour)
+          (filled flatmap of the conjunction statistic, with the chosen
+           reference network drawn as a contour)
 
 The displayed statistic is the conjunction-null minimum statistic: the least
-significant of the conjoined condition-vs-Rest arms (min z for activations,
-max z i.e. nearest-zero for deactivations), so a voxel/vertex is shown only
-where every arm individually survives FDR.
+significant of the conjoined arms shown (min z for activations, max z i.e.
+nearest-zero for deactivations), so an element is shown only where every
+displayed arm individually survives FDR.
 
 Author: (generated to match volume_maps.py / volume_to_surface.py)
 Compatibility: Python 3.10, nilearn 0.11.1
@@ -109,13 +119,13 @@ import numpy as np
 import pandas as pd
 import nibabel as nib
 
-from scipy import ndimage
+from scipy import ndimage, stats
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm.thresholding import fdr_threshold
-from nilearn.image import resample_to_img, load_img
+from nilearn.image import resample_to_img, load_img, math_img
 
 # Re-use the project's machinery (resource paths inside these functions
 # resolve relative to volume_to_surface.py / ols_permutation_tests.py).
@@ -125,11 +135,15 @@ from volume_to_surface import (
     build_contrasts,
     individual_surf,
     group_surf,
+    get_isurf_cifti,
     mask_cortical_activation,
     plot_flatmap,
     lh_medial_wall_mask_path,
     rh_medial_wall_mask_path,
 )
+# Same per-subject surface smoothing used inside group_surf (8 mm fwhm), so the
+# interaction arms are built on identical footing with the other surface arms.
+from Functional_Fusion.util import smooth_fs32k_data
 
 # plot_flatmap gained a `show_borders` parameter; detect whether the installed
 # volume_to_surface.py has it, so the script runs either way (the border toggle
@@ -291,6 +305,116 @@ def surface_group_z(task_key, cid, cname, surf_dir, subjects,
     return np.concatenate([zL, zR], axis=0)
 
 
+# ---- Interaction A_eff - V_eff (con29 - con41), within subject ---------
+# The modality x structure interaction is built WITHIN each subject as
+# con(cid_a) - con(cid_b) and then modelled once at the group (second) level.
+# It CANNOT be formed by subtracting the two group z-maps: that discards the
+# within-subject covariance between the two contrasts. We therefore need each
+# subject's individual contrast images.
+#
+# con(cid_a) - con(cid_b) equals wcon_{a} - wcon_{b}: normalization is linear in
+# the voxel values, so subtracting the already-normalized images equals
+# normalizing the native difference -- no GLM/normalization re-run is required.
+#
+# >>> Fill in the two loaders below for your file layout. Once they return the
+#     right images/arrays, the interaction arms ('aud_gt_vis' / 'vis_gt_aud')
+#     compute automatically; nothing else needs editing. <<<
+
+def subject_contrast_volume_path(subject, cid, task_key):
+    """Path to <subject>'s NORMALIZED individual contrast image `cid` (the wcon).
+
+    Reuses subject_contrast_paths(), so the interaction is built from exactly the
+    same per-subject images the other volume arms use at the second level:
+    per subject, wcon_{a} - wcon_{b} IS the normalized within-subject interaction
+    (normalization is linear in the voxel values). If your individual wcons live
+    elsewhere, fix subject_contrast_paths() once and both routes follow.
+    NOTE: only exercised when RUN_VOLUME=True; verify this path if you have only
+    ever loaded precomputed group z-maps (LOAD_PRECOMPUTED_VOLUME_ZMAPS)."""
+    return subject_contrast_paths(derivatives_folder, [subject], task_key, cid)[0]
+
+
+def subject_contrast_surface(subject, cid, task_key):
+    """Return <subject>'s individual contrast `cid`, projected to fs_LR32k and
+    smoothed exactly as group_surf does (8 mm fwhm), as a concatenated (L, R)
+    vertex vector (medial wall still included; masked downstream).
+
+    Reads the SAME per-subject .dscalar.nii that every other surface arm uses
+    and applies the SAME smoothing, so the interaction is on identical footing
+    with them; the only difference is that here the per-subject maps are
+    subtracted (cid_a - cid_b) before the one-sample t. The contrast name is
+    taken from build_contrasts() so the filename matches what individual_surf
+    wrote. Requires those per-subject ciftis to exist (they do for cid 29 / 41,
+    since aud_eff / vis_eff are themselves arms and were just grouped above)."""
+    cname = build_contrasts(task_key)[cid]
+    contrast = cname.replace(' vs ', '_vs_').replace(' ', '-').lower()
+    cifti_path = get_isurf_cifti(SURF_FOLDER, [subject], task_key, cid,
+                                 contrast, surfspace='fslr32k')[0]
+    data = smooth_fs32k_data(cifti_path, smooth=8, kernel='fwhm',
+                             return_data_only=True)
+    data = np.squeeze(np.asarray(data, dtype=float))
+    return np.nan_to_num(data, nan=0.0)
+
+
+def onesample_t_to_z(X):
+    """Vertexwise one-sample t across subjects (axis 0) -> signed z.
+
+    X has shape (n_subjects, n_vertices). Constant/empty columns yield z = 0.
+    Mirrors a second-level intercept-only model, but on surface arrays."""
+    n = X.shape[0]
+    mean = np.nanmean(X, axis=0)
+    sd = np.nanstd(X, axis=0, ddof=1)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        t = mean / (sd / np.sqrt(n))
+    t = np.where(np.isfinite(t), t, 0.0)
+    p = stats.t.sf(np.abs(t), df=n - 1) * 2.0                 # two-sided
+    p = np.clip(p, np.finfo(float).tiny, 1.0)
+    z = np.sign(t) * stats.norm.isf(p / 2.0)                  # signed z
+    return np.where(np.isfinite(z), z, 0.0)
+
+
+def interaction_group_zmap_volume(cid_a, cid_b, task_key, subjects,
+                                  ref_img=None):
+    """Group volume z-map of the within-subject interaction con_a - con_b.
+
+    Per subject: load the two individual contrast images and subtract; then a
+    one-sample (intercept-only) second-level model -> z. Same fitting mask and
+    smoothing as the other arms. Resampled to ref_img if given."""
+    diff_imgs = []
+    for s in subjects:
+        a = nib.load(subject_contrast_volume_path(s, cid_a, task_key))
+        b = nib.load(subject_contrast_volume_path(s, cid_b, task_key))
+        diff_imgs.append(math_img("a - b", a=a, b=b))
+    design = pd.DataFrame({'intercept': [1] * len(diff_imgs)})
+    slm = SecondLevelModel(mask_img=FITTING_MASK_PATH,
+                           smoothing_fwhm=SMOOTHING_FWHM)
+    slm = slm.fit(diff_imgs, design_matrix=design)
+    z_img = slm.compute_contrast(output_type='z_score')
+    if ref_img is not None and z_img.shape != ref_img.shape:
+        z_img = resample_to_img(z_img, ref_img, interpolation='continuous',
+                                force_resample=True, copy_header=True)
+    return z_img
+
+
+def interaction_group_zmap_surface(cid_a, cid_b, task_key, subjects):
+    """Group surface z-map of the within-subject interaction con_a - con_b.
+
+    Per subject: subtract the two individual surface contrasts; then a one-
+    sample t -> z across subjects, medial-wall masked. Surface projection is
+    linear, so the surface of the native difference equals the difference of the
+    projected contrasts."""
+    diffs = []
+    for s in subjects:
+        a = np.asarray(subject_contrast_surface(s, cid_a, task_key), dtype=float)
+        b = np.asarray(subject_contrast_surface(s, cid_b, task_key), dtype=float)
+        diffs.append(a - b)
+    z = onesample_t_to_z(np.stack(diffs, axis=0))
+    zL = mask_cortical_activation(np.split(z, 2, axis=0)[0],
+                                  lh_medial_wall_mask_path)
+    zR = mask_cortical_activation(np.split(z, 2, axis=0)[1],
+                                  rh_medial_wall_mask_path)
+    return np.concatenate([zL, zR], axis=0)
+
+
 # ---- Cluster-extent filtering -----------------------------------------
 # A voxel/vertex-wise FDR conjunction controls the per-element false-discovery
 # rate but NOT spatial extent, so isolated elements can survive with no spatial
@@ -378,20 +502,17 @@ def cluster_filter_surface(keep, min_vertices, adjL, adjR):
 # %%
 # ========================== ANALYSIS STEPS =============================
 
-def compute_volume_category(category, spec, zcache, brain, net_bool):
+def compute_volume_category(category, spec, zcache, brain):
     """Build one conjunction in the volume and write the signed minimum-
-    statistic z-map, the binary mask, and the glass brain. If `net_bool` is
-    given, the conjunction is additionally intersected with ~NET (kept only
-    outside the predictive-timing network); if `net_bool` is None it is left
-    whole-brain.
+    statistic z-map, the binary surviving mask, and the glass brain. Whole-
+    brain: no network masking is applied.
 
-    Steps: threshold each conjoined contrast (fdr_bool, per side) -> AND/AND-NOT
-    (conjoin) -> optionally intersect with ~NET -> save."""
+    Steps: threshold each arm (fdr_bool, per side) -> AND/AND-NOT (conjoin) ->
+    cluster-extent filter -> save."""
     bools = {t: fdr_bool(zcache[t], brain, TERMS[t]['side'], FDR_ALPHA)[0]
              for t in set(spec['include'] + spec['exclude'] + spec['display'])}
     cat = conjoin(bools, spec['include'], spec['exclude'])
-    keep = cat if net_bool is None else (cat & ~net_bool)
-    keep, min_vox = cluster_filter_volume(keep, REF_IMG, MIN_CLUSTER_MM3)
+    keep, min_vox = cluster_filter_volume(cat, REF_IMG, MIN_CLUSTER_MM3)
 
     stat = min_statistic(zcache, spec['display'], keep)
 
@@ -413,9 +534,7 @@ def compute_volume_category(category, spec, zcache, brain, net_bool):
         z_map_path=z_path,
         z_threshold=1e-6,                 # the FDR cut is already in the mask
         two_sided=is_deact,
-        title=(f"{category.replace('_', ' ')}"
-               + (' (beyond predictive timing)'
-                  if net_bool is not None else '')),
+        title=category.replace('_', ' '),
         out_png=png,
         cbar_contrast_label=cap_label(category.replace('_', ' ')),
     )
@@ -423,19 +542,16 @@ def compute_volume_category(category, spec, zcache, brain, net_bool):
           f"(>= {min_vox}-voxel clusters) -> {z_path}")
 
 
-def compute_surface_category(category, spec, zcache, cortex, net_bool,
-                             net_contour, adjL, adjR):
+def compute_surface_category(category, spec, zcache, cortex, net_contour,
+                             adjL, adjR):
     """Same conjunction on the fs_LR32k surface; plot the conjunction statistic
-    as a filled flatmap. If `net_bool` is None the conjunction is whole-brain;
-    otherwise it is intersected with ~`net_bool`. If `net_contour` (a
-    concatenated L,R boolean) is given, its boundary is drawn as the network
-    outline -- this is the SAME thresholded network used for masking, so the
-    contour traces exactly the masking region."""
+    as a filled flatmap. Whole-brain (no masking). If `net_contour` (a
+    concatenated L,R boolean) is given, its boundary is drawn as the reference-
+    network outline -- display only, it does not affect the statistic."""
     bools = {t: fdr_bool(zcache[t], cortex, TERMS[t]['side'], FDR_ALPHA)[0]
              for t in set(spec['include'] + spec['exclude'] + spec['display'])}
     cat = conjoin(bools, spec['include'], spec['exclude'])
-    keep = cat if net_bool is None else (cat & ~net_bool)
-    keep = cluster_filter_surface(keep, MIN_CLUSTER_VERTICES, adjL, adjR)
+    keep = cluster_filter_surface(cat, MIN_CLUSTER_VERTICES, adjL, adjR)
 
     stat = min_statistic(zcache, spec['display'], keep)
     statL, statR = np.split(stat, 2, axis=0)
@@ -447,8 +563,8 @@ def compute_surface_category(category, spec, zcache, cortex, net_bool,
     nz = np.abs(stat[stat != 0])
     thr_disp = float(nz.min()) if nz.size else 1e-6
 
-    # Outline the thresholded network boolean itself (boundary at 0.5), so the
-    # contour is exactly the masking region regardless of its side/threshold.
+    # Outline the thresholded reference-network boolean (boundary at 0.5),
+    # regardless of its side/threshold. Display only; does not affect the stat.
     if net_contour is not None:
         cbL, cbR = np.split(net_contour.astype(float), 2, axis=0)
         contour_kwargs = dict(contour_stat=[cbL, cbR], contour_threshold=0.5,
@@ -513,47 +629,39 @@ SMOOTHING_FWHM = 8.0
 MIN_CLUSTER_MM3 = 100.0       # volume; ~ a small contiguous cluster
 MIN_CLUSTER_VERTICES = 20     # surface (fs_LR32k; ~60 mm^2)
 
-# Mask each conjunction by the predictive-timing network (Encoding vs Rest),
-# keeping only what lies OUTSIDE it (`beyond = cat & ~NET`). The "beyond the
-# network" statement rests on absence of evidence -- a region being non-
-# significant for Encoding is not evidence the timing response is absent -- so
-# it is dropped by default: with MASK_BY_NETWORK = False the conjunctions are
-# reported whole-brain and the Encoding map is never computed (unless a contour
-# is explicitly requested below).
-MASK_BY_NETWORK = False
+# No masking. Conjunctions are reported whole-brain; the predictive-timing /
+# predictable network is used ONLY as an optional display contour below.
 
-# Surface DISPLAY only: draw the predictive-timing network as a contour on the
-# conjunction flatmaps. Independent of the masking. With this and
-# MASK_BY_NETWORK both False, the network is dropped from the analysis entirely.
+# Surface DISPLAY only: draw a reference network as a contour on the conjunction
+# flatmaps (does not affect any statistic). Choose which network with
+# CONTOUR_SOURCE.
 PLOT_NETWORK_CONTOUR = True
+
+# Which reference network to outline (see CONTOUR_TERMS in INPUTS):
+#   'encoding'    = canonical predictive-timing network, Encoding vs Rest
+#                   (Beat+Interval, Random excluded), pooled over all main tasks;
+#                   two-sided. Cross-task -> purely descriptive.
+#   'predictable' = within-GLM predictable response, Non-Random vs Rest from the
+#                   NTFD-Random task itself; one-sided positive. Same GLM as the
+#                   arms; the crossover categories sit outside it by construction.
+CONTOUR_SOURCE = 'predictable'        # 'encoding' | 'predictable'
 
 # Surface DISPLAY only: draw the fs_LR32k anatomical borders (the dotted sulcal
 # landmark lines) on the conjunction flatmaps. Purely cosmetic.
 SHOW_FLATMAP_BORDERS = False
 
-# Predictive-timing network related to EACH conjunction. One explicit spec per
-# case, and the SAME thresholded network is used for both the mask (~NET, when
-# MASK_BY_NETWORK is on) and the flatmap contour (when PLOT_NETWORK_CONTOUR is
-# on) -- the contour outlines exactly the masking region.
-#   'network'   : which NET_TERMS entry (defined in INPUTS):
-#                   'encoding'     = pooled Encoding vs Rest   (Beat+Interval)
-#                   'aud_encoding' = Auditory Encoding vs Rest
-#                   'vis_encoding' = Visual Encoding vs Rest
-#   'side'      : which tail defines the network:
-#                   'pos' = z >= +thr        (Encoding activations only)
-#                   'neg' = z <= -thr        (Encoding deactivations only)
-#                   'two' = |z| >= thr       (both, two-sided)
-#   'threshold' : None  -> data-driven BH-FDR (qFDR) threshold on that tail;
-#                 float -> forced |z| cut (e.g. 2.7), interpreted per `side`.
-CONJUNCTION_NETWORK = {
-    'cross_modal_activation':
-        dict(network='encoding',     side='pos', threshold=None),
-    'cross_modal_deactivation':
-        dict(network='encoding',     side='neg', threshold=None),
-    'modality_specific_activation_auditory':
-        dict(network='aud_encoding', side='pos', threshold=None),
-    'modality_specific_activation_visual':
-        dict(network='vis_encoding', side='pos', threshold=None),
+# Contour network per conjunction: each category -> a contour KEY, resolved
+# within the chosen CONTOUR_SOURCE catalog (CONTOUR_TERMS). 'pooled' for the
+# cross-modal categories, 'auditory' / 'visual' for the modality-specific ones.
+# The side and threshold live with each contrast in CONTOUR_TERMS.
+CONJUNCTION_CONTOUR = {
+    'cross_modal_activation':                'pooled',
+    'cross_modal_deactivation':              'pooled',
+    'cross_modal_crossover':                 'pooled',
+    'modality_specific_activation_auditory': 'auditory',
+    'modality_specific_activation_visual':   'visual',
+    'modality_specific_crossover_auditory':  'auditory',
+    'modality_specific_crossover_visual':    'visual',
 }
 
 
@@ -602,22 +710,53 @@ TERMS = {
                       task=analysis_task_tag, side='neg'),
     'vis_deact': dict(cid=32, name='Visual Non-Random',
                       task=analysis_task_tag, side='neg'),
+    # Modality x structure interaction AxV = A_eff - V_eff = con29 - con41,
+    # built WITHIN subject then taken to the group level (see
+    # interaction_group_zmap_*). One map, two tails: 'aud_gt_vis' = AxV > 0
+    # (auditory-leaning), 'vis_gt_aud' = AxV < 0 (visual-leaning). Used to TEST
+    # modality specificity, replacing the old exclusive '~other_eff' mask.
+    # 'interaction' = (cid_a, cid_b); these arms have no single 'cid'.
+    'aud_gt_vis': dict(name='Auditory vs Visual (Random vs Non-Random)',
+                       task=analysis_task_tag, side='pos', interaction=(29, 41)),
+    'vis_gt_aud': dict(name='Visual vs Auditory (Random vs Non-Random)',
+                       task=analysis_task_tag, side='neg', interaction=(29, 41)),
 }
 
-# Predictive-timing networks (masking / contour terms), all Encoding vs Rest
-# (Beat + Interval, Random excluded) from the network task. The tail (`side`)
-# and threshold are set per conjunction in CONJUNCTION_NETWORK, not here.
-NET_TERMS = {
-    'encoding':     dict(cid=1, name='Encoding',          task=network_task_tag),
-    'aud_encoding': dict(cid=2, name='Auditory Encoding', task=network_task_tag),
-    'vis_encoding': dict(cid=3, name='Visual Encoding',   task=network_task_tag),
+# Display-only contour networks. Two catalogs, selected by CONTOUR_SOURCE
+# (TOGGLES). CONJUNCTION_CONTOUR maps each category to a key below.
+#   'encoding'    = canonical predictive-timing network, Encoding vs Rest
+#                   (Beat+Interval, Random excluded), pooled over all main tasks;
+#                   two-sided. Cross-task -> purely descriptive.
+#   'predictable' = within-GLM predictable response, Non-Random vs Rest from the
+#                   NTFD-Random task itself; one-sided positive (NonRandom>Rest).
+# Each entry: cid / name / task / side / threshold (None = data-driven qFDR).
+CONTOUR_TERMS = {
+    'encoding': {
+        'pooled':   dict(cid=1, name='Encoding',          task=network_task_tag,
+                         side='pos', threshold=None),
+        'auditory': dict(cid=2, name='Auditory Encoding', task=network_task_tag,
+                         side='pos', threshold=None),
+        'visual':   dict(cid=3, name='Visual Encoding',   task=network_task_tag,
+                         side='pos', threshold=None),
+    },
+    'predictable': {
+        'pooled':   dict(cid=8,  name='Non-Random',         task=analysis_task_tag,
+                         side='pos', threshold=None),
+        'auditory': dict(cid=20, name='Auditory Non-Random',
+                         task=analysis_task_tag, side='pos', threshold=None),
+        'visual':   dict(cid=32, name='Visual Non-Random',
+                         task=analysis_task_tag, side='pos', threshold=None),
+    },
 }
 
 # ---- The conjunctions (include = AND, exclude = AND-NOT) ---------------
-# 'display' = the arms whose minimum statistic is shown (one sign each)
-# The network related to each conjunction (mask + contour) is set explicitly in
-# the TOGGLES section (CONJUNCTION_NETWORK).
+# 'display' = the arms whose minimum statistic is shown (one sign each).
+# No exclusive masking is used: modality specificity is now TESTED via the
+# interaction arm (aud_gt_vis / vis_gt_aud) instead of an exclusive '~' mask.
+# The display-only contour for each category is set in TOGGLES
+# (CONJUNCTION_CONTOUR + CONTOUR_SOURCE).
 CONJUNCTIONS = {
+    # ---- cross-modal: effect AND condition-vs-rest in BOTH modalities -----
     'cross_modal_activation': dict(
         include=['aud_eff', 'vis_eff', 'aud_act', 'vis_act'],
         exclude=[],
@@ -626,17 +765,37 @@ CONJUNCTIONS = {
         include=['aud_eff', 'vis_eff', 'aud_deact', 'vis_deact'],
         exclude=[],
         display=['aud_deact', 'vis_deact']),
-    # Modality-specific activation has two disjoint branches; computed and
-    # written separately (auditory-only and visual-only), each related to its
-    # own modality's predictive-timing network.
+    # ---- cross-modal CROSSOVER: activated by the unpredictable condition AND
+    #      suppressed by the predictable one, in BOTH modalities
+    #      (Random>Rest & Non-Random<Rest). A within-GLM sign dissociation,
+    #      opposite the predictive-timing response; no absence-of-evidence step.
+    #      Display the activation arms (the deactivation arms have opposite sign
+    #      and cannot share one minimum statistic).
+    'cross_modal_crossover': dict(
+        include=['aud_act', 'vis_act', 'aud_deact', 'vis_deact'],
+        exclude=[],
+        display=['aud_act', 'vis_act']),
+    # ---- modality-specific activation: effect + activation in ONE modality AND
+    #      a significant interaction in that modality's direction (TESTED
+    #      specificity, replacing the old exclusive '~other_eff' mask).
     'modality_specific_activation_auditory': dict(
-        include=['aud_eff', 'aud_act'],
-        exclude=['vis_eff'],
+        include=['aud_eff', 'aud_act', 'aud_gt_vis'],
+        exclude=[],
         display=['aud_eff', 'aud_act']),
     'modality_specific_activation_visual': dict(
-        include=['vis_eff', 'vis_act'],
-        exclude=['aud_eff'],
+        include=['vis_eff', 'vis_act', 'vis_gt_aud'],
+        exclude=[],
         display=['vis_eff', 'vis_act']),
+    # ---- modality-specific CROSSOVER: crossover in one modality AND the
+    #      interaction in that direction.
+    'modality_specific_crossover_auditory': dict(
+        include=['aud_act', 'aud_deact', 'aud_gt_vis'],
+        exclude=[],
+        display=['aud_act']),
+    'modality_specific_crossover_visual': dict(
+        include=['vis_act', 'vis_deact', 'vis_gt_aud'],
+        exclude=[],
+        display=['vis_act']),
 }
 
 
@@ -686,89 +845,93 @@ SURF_CONJ_IMGS = os.path.join(SURFPARAMETRIC_FOLDER, analysis_task_id,
 # ============================ RUN ======================================
 
 def main():
-    # config check: every conjunction has a valid network spec
+    task_id = {v: k for k, v in tasks.items()}
+
+    # config check: the contour is display-only (masking has been removed).
+    # Every conjunction must map to a key present in the chosen source catalog.
+    assert CONTOUR_SOURCE in CONTOUR_TERMS, \
+        f"CONTOUR_SOURCE must be one of {list(CONTOUR_TERMS)}"
+    contour_terms = CONTOUR_TERMS[CONTOUR_SOURCE]
     for c in CONJUNCTIONS:
-        assert c in CONJUNCTION_NETWORK, \
-            f"CONJUNCTION_NETWORK has no entry for '{c}'"
-        cn = CONJUNCTION_NETWORK[c]
-        assert cn['network'] in NET_TERMS, \
-            f"CONJUNCTION_NETWORK['{c}']['network']='{cn['network']}' " \
-            f"not in NET_TERMS"
-        assert cn['side'] in ('pos', 'neg', 'two'), \
-            f"CONJUNCTION_NETWORK['{c}']['side'] must be 'pos'/'neg'/'two'"
-        assert cn['threshold'] is None or isinstance(cn['threshold'],
+        assert c in CONJUNCTION_CONTOUR, \
+            f"CONJUNCTION_CONTOUR has no entry for '{c}'"
+        key = CONJUNCTION_CONTOUR[c]
+        assert key in contour_terms, \
+            f"CONTOUR_TERMS['{CONTOUR_SOURCE}'] has no key '{key}' (for '{c}')"
+        ct = contour_terms[key]
+        assert ct['side'] in ('pos', 'neg', 'two'), \
+            f"CONTOUR_TERMS['{CONTOUR_SOURCE}']['{key}']['side'] invalid"
+        assert ct['threshold'] is None or isinstance(ct['threshold'],
                                                      (int, float)), \
-            f"CONJUNCTION_NETWORK['{c}']['threshold'] must be None or a number"
+            f"CONTOUR_TERMS['{CONTOUR_SOURCE}']['{key}']['threshold'] invalid"
 
     # ---------------------------- VOLUME -------------------------------
     if RUN_VOLUME:
-        print('\n[VOLUME] computing conjunction maps')
+        print('\n[VOLUME] computing conjunction maps (whole-brain, no masking)')
 
-        # group z-maps for every conjunction arm (shared analysis grid)
+        # group z-maps for every conjunction arm (shared analysis grid). The
+        # first single-contrast arm sets the reference grid.
         global REF_IMG
-        first = next(iter(TERMS.values()))
+        first = next(d for d in TERMS.values() if 'interaction' not in d)
         REF_IMG = load_or_fit_volume_z(first['cid'], first['name'],
-                                       analysis_task_id, SUBJECTS)
+                                       task_id[first['task']], SUBJECTS)
         zcache = {}
+        int_cache = {}
         for t, d in TERMS.items():
-            z_img = load_or_fit_volume_z(d['cid'], d['name'],
-                                         {v: k for k, v in tasks.items()}
-                                         [d['task']], SUBJECTS, ref_img=REF_IMG)
+            if 'interaction' in d:
+                pair = d['interaction']
+                if pair not in int_cache:
+                    int_cache[pair] = interaction_group_zmap_volume(
+                        pair[0], pair[1], task_id[d['task']], SUBJECTS,
+                        ref_img=REF_IMG)
+                z_img = int_cache[pair]
+            else:
+                z_img = load_or_fit_volume_z(d['cid'], d['name'],
+                                             task_id[d['task']], SUBJECTS,
+                                             ref_img=REF_IMG)
             zcache[t] = np.asanyarray(z_img.get_fdata(), dtype=float)
 
         brain = mask_on_grid(FITTING_MASK_PATH, REF_IMG)
 
-        # predictive-timing network z-maps, cached per distinct network and
-        # thresholded per case with that case's own side + threshold
-        net_z_vol = {}
-        if MASK_BY_NETWORK:
-            for nk in {CONJUNCTION_NETWORK[c]['network'] for c in CONJUNCTIONS}:
-                nt = NET_TERMS[nk]
-                net_img = load_or_fit_volume_z(nt['cid'], nt['name'],
-                                               network_task_id, SUBJECTS,
-                                               ref_img=REF_IMG)
-                net_z_vol[nk] = np.asanyarray(net_img.get_fdata(), dtype=float)
-        else:
-            print('[VOLUME] whole-brain conjunctions (no network masking)')
-
         for category, spec in CONJUNCTIONS.items():
-            net_bool = None
-            if MASK_BY_NETWORK:
-                cn = CONJUNCTION_NETWORK[category]
-                net_bool, net_thr = fdr_bool(net_z_vol[cn['network']], brain,
-                                             cn['side'], FDR_ALPHA,
-                                             thr_override=cn['threshold'])
-                print(f"[VOLUME] {category}: "
-                      f"{NET_TERMS[cn['network']]['name']} side={cn['side']} "
-                      f"thr={net_thr:.3f} ({int(net_bool.sum())} voxels)")
-            compute_volume_category(category, spec, zcache, brain, net_bool)
+            compute_volume_category(category, spec, zcache, brain)
 
     # ---------------------------- SURFACE ------------------------------
     if RUN_SURFACE:
-        print('\n[SURFACE] computing conjunction maps')
+        print('\n[SURFACE] computing conjunction maps (whole-brain, no masking)')
 
         cortex = load_cortex_mask(lh_medial_wall_mask_path,
                                   rh_medial_wall_mask_path)
 
         zcache = {}
+        int_cache = {}
         for t, d in TERMS.items():
-            zcache[t] = surface_group_z(
-                {v: k for k, v in tasks.items()}[d['task']], d['cid'],
-                d['name'], SURF_FOLDER, SUBJECTS,
-                compute_individual=COMPUTE_INDIVIDUAL_SURF)
-
-        # predictive-timing network z-maps, cached per distinct network used
-        # (as mask and/or contour); thresholded per case below
-        net_z_surf = {}
-        use_net = MASK_BY_NETWORK or PLOT_NETWORK_CONTOUR
-        if use_net:
-            for nk in {CONJUNCTION_NETWORK[c]['network'] for c in CONJUNCTIONS}:
-                nt = NET_TERMS[nk]
-                net_z_surf[nk] = surface_group_z(
-                    network_task_id, nt['cid'], nt['name'], NET_SURF_FOLDER,
+            if 'interaction' in d:
+                pair = d['interaction']
+                if pair not in int_cache:
+                    int_cache[pair] = interaction_group_zmap_surface(
+                        pair[0], pair[1], task_id[d['task']], SUBJECTS)
+                zcache[t] = int_cache[pair]
+            else:
+                zcache[t] = surface_group_z(
+                    task_id[d['task']], d['cid'], d['name'], SURF_FOLDER,
                     SUBJECTS, compute_individual=COMPUTE_INDIVIDUAL_SURF)
-        print(f"[SURFACE] masking {'on' if MASK_BY_NETWORK else 'off'}, "
-              f"contour {'on' if PLOT_NETWORK_CONTOUR else 'off'}")
+
+        # reference-network z-maps for the DISPLAY contour (no masking). Cached
+        # per distinct contour key; the surface-files folder follows the
+        # contour contrast's task.
+        net_z_surf = {}
+        if PLOT_NETWORK_CONTOUR:
+            for key in {CONJUNCTION_CONTOUR[c] for c in CONJUNCTIONS}:
+                ct = contour_terms[key]
+                surf_dir = (NET_SURF_FOLDER if ct['task'] == network_task_tag
+                            else SURF_FOLDER)
+                net_z_surf[key] = surface_group_z(
+                    task_id[ct['task']], ct['cid'], ct['name'], surf_dir,
+                    SUBJECTS, compute_individual=COMPUTE_INDIVIDUAL_SURF)
+            print(f"[SURFACE] contour on, source = '{CONTOUR_SOURCE}'")
+        else:
+            print('[SURFACE] contour off')
 
         # vertex adjacency for surface cluster filtering (built once)
         n_vert = next(iter(zcache.values())).shape[0] // 2
@@ -778,20 +941,17 @@ def main():
             adjL, adjR = None, None
 
         for category, spec in CONJUNCTIONS.items():
-            net_bool, net_contour = None, None
-            if use_net:
-                cn = CONJUNCTION_NETWORK[category]
-                nb, net_thr = fdr_bool(net_z_surf[cn['network']], cortex,
-                                       cn['side'], FDR_ALPHA,
-                                       thr_override=cn['threshold'])
-                if MASK_BY_NETWORK:
-                    net_bool = nb           # same thresholded network ...
-                if PLOT_NETWORK_CONTOUR:
-                    net_contour = nb        # ... used for the contour too
-                print(f"[SURFACE] {category}: "
-                      f"{NET_TERMS[cn['network']]['name']} side={cn['side']} "
-                      f"thr={net_thr:.3f} ({int(nb.sum())} vertices)")
-            compute_surface_category(category, spec, zcache, cortex, net_bool,
+            net_contour = None
+            if PLOT_NETWORK_CONTOUR:
+                key = CONJUNCTION_CONTOUR[category]
+                ct = contour_terms[key]
+                nb, net_thr = fdr_bool(net_z_surf[key], cortex, ct['side'],
+                                       FDR_ALPHA, thr_override=ct['threshold'])
+                net_contour = nb
+                print(f"[SURFACE] {category}: contour {ct['name']} "
+                      f"side={ct['side']} thr={net_thr:.3f} "
+                      f"({int(nb.sum())} vertices)")
+            compute_surface_category(category, spec, zcache, cortex,
                                      net_contour, adjL, adjR)
 
 
