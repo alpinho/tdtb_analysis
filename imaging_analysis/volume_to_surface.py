@@ -1196,7 +1196,7 @@ def plot_flatmap(
 def make_regime_cmaps(
     warm=('#E1261C', '#FF8C00', '#FFE100'),
     cool=('#1A6FE0', '#22C2E8', '#9BE8FF'),
-    neutral=('#F9A8D4', '#BE185D'),
+    neutral=('#DB2777', '#F9A8D4'),
     n=256,
 ):
     """Three intensity colormaps (low |z| -> high |z|) for the regimes of the
@@ -1358,7 +1358,7 @@ def plot_regime_flatmap(
     hemi=['L', 'R'],
     warm=('#E1261C', '#FF8C00', '#FFE100'),
     cool=('#1A6FE0', '#22C2E8', '#9BE8FF'),
-    neutral=('#F9A8D4', '#BE185D'),
+    neutral=('#DB2777', '#F9A8D4'),
     show_colorbar=True, n_ticks=4, tick_decimals=1,
     contour_stat=None, contour_threshold=None, contour_color='k',
     contour_linewidth=1.0, contour_positive_only=True,
@@ -1432,13 +1432,17 @@ def plot_regime_flatmap(
         vlim = float(vmax) if (np.isfinite(vmax)
                                and vmax > thr_diff) else float(thr_diff) + 1e-6
         ticks = np.linspace(float(thr_diff), vlim, n_ticks)
-        # Left -> right: activation, crossover, deactivation. The regime name is
+        # Left -> right: deactivation, crossover, activation. The regime name is
         # placed over each bar; the Z(...) label below gives the rest-referenced
-        # ordering of the conditions (valid for the one-sided R>NR regimes).
+        # ordering of the conditions, with "R>NR" in bold to emphasise the
+        # single (Random > Non-Random) direction (valid for one-sided runs).
         bars = [
-            (cmaps[0], [.05, .10, .24, .038], 'Activation', 'Z (R>NR>>Rest)'),
-            (cmaps[2], [.38, .10, .24, .038], 'Crossover', 'Z (R>>Rest>NR)'),
-            (cmaps[1], [.71, .10, .24, .038], 'Deactivation', 'Z (Rest>R>NR)'),
+            (cmaps[1], [.05, .085, .24, .035], 'Deactivation',
+             r'$\mathrm{Z\ (Rest{>}}\mathbf{R{>}NR}\mathrm{)}$'),
+            (cmaps[2], [.38, .085, .24, .035], 'Crossover',
+             r'$\mathrm{Z\ (\mathbf{R}\gg Rest\mathbf{{>}NR)}}$'),
+            (cmaps[0], [.71, .085, .24, .035], 'Activation',
+             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Rest)}$'),
         ]
         for cmap_i, rect, ref, lbl in bars:
             sm = ScalarMappable(
@@ -1452,8 +1456,8 @@ def plot_regime_flatmap(
             cb.ax.set_xticklabels([f'{t:.{dec}f}' for t in ticks])
             cb.ax.tick_params(labelsize=7)
 
-    plt.subplots_adjust(left=0, right=1, top=0.98, bottom=0.22)
-    fig.set_size_inches(6, 3.2)
+    plt.subplots_adjust(left=0, right=1, top=0.98, bottom=0.06)
+    fig.set_size_inches(6, 3.0)
     suffix = 'flat_regime_contour' if contour_stat is not None else 'flat_regime'
     fname = (
         f'group_{task_name}_{contrast}_{suffix}_fslr32k.png'
@@ -2152,7 +2156,7 @@ REGIME_DIFF_SIDES = 'one-sided'
 # Per-regime intensity colormaps (low |z| -> high |z|).
 REGIME_WARM = ('#E1261C', '#FF8C00', '#FFE100')      # activation
 REGIME_COOL = ('#1A6FE0', '#22C2E8', '#9BE8FF')      # deactivation
-REGIME_CROSS = ('#F9A8D4', '#BE185D')                # crossover (pink flag)
+REGIME_CROSS = ('#DB2777', "#FFD1F3")                # crossover (pink, dark->light)
 
 # ========================= PARAMETERS ================================
 
