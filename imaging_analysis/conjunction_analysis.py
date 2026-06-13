@@ -48,6 +48,12 @@ loaders flagged TODO(paths) below).
 ----------------------------------------------------------------------------
 THE CONJUNCTIONS (intersections of FDR-thresholded maps)
 ----------------------------------------------------------------------------
+Shared cross-modal NETWORK (both modalities activate above rest for the
+unpredictable condition; the shared timing network itself, independent of
+whether the unpredictability EFFECT is significant). Report it alongside the
+modality-specific enhancement to show "shared network + specific bias":
+  0. cross_modal_shared_activation = A_act & V_act
+
 Cross-modal (effect in both modalities AND condition-vs-rest in both):
   1. cross_modal_activation    = A_eff & V_eff & A_act & V_act
   2. cross_modal_deactivation  = A_eff & V_eff & A_NR  & V_NR
@@ -109,8 +115,15 @@ significant of the conjoined arms shown (min z for activations, max z i.e.
 nearest-zero for deactivations), so an element is shown only where every
 displayed arm individually survives FDR.
 
-Author: (generated to match volume_maps.py / volume_to_surface.py)
-Compatibility: Python 3.10, nilearn 0.11.1
+Author: Ana Luisa Pinho
+Email: agrilopi@uwo.ca
+
+Creation: 10th of June 2026
+Last Update: June 2026
+
+Compatibility: Python 3.10.14, nilearn 0.11.1
+
+Note: Generated to match volume_maps.py / volume_to_surface.py
 """
 
 import os
@@ -575,6 +588,11 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 
     out_dir = os.path.join(SURF_CONJ_IMGS, category)
     os.makedirs(out_dir, exist_ok=True)
+    # Record the contour source in the filename (plot_flatmap builds the name
+    # from contrast_tag), so 'encoding' and 'predictable' runs don't overwrite.
+    surf_tag = category
+    if net_contour is not None:
+        surf_tag = f"{category}_{CONTOUR_SOURCE_TAG.get(CONTOUR_SOURCE, CONTOUR_SOURCE)}"
     border_kw = {}
     if _PLOT_FLATMAP_SUPPORTS_BORDERS:
         border_kw['show_borders'] = SHOW_FLATMAP_BORDERS
@@ -586,7 +604,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
         stats=[statL, statR],
         threshold=thr_disp,
         task_key=analysis_task_id,
-        contrast_tag=category,
+        contrast_tag=surf_tag,
         output_dir=out_dir,
         hemi=['L', 'R'],
         colormap=('Blues_r' if is_deact else 'autumn'),
@@ -603,7 +621,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 # %%
 # ============================ TOGGLES ==================================
 
-RUN_VOLUME = True
+RUN_VOLUME = False
 RUN_SURFACE = True
 
 # (Re)project each subject to the surface before grouping. Set False if the
@@ -646,6 +664,10 @@ PLOT_NETWORK_CONTOUR = True
 #                   arms; the crossover categories sit outside it by construction.
 CONTOUR_SOURCE = 'predictable'        # 'encoding' | 'predictable'
 
+# Short tag appended to the conjunction figure filename so different
+# CONTOUR_SOURCE runs are written side by side instead of overwriting.
+CONTOUR_SOURCE_TAG = {'encoding': 'encoding', 'predictable': 'nonrandom'}
+
 # Surface DISPLAY only: draw the fs_LR32k anatomical borders (the dotted sulcal
 # landmark lines) on the conjunction flatmaps. Purely cosmetic.
 SHOW_FLATMAP_BORDERS = False
@@ -655,6 +677,7 @@ SHOW_FLATMAP_BORDERS = False
 # cross-modal categories, 'auditory' / 'visual' for the modality-specific ones.
 # The side and threshold live with each contrast in CONTOUR_TERMS.
 CONJUNCTION_CONTOUR = {
+    'cross_modal_shared_activation':         'pooled',
     'cross_modal_activation':                'pooled',
     'cross_modal_deactivation':              'pooled',
     'cross_modal_crossover':                 'pooled',
@@ -666,7 +689,9 @@ CONJUNCTION_CONTOUR = {
 
 
 # %%
-# ============================ INPUTS ===================================
+# ====================== RUN CONFIGURATION ==============================
+# Genuine run-level choices (whom to analyse, which task supplies the arms vs
+# the contour network). The fixed analysis design is defined further below.
 
 SUBJECTS = [
     3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
@@ -689,6 +714,17 @@ network_task_tag = 'All Main Tasks'
 
 analysis_task_id = {v: k for k, v in tasks.items()}[analysis_task_tag]
 network_task_id = {v: k for k, v in tasks.items()}[network_task_tag]
+
+
+# %%
+# ================= FIXED ANALYSIS DEFINITIONS ==========================
+# NOT tuning knobs. The arms (TERMS), the conjunction definitions
+# (CONJUNCTIONS), and the contour catalogs (CONTOUR_TERMS) below are fixed by
+# the MEANING of each conjunction and are documented in full in the top
+# docstring. Each arm's contrast id, task, and tail follow directly from the
+# Nichols conjunction-null logic; editing them changes what the analysis tests,
+# not how it is run. They are kept here (rather than hidden) only so the design
+# is auditable in one place -- treat them as read-only.
 
 # ---- Conjunction arms (term -> contrast id / name / task / tail) ------
 # ids follow build_contrasts('rand_ntfd'); see volume_to_surface.py
@@ -740,7 +776,7 @@ CONTOUR_TERMS = {
                          side='pos', threshold=None),
     },
     'predictable': {
-        'pooled':   dict(cid=8,  name='Non-Random',         task=analysis_task_tag,
+        'pooled':   dict(cid=8,  name='Non-Random',       task=analysis_task_tag,
                          side='pos', threshold=None),
         'auditory': dict(cid=20, name='Auditory Non-Random',
                          task=analysis_task_tag, side='pos', threshold=None),
@@ -756,6 +792,15 @@ CONTOUR_TERMS = {
 # The display-only contour for each category is set in TOGGLES
 # (CONJUNCTION_CONTOUR + CONTOUR_SOURCE).
 CONJUNCTIONS = {
+    # ---- shared cross-modal NETWORK: both modalities activate above rest for
+    #      the unpredictable condition (Random > rest), regardless of whether
+    #      the unpredictability effect is significant. This is the shared timing
+    #      network; pair it with the modality-specific enhancement to report
+    #      "shared network + specific bias" together.
+    'cross_modal_shared_activation': dict(
+        include=['aud_act', 'vis_act'],
+        exclude=[],
+        display=['aud_act', 'vis_act']),
     # ---- cross-modal: effect AND condition-vs-rest in BOTH modalities -----
     'cross_modal_activation': dict(
         include=['aud_eff', 'vis_eff', 'aud_act', 'vis_act'],
