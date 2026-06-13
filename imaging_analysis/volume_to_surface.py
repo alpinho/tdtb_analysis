@@ -918,11 +918,29 @@ def plot_flatmap(
                 fraction=0.05, pad=0.02
             )
             cbar.set_label(cbar_title, fontsize=12, labelpad=8)
-            # Tick the edges of the gray (non-significant) band.
-            ticks = np.array([-vlim, -float(threshold),
-                              float(threshold), vlim])
-            cbar.set_ticks(ticks)
             dec = int(tick_decimals) if tick_decimals is not None else 2
+            # If every supra-threshold vertex is one-signed (e.g. a pure
+            # deactivation), show a single-direction colorbar instead of the
+            # symmetric diverging one -- the symmetric bar would otherwise imply
+            # a non-existent opposite tail and print zero twice. Colors stay
+            # matched to the surface (same cmap and norm); we just crop the view.
+            _sv = np.concatenate([np.asarray(lh, float).ravel(),
+                                  np.asarray(rh, float).ravel()])
+            _sv = _sv[np.isfinite(_sv) & (np.abs(_sv) >= float(threshold))]
+            one_sided = ('neg' if (_sv.size and np.all(_sv < 0)) else
+                         'pos' if (_sv.size and np.all(_sv > 0)) else None)
+            if one_sided == 'neg':
+                cbar.ax.set_xlim(-vlim, 0.0)
+                ticks = np.array([-vlim, -float(threshold), 0.0])
+            elif one_sided == 'pos':
+                cbar.ax.set_xlim(0.0, vlim)
+                ticks = np.array([0.0, float(threshold), vlim])
+            else:
+                # genuinely diverging: keep the symmetric bar (edges of the
+                # gray non-significant band plus the two extremes)
+                ticks = np.array([-vlim, -float(threshold),
+                                  float(threshold), vlim])
+            cbar.set_ticks(ticks)
             cbar.ax.set_xticklabels(
                 [f'{t:.{dec}f}' for t in ticks], fontsize=12)
         plt.subplots_adjust(left=0, right=1, top=0.97, bottom=0.05)
@@ -1817,7 +1835,7 @@ contour_threshold_override = 2.7  # e.g. 3.09
 # the outline regardless of contour_sides; contour_sides then only controls
 # whether the outline traces activations only or both tails.
 contrast_sides = None        # e.g. 'one-sided', 'two-sided', or None (auto)
-contour_sides = None  # outline of activations AND deactivations
+contour_sides = 'two-sided'  # outline of activations AND deactivations
 
 # ========================= PARAMETERS ================================
 
