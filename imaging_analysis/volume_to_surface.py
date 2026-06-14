@@ -2154,9 +2154,9 @@ REGIME_GATE_SIGNIF = True
 #   as the NR>R direction. 'two-sided': also show NR>R using the |z| FDR.
 REGIME_DIFF_SIDES = 'one-sided'
 # Per-regime intensity colormaps (low |z| -> high |z|).
-REGIME_WARM = ('#E1261C', '#FF8C00', '#FFE100')      # activation
-REGIME_COOL = ('#1A6FE0', '#22C2E8', '#9BE8FF')      # deactivation
-REGIME_CROSS = ('#DB2777', "#FFD1F3")                # crossover (pink, dark->light)
+REGIME_COOL  = ('#08519C', '#3182BD', '#9ECAE1')   # deactivation: clean blue, no cyan
+REGIME_CROSS = ('#DB2777', '#F9A8D4')                # crossover: unchanged
+REGIME_WARM  = ('#E1261C', '#FF8C00', '#FFE100')   # activation: unchanged
 
 # ========================= PARAMETERS ================================
 
