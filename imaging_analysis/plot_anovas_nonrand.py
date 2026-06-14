@@ -85,20 +85,17 @@ ROI_PRETTY = {
     "visual_cortex": "Visual Cortex",
 }
 
-# ---- boxplot palette (UNCHANGED) ----
+# ---- boxplot palette ----
+# Single desaturated family, so the flatmap stays the only vivid element.
+# Modality = muted hue direction (Auditory warm, Visual cool, Both violet);
+# Non-Random vs Random = lightness (dark = Non-Random, light = Random). Auditory
+# vs Visual (the only within-panel pair) sits on the warm/cool (blue-yellow)
+# axis, preserved under red-green colour blindness; Both takes the violet corner
+# so it is distinct from both rather than sitting neutral between them.
 MODALITY_COLORS = {
-    "Pooled": {
-        "Non-Random": "#B07A5E",
-        "Random": "#E6CFC3",
-    },
-    "Auditory": {
-        "Non-Random": "#7B8EDB",
-        "Random": "#C9D2F3",
-    },
-    "Visual": {
-        "Non-Random": "#E7549E",
-        "Random": "#F7C6DC",
-    },
+    "Pooled":   {"Non-Random": "#B27A18", "Random": "#EAD2A0"},  # ochre (Both)
+    "Auditory": {"Non-Random": "#157F66", "Random": "#8FD0C0"},  # teal
+    "Visual":   {"Non-Random": "#5B4FA0", "Random": "#C0B8E0"},  # purple
 }
 
 # ---- box geometry (UNCHANGED: do not alter the boxplots themselves) ----
