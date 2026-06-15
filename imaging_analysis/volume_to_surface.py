@@ -1218,7 +1218,8 @@ def make_regime_cmaps(
 
 def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
                 thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
-                show_undetermined=True, diff_sides='one-sided', cmaps=None):
+                show_undetermined=True, min_vertices=0,
+                diff_sides='one-sided', cmaps=None):
     """Per-vertex RGBA for one hemisphere of the combined Random/Non-Random map.
 
     Each vertex whose Random - Non-Random difference is supra-threshold is
@@ -1256,6 +1257,11 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
         condition is significant vs Rest are painted as the 'undetermined'
         regime (no rest anchor, so no activation/deactivation/crossover label
         is defensible). If False, those vertices are left transparent.
+    min_vertices : if > 0, any regime with fewer than this many vertices in the
+        hemisphere is dropped (vertices left transparent and excluded from the
+        returned counts), so sub-visible specks do not appear on the map or in
+        the legend. The returned counts therefore reflect what is displayed; set
+        min_vertices=0 to recover the raw counts.
     cmaps : (warm, cool, neutral, undetermined) colormaps; defaults via
         make_regime_cmaps().
 
@@ -1325,6 +1331,17 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
         cross = base & ~(activ | deact)
         undet = np.zeros(nvert, bool)
 
+    # Honour the display switches at the mask level so the returned counts match
+    # what is actually painted (and therefore what the colorbar legend shows):
+    # an undetermined hidden by show_undetermined, or any regime smaller than
+    # min_vertices in this hemisphere, is removed before counting and drawing.
+    if not show_undetermined:
+        undet = np.zeros(nvert, bool)
+    if min_vertices and int(min_vertices) > 0:
+        for m in (activ, deact, cross, undet):
+            if 0 < int(m.sum()) < int(min_vertices):
+                m[:] = False
+
     diff_mag = z_diff if one_sided else np.abs(z_diff)
     mag = np.clip((diff_mag - thr_diff) / (vmax - thr_diff), 0.0, 1.0)
 
@@ -1335,7 +1352,7 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
         rgba[deact] = cmap_deact(mag[deact])
     if cross.any():
         rgba[cross] = cmap_cross(mag[cross])
-    if show_undetermined and undet.any():
+    if undet.any():
         rgba[undet] = cmap_undet(mag[undet])
 
     return rgba, (int(activ.sum()), int(deact.sum()),
@@ -1402,7 +1419,7 @@ def plot_regime_flatmap(
     diff_stats, cond_rand_stats, cond_nonrand_stats,
     thr_diff, vmax, task_key, contrast_tag, output_dir,
     thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
-    show_undetermined=True,
+    show_undetermined=True, min_vertices=0,
     diff_sides='one-sided',
     hemi=['L', 'R'],
     warm=('#E1261C', '#FF8C00', '#FFE100'),
@@ -1458,7 +1475,7 @@ def plot_regime_flatmap(
             zd, zr, znr, thr_diff, vmax,
             thr_rand=thr_rand, thr_nonrand=thr_nonrand, gate=gate,
             cross_both=cross_both, show_undetermined=show_undetermined,
-            diff_sides=diff_sides, cmaps=cmaps)
+            min_vertices=min_vertices, diff_sides=diff_sides, cmaps=cmaps)
         total += np.asarray(counts, int)
         plt.sca(ax)
         flatmap.plot(
@@ -1476,10 +1493,11 @@ def plot_regime_flatmap(
                 color=contour_color, linewidth=contour_linewidth,
                 positive_only=contour_positive_only)
 
-    print(f"[regime] supra-threshold vertices -> activation={total[0]} "
+    print(f"[regime] displayed vertices -> activation={total[0]} "
           f"deactivation={total[1]} crossover={total[2]} "
           f"undetermined={total[3]}"
-          f"{' (hidden)' if not show_undetermined else ''}")
+          f"{' (undetermined hidden)' if not show_undetermined else ''}"
+          f"{f' (regimes <{int(min_vertices)} vtx/hemi dropped)' if min_vertices else ''}")
 
     if show_colorbar:
         dec = int(tick_decimals) if tick_decimals is not None else 2
@@ -1497,9 +1515,10 @@ def plot_regime_flatmap(
         undet_n = int(total[3]) if show_undetermined else 0
         candidates = [
             (cmaps[1], 'Deactivation',
-             r'$\mathrm{Z\ (Rest{>}}\mathbf{R{>}NR}\mathrm{)}$', int(total[1])),
+             r'$\mathrm{Z\ (Rest}\gg\mathbf{R{>}NR}\mathrm{)}$', int(total[1])),
             (cmaps[2], 'Crossover',
-             r'$\mathrm{Z\ (R\gg Rest{>}NR)}$', int(total[2])),
+             r'$\mathrm{Z\ (}\mathbf{R\gg}\mathrm{Rest}\mathbf{\gg NR}\mathrm{)}$',
+             int(total[2])),
             (cmaps[0], 'Activation',
              r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Rest)}$', int(total[0])),
             (cmaps[3], 'Undetermined',
@@ -2240,9 +2259,20 @@ REGIME_CROSS = ('#DB2777', '#F9A8D4')                # crossover (pink, dark->li
 # flat underlay), dark->light.
 REGIME_UNDETERMINED = ('#7B7239', '#C6BC82')
 # If True, drop the undetermined regime from the flatmap (those vertices stay
-# transparent). If False (default), show it as its own colour/colorbar. The
-# colorbar is dropped automatically whenever a regime has zero vertices.
+# transparent). If False, show it as its own colour/colorbar. Set True here:
+# the undetermined band is a transition gradient between activation and
+# deactivation, not a distinct regime, so it is filtered from the figure; the
+# quantitative fraction is kept for the text via regime_exclusion_stats / the
+# printed counts (set this False to inspect it on the map if a reviewer asks).
 REGIME_FILTER_UNDETERMINED = True
+# Minimum vertices per hemisphere for a regime to be drawn and to receive a
+# colorbar. Regimes below this are sub-visible specks, so showing a full
+# colorbar for them is misleading; dropping them keeps the legend matched to
+# what is actually on the map. The strict crossover is a handful of vertices on
+# the surface (zero in the volume), so this removes its empty-looking bar.
+# Check the printed crossover count and raise this just above it if needed; set
+# 0 to disable.
+REGIME_MIN_VERTICES = 10
 
 # ========================= PARAMETERS ================================
 
@@ -2648,6 +2678,7 @@ if __name__ == '__main__':
             gate=REGIME_GATE_SIGNIF,
             cross_both=REGIME_CROSS_REQUIRE_BOTH_SIGNIF,
             show_undetermined=not REGIME_FILTER_UNDETERMINED,
+            min_vertices=REGIME_MIN_VERTICES,
             diff_sides=REGIME_DIFF_SIDES,
             hemi=['L', 'R'],
             warm=REGIME_WARM, cool=REGIME_COOL, neutral=REGIME_CROSS,
