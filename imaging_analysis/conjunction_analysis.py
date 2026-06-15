@@ -621,7 +621,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 # %%
 # ============================ TOGGLES ==================================
 
-RUN_VOLUME = False
+RUN_VOLUME = True
 RUN_SURFACE = True
 
 # (Re)project each subject to the surface before grouping. Set False if the
@@ -653,7 +653,7 @@ MIN_CLUSTER_VERTICES = 20     # surface (fs_LR32k; ~60 mm^2)
 # Surface DISPLAY only: draw a reference network as a contour on the conjunction
 # flatmaps (does not affect any statistic). Choose which network with
 # CONTOUR_SOURCE.
-PLOT_NETWORK_CONTOUR = True
+PLOT_NETWORK_CONTOUR = False
 
 # Which reference network to outline (see CONTOUR_TERMS in INPUTS):
 #   'encoding'    = canonical predictive-timing network, Encoding vs Rest
@@ -670,7 +670,7 @@ CONTOUR_SOURCE_TAG = {'encoding': 'encoding', 'predictable': 'nonrandom'}
 
 # Surface DISPLAY only: draw the fs_LR32k anatomical borders (the dotted sulcal
 # landmark lines) on the conjunction flatmaps. Purely cosmetic.
-SHOW_FLATMAP_BORDERS = False
+SHOW_FLATMAP_BORDERS = True
 
 # Contour network per conjunction: each category -> a contour KEY, resolved
 # within the chosen CONTOUR_SOURCE catalog (CONTOUR_TERMS). 'pooled' for the
