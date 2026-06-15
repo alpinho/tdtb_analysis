@@ -162,7 +162,7 @@ ROW_BREATHING_IN = 0.18
 
 # ----- assemble_panel (grid panel) spacing, in inches -----
 PANEL_ROW_GAP_IN = 0.30
-PANEL_TITLE_GAP_IN = 0.01
+PANEL_TITLE_GAP_IN = -0.25
 
 
 # ============================ UTILITIES ============================ #

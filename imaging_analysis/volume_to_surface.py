@@ -1543,7 +1543,7 @@ def plot_regime_flatmap(
                 cb.ax.set_xticklabels([f'{t:.{dec}f}' for t in ticks])
                 cb.ax.tick_params(labelsize=7)
 
-    plt.subplots_adjust(left=0, right=1, top=0.98, bottom=0.17)
+    plt.subplots_adjust(left=0, right=1, top=0.98, bottom=0.06)
     fig.set_size_inches(6, 3.0)
     suffix = 'flat_regime_contour' if contour_stat is not None else 'flat_regime'
     fname = (
