@@ -611,6 +611,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
         vmax=vmax,
         signed=is_deact,
         cbar_title='Z-values',
+        show_colorbar=FLATMAP_SHOW_CBAR,
         **border_kw,
         **contour_kwargs,
     )
@@ -621,7 +622,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 # %%
 # ============================ TOGGLES ==================================
 
-RUN_VOLUME = True
+RUN_VOLUME = False
 RUN_SURFACE = True
 
 # (Re)project each subject to the surface before grouping. Set False if the
@@ -671,6 +672,10 @@ CONTOUR_SOURCE_TAG = {'encoding': 'encoding', 'predictable': 'nonrandom'}
 # Surface DISPLAY only: draw the fs_LR32k anatomical borders (the dotted sulcal
 # landmark lines) on the conjunction flatmaps. Purely cosmetic.
 SHOW_FLATMAP_BORDERS = True
+
+# Surface DISPLAY only: draw the colorbar (and its "Z-values" label and ticks)
+# on the conjunction flatmaps. Set False to plot the maps with no colorbar/text.
+FLATMAP_SHOW_CBAR = False
 
 # Contour network per conjunction: each category -> a contour KEY, resolved
 # within the chosen CONTOUR_SOURCE catalog (CONTOUR_TERMS). 'pooled' for the
