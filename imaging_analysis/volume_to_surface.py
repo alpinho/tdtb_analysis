@@ -1197,22 +1197,28 @@ def make_regime_cmaps(
     warm=('#E1261C', '#FF8C00', '#FFE100'),
     cool=('#1A6FE0', '#22C2E8', '#9BE8FF'),
     neutral=('#DB2777', '#F9A8D4'),
+    undetermined=('#7B7239', '#C6BC82'),
     n=256,
 ):
-    """Three intensity colormaps (low |z| -> high |z|) for the regimes of the
+    """Four intensity colormaps (low |z| -> high |z|) for the regimes of the
     combined Random / Non-Random map: activation (warm), deactivation (cool),
-    and crossover (neutral). The neutral ramp is an arbitrary flag colour for a
-    regime expected to be empty; change it freely."""
+    crossover (neutral), and undetermined (muted olive). The neutral ramp is an
+    arbitrary flag colour for a regime expected to be empty; change it freely.
+    The undetermined ramp is a low-saturation, non-grey hue so those vertices
+    read as a distinct 'no rest anchor' class without dissolving into the grey
+    flat underlay."""
     return (
         LinearSegmentedColormap.from_list('regime_act', list(warm), N=n),
         LinearSegmentedColormap.from_list('regime_deact', list(cool), N=n),
         LinearSegmentedColormap.from_list('regime_cross', list(neutral), N=n),
+        LinearSegmentedColormap.from_list('regime_undet',
+                                          list(undetermined), N=n),
     )
 
 
 def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
-                thr_rand=0.0, thr_nonrand=0.0, gate=True,
-                diff_sides='one-sided', cmaps=None):
+                thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
+                show_undetermined=True, diff_sides='one-sided', cmaps=None):
     """Per-vertex RGBA for one hemisphere of the combined Random/Non-Random map.
 
     Each vertex whose Random - Non-Random difference is supra-threshold is
@@ -1222,6 +1228,7 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
         z_rand > 0 and z_nonrand > 0  -> activation   (warm cmap)
         z_rand < 0 and z_nonrand < 0  -> deactivation (cool cmap)
         signs differ                  -> crossover     (neutral cmap)
+        neither condition significant -> undetermined  (olive cmap)
 
     Parameters
     ----------
@@ -1229,30 +1236,47 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
     z_rand, z_nonrand : (nvert,) signed Z of each condition vs Rest.
     thr_diff : |Z| threshold for the difference map (its two-sided FDR z*).
     vmax : upper |Z| limit of the intensity ramp, shared across regimes.
-    thr_rand, thr_nonrand : |Z| FDR thresholds vs rest, used only by the gate.
-    gate : if True a vertex is shown only when its DOMINANT condition (the one
-        with the larger |Z|) is significant vs rest, so vertices hovering at
-        rest are not given a spurious regime label. If False, the raw sign of
-        each condition's group mean is used directly.
-    cmaps : (warm, cool, neutral) colormaps; defaults via make_regime_cmaps().
+    thr_rand, thr_nonrand : |Z| FDR thresholds of each condition vs Rest. With
+        gate=True these set the per-condition significance used to classify the
+        regime, not merely to exclude near-rest vertices.
+    gate : if True (default) the regime is decided by which condition is
+        INDIVIDUALLY significant vs Rest at its own threshold; a vertex with no
+        significant condition is dropped. If False, the raw sign of each
+        condition's group mean is used directly (no significance test).
+    cross_both : how strict the crossover (sign-reversal) class is when
+        gate=True. If True (default) a vertex is 'crossover' only when BOTH
+        conditions are individually significant in OPPOSITE directions
+        (Random > Rest AND Non-Random < Rest); a vertex significant in only one
+        condition is folded into activation or deactivation by that condition.
+        If False, any supra-threshold vertex with opposite condition signs and
+        at least one significant condition is 'crossover' (the looser, one-armed
+        definition).
+    show_undetermined : if True (default) and gate=True, vertices whose
+        Random - Non-Random difference is significant but for which NEITHER
+        condition is significant vs Rest are painted as the 'undetermined'
+        regime (no rest anchor, so no activation/deactivation/crossover label
+        is defensible). If False, those vertices are left transparent.
+    cmaps : (warm, cool, neutral, undetermined) colormaps; defaults via
+        make_regime_cmaps().
 
     Returns
     -------
     rgba : (nvert, 4) array; non-significant / gated-out vertices are NaN
         (transparent under SUITPy's overlay_type='rgb').
-    counts : (n_activation, n_deactivation, n_crossover) int tuple.
+    counts : (n_activation, n_deactivation, n_crossover, n_undetermined) ints.
 
     Notes
     -----
-    Classification uses the sign of each condition's group mean (as requested);
-    with `gate=True` only the dominant condition is required to be significant,
-    so a weak, non-significant opposite sign in the other condition can place a
-    vertex in 'crossover'. For this dataset crossover is expected empty, which
-    the printed counts confirm.
+    A genuine crossover requires evidence for both of its defining signs, so by
+    default (cross_both=True) each condition must clear FDR vs Rest in opposite
+    directions. The looser cross_both=False reproduces the earlier one-armed
+    behaviour, where one significant condition plus a weak, non-significant
+    opposite sign in the other suffices. For this dataset the strict crossover
+    is empty, consistent with the empty crossover conjunction.
     """
     if cmaps is None:
         cmaps = make_regime_cmaps()
-    cmap_act, cmap_deact, cmap_cross = cmaps
+    cmap_act, cmap_deact, cmap_cross, cmap_undet = cmaps
 
     z_diff = np.asarray(z_diff, float)
     z_rand = np.asarray(z_rand, float)
@@ -1266,19 +1290,40 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
 
     finite = np.isfinite(z_diff) & np.isfinite(z_rand) & np.isfinite(z_nonrand)
     one_sided = str(diff_sides).strip().lower().startswith('one')
-    sig = finite & ((z_diff >= thr_diff) if one_sided
-                    else (np.abs(z_diff) >= thr_diff))
+    base = finite & ((z_diff >= thr_diff) if one_sided
+                     else (np.abs(z_diff) >= thr_diff))
 
-    # Optional significance gate on the dominant condition.
     if gate:
-        rand_dom = np.abs(z_rand) >= np.abs(z_nonrand)
-        dom_z = np.where(rand_dom, z_rand, z_nonrand)
-        dom_thr = np.where(rand_dom, float(thr_rand), float(thr_nonrand))
-        sig = sig & (np.abs(dom_z) >= dom_thr)
-
-    activ = sig & (z_rand > 0) & (z_nonrand > 0)
-    deact = sig & (z_rand < 0) & (z_nonrand < 0)
-    cross = sig & ~(activ | deact)
+        # Per-condition significance vs Rest (signed, at each FDR threshold).
+        rps = z_rand >= float(thr_rand)          # Random significantly > Rest
+        rns = z_rand <= -float(thr_rand)         # Random significantly < Rest
+        nps = z_nonrand >= float(thr_nonrand)    # Non-Random significantly > Rest
+        nns = z_nonrand <= -float(thr_nonrand)   # Non-Random significantly < Rest
+        anysig = rps | rns | nps | nns
+        if cross_both:
+            # Strict crossover: BOTH conditions significant, opposite directions.
+            # A vertex significant in only one condition is assigned to
+            # activation / deactivation by that condition's direction.
+            cross = base & ((rps & nns) | (rns & nps))
+            activ = base & ~cross & (rps | nps)
+            deact = base & ~cross & (rns | nns)
+        else:
+            # Loose crossover: opposite condition signs with >=1 significant.
+            opp = (((z_rand > 0) & (z_nonrand < 0)) |
+                   ((z_rand < 0) & (z_nonrand > 0)))
+            cross = base & opp & anysig
+            activ = base & ~opp & anysig & (z_rand > 0)
+            deact = base & ~opp & anysig & (z_rand < 0)
+        # Difference significant but NEITHER condition anchored to Rest: the
+        # rest-referenced regime is undetermined (paired contrast is more
+        # sensitive than either condition vs Rest).
+        undet = base & ~anysig
+    else:
+        # Ungated: raw sign of each condition's group mean (no significance).
+        activ = base & (z_rand > 0) & (z_nonrand > 0)
+        deact = base & (z_rand < 0) & (z_nonrand < 0)
+        cross = base & ~(activ | deact)
+        undet = np.zeros(nvert, bool)
 
     diff_mag = z_diff if one_sided else np.abs(z_diff)
     mag = np.clip((diff_mag - thr_diff) / (vmax - thr_diff), 0.0, 1.0)
@@ -1290,8 +1335,11 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
         rgba[deact] = cmap_deact(mag[deact])
     if cross.any():
         rgba[cross] = cmap_cross(mag[cross])
+    if show_undetermined and undet.any():
+        rgba[undet] = cmap_undet(mag[undet])
 
-    return rgba, (int(activ.sum()), int(deact.sum()), int(cross.sum()))
+    return rgba, (int(activ.sum()), int(deact.sum()),
+                  int(cross.sum()), int(undet.sum()))
 
 
 def regime_exclusion_stats(z_diff, z_rand, thr_diff, thr_rand,
@@ -1353,12 +1401,14 @@ def regime_exclusion_stats(z_diff, z_rand, thr_diff, thr_rand,
 def plot_regime_flatmap(
     diff_stats, cond_rand_stats, cond_nonrand_stats,
     thr_diff, vmax, task_key, contrast_tag, output_dir,
-    thr_rand=0.0, thr_nonrand=0.0, gate=True,
+    thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
+    show_undetermined=True,
     diff_sides='one-sided',
     hemi=['L', 'R'],
     warm=('#E1261C', '#FF8C00', '#FFE100'),
     cool=('#1A6FE0', '#22C2E8', '#9BE8FF'),
     neutral=('#DB2777', '#F9A8D4'),
+    undetermined=('#7B7239', '#C6BC82'),
     show_colorbar=True, n_ticks=4, tick_decimals=1,
     contour_stat=None, contour_threshold=None, contour_color='k',
     contour_linewidth=1.0, contour_positive_only=True,
@@ -1388,7 +1438,8 @@ def plot_regime_flatmap(
     surfaces = {h: os.path.join(surf_dir, 'flat', f'fs_LR.32k.{h}.flat.surf.gii')
                 for h in hemi}
 
-    cmaps = make_regime_cmaps(warm=warm, cool=cool, neutral=neutral)
+    cmaps = make_regime_cmaps(warm=warm, cool=cool, neutral=neutral,
+                              undetermined=undetermined)
 
     fig, axs = plt.subplots(1, len(hemi), figsize=(8, 4),
                             gridspec_kw={'wspace': 0.05})
@@ -1399,13 +1450,14 @@ def plot_regime_flatmap(
         'L': (diff_stats[0], cond_rand_stats[0], cond_nonrand_stats[0]),
         'R': (diff_stats[1], cond_rand_stats[1], cond_nonrand_stats[1]),
     }
-    total = np.zeros(3, int)
+    total = np.zeros(4, int)
 
     for ax, h in zip(axs, hemi):
         zd, zr, znr = per_h[h]
         rgba, counts = regime_rgba(
             zd, zr, znr, thr_diff, vmax,
             thr_rand=thr_rand, thr_nonrand=thr_nonrand, gate=gate,
+            cross_both=cross_both, show_undetermined=show_undetermined,
             diff_sides=diff_sides, cmaps=cmaps)
         total += np.asarray(counts, int)
         plt.sca(ax)
@@ -1425,38 +1477,54 @@ def plot_regime_flatmap(
                 positive_only=contour_positive_only)
 
     print(f"[regime] supra-threshold vertices -> activation={total[0]} "
-          f"deactivation={total[1]} crossover={total[2]}")
+          f"deactivation={total[1]} crossover={total[2]} "
+          f"undetermined={total[3]}"
+          f"{' (hidden)' if not show_undetermined else ''}")
 
     if show_colorbar:
         dec = int(tick_decimals) if tick_decimals is not None else 2
         vlim = float(vmax) if (np.isfinite(vmax)
                                and vmax > thr_diff) else float(thr_diff) + 1e-6
         ticks = np.linspace(float(thr_diff), vlim, n_ticks)
-        # Left -> right: deactivation, crossover, activation. The regime name is
-        # placed over each bar; the Z(...) label below gives the rest-referenced
-        # ordering of the conditions, with "R>NR" in bold to emphasise the
-        # single (Random > Non-Random) direction (valid for one-sided runs).
-        bars = [
-            (cmaps[1], [.05, .085, .24, .035], 'Deactivation',
-             r'$\mathrm{Z\ (Rest{>}}\mathbf{R{>}NR}\mathrm{)}$'),
-            (cmaps[2], [.38, .085, .24, .035], 'Crossover',
-             r'$\mathrm{Z\ (\mathbf{R}\gg Rest\mathbf{{>}NR)}}$'),
-            (cmaps[0], [.71, .085, .24, .035], 'Activation',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Rest)}$'),
+        # Left -> right: deactivation, crossover, activation, then undetermined
+        # (a separate 'no rest anchor' class). The regime name sits over each
+        # bar; the Z(...) label below gives the rest-referenced ordering of the
+        # conditions, with "R>NR" in bold for the single (Random > Non-Random)
+        # direction (valid for one-sided runs). Only regimes with >=1 vertex get
+        # a bar (a hidden or empty regime drops out), and the survivors are
+        # re-spaced and centred.
+        bar_w, bar_gap, bar_y, bar_h = 0.24, 0.09, 0.085, 0.035
+        undet_n = int(total[3]) if show_undetermined else 0
+        candidates = [
+            (cmaps[1], 'Deactivation',
+             r'$\mathrm{Z\ (Rest{>}}\mathbf{R{>}NR}\mathrm{)}$', int(total[1])),
+            (cmaps[2], 'Crossover',
+             r'$\mathrm{Z\ (R\gg Rest{>}NR)}$', int(total[2])),
+            (cmaps[0], 'Activation',
+             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Rest)}$', int(total[0])),
+            (cmaps[3], 'Undetermined',
+             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{,\ n.s.\ vs\ Rest)}$',
+             undet_n),
         ]
-        for cmap_i, rect, ref, lbl in bars:
-            sm = ScalarMappable(
-                norm=Normalize(vmin=float(thr_diff), vmax=vlim), cmap=cmap_i)
-            sm.set_array([])
-            cax = fig.add_axes(rect)
-            cb = fig.colorbar(sm, cax=cax, orientation='horizontal',
-                              ticks=ticks)
-            cb.ax.set_title(ref, fontsize=9, pad=3)        # reference over bar
-            cb.set_label(lbl, fontsize=8, labelpad=4)      # Z(...) below bar
-            cb.ax.set_xticklabels([f'{t:.{dec}f}' for t in ticks])
-            cb.ax.tick_params(labelsize=7)
+        present = [(c, ref, lbl) for (c, ref, lbl, n) in candidates if n > 0]
+        nb = len(present)
+        if nb:
+            span = nb * bar_w + (nb - 1) * bar_gap
+            x0 = 0.5 - span / 2.0
+            for i, (cmap_i, ref, lbl) in enumerate(present):
+                rect = [x0 + i * (bar_w + bar_gap), bar_y, bar_w, bar_h]
+                sm = ScalarMappable(
+                    norm=Normalize(vmin=float(thr_diff), vmax=vlim), cmap=cmap_i)
+                sm.set_array([])
+                cax = fig.add_axes(rect)
+                cb = fig.colorbar(sm, cax=cax, orientation='horizontal',
+                                  ticks=ticks)
+                cb.ax.set_title(ref, fontsize=9, pad=3)    # reference over bar
+                cb.set_label(lbl, fontsize=8, labelpad=4)  # Z(...) below bar
+                cb.ax.set_xticklabels([f'{t:.{dec}f}' for t in ticks])
+                cb.ax.tick_params(labelsize=7)
 
-    plt.subplots_adjust(left=0, right=1, top=0.98, bottom=0.06)
+    plt.subplots_adjust(left=0, right=1, top=0.98, bottom=0.17)
     fig.set_size_inches(6, 3.0)
     suffix = 'flat_regime_contour' if contour_stat is not None else 'flat_regime'
     fname = (
@@ -2147,6 +2215,15 @@ REGIME_COMPONENTS = {
 # whole-brain FDR, so vertices hovering at rest are not labelled. If False,
 # classify by the raw sign of each condition's group mean.
 REGIME_GATE_SIGNIF = True
+# When the gate is on, how strict the crossover (sign-reversal) class is. If
+# True (default) a vertex is 'crossover' only when BOTH conditions are
+# individually significant vs Rest in OPPOSITE directions (Random > Rest AND
+# Non-Random < Rest); a vertex significant in only one condition is folded into
+# activation or deactivation. If False, one significant condition with an
+# opposite (possibly non-significant) sign in the other is enough. The strict
+# setting is empty for this dataset, and its colorbar is then dropped
+# automatically.
+REGIME_CROSS_REQUIRE_BOTH_SIGNIF = True
 # Sidedness of the difference (Random - Non-Random) shown on the regime map.
 # 'one-sided' (default): only Random > Non-Random (positive tail, one-sided
 #   FDR); the colorbar magnitude is then unambiguously Z (R>NR) and the hue is
@@ -2154,9 +2231,18 @@ REGIME_GATE_SIGNIF = True
 #   as the NR>R direction. 'two-sided': also show NR>R using the |z| FDR.
 REGIME_DIFF_SIDES = 'one-sided'
 # Per-regime intensity colormaps (low |z| -> high |z|).
-REGIME_COOL  = ('#08519C', '#3182BD', '#9ECAE1')   # deactivation: clean blue, no cyan
-REGIME_CROSS = ('#DB2777', '#F9A8D4')                # crossover: unchanged
-REGIME_WARM  = ('#E1261C', '#FF8C00', '#FFE100')   # activation: unchanged
+REGIME_WARM = ('#E1261C', '#FF8C00', '#FFE100')      # activation
+REGIME_COOL = ('#1A6FE0', '#22C2E8', '#9BE8FF')      # deactivation
+REGIME_CROSS = ('#DB2777', '#F9A8D4')                # crossover (pink, dark->light)
+# Undetermined regime: R>NR significant but NEITHER condition significant vs
+# Rest, so no activation/deactivation/crossover label is defensible. Muted
+# olive (low saturation, but not grey, so it does not dissolve into the grey
+# flat underlay), dark->light.
+REGIME_UNDETERMINED = ('#7B7239', '#C6BC82')
+# If True, drop the undetermined regime from the flatmap (those vertices stay
+# transparent). If False (default), show it as its own colour/colorbar. The
+# colorbar is dropped automatically whenever a regime has zero vertices.
+REGIME_FILTER_UNDETERMINED = True
 
 # ========================= PARAMETERS ================================
 
@@ -2560,9 +2646,12 @@ if __name__ == '__main__':
             output_dir=regime_dir,
             thr_rand=thr_rand, thr_nonrand=thr_nonrand,
             gate=REGIME_GATE_SIGNIF,
+            cross_both=REGIME_CROSS_REQUIRE_BOTH_SIGNIF,
+            show_undetermined=not REGIME_FILTER_UNDETERMINED,
             diff_sides=REGIME_DIFF_SIDES,
             hemi=['L', 'R'],
             warm=REGIME_WARM, cool=REGIME_COOL, neutral=REGIME_CROSS,
+            undetermined=REGIME_UNDETERMINED,
             **contour_kw,
         )
         sys.exit(0)
