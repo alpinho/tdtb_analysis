@@ -123,7 +123,7 @@ zmap_path = os.path.join(
 wb_gmask = os.path.join(group_anat, 'group_mask_noskull.nii')
 
 # Z value to convert
-z_star = 3.94
+z_star = 5.13
 
 # "one" = one-sided (greater-than), "two" = two-sided
 side = "two"
