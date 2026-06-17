@@ -653,6 +653,44 @@ def resolve_signed(sides, contrast_name, signed_contrasts):
         f"Invalid sidedness {sides!r}; use 'one-sided', 'two-sided', or None.")
 
 
+def resolve_contour_display(contour_display, contour_twosided):
+    """Resolve which tail(s) of the contour OUTLINE to draw, independent of the
+    threshold sidedness.
+
+    This decouples *what is drawn* from *how the threshold is computed*, so the
+    outline can be thresholded two-sided (|z| FDR) yet trace only the positive
+    (activation) tail.
+
+    Parameters
+    ----------
+    contour_display : {'positive', 'both', None}
+        'positive' (or 'activations') -> draw the positive tail only;
+        'both' (or 'two-sided')       -> draw activations and deactivations;
+        None                          -> mirror the threshold sidedness, i.e.
+                                          positive-only when the threshold is
+                                          one-sided and both tails when it is
+                                          two-sided (legacy behaviour).
+    contour_twosided : bool
+        Whether the contour THRESHOLD was computed two-sided (from
+        resolve_signed); used only for the None fallback.
+
+    Returns
+    -------
+    bool
+        positive_only flag for overlay_region_contour.
+    """
+    if contour_display is None:
+        return not contour_twosided
+    s = str(contour_display).strip().lower()
+    if s in ('positive', 'pos', 'activations', 'one', 'one-sided', '1'):
+        return True
+    if s in ('both', 'signed', 'two', 'two-sided', '2'):
+        return False
+    raise ValueError(
+        f"Invalid contour_display {contour_display!r}; "
+        "use 'positive', 'both', or None.")
+
+
 def make_signed_gray_threshold_cmap(
     thr, vlim,
     base_colors=('#1A85FF', '#FFFFFF', '#D41159'),
@@ -1570,6 +1608,7 @@ def plot_multirois_flatmap(
     cbar_title='Fraction of Participants',
     cbar_ticks=None,
     tick_decimals=2,
+    show_borders=True,
 ):
     """
     Plot one or two contrasts on a flat cortical map.
@@ -1729,7 +1768,7 @@ def plot_multirois_flatmap(
             underlay=underlays[h],
             undermap='gray',
             underscale=[-1.5, 1],
-            borders=borders[h],
+            borders=(borders[h] if show_borders else None),
             bordersize=1.5,
             bordercolor='k',
             new_figure=False,
@@ -2195,7 +2234,7 @@ contrast_name2 = 'Encoding' # E.g. 'Interval'
 # contrast such as Encoding vs. Rest, the auto-FDR boundary is very extensive,
 # so a fixed value (e.g. 3.09 for p <= 0.001) usually gives a cleaner outline.
 contour_task_tag = 'All Main Tasks'  # e.g. 'All Main Tasks'
-contour_threshold_override = 2.7  # e.g. 3.09
+contour_threshold_override = None  # e.g. 3.09
 
 # Sidedness of the FDR threshold / display. Each is 'one-sided' (positive tail
 # only, activations), 'two-sided' (|z| FDR, both activations and deactivations;
@@ -2208,6 +2247,22 @@ contour_threshold_override = 2.7  # e.g. 3.09
 # whether the outline traces activations only or both tails.
 contrast_sides = None        # e.g. 'one-sided', 'two-sided', or None (auto)
 contour_sides = 'two-sided'  # outline of activations AND deactivations
+
+# contour_display : which tail(s) of the OUTLINE to draw, independent of the
+# threshold sidedness set by contour_sides above. 'positive' draws the
+# Encoding > Rest (activation) side only; 'both' draws activations and
+# deactivations; None mirrors contour_sides (legacy: positive-only when the
+# threshold is one-sided, both tails when two-sided). To threshold at two-sided
+# |z| FDR but outline only the positive (predictive-timing) network, set
+# contour_sides = 'two-sided' together with contour_display = 'positive'.
+contour_display = 'positive'
+
+# Display the sulcal/gyral border outlines (the dotted lines from the fs_LR
+# border files) on the cortical flatmaps. Set to False for a clean underlay
+# with no sulcal borders. Applies to every flatmap (single, overlay, regime,
+# contour and multi-ROI). It does NOT affect the region contour drawn with
+# --contour (e.g. the Encoding-vs-Rest outline), which is controlled separately.
+SHOW_SULCI_BORDERS = False
 
 # ------------- Combined regime visualization (--contour) -------------
 # Used only with: python volume_to_surface.py --regime
@@ -2495,6 +2550,7 @@ if __name__ == '__main__':
                     cbar_title='Fraction of Participants',
                     n_ticks=5,
                     tick_decimals=2,
+                    show_borders=SHOW_SULCI_BORDERS,
                 )
                 all_rois.append(roi)
                 all_cmaps.append(cmap_used)
@@ -2531,7 +2587,8 @@ if __name__ == '__main__':
                 labels=all_labels,
                 vmax=vmax,
                 cbar_ticks=np.linspace(vmin, vmax, 5),
-                tick_decimals=2
+                tick_decimals=2,
+                show_borders=SHOW_SULCI_BORDERS,
             )
 
         sys.exit(0)
@@ -2638,7 +2695,8 @@ if __name__ == '__main__':
             contour_tag = '_with_' + cname2
             contour_kw = dict(
                 contour_stat=[cL2, cR2], contour_threshold=thr2,
-                contour_positive_only=not contour_twosided)
+                contour_positive_only=resolve_contour_display(
+                    contour_display, contour_twosided))
 
         # Diagnostic: fraction of the Random - Non-Random significant map that
         # is NOT backed by a significant Random vs Rest activation (would be
@@ -2683,6 +2741,7 @@ if __name__ == '__main__':
             hemi=['L', 'R'],
             warm=REGIME_WARM, cool=REGIME_COOL, neutral=REGIME_CROSS,
             undetermined=REGIME_UNDETERMINED,
+            show_borders=SHOW_SULCI_BORDERS,
             **contour_kw,
         )
         sys.exit(0)
@@ -2759,7 +2818,8 @@ if __name__ == '__main__':
             plot_flatmap(
                 [zvals_lh_masked, zvals_rh_masked],
                 thresh, task_id, _tag, out_dir,
-                hemi=['L', 'R'], colormap='viridis', vmax=v_max
+                hemi=['L', 'R'], colormap='viridis', vmax=v_max,
+                show_borders=SHOW_SULCI_BORDERS,
             )
 
         sys.exit(0)  # do not fall through to single/overlay
@@ -2833,6 +2893,7 @@ if __name__ == '__main__':
                 [zvals_lh_masked, zvals_rh_masked],
                 thr_s, task_id, cname, surfplots_folder,
                 hemi=['L', 'R'], vmax=vmax_s, signed=True,
+                show_borders=SHOW_SULCI_BORDERS,
                 cbar_title='Z  (Random \u2212 Non-Random)'
             )
         else:
@@ -2840,7 +2901,8 @@ if __name__ == '__main__':
                 [zvals_lh_masked, zvals_rh_masked],
                 thresh, task_id, cname, surfplots_folder,
                 hemi=['L', 'R'], colormap='viridis', vmax=v_max,
-                show_colorbar=False
+                show_colorbar=False,
+                show_borders=SHOW_SULCI_BORDERS,
             )
 
     # ====================== TWO-CONTRAST OVERLAY =====================
@@ -2974,7 +3036,9 @@ if __name__ == '__main__':
                 contour_threshold=thr2,
                 contour_color='k',
                 contour_linewidth=1.0,
-                contour_positive_only=not contour_twosided,
+                contour_positive_only=resolve_contour_display(
+                    contour_display, contour_twosided),
+                show_borders=SHOW_SULCI_BORDERS,
             )
         else:
             contrast_id2 = \
@@ -3034,5 +3098,6 @@ if __name__ == '__main__':
                 output_dir=rgbaplots_folder,
                 hemi=['L', 'R'],
                 colors=["#FFF200", "#F42DFF"], # colors=['#D41159', '#1A85FF']
-                vmax=[vmax, vmax] # [vmax, vmax]
+                vmax=[vmax, vmax], # [vmax, vmax]
+                show_borders=SHOW_SULCI_BORDERS,
             )
