@@ -571,7 +571,8 @@ def whole_brain_thresholds_signed(derivatives_dir, subjects, task_key,
 
 
 def overlay_region_contour(ax, surf_path, values, threshold,
-                           color='k', linewidth=1.0, positive_only=True):
+                           color='k', linewidth=1.0, positive_only=True,
+                           tail=None):
     """
     Draw the outline of the supra-threshold region of `values` on an
     existing flatmap axis `ax`, using the flat-surface mesh in `surf_path`.
@@ -594,9 +595,17 @@ def overlay_region_contour(ax, surf_path, values, threshold,
     x, y = coords[:, 0].astype(float), coords[:, 1].astype(float)
 
     v = np.nan_to_num(values, nan=0.0)
-    if positive_only:
+    # `tail` (when given) overrides positive_only and selects which side of the
+    # threshold is outlined: 'positive' (right, v>=thr), 'negative' (left,
+    # v<=-thr) or 'both' (|v|>=thr). positive_only is kept for back-compat
+    # (positive_only=True == tail='positive'; False == tail='both').
+    t = (str(tail).strip().lower() if tail is not None
+         else ('positive' if positive_only else 'both'))
+    if t in ('positive', 'pos', 'right', 'r', 'greater', '+'):
         mask = (v >= threshold).astype(float)
-    else:
+    elif t in ('negative', 'neg', 'left', 'l', 'less', '-'):
+        mask = (v <= -threshold).astype(float)
+    else:  # 'both'
         mask = (np.abs(v) >= threshold).astype(float)
     if mask.sum() == 0:
         return  # nothing supra-threshold -> no contour
@@ -689,6 +698,52 @@ def resolve_contour_display(contour_display, contour_twosided):
     raise ValueError(
         f"Invalid contour_display {contour_display!r}; "
         "use 'positive', 'both', or None.")
+
+
+def parse_sides(spec):
+    """Unify a contrast's sidedness into (test, tail) from one string.
+
+    The FDR *test* and the displayed *tail* are dissociated, so a two-sided
+    test can still classify or outline a single tail:
+
+        'greater'  -> ('greater',   'positive')   one-sided +FDR, right tail
+        'less'     -> ('less',      'negative')   one-sided -FDR, left tail
+        'two-sided'        -> ('two-sided', 'positive')   |z| FDR, right tail
+        'two-sided:right'  -> ('two-sided', 'positive')
+        'two-sided:left'   -> ('two-sided', 'negative')
+        'two-sided:both'   -> ('two-sided', 'both')
+
+    The test fixes the threshold value (whole_brain_thresholds for one-sided,
+    whole_brain_thresholds_signed for two-sided); the tail fixes which side of
+    that threshold is drawn/classified.
+    """
+    s = str(spec).strip().lower()
+    one = {
+        'greater': ('greater', 'positive'),
+        'one-sided': ('greater', 'positive'),
+        'one-sided-greater': ('greater', 'positive'),
+        'positive': ('greater', 'positive'), 'pos': ('greater', 'positive'),
+        '+': ('greater', 'positive'),
+        'less': ('less', 'negative'), 'one-sided-less': ('less', 'negative'),
+        'negative': ('less', 'negative'), 'neg': ('less', 'negative'),
+        '-': ('less', 'negative'),
+    }
+    if s in one:
+        return one[s]
+    head, _, tail = s.partition(':')
+    if head in ('two-sided', 'two_sided', 'twosided', 'two', '2', 'signed'):
+        tmap = {'': 'positive', 'right': 'positive', 'r': 'positive',
+                'positive': 'positive', 'pos': 'positive',
+                'left': 'negative', 'l': 'negative', 'negative': 'negative',
+                'neg': 'negative', 'both': 'both'}
+        if tail not in tmap:
+            raise ValueError(
+                f"Invalid two-sided tail {tail!r} in {spec!r}; "
+                "use right/left/both.")
+        return 'two-sided', tmap[tail]
+    raise ValueError(
+        f"Invalid sides spec {spec!r}; use 'greater', 'less', or "
+        "'two-sided[:right|:left|:both]'.")
 
 
 def make_signed_gray_threshold_cmap(
@@ -1254,77 +1309,73 @@ def make_regime_cmaps(
     )
 
 
-def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
-                thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
+def regime_rgba(z_diff, z_active, z_passive, thr_diff, vmax,
+                thr_active=0.0, thr_passive=0.0, gate=True,
                 show_undetermined=True, min_vertices=0,
-                diff_sides='one-sided', cmaps=None):
-    """Per-vertex RGBA for one hemisphere of the combined Random/Non-Random map.
+                display_tail='positive', cmaps=None):
+    """Per-vertex RGBA for one hemisphere of a paired-condition difference map.
 
-    Each vertex whose Random - Non-Random difference is supra-threshold is
-    coloured by the rest-referenced *regime* of the two underlying conditions,
-    with |Z(Random - Non-Random)| as the within-regime intensity:
+    The difference is ``diff = active - passive`` (e.g. Random - Non-Random).
+    Classification proceeds in two explicit steps so the regime always refers
+    to the contrast direction of interest and never to its opposite:
 
-        z_rand > 0 and z_nonrand > 0  -> activation   (warm cmap)
-        z_rand < 0 and z_nonrand < 0  -> deactivation (cool cmap)
-        signs differ                  -> crossover     (neutral cmap)
-        neither condition significant -> undetermined  (olive cmap)
+    1. Keep only vertices in the requested *displayed tail* of the difference:
+           display_tail='positive' -> diff >=  thr_diff   (active > passive)
+           display_tail='negative' -> diff <= -thr_diff   (passive > active)
+           display_tail='both'     -> |diff| >= thr_diff   (each vertex by tail)
+       This replaces the old symmetric base, which mixed the active > passive
+       and passive > active tails and could mislabel the opposite direction.
+
+    2. Within that tail, read the regime off the two conditions vs baseline,
+       driven by the ACTIVE condition (the larger one in that tail):
+           Activation   : active sig > baseline AND passive NOT sig < baseline
+                          -> a genuine rise of the active condition.
+           Deactivation : passive sig < baseline AND active NOT sig > baseline
+                          -> carried by suppression of the passive condition,
+                             not a rise above baseline.
+           Crossover    : active sig > baseline AND passive sig < baseline
+                          -> opposite anchors.
+           Undetermined : neither anchor -> difference significant but neither
+                          condition resolved vs baseline (the paired contrast
+                          is more sensitive than either condition alone).
+
+    The four classes are the 2x2 of (active-above) x (passive-below), so they
+    partition the displayed tail exactly. On the positive tail the active
+    condition is ``z_active`` and the passive ``z_passive``; on the negative
+    tail the roles swap, so "activation"/"deactivation" keep their meaning in
+    either direction.
 
     Parameters
     ----------
-    z_diff : (nvert,) signed Z of Random - Non-Random.
-    z_rand, z_nonrand : (nvert,) signed Z of each condition vs Rest.
-    thr_diff : |Z| threshold for the difference map (its two-sided FDR z*).
-    vmax : upper |Z| limit of the intensity ramp, shared across regimes.
-    thr_rand, thr_nonrand : |Z| FDR thresholds of each condition vs Rest. With
-        gate=True these set the per-condition significance used to classify the
-        regime, not merely to exclude near-rest vertices.
-    gate : if True (default) the regime is decided by which condition is
-        INDIVIDUALLY significant vs Rest at its own threshold; a vertex with no
-        significant condition is dropped. If False, the raw sign of each
-        condition's group mean is used directly (no significance test).
-    cross_both : how strict the crossover (sign-reversal) class is when
-        gate=True. If True (default) a vertex is 'crossover' only when BOTH
-        conditions are individually significant in OPPOSITE directions
-        (Random > Rest AND Non-Random < Rest); a vertex significant in only one
-        condition is folded into activation or deactivation by that condition.
-        If False, any supra-threshold vertex with opposite condition signs and
-        at least one significant condition is 'crossover' (the looser, one-armed
-        definition).
-    show_undetermined : if True (default) and gate=True, vertices whose
-        Random - Non-Random difference is significant but for which NEITHER
-        condition is significant vs Rest are painted as the 'undetermined'
-        regime (no rest anchor, so no activation/deactivation/crossover label
-        is defensible). If False, those vertices are left transparent.
-    min_vertices : if > 0, any regime with fewer than this many vertices in the
-        hemisphere is dropped (vertices left transparent and excluded from the
-        returned counts), so sub-visible specks do not appear on the map or in
-        the legend. The returned counts therefore reflect what is displayed; set
-        min_vertices=0 to recover the raw counts.
-    cmaps : (warm, cool, neutral, undetermined) colormaps; defaults via
-        make_regime_cmaps().
+    z_diff : (nvert,) signed Z of (active - passive).
+    z_active, z_passive : (nvert,) signed Z of each condition vs baseline, in
+        contrast order (active = minuend, passive = subtrahend).
+    thr_diff : |Z| threshold of the difference map (its FDR z*; the two-sided
+        value when a two-sided test was used -- the caller decides, see
+        parse_sides / the --regime block).
+    vmax : upper |Z| of the shared intensity ramp.
+    thr_active, thr_passive : |Z| FDR thresholds of each condition vs baseline.
+        With gate=True they set the per-condition significance; with gate=False
+        the raw sign of each group mean is used instead.
+    gate : significance-gated classification (default) vs raw-sign.
+    show_undetermined : if False, the undetermined class is left transparent.
+    min_vertices : if >0, drop any class with fewer than this many vertices in
+        the hemisphere (so sub-visible specks neither paint nor get a colorbar).
+    display_tail : 'positive' | 'negative' | 'both'.
+    cmaps : (warm, cool, neutral, undetermined); defaults via make_regime_cmaps.
 
     Returns
     -------
-    rgba : (nvert, 4) array; non-significant / gated-out vertices are NaN
-        (transparent under SUITPy's overlay_type='rgb').
-    counts : (n_activation, n_deactivation, n_crossover, n_undetermined) ints.
-
-    Notes
-    -----
-    A genuine crossover requires evidence for both of its defining signs, so by
-    default (cross_both=True) each condition must clear FDR vs Rest in opposite
-    directions. The looser cross_both=False reproduces the earlier one-armed
-    behaviour, where one significant condition plus a weak, non-significant
-    opposite sign in the other suffices. For this dataset the strict crossover
-    is empty, consistent with the empty crossover conjunction.
+    rgba : (nvert, 4); unclassified vertices NaN (transparent under 'rgb').
+    counts : (n_activation, n_deactivation, n_crossover, n_undetermined).
     """
     if cmaps is None:
         cmaps = make_regime_cmaps()
     cmap_act, cmap_deact, cmap_cross, cmap_undet = cmaps
 
     z_diff = np.asarray(z_diff, float)
-    z_rand = np.asarray(z_rand, float)
-    z_nonrand = np.asarray(z_nonrand, float)
+    z_active = np.asarray(z_active, float)
+    z_passive = np.asarray(z_passive, float)
     nvert = z_diff.size
 
     thr_diff = float(thr_diff)
@@ -1332,47 +1383,48 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
     if not np.isfinite(vmax) or vmax <= thr_diff:
         vmax = thr_diff + 1e-6
 
-    finite = np.isfinite(z_diff) & np.isfinite(z_rand) & np.isfinite(z_nonrand)
-    one_sided = str(diff_sides).strip().lower().startswith('one')
-    base = finite & ((z_diff >= thr_diff) if one_sided
-                     else (np.abs(z_diff) >= thr_diff))
+    finite = (np.isfinite(z_diff) & np.isfinite(z_active)
+              & np.isfinite(z_passive))
 
-    if gate:
-        # Per-condition significance vs Rest (signed, at each FDR threshold).
-        rps = z_rand >= float(thr_rand)          # Random significantly > Rest
-        rns = z_rand <= -float(thr_rand)         # Random significantly < Rest
-        nps = z_nonrand >= float(thr_nonrand)    # Non-Random significantly > Rest
-        nns = z_nonrand <= -float(thr_nonrand)   # Non-Random significantly < Rest
-        anysig = rps | rns | nps | nns
-        if cross_both:
-            # Strict crossover: BOTH conditions significant, opposite directions.
-            # A vertex significant in only one condition is assigned to
-            # activation / deactivation by that condition's direction.
-            cross = base & ((rps & nns) | (rns & nps))
-            activ = base & ~cross & (rps | nps)
-            deact = base & ~cross & (rns | nns)
-        else:
-            # Loose crossover: opposite condition signs with >=1 significant.
-            opp = (((z_rand > 0) & (z_nonrand < 0)) |
-                   ((z_rand < 0) & (z_nonrand > 0)))
-            cross = base & opp & anysig
-            activ = base & ~opp & anysig & (z_rand > 0)
-            deact = base & ~opp & anysig & (z_rand < 0)
-        # Difference significant but NEITHER condition anchored to Rest: the
-        # rest-referenced regime is undetermined (paired contrast is more
-        # sensitive than either condition vs Rest).
-        undet = base & ~anysig
+    # Step 1: restrict to the displayed tail of the difference.
+    dt = str(display_tail).strip().lower()
+    if dt in ('positive', 'pos', 'right', 'r', 'greater', '+'):
+        in_pos = finite & (z_diff >= thr_diff)
+        in_neg = np.zeros(nvert, bool)
+    elif dt in ('negative', 'neg', 'left', 'l', 'less', '-'):
+        in_pos = np.zeros(nvert, bool)
+        in_neg = finite & (z_diff <= -thr_diff)
+    elif dt in ('both', 'two-sided', 'two_sided', 'two', '2'):
+        in_pos = finite & (z_diff >= thr_diff)
+        in_neg = finite & (z_diff <= -thr_diff)
     else:
-        # Ungated: raw sign of each condition's group mean (no significance).
-        activ = base & (z_rand > 0) & (z_nonrand > 0)
-        deact = base & (z_rand < 0) & (z_nonrand < 0)
-        cross = base & ~(activ | deact)
-        undet = np.zeros(nvert, bool)
+        raise ValueError(
+            f"Invalid display_tail {display_tail!r}; "
+            "use 'positive', 'negative', or 'both'.")
+    base = in_pos | in_neg
 
-    # Honour the display switches at the mask level so the returned counts match
-    # what is actually painted (and therefore what the colorbar legend shows):
-    # an undetermined hidden by show_undetermined, or any regime smaller than
-    # min_vertices in this hemisphere, is removed before counting and drawing.
+    # Step 2: anchor each tail by its active (larger) and passive conditions.
+    # Positive tail: active=z_active, passive=z_passive. Negative tail: swapped,
+    # so the larger condition is always the 'active' driver of activation.
+    if gate:
+        a_above = z_active >= float(thr_active)     # active sig > baseline
+        a_below = z_active <= -float(thr_active)    # active sig < baseline
+        p_above = z_passive >= float(thr_passive)   # passive sig > baseline
+        p_below = z_passive <= -float(thr_passive)  # passive sig < baseline
+    else:
+        a_above, a_below = z_active > 0, z_active < 0
+        p_above, p_below = z_passive > 0, z_passive < 0
+
+    active_above = (in_pos & a_above) | (in_neg & p_above)
+    passive_below = (in_pos & p_below) | (in_neg & a_below)
+
+    activ = base & active_above & ~passive_below
+    cross = base & active_above & passive_below
+    deact = base & ~active_above & passive_below
+    undet = base & ~active_above & ~passive_below
+
+    # Honour the display switches at mask level so the returned counts match
+    # what is painted (and therefore what the colorbar legend shows).
     if not show_undetermined:
         undet = np.zeros(nvert, bool)
     if min_vertices and int(min_vertices) > 0:
@@ -1380,9 +1432,7 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
             if 0 < int(m.sum()) < int(min_vertices):
                 m[:] = False
 
-    diff_mag = z_diff if one_sided else np.abs(z_diff)
-    mag = np.clip((diff_mag - thr_diff) / (vmax - thr_diff), 0.0, 1.0)
-
+    mag = np.clip((np.abs(z_diff) - thr_diff) / (vmax - thr_diff), 0.0, 1.0)
     rgba = np.full((nvert, 4), np.nan, float)
     if activ.any():
         rgba[activ] = cmap_act(mag[activ])
@@ -1398,7 +1448,7 @@ def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
 
 
 def regime_exclusion_stats(z_diff, z_rand, thr_diff, thr_rand,
-                           diff_sides='one-sided', cortex_mask=None):
+                           display_tail='positive', cortex_mask=None):
     """Quantify how much of a Random - Non-Random significant map is NOT backed
     by a significant Random vs Rest activation, i.e. the vertices that would be
     excluded if Random significance vs rest were required. At those vertices the
@@ -1432,9 +1482,14 @@ def regime_exclusion_stats(z_diff, z_rand, thr_diff, thr_rand,
         np.asarray(cortex_mask, bool) & finite)
 
     n_total = int(cortex.sum())
-    one_sided = str(diff_sides).strip().lower().startswith('one')
-    in_contrast = cortex & ((z_diff >= float(thr_diff)) if one_sided
-                            else (np.abs(z_diff) >= float(thr_diff)))
+    dt = str(display_tail).strip().lower()
+    if dt.startswith('pos') or dt in ('right', 'r', 'greater', '+'):
+        sig = z_diff >= float(thr_diff)
+    elif dt.startswith('neg') or dt in ('left', 'l', 'less', '-'):
+        sig = z_diff <= -float(thr_diff)
+    else:  # 'both'
+        sig = np.abs(z_diff) >= float(thr_diff)
+    in_contrast = cortex & sig
     n_contrast = int(in_contrast.sum())
     excluded = in_contrast & (np.abs(z_rand) < float(thr_rand))
     n_excluded = int(excluded.sum())
@@ -1456,9 +1511,9 @@ def regime_exclusion_stats(z_diff, z_rand, thr_diff, thr_rand,
 def plot_regime_flatmap(
     diff_stats, cond_rand_stats, cond_nonrand_stats,
     thr_diff, vmax, task_key, contrast_tag, output_dir,
-    thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
+    thr_rand=0.0, thr_nonrand=0.0, gate=True,
     show_undetermined=True, min_vertices=0,
-    diff_sides='one-sided',
+    display_tail='positive',
     hemi=['L', 'R'],
     warm=('#E1261C', '#FF8C00', '#FFE100'),
     cool=('#1A6FE0', '#22C2E8', '#9BE8FF'),
@@ -1466,7 +1521,7 @@ def plot_regime_flatmap(
     undetermined=('#7B7239', '#C6BC82'),
     show_colorbar=True, n_ticks=4, tick_decimals=1,
     contour_stat=None, contour_threshold=None, contour_color='k',
-    contour_linewidth=1.0, contour_positive_only=True,
+    contour_linewidth=1.0, contour_tail='positive',
     show_borders=True,
 ):
     """Combined Random/Non-Random flatmap coloured by rest-referenced regime.
@@ -1511,9 +1566,9 @@ def plot_regime_flatmap(
         zd, zr, znr = per_h[h]
         rgba, counts = regime_rgba(
             zd, zr, znr, thr_diff, vmax,
-            thr_rand=thr_rand, thr_nonrand=thr_nonrand, gate=gate,
-            cross_both=cross_both, show_undetermined=show_undetermined,
-            min_vertices=min_vertices, diff_sides=diff_sides, cmaps=cmaps)
+            thr_active=thr_rand, thr_passive=thr_nonrand, gate=gate,
+            show_undetermined=show_undetermined,
+            min_vertices=min_vertices, display_tail=display_tail, cmaps=cmaps)
         total += np.asarray(counts, int)
         plt.sca(ax)
         flatmap.plot(
@@ -1529,7 +1584,7 @@ def plot_regime_flatmap(
             overlay_region_contour(
                 ax, surfaces[h], c2, float(contour_threshold),
                 color=contour_color, linewidth=contour_linewidth,
-                positive_only=contour_positive_only)
+                tail=contour_tail)
 
     print(f"[regime] displayed vertices -> activation={total[0]} "
           f"deactivation={total[1]} crossover={total[2]} "
@@ -2246,15 +2301,23 @@ contour_threshold_override = None  # e.g. 3.09
 # the outline regardless of contour_sides; contour_sides then only controls
 # whether the outline traces activations only or both tails.
 contrast_sides = None        # e.g. 'one-sided', 'two-sided', or None (auto)
-contour_sides = 'two-sided'  # outline of activations AND deactivations
+# In the --regime path, contour_sides is parsed by parse_sides into (FDR test,
+# drawn tail), so encode the tail here:
+#   'two-sided:both'  -> two-sided z*, outline activations AND deactivations
+#                        (Fig 6a-style full predictive-timing outline)
+#   'two-sided:right' -> two-sided z*, outline the activation tail only
+#                        (Fig 7-style, same z*, same-sign with the conjunctions)
+#   'two-sided:left'  -> two-sided z*, deactivation tail only
+#   'greater'/'less'  -> one-sided +/- FDR, right/left tail
+# (In the legacy batch/single contour paths below, the tail still comes from
+# contour_display; only the --regime path reads the tail from contour_sides.)
+contour_sides = 'two-sided:both'
 
-# contour_display : which tail(s) of the OUTLINE to draw, independent of the
-# threshold sidedness set by contour_sides above. 'positive' draws the
+# contour_display : tail of the OUTLINE for the LEGACY batch/single contour
+# paths only (the --regime path encodes the tail in contour_sides via
+# parse_sides, and ignores contour_display). 'positive' draws the
 # Encoding > Rest (activation) side only; 'both' draws activations and
-# deactivations; None mirrors contour_sides (legacy: positive-only when the
-# threshold is one-sided, both tails when two-sided). To threshold at two-sided
-# |z| FDR but outline only the positive (predictive-timing) network, set
-# contour_sides = 'two-sided' together with contour_display = 'positive'.
+# deactivations; None mirrors contour_sides.
 contour_display = 'positive'
 
 # Display the sulcal/gyral border outlines (the dotted lines from the fs_LR
@@ -2262,7 +2325,7 @@ contour_display = 'positive'
 # with no sulcal borders. Applies to every flatmap (single, overlay, regime,
 # contour and multi-ROI). It does NOT affect the region contour drawn with
 # --contour (e.g. the Encoding-vs-Rest outline), which is controlled separately.
-SHOW_SULCI_BORDERS = False
+SHOW_SULCI_BORDERS = True
 
 # ------------- Combined regime visualization (--contour) -------------
 # Used only with: python volume_to_surface.py --regime
@@ -2289,21 +2352,23 @@ REGIME_COMPONENTS = {
 # whole-brain FDR, so vertices hovering at rest are not labelled. If False,
 # classify by the raw sign of each condition's group mean.
 REGIME_GATE_SIGNIF = True
-# When the gate is on, how strict the crossover (sign-reversal) class is. If
-# True (default) a vertex is 'crossover' only when BOTH conditions are
-# individually significant vs Rest in OPPOSITE directions (Random > Rest AND
-# Non-Random < Rest); a vertex significant in only one condition is folded into
-# activation or deactivation. If False, one significant condition with an
-# opposite (possibly non-significant) sign in the other is enough. The strict
-# setting is empty for this dataset, and its colorbar is then dropped
-# automatically.
-REGIME_CROSS_REQUIRE_BOTH_SIGNIF = True
-# Sidedness of the difference (Random - Non-Random) shown on the regime map.
-# 'one-sided' (default): only Random > Non-Random (positive tail, one-sided
-#   FDR); the colorbar magnitude is then unambiguously Z (R>NR) and the hue is
-#   purely the rest-referenced regime, so cool/deactivation cannot be misread
-#   as the NR>R direction. 'two-sided': also show NR>R using the |z| FDR.
-REGIME_DIFF_SIDES = 'one-sided'
+# Crossover is now defined directionally and unambiguously inside regime_rgba:
+# a vertex is 'crossover' iff the ACTIVE condition is significantly above
+# baseline AND the PASSIVE condition significantly below it (opposite anchors).
+# A vertex significant in only one condition is folded into activation or
+# deactivation by that condition. (The old REGIME_CROSS_REQUIRE_BOTH_SIGNIF
+# toggle is gone: with the active/passive framing the strict definition is the
+# only sensible one.) The strict crossover is empty for this dataset.
+# Sidedness of the difference (Random - Non-Random) on the regime map, parsed
+# by parse_sides into an FDR test (sets the threshold) and a displayed tail:
+#   'greater' / 'less'              one-sided +/- FDR, right/left tail
+#   'two-sided:right' (default)     two-sided z* (e.g. 3.343), Random>Non-Random
+#   'two-sided:left'                two-sided z*, Non-Random>Random
+#   'two-sided:both'                two-sided z*, both tails
+# 'two-sided:right' is what matches Table E.2 / the supplement (two-sided z*,
+# Random>Non-Random tail), so the colorbar magnitude is unambiguously Z (R>NR)
+# and the hue is purely the rest-referenced regime.
+REGIME_DIFF_SIDES = 'two-sided:right'
 # Per-regime intensity colormaps (low |z| -> high |z|).
 REGIME_WARM = ('#E1261C', '#FF8C00', '#FFE100')      # activation
 REGIME_COOL = ('#1A6FE0', '#22C2E8', '#9BE8FF')      # deactivation
@@ -2630,14 +2695,19 @@ if __name__ == '__main__':
         rL, rR = _group_lr(rand_id, rand_name)
         nL, nR = _group_lr(nonrand_id, nonrand_name)
 
-        # Difference threshold + vmax. One-sided (R>NR positive tail) by
-        # default, so the colorbar magnitude is unambiguously Z(R>NR); set
-        # REGIME_DIFF_SIDES='two-sided' to also display the NR>R tail (|z| FDR).
-        if str(REGIME_DIFF_SIDES).strip().lower().startswith('one'):
-            thr_diff, vmax_diff = whole_brain_thresholds(
+        # Difference threshold + vmax. parse_sides splits REGIME_DIFF_SIDES into
+        # the FDR *test* (which sets the threshold) and the displayed *tail*
+        # (which side is classified). The default 'two-sided:right' uses the
+        # two-sided z* (e.g. 3.343, matching Table E.2 / the supplement) and
+        # shows only the Random > Non-Random tail, reproducing the reported
+        # regime counts and overlaps. A one-sided test would instead lower the
+        # threshold (~2.956) and desync the figure from the volume tables.
+        regime_test, regime_tail = parse_sides(REGIME_DIFF_SIDES)
+        if regime_test == 'two-sided':
+            thr_diff, vmax_diff = whole_brain_thresholds_signed(
                 derivatives_folder, SUBJECTS, task_id, diff_id, wb_gmask)
         else:
-            thr_diff, vmax_diff = whole_brain_thresholds_signed(
+            thr_diff, vmax_diff = whole_brain_thresholds(
                 derivatives_folder, SUBJECTS, task_id, diff_id, wb_gmask)
 
         # Condition |z| FDR thresholds vs rest. Always computed: the gate uses
@@ -2680,11 +2750,14 @@ if __name__ == '__main__':
                 'Auditory Random vs Auditory Non-Random',
                 'Visual Random vs Visual Non-Random',
             )
-            contour_twosided = resolve_signed(
-                contour_sides, contrast_name2, signed_contrasts)
+            # parse_sides splits contour_sides into the FDR test (threshold) and
+            # the drawn tail: e.g. 'two-sided:both' for Fig 6a (outline of both
+            # activations and deactivations) or 'two-sided:right' for Fig 7
+            # (same z*, only the activation tail outlined).
+            contour_test, contour_tail = parse_sides(contour_sides)
             if contour_threshold_override is not None:
                 thr2 = float(contour_threshold_override)
-            elif contour_twosided:
+            elif contour_test == 'two-sided':
                 thr2, _ = whole_brain_thresholds_signed(
                     derivatives_folder, SUBJECTS, contour_task_id,
                     contrast_id2, wb_gmask)
@@ -2695,8 +2768,7 @@ if __name__ == '__main__':
             contour_tag = '_with_' + cname2
             contour_kw = dict(
                 contour_stat=[cL2, cR2], contour_threshold=thr2,
-                contour_positive_only=resolve_contour_display(
-                    contour_display, contour_twosided))
+                contour_tail=contour_tail)
 
         # Diagnostic: fraction of the Random - Non-Random significant map that
         # is NOT backed by a significant Random vs Rest activation (would be
@@ -2710,7 +2782,7 @@ if __name__ == '__main__':
             np.concatenate([dL, dR]),
             np.concatenate([rL, rR]),
             thr_diff, thr_rand,
-            diff_sides=REGIME_DIFF_SIDES,
+            display_tail=regime_tail,
             cortex_mask=np.concatenate([_cortexL, _cortexR]))
         print(f"[regime] Random-vs-Rest exclusion within {contrast_name!r}:")
         print(f"  total cortical vertices          : "
@@ -2734,10 +2806,9 @@ if __name__ == '__main__':
             output_dir=regime_dir,
             thr_rand=thr_rand, thr_nonrand=thr_nonrand,
             gate=REGIME_GATE_SIGNIF,
-            cross_both=REGIME_CROSS_REQUIRE_BOTH_SIGNIF,
             show_undetermined=not REGIME_FILTER_UNDETERMINED,
             min_vertices=REGIME_MIN_VERTICES,
-            diff_sides=REGIME_DIFF_SIDES,
+            display_tail=regime_tail,
             hemi=['L', 'R'],
             warm=REGIME_WARM, cool=REGIME_COOL, neutral=REGIME_CROSS,
             undetermined=REGIME_UNDETERMINED,
