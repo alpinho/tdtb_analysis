@@ -83,7 +83,9 @@ outline a reference network (PLOT_NETWORK_CONTOUR), chosen by CONTOUR_SOURCE:
 
   'encoding'    : the canonical predictive-timing network, Encoding vs Rest
                   (Beat + Interval, Random excluded) pooled over all main tasks;
-                  drawn two-sided. Cross-task, so kept purely descriptive.
+                  drawn as the positive tail at the proper two-sided z* (2.127),
+                  matching Figure 6 and the Results within/beyond percentages.
+                  Cross-task, so kept purely descriptive.
   'predictable' : the WITHIN-GLM predictable response, Non-Random vs Rest from
                   the NTFD-Random task itself; drawn one-sided positive
                   (Non-Random > Rest). Same GLM as the arms, and the crossover
@@ -236,12 +238,44 @@ def mask_on_grid(mask_path, ref_img):
     return np.asanyarray(m.dataobj).astype(bool)
 
 
-def fdr_bool(z, in_mask, side, alpha=0.05, thr_override=None):
-    """Boolean supra-threshold map for one tail of a z-map.
+def _fdr_two_sided(vals, alpha=0.05):
+    """Proper two-sided BH-FDR |z| threshold.
 
-    side='pos' : z >= +thr           (one-sided BH-FDR on the positive tail)
-    side='neg' : z <= -thr           (one-sided BH-FDR on the negative tail)
-    side='two' : |z| >= thr          (two-sided BH-FDR on |z|)
+    fdr_threshold(|z|) treats |z| as a one-sided statistic and does NOT double
+    the p-values, so it under-corrects (it returns the folded one-sided z*).
+    Here the two-sided p = 2*(1 - Phi(|z|)) is formed, Benjamini-Hochberg is run
+    on those, and the cutoff is converted back to a |z| threshold. For Encoding
+    vs Rest this gives z* = 2.127 rather than the folded 1.794, matching
+    whole_brain_thresholds_signed in volume_to_surface.
+    """
+    v = np.asarray(vals, float)
+    v = v[np.isfinite(v)]
+    if v.size == 0:
+        return float('inf')
+    p = np.clip(2.0 * stats.norm.sf(np.abs(v)), 0.0, 1.0)
+    ps = np.sort(p)
+    n = ps.size
+    line = (np.arange(1, n + 1) / n) * alpha
+    below = ps <= line
+    if not np.any(below):
+        return float('inf')
+    return float(stats.norm.isf(ps[np.max(np.nonzero(below))] / 2.0))
+
+
+def fdr_bool(z, in_mask, side, alpha=0.05, thr_override=None):
+    """Boolean supra-threshold map for a tail of a z-map.
+
+    side='pos'     : z >= +thr   (one-sided BH-FDR, positive tail)
+    side='neg'     : z <= -thr   (one-sided BH-FDR, negative tail)
+    side='two'     : |z| >= thr  (proper two-sided BH-FDR, both tails)
+    side='two_pos' : z >= +thr   (proper two-sided z*, positive tail only)
+    side='two_neg' : z <= -thr   (proper two-sided z*, negative tail only)
+
+    The 'two*' threshold is a PROPER two-sided correction (p-values doubled),
+    not fdr_threshold(|z|). 'two_pos'/'two_neg' apply that same two-sided z* but
+    outline a single tail: the predictive-timing contour is the POSITIVE Encoding
+    tail at the two-sided z* (2.127), which is what Figure 6 and the Results
+    within/beyond percentages use.
 
     thr_override forces the |z| threshold directly (used for the network
     contour). Returns (boolean array shaped like z, signed threshold).
@@ -256,10 +290,13 @@ def fdr_bool(z, in_mask, side, alpha=0.05, thr_override=None):
         thr = float(thr_override) if thr_override else \
             float(fdr_threshold(-vals, alpha))
         return (z <= -thr) & in_mask, -thr
-    # two-sided
-    thr = float(thr_override) if thr_override else \
-        float(fdr_threshold(np.abs(vals), alpha))
-    return (np.abs(z) >= thr) & in_mask, thr
+    # proper two-sided threshold (|z|), optionally restricted to one tail
+    thr = float(thr_override) if thr_override else _fdr_two_sided(vals, alpha)
+    if side == 'two_pos':
+        return (z >= thr) & in_mask, thr
+    if side == 'two_neg':
+        return (z <= -thr) & in_mask, -thr
+    return (np.abs(z) >= thr) & in_mask, thr   # side == 'two'
 
 
 def conjoin(bools, include, exclude):
@@ -620,83 +657,90 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 
 
 # %%
-# ============================ TOGGLES ==================================
+# ===================== TUNABLE TOGGLES & INPUTS =======================
+# Everything in THIS section is safe to change between runs: which space to
+# compute, the statistics, the cluster-extent filter, and the surface
+# display/contour options. Each entry lists its type and accepted values. The
+# FIXED ANALYSIS DEFINITIONS further below (arms, conjunctions, contour catalogs
+# and their per-category mapping) encode the MEANING of the analysis and are
+# read-only: editing those changes WHAT is tested, not HOW the run is set up.
 
-RUN_VOLUME = False
+# ---- What to compute -------------------------------------------------
+# Which representation(s) to run; independent booleans, set at least one.
+#   RUN_VOLUME  (bool): whole-brain volume conjunctions (glass brain + NIfTI).
+#   RUN_SURFACE (bool): fs_LR32k surface conjunctions (the figure flatmaps).
+RUN_VOLUME = True
 RUN_SURFACE = True
 
-# (Re)project each subject to the surface before grouping. Set False if the
-# per-subject fs_LR32k ciftis already exist for every contrast below.
-COMPUTE_INDIVIDUAL_SURF = False
-
-# Load volume z-maps already written by volume_maps.py when available
-# (else re-fit the second-level model here).
+# LOAD_PRECOMPUTED_VOLUME_ZMAPS (bool, volume path only): reuse volume z-maps
+# already written by volume_maps.py when present (True, faster) instead of
+# re-fitting the second-level model here (False).
 LOAD_PRECOMPUTED_VOLUME_ZMAPS = True
 
-FDR_ALPHA = 0.05      # BH-FDR level: the conjunction arms (always) and any
-                      # network whose threshold is None
+# COMPUTE_INDIVIDUAL_SURF (bool, surface path only): (re)project each subject to
+# fs_LR32k before grouping (True), or reuse existing per-subject ciftis (False,
+# faster; requires them to exist for every contrast used).
+COMPUTE_INDIVIDUAL_SURF = False
+
+# ---- Statistics ------------------------------------------------------
+# FDR_ALPHA (float in (0,1)): BH-FDR q applied to every conjunction arm (always)
+# and to any contour network whose CONTOUR_TERMS threshold is None. 0.05 is the
+# standard level.
+FDR_ALPHA = 0.05
+
+# SMOOTHING_FWHM (float, mm; 0.0 disables): Gaussian smoothing used when
+# (re)fitting the second-level z-maps. Keep it equal to the smoothing of the
+# maps you compare against (Table E.2, Figure 6) so thresholds and extents stay
+# comparable.
 SMOOTHING_FWHM = 8.0
 
-# Minimum cluster EXTENT, to drop isolated voxels/vertices that pass the
+# Minimum cluster EXTENT, dropping isolated voxels/vertices that pass the
 # voxelwise FDR conjunction but have no spatial support (FDR controls the
-# per-element rate, not extent). Volume is given in physical volume (mm^3) and
-# converted to a voxel count at the data resolution, so it does not depend on
-# the grid; surface is given directly in fs_LR32k vertices. Set either to 0 to
-# disable that space's filter. The defaults below are conventional minimal
-# extents for whole-brain reporting (small enough to retain genuine clusters,
-# large enough to remove specks); adjust if your reporting convention differs.
-MIN_CLUSTER_MM3 = 100.0       # volume; ~ a small contiguous cluster
-MIN_CLUSTER_VERTICES = 20     # surface (fs_LR32k; ~60 mm^2)
+# per-element rate, not extent). Set either to 0 to disable that space's filter.
+#   MIN_CLUSTER_MM3      (float, mm^3): volume; converted to a voxel count at the
+#                        data resolution, so it is grid-independent.
+#   MIN_CLUSTER_VERTICES (int): surface, in fs_LR32k vertices.
+# Defaults are conventional minimal extents for whole-brain reporting (small
+# enough to keep genuine clusters, large enough to remove specks).
+MIN_CLUSTER_MM3 = 100.0       # ~ a small contiguous volume cluster
+MIN_CLUSTER_VERTICES = 20     # fs_LR32k; ~60 mm^2
 
-# No masking. Conjunctions are reported whole-brain; the predictive-timing /
-# predictable network is used ONLY as an optional display contour below.
+# ---- Surface display / contour (never affects a statistic) -----------
+# Conjunctions are always reported whole-brain; a reference network is drawn
+# only as an outline, for orientation. Nothing below changes a statistic.
 
-# Surface DISPLAY only: draw a reference network as a contour on the conjunction
-# flatmaps (does not affect any statistic). Choose which network with
-# CONTOUR_SOURCE.
-PLOT_NETWORK_CONTOUR = False
+# PLOT_NETWORK_CONTOUR (bool): draw the reference-network outline on the
+# conjunction flatmaps (False = none; True = the network set by CONTOUR_SOURCE).
+PLOT_NETWORK_CONTOUR = True
 
-# Which reference network to outline (see CONTOUR_TERMS in INPUTS):
-#   'encoding'    = canonical predictive-timing network, Encoding vs Rest
-#                   (Beat+Interval, Random excluded), pooled over all main tasks;
-#                   two-sided. Cross-task -> purely descriptive.
-#   'predictable' = within-GLM predictable response, Non-Random vs Rest from the
+# CONTOUR_SOURCE (str): which reference network to outline; resolved in the
+# CONTOUR_TERMS catalog (FIXED, below). Accepted values:
+#   'encoding'    : canonical predictive-timing network, Encoding vs Rest
+#                   (Beat+Interval, Random excluded), pooled over all main tasks,
+#                   drawn as the positive tail at the proper two-sided z* (2.127),
+#                   matching Figure 6 and the Results within/beyond percentages.
+#                   Cross-task -> purely descriptive. USE THIS for Figure 7.
+#   'predictable' : within-GLM predictable response, Non-Random vs Rest from the
 #                   NTFD-Random task itself; one-sided positive. Same GLM as the
 #                   arms; the crossover categories sit outside it by construction.
-CONTOUR_SOURCE = 'predictable'        # 'encoding' | 'predictable'
+CONTOUR_SOURCE = 'encoding'           # 'encoding' | 'predictable'
 
-# Short tag appended to the conjunction figure filename so different
-# CONTOUR_SOURCE runs are written side by side instead of overwriting.
-CONTOUR_SOURCE_TAG = {'encoding': 'encoding', 'predictable': 'nonrandom'}
+# SHOW_FLATMAP_BORDERS (bool): draw the fs_LR32k anatomical borders (dotted
+# sulcal landmark lines) on the flatmaps. Purely cosmetic.
+SHOW_FLATMAP_BORDERS = False
 
-# Surface DISPLAY only: draw the fs_LR32k anatomical borders (the dotted sulcal
-# landmark lines) on the conjunction flatmaps. Purely cosmetic.
-SHOW_FLATMAP_BORDERS = True
-
-# Surface DISPLAY only: draw the colorbar (and its "Z-values" label and ticks)
-# on the conjunction flatmaps. Set False to plot the maps with no colorbar/text.
+# FLATMAP_SHOW_CBAR (bool): draw the colorbar (with its "Z-values" label and
+# ticks) on each flatmap. False = maps only (e.g. when a single shared colorbar
+# is composited later, as in Figure 6).
 FLATMAP_SHOW_CBAR = False
-
-# Contour network per conjunction: each category -> a contour KEY, resolved
-# within the chosen CONTOUR_SOURCE catalog (CONTOUR_TERMS). 'pooled' for the
-# cross-modal categories, 'auditory' / 'visual' for the modality-specific ones.
-# The side and threshold live with each contrast in CONTOUR_TERMS.
-CONJUNCTION_CONTOUR = {
-    'cross_modal_shared_activation':         'pooled',
-    'cross_modal_activation':                'pooled',
-    'cross_modal_deactivation':              'pooled',
-    'cross_modal_crossover':                 'pooled',
-    'modality_specific_activation_auditory': 'auditory',
-    'modality_specific_activation_visual':   'visual',
-    'modality_specific_crossover_auditory':  'auditory',
-    'modality_specific_crossover_visual':    'visual',
-}
 
 
 # %%
 # ====================== RUN CONFIGURATION ==============================
-# Genuine run-level choices (whom to analyse, which task supplies the arms vs
-# the contour network). The fixed analysis design is defined further below.
+# Genuine run-level choices that you may change: the participant list and which
+# task supplies the conjunction arms vs the contour network. The `tasks` dict
+# below is a fixed name<->id catalog; only the *_task_tag selections are
+# choices. The fixed analysis design (arms, conjunctions, contours) follows.
 
 SUBJECTS = [
     3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
@@ -724,7 +768,8 @@ network_task_id = {v: k for k, v in tasks.items()}[network_task_tag]
 # %%
 # ================= FIXED ANALYSIS DEFINITIONS ==========================
 # NOT tuning knobs. The arms (TERMS), the conjunction definitions
-# (CONJUNCTIONS), and the contour catalogs (CONTOUR_TERMS) below are fixed by
+# (CONJUNCTIONS), the contour catalogs (CONTOUR_TERMS) and the per-category
+# contour mapping (CONJUNCTION_CONTOUR / CONTOUR_SOURCE_TAG) below are fixed by
 # the MEANING of each conjunction and are documented in full in the top
 # docstring. Each arm's contrast id, task, and tail follow directly from the
 # Nichols conjunction-null logic; editing them changes what the analysis tests,
@@ -767,18 +812,20 @@ TERMS = {
 # (TOGGLES). CONJUNCTION_CONTOUR maps each category to a key below.
 #   'encoding'    = canonical predictive-timing network, Encoding vs Rest
 #                   (Beat+Interval, Random excluded), pooled over all main tasks;
-#                   two-sided. Cross-task -> purely descriptive.
+#                   positive tail at the proper two-sided z* (2.127), matching
+#                   Figure 6 / the Results within-vs-beyond percentages.
+#                   Cross-task -> purely descriptive.
 #   'predictable' = within-GLM predictable response, Non-Random vs Rest from the
 #                   NTFD-Random task itself; one-sided positive (NonRandom>Rest).
 # Each entry: cid / name / task / side / threshold (None = data-driven qFDR).
 CONTOUR_TERMS = {
     'encoding': {
         'pooled':   dict(cid=1, name='Encoding',          task=network_task_tag,
-                         side='pos', threshold=None),
+                         side='two_pos', threshold=None),
         'auditory': dict(cid=2, name='Auditory Encoding', task=network_task_tag,
-                         side='pos', threshold=None),
+                         side='two_pos', threshold=None),
         'visual':   dict(cid=3, name='Visual Encoding',   task=network_task_tag,
-                         side='pos', threshold=None),
+                         side='two_pos', threshold=None),
     },
     'predictable': {
         'pooled':   dict(cid=8,  name='Non-Random',       task=analysis_task_tag,
@@ -849,6 +896,29 @@ CONJUNCTIONS = {
 }
 
 
+# ---- Display contour mapping (fixed by meaning; read-only) ------------
+# CONTOUR_SOURCE_TAG: filename tag per CONTOUR_SOURCE value, so runs with
+# different sources are written side by side rather than overwriting. Only edit
+# if you add a new CONTOUR_SOURCE.
+CONTOUR_SOURCE_TAG = {'encoding': 'encoding', 'predictable': 'nonrandom'}
+
+# CONJUNCTION_CONTOUR: the contour KEY each conjunction is outlined with,
+# resolved within the chosen CONTOUR_SOURCE catalog (CONTOUR_TERMS). Fixed by
+# meaning: 'pooled' for the cross-modal categories, 'auditory'/'visual' for the
+# modality-specific ones (each contrast's side/threshold live in CONTOUR_TERMS).
+# Display-only; does not affect any statistic.
+CONJUNCTION_CONTOUR = {
+    'cross_modal_shared_activation':         'pooled',
+    'cross_modal_activation':                'pooled',
+    'cross_modal_deactivation':              'pooled',
+    'cross_modal_crossover':                 'pooled',
+    'modality_specific_activation_auditory': 'auditory',
+    'modality_specific_activation_visual':   'visual',
+    'modality_specific_crossover_auditory':  'auditory',
+    'modality_specific_crossover_visual':    'visual',
+}
+
+
 # %%
 # ========================= PATHS / LABELS ==============================
 
@@ -909,7 +979,7 @@ def main():
         assert key in contour_terms, \
             f"CONTOUR_TERMS['{CONTOUR_SOURCE}'] has no key '{key}' (for '{c}')"
         ct = contour_terms[key]
-        assert ct['side'] in ('pos', 'neg', 'two'), \
+        assert ct['side'] in ('pos', 'neg', 'two', 'two_pos', 'two_neg'), \
             f"CONTOUR_TERMS['{CONTOUR_SOURCE}']['{key}']['side'] invalid"
         assert ct['threshold'] is None or isinstance(ct['threshold'],
                                                      (int, float)), \
