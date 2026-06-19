@@ -529,9 +529,11 @@ def whole_brain_thresholds(derivatives_dir, subjects, task_key, contrast_key,
 
 def whole_brain_thresholds_signed(derivatives_dir, subjects, task_key,
                                   contrast_key, gmask):
-    """Two-sided BH-FDR threshold (on |z|) and symmetric vmax for a signed
-    diverging map. Reuses the same second-level fit as
-    whole_brain_thresholds, but corrects both tails symmetrically."""
+    """Proper two-sided BH-FDR threshold (on |z|) and symmetric vmax for a
+    signed diverging map. Reuses the same second-level fit as
+    whole_brain_thresholds, but corrects both tails by doubling the p-values
+    (NOT fdr_threshold(|z|), which under-corrects); e.g. z* = 3.34 rather than
+    the folded 2.92 for Random vs Non-Random."""
 
     # Paths of the NORMALIZED individual contrast map for all subjects
     encoding_maps = [os.path.join(derivatives_dir, 'sub-%02d' % sub,
@@ -558,12 +560,26 @@ def whole_brain_thresholds_signed(derivatives_dir, subjects, task_key,
     z_values = masker.fit_transform(z_map).ravel()
     z_values = z_values[~np.isnan(z_values)]
 
-    # Two-sided BH-FDR: threshold computed on the absolute z-values so that
-    # positive and negative tails are corrected symmetrically.
-    thr_signed = fdr_threshold(np.abs(z_values), alpha=0.05)
+    # Two-sided BH-FDR. Note fdr_threshold(|z|) does NOT give this: it treats
+    # |z| as a one-sided statistic (p = 1 - Phi(|z|)) and so under-corrects,
+    # returning the folded one-sided z* (e.g. 2.92 instead of 3.34) and roughly
+    # twice the suprathreshold voxels. For a proper two-sided control we form
+    # two-sided p = 2*(1 - Phi(|z|)), run Benjamini-Hochberg on those, and
+    # convert the cutoff back to a |z| threshold.
+    absz = np.abs(z_values)
+    p_two = np.clip(2.0 * stats.norm.sf(absz), 0.0, 1.0)
+    p_sorted = np.sort(p_two)
+    n = p_sorted.size
+    bh_line = (np.arange(1, n + 1) / n) * 0.05
+    below = p_sorted <= bh_line
+    if np.any(below):
+        p_cut = p_sorted[np.max(np.nonzero(below))]
+        thr_signed = float(stats.norm.isf(p_cut / 2.0))
+    else:
+        thr_signed = float('inf')
 
     # Symmetric color limit
-    vmax = np.amax(np.abs(z_values))
+    vmax = np.amax(absz)
 
     print(f'Signed FDR threshold (|z|): {thr_signed}; symmetric vmax: {vmax}')
 
@@ -1608,15 +1624,15 @@ def plot_regime_flatmap(
         undet_n = int(total[3]) if show_undetermined else 0
         candidates = [
             (cmaps[1], 'Deactivation',
-             r'$\mathrm{Z\ (Rest}\gg\mathbf{R{>}NR}\mathrm{)}$', int(total[1])),
+             r'$\mathrm{Z\ (Baseline}\gg\mathbf{R{>}NR}\mathrm{)}$', int(total[1])),
             (cmaps[2], 'Crossover',
-             r'$\mathrm{Z\ (}\mathbf{R\gg}\mathrm{Rest}\mathbf{\gg NR}\mathrm{)}$',
+             r'$\mathrm{Z\ (}\mathbf{R\gg}\mathrm{Baseline}\mathbf{\gg NR}\mathrm{)}$',
              int(total[2])),
-            (cmaps[0], 'Activation',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Rest)}$', int(total[0])),
             (cmaps[3], 'Undetermined',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{,\ n.s.\ vs\ Rest)}$',
+             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{,\ n.s.\ vs\ Baseline)}$',
              undet_n),
+            (cmaps[0], 'Activation',
+             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Baseline)}$', int(total[0])),
         ]
         present = [(c, ref, lbl) for (c, ref, lbl, n) in candidates if n > 0]
         nb = len(present)
@@ -2384,7 +2400,7 @@ REGIME_UNDETERMINED = ('#7B7239', '#C6BC82')
 # deactivation, not a distinct regime, so it is filtered from the figure; the
 # quantitative fraction is kept for the text via regime_exclusion_stats / the
 # printed counts (set this False to inspect it on the map if a reviewer asks).
-REGIME_FILTER_UNDETERMINED = True
+REGIME_FILTER_UNDETERMINED = False
 # Minimum vertices per hemisphere for a regime to be drawn and to receive a
 # colorbar. Regimes below this are sub-visible specks, so showing a full
 # colorbar for them is misleading; dropping them keeps the legend matched to

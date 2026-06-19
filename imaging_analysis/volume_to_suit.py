@@ -475,15 +475,15 @@ def plot_regime_suitflat(z_diff, z_active, z_passive, thr_diff, vmax, outpath,
         undet_n = int(counts[3]) if show_undetermined else 0
         candidates = [
             (cmaps[1], 'Deactivation',
-             r'$\mathrm{Z\ (Rest}\gg\mathbf{R{>}NR}\mathrm{)}$', int(counts[1])),
+             r'$\mathrm{Z\ (Baseline}\gg\mathbf{R{>}NR}\mathrm{)}$', int(counts[1])),
             (cmaps[2], 'Crossover',
-             r'$\mathrm{Z\ (}\mathbf{R\gg}\mathrm{Rest}\mathbf{\gg NR}\mathrm{)}$',
+             r'$\mathrm{Z\ (}\mathbf{R\gg}\mathrm{Baseline}\mathbf{\gg NR}\mathrm{)}$',
              int(counts[2])),
-            (cmaps[0], 'Activation',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Rest)}$', int(counts[0])),
             (cmaps[3], 'Undetermined',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{,\ n.s.\ vs\ Rest)}$',
+             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{,\ n.s.\ vs\ Baseline)}$',
              undet_n),
+            (cmaps[0], 'Activation',
+             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Baseline)}$', int(counts[0])),
         ]
         present = [(c, ref, lbl) for (c, ref, lbl, n) in candidates if n > 0]
         nb = len(present)
