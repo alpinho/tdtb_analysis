@@ -110,11 +110,14 @@ group_anat = os.path.join(inputs_dir, 'spm_volume_files', 'group_anat')
 # =======================
 # Inputs
 # =======================
+
 # zmap_path = os.path.join(group_functional, 
 #                          '1_encoding', '1_encoding_zmap.nii.gz')
+
 zmap_path = os.path.join(
     group_functional, 
     '17_random_vs_non-random', '17_random_vs_non-random_zmap.nii.gz')
+
 # zmap_path = os.path.join(
 #     group_functional, 
 #     '29_auditory_random_vs_auditory_non-random', 
@@ -123,7 +126,7 @@ zmap_path = os.path.join(
 wb_gmask = os.path.join(group_anat, 'group_mask_noskull.nii')
 
 # Z value to convert
-z_star = 5.13
+z_star = 4.87
 
 # "one" = one-sided (greater-than), "two" = two-sided
 side = "two"
