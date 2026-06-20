@@ -67,10 +67,12 @@ established entirely within one GLM, with no absence-of-evidence step.
 
 Modality-specific (one modality AND the interaction in that direction -- a
 TESTED specificity claim that replaces the old exclusive '~other' mask):
-  4. modality_specific_activation_auditory = A_eff & A_act & (AxV>0)
-  5. modality_specific_activation_visual   = V_eff & V_act & (AxV<0)
-  6. modality_specific_crossover_auditory  = A_act & A_NR & (AxV>0)
-  7. modality_specific_crossover_visual    = V_act & V_NR & (AxV<0)
+  4. modality_specific_activation_auditory   = A_eff & A_act & (AxV>0)
+  5. modality_specific_activation_visual     = V_eff & V_act & (AxV<0)
+  6. modality_specific_deactivation_auditory = A_eff & A_NR  & (AxV>0)
+  7. modality_specific_deactivation_visual   = V_eff & V_NR  & (AxV<0)
+  8. modality_specific_crossover_auditory    = A_act & A_NR  & (AxV>0)
+  9. modality_specific_crossover_visual      = V_act & V_NR  & (AxV<0)
 
 Every '&' is the conjunction (minimum statistic). There is no exclusive masking
 and no cross-task masking anywhere in the analysis.
@@ -103,14 +105,20 @@ applied to every result, since voxel/vertex-wise FDR does not control extent.
 OUTPUTS
 ----------------------------------------------------------------------------
 Volume  : results/parametric_tests/volume/<task>/conjunctions/<category>/
-            <category>_zmap.nii.gz   (signed minimum-statistic map)
-            <category>_mask.nii.gz   (binary surviving conjunction)
-            <category>_glassbrain.png
+            <category>_zmap_<fwhm>.nii.gz   (signed minimum-statistic map)
+            <category>_mask_<fwhm>.nii.gz   (binary surviving conjunction)
+            <category>_glassbrain_<fwhm>.png
 Surface : results/parametric_tests/surface/<task>/surface_images/
           conjunction/<category>/
-            group_<task>_<category>_flat_contour_fslr32k*.png
+            group_<task>_<category>[_<contour>]_<fwhm>_flat_..._fslr32k*.png
+          results/parametric_tests/surface/<task>/surface_files/
+          conjunctions/<category>/
+            <category>_zmap_<fwhm>.{L,R}.func.gii   (statistic, per hemisphere)
+            <category>_mask_<fwhm>.{L,R}.func.gii   (binary surviving mask)
           (filled flatmap of the conjunction statistic, with the chosen
-           reference network drawn as a contour)
+           reference network drawn as a contour; the GIFTI pair mirrors the
+           volume NIfTI outputs). <fwhm> records the kernel applied (e.g.
+           fwhm8mm for the volume, fwhm0mm for the unsmoothed surface).
 
 The displayed statistic is the conjunction-null minimum statistic: the least
 significant of the conjoined arms shown (min z for activations, max z i.e.
@@ -156,9 +164,13 @@ from volume_to_surface import (
     lh_medial_wall_mask_path,
     rh_medial_wall_mask_path,
 )
-# Same per-subject surface smoothing used inside group_surf (8 mm fwhm), so the
-# interaction arms are built on identical footing with the other surface arms.
+# Per-subject surface smoothing. group_surf (volume_to_surface) hardwires 8 mm;
+# here it is governed by SURFACE_SMOOTHING_FWHM via group_surf_smoothed (below),
+# so the surface kernel is a toggle, the way SMOOTHING_FWHM is for the volume.
 from Functional_Fusion.util import smooth_fs32k_data
+# t -> z conversion used by group_surf, re-used by the local group_surf_smoothed
+# so the surface arms keep identical statistics, only the kernel changes.
+from utils import zval_conversion
 
 # plot_flatmap gained a `show_borders` parameter; detect whether the installed
 # volume_to_surface.py has it, so the script runs either way (the border toggle
@@ -188,6 +200,14 @@ def cap_label(label: str) -> str:
 
 def id_label_folder(cid: int, cname: str) -> str:
     return f"{cid}_{sanitize_label_snake(cname)}"
+
+
+def fwhm_tag(fwhm) -> str:
+    """Filename-safe tag for a smoothing kernel, recorded in every output name.
+    8.0 -> 'fwhm8mm', 0.0 -> 'fwhm0mm', 4.5 -> 'fwhm4p5mm'."""
+    f = float(fwhm or 0.0)
+    s = str(int(f)) if f == int(f) else str(f).replace('.', 'p')
+    return f"fwhm{s}mm"
 
 
 def subject_contrast_paths(derivatives_dir, subjects, task_key, cid):
@@ -332,6 +352,58 @@ def load_cortex_mask(lh_path, rh_path):
     return np.concatenate([lh, rh], axis=0)
 
 
+def surf_subject_data(cifti_path, fwhm):
+    """One subject's fs_LR32k vertex data, smoothed along the cortical surface
+    with `fwhm` mm FWHM, or returned unsmoothed when fwhm <= 0.
+
+    smooth_fs32k_data calls `wb_command -cifti-smoothing`, which aborts on a
+    zero kernel ("zero smoothing kernels requested for both volume and
+    surface") and writes no output. So for fwhm <= 0 we read the per-subject
+    cifti directly: smoothing changes only the values, not the grayordinate
+    layout, so the unsmoothed array is shape-identical to the smoothed output
+    (1, n_grayordinate) and drops straight into the group step."""
+    f = float(fwhm or 0.0)
+    if f > 0:
+        return smooth_fs32k_data(cifti_path, smooth=f, kernel='fwhm',
+                                 return_data_only=True)
+    arr = np.asarray(nib.load(cifti_path).get_fdata())
+    return arr if arr.ndim >= 2 else arr[np.newaxis, :]
+
+
+def group_surf_smoothed(surf_dir, subjects, task_key, contrast_key,
+                        contrast_tag, fwhm, surfspace='fslr32k'):
+    """Local copy of volume_to_surface.group_surf with the surface smoothing
+    kernel exposed as `fwhm` (mm; 0 = no smoothing). Statistics are otherwise
+    identical: per-subject fs_LR32k maps, one-sample t (alternative='greater'),
+    t -> z via zval_conversion. Used so SURFACE_SMOOTHING_FWHM governs the
+    surface arms exactly as SMOOTHING_FWHM governs the volume arms."""
+    contrast = contrast_tag.lower()
+    cifti_paths = get_isurf_cifti(surf_dir, subjects, task_key, contrast_key,
+                                  contrast, surfspace=surfspace)
+    data = np.array([surf_subject_data(p, fwhm) for p in cifti_paths])
+    data = np.squeeze(data, axis=1)
+    data[np.isnan(data)] = 0
+    tvals, _ = stats.ttest_1samp(data, 0, axis=0, alternative='greater')
+    zvals = zval_conversion(tvals, len(subjects) - 1)
+    zvals[np.isnan(zvals)] = 0
+    return zvals
+
+
+def save_surface_gifti(vec, out_dir, basename):
+    """Write a concatenated (L, R) fs_LR32k vertex vector as two GIFTI
+    functional files, one per hemisphere, mirroring the volume's NIfTI outputs.
+    Returns the two written paths."""
+    L, R = np.split(np.asarray(vec, dtype=np.float32), 2, axis=0)
+    paths = []
+    for hemi, arr in (('L', L), ('R', R)):
+        gii = nib.gifti.GiftiImage(
+            darrays=[nib.gifti.GiftiDataArray(np.ascontiguousarray(arr))])
+        p = os.path.join(out_dir, f"{basename}.{hemi}.func.gii")
+        nib.save(gii, p)
+        paths.append(p)
+    return paths
+
+
 def surface_group_z(task_key, cid, cname, surf_dir, subjects,
                     compute_individual=True):
     """Group surface z-map (concatenated L,R vertices) for one contrast.
@@ -347,7 +419,10 @@ def surface_group_z(task_key, cid, cname, surf_dir, subjects,
             individual_surf(derivatives_folder, subjects, task_key,
                             build_contrasts(task_key), cid, surf_dir,
                             surfspace='fslr32k', save=save)
-    z = group_surf(surf_dir, subjects, task_key, cid, tag, surfspace='fslr32k')
+    # surface arms (and the reference-network contour) use the configurable
+    # kernel; SURFACE_SMOOTHING_FWHM=0 reproduces the unsmoothed surface maps.
+    z = group_surf_smoothed(surf_dir, subjects, task_key, cid, tag,
+                            SURFACE_SMOOTHING_FWHM, surfspace='fslr32k')
     zL = mask_cortical_activation(np.split(z, 2, axis=0)[0],
                                   lh_medial_wall_mask_path)
     zR = mask_cortical_activation(np.split(z, 2, axis=0)[1],
@@ -385,8 +460,9 @@ def subject_contrast_volume_path(subject, cid, task_key):
 
 def subject_contrast_surface(subject, cid, task_key):
     """Return <subject>'s individual contrast `cid`, projected to fs_LR32k and
-    smoothed exactly as group_surf does (8 mm fwhm), as a concatenated (L, R)
-    vertex vector (medial wall still included; masked downstream).
+    smoothed with SURFACE_SMOOTHING_FWHM (the same kernel the other surface
+    arms use via group_surf_smoothed), as a concatenated (L, R) vertex vector
+    (medial wall still included; masked downstream).
 
     Reads the SAME per-subject .dscalar.nii that every other surface arm uses
     and applies the SAME smoothing, so the interaction is on identical footing
@@ -399,8 +475,7 @@ def subject_contrast_surface(subject, cid, task_key):
     contrast = cname.replace(' vs ', '_vs_').replace(' ', '-').lower()
     cifti_path = get_isurf_cifti(SURF_FOLDER, [subject], task_key, cid,
                                  contrast, surfspace='fslr32k')[0]
-    data = smooth_fs32k_data(cifti_path, smooth=8, kernel='fwhm',
-                             return_data_only=True)
+    data = surf_subject_data(cifti_path, SURFACE_SMOOTHING_FWHM)
     data = np.squeeze(np.asarray(data, dtype=float))
     return np.nan_to_num(data, nan=0.0)
 
@@ -572,14 +647,15 @@ def compute_volume_category(category, spec, zcache, brain):
         gm = mask_on_grid(GM_MASK_PATH, REF_IMG)
         stat = np.where(gm, stat, 0.0)
 
-    z_path = os.path.join(out_dir, f"{category}_zmap.nii.gz")
+    vol_tag = fwhm_tag(SMOOTHING_FWHM)
+    z_path = os.path.join(out_dir, f"{category}_zmap_{vol_tag}.nii.gz")
     nib.save(nib.Nifti1Image(stat, REF_IMG.affine, REF_IMG.header), z_path)
     nib.save(nib.Nifti1Image(keep.astype(np.int16), REF_IMG.affine,
                              REF_IMG.header),
-             os.path.join(out_dir, f"{category}_mask.nii.gz"))
+             os.path.join(out_dir, f"{category}_mask_{vol_tag}.nii.gz"))
 
     is_deact = {TERMS[t]['side'] for t in spec['display']} == {'neg'}
-    png = os.path.join(out_dir, f"{category}_glassbrain.png")
+    png = os.path.join(out_dir, f"{category}_glassbrain_{vol_tag}.png")
     plot_glass_brain_z(
         z_map_path=z_path,
         z_threshold=1e-6,                 # the FDR cut is already in the mask
@@ -606,6 +682,16 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
     stat = min_statistic(zcache, spec['display'], keep)
     statL, statR = np.split(stat, 2, axis=0)
 
+    # Mirror the volume outputs: write the conjunction statistic and the binary
+    # surviving mask as per-hemisphere GIFTIs into the analogous surface-files
+    # tree, with the surface kernel recorded in the name.
+    surf_tag_k = fwhm_tag(SURFACE_SMOOTHING_FWHM)
+    files_dir = os.path.join(SURF_CONJ_FILES, category)
+    os.makedirs(files_dir, exist_ok=True)
+    save_surface_gifti(stat, files_dir, f"{category}_zmap_{surf_tag_k}")
+    save_surface_gifti(keep.astype(np.float32), files_dir,
+                       f"{category}_mask_{surf_tag_k}")
+
     is_deact = {TERMS[t]['side'] for t in spec['display']} == {'neg'}
     vmax = float(np.nanmax(np.abs(stat))) if np.any(stat) else 1.0
     # colorbar starts at the display threshold = the lowest surviving |z|
@@ -625,11 +711,14 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 
     out_dir = os.path.join(SURF_CONJ_IMGS, category)
     os.makedirs(out_dir, exist_ok=True)
-    # Record the contour source in the filename (plot_flatmap builds the name
-    # from contrast_tag), so 'encoding' and 'predictable' runs don't overwrite.
-    surf_tag = category
+    # Record the contour source AND the surface kernel in the filename
+    # (plot_flatmap builds the name from contrast_tag), so 'encoding' /
+    # 'predictable' runs and different smoothings don't overwrite each other.
+    surf_tag = f"{category}_{surf_tag_k}"
     if net_contour is not None:
-        surf_tag = f"{category}_{CONTOUR_SOURCE_TAG.get(CONTOUR_SOURCE, CONTOUR_SOURCE)}"
+        surf_tag = (f"{category}_"
+                    f"{CONTOUR_SOURCE_TAG.get(CONTOUR_SOURCE, CONTOUR_SOURCE)}"
+                    f"_{surf_tag_k}")
     border_kw = {}
     if _PLOT_FLATMAP_SUPPORTS_BORDERS:
         border_kw['show_borders'] = SHOW_FLATMAP_BORDERS
@@ -669,7 +758,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 # Which representation(s) to run; independent booleans, set at least one.
 #   RUN_VOLUME  (bool): whole-brain volume conjunctions (glass brain + NIfTI).
 #   RUN_SURFACE (bool): fs_LR32k surface conjunctions (the figure flatmaps).
-RUN_VOLUME = True
+RUN_VOLUME = False
 RUN_SURFACE = True
 
 # LOAD_PRECOMPUTED_VOLUME_ZMAPS (bool, volume path only): reuse volume z-maps
@@ -689,10 +778,21 @@ COMPUTE_INDIVIDUAL_SURF = False
 FDR_ALPHA = 0.05
 
 # SMOOTHING_FWHM (float, mm; 0.0 disables): Gaussian smoothing used when
-# (re)fitting the second-level z-maps. Keep it equal to the smoothing of the
-# maps you compare against (Table E.2, Figure 6) so thresholds and extents stay
-# comparable.
+# (re)fitting the second-level VOLUME z-maps. Keep it equal to the smoothing of
+# the maps you compare against (Table E.2, Figure 6) so thresholds and extents
+# stay comparable.
 SMOOTHING_FWHM = 8.0
+
+# SURFACE_SMOOTHING_FWHM (float, mm; 0.0 disables): geodesic smoothing applied
+# to the per-subject fs_LR32k arms before the group surface t-test, governing
+# BOTH the conjunction arms and the reference-network contour. Independent of
+# SMOOTHING_FWHM (volume) and of the 8 mm used elsewhere in the surface
+# pipeline. Set to 0.0 here: the unsmoothed surface arms cannot diffuse signal
+# across the Sylvian fissure, so the cross-modal AND does not produce the
+# spurious peri-Sylvian co-occurrence on the auditory plane. The kernel value
+# is written into every output filename, volume and surface, so runs at
+# different smoothings never overwrite each other.
+SURFACE_SMOOTHING_FWHM = 6.0
 
 # Minimum cluster EXTENT, dropping isolated voxels/vertices that pass the
 # voxelwise FDR conjunction but have no spatial support (FDR controls the
@@ -883,6 +983,22 @@ CONJUNCTIONS = {
         include=['vis_eff', 'vis_act', 'vis_gt_aud'],
         exclude=[],
         display=['vis_eff', 'vis_act']),
+    # ---- modality-specific DEACTIVATION: effect + the predictable condition
+    #      suppressed below baseline (Non-Random < rest) in ONE modality AND a
+    #      significant interaction in that modality's direction. Mirrors the
+    #      activation block with the deactivation arm in place of the activation
+    #      arm, so it tests whether a deactivation-carried unpredictability
+    #      effect (e.g. the right MFG, beyond predictive timing) is itself
+    #      modality-specific. The effect arm (pos) and the deactivation arm (neg)
+    #      have opposite signs, so display the deactivation arm on its own.
+    'modality_specific_deactivation_auditory': dict(
+        include=['aud_eff', 'aud_deact', 'aud_gt_vis'],
+        exclude=[],
+        display=['aud_deact']),
+    'modality_specific_deactivation_visual': dict(
+        include=['vis_eff', 'vis_deact', 'vis_gt_aud'],
+        exclude=[],
+        display=['vis_deact']),
     # ---- modality-specific CROSSOVER: crossover in one modality AND the
     #      interaction in that direction.
     'modality_specific_crossover_auditory': dict(
@@ -912,10 +1028,12 @@ CONJUNCTION_CONTOUR = {
     'cross_modal_activation':                'pooled',
     'cross_modal_deactivation':              'pooled',
     'cross_modal_crossover':                 'pooled',
-    'modality_specific_activation_auditory': 'auditory',
-    'modality_specific_activation_visual':   'visual',
-    'modality_specific_crossover_auditory':  'auditory',
-    'modality_specific_crossover_visual':    'visual',
+    'modality_specific_activation_auditory':   'auditory',
+    'modality_specific_activation_visual':     'visual',
+    'modality_specific_deactivation_auditory': 'auditory',
+    'modality_specific_deactivation_visual':   'visual',
+    'modality_specific_crossover_auditory':    'auditory',
+    'modality_specific_crossover_visual':      'visual',
 }
 
 
@@ -959,6 +1077,9 @@ NET_SURF_FOLDER = os.path.join(SURFPARAMETRIC_FOLDER, network_task_id,
 # conjunction flatmaps, sibling of the existing 'contour' folder
 SURF_CONJ_IMGS = os.path.join(SURFPARAMETRIC_FOLDER, analysis_task_id,
                               'surface_images', 'conjunction')
+# conjunction GIFTI data, analogous to the volume 'conjunctions' tree (sibling
+# of the per-arm surface_files folders); mirrors VOL_CONJ_ROOT for the surface.
+SURF_CONJ_FILES = os.path.join(SURF_FOLDER, 'conjunctions')
 
 
 # %%
