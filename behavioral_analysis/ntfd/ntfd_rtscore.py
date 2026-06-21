@@ -252,8 +252,10 @@ BEHAV_RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
                        26, 27, 28, 29, 32, 34, 35, 38, 39, 40,
                        41, 42, 43, 44, 45, 46, 47]
 
-# Second batch.
-SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57]
+# Second batch
+ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58]
+
+GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57]
 
 # #####################################################################
 
@@ -292,11 +294,13 @@ fb_subjects_dic = {
 # #### Second Batch ####
 
 sb_sessions_dic = {
+    'behavses': 'Behavioral Sessions',
     'ses-01': 'Session 1',
 }
 
 sb_subjects_dic = {
-    'ses-01': SB_SUBJECTS,
+    'behavses': GOOD_SB_SUBJECTS,
+    'ses-01': GOOD_SB_SUBJECTS,
 }
 
 # #### Map tag -> integer session list ####
