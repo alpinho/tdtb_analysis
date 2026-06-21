@@ -26,7 +26,7 @@ import pandas as pd
 
 from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm import threshold_stats_img
-from nilearn import plotting
+from nilearn import plotting, image
 
 
 # %%
@@ -126,6 +126,7 @@ def plot_glass_brain_z(
     title=None,
     cbar_contrast_label=None,
     vmax=None,
+    upsample_mm=1.0,
     resampling_interpolation='continuous',
     display_mode='lyrz',
     dpi=300,
@@ -133,15 +134,16 @@ def plot_glass_brain_z(
     """Glass-brain rendering of a z-map, shared by the single-contrast volume
     maps here and by the conjunction maps in conjunction_analysis.py.
 
-    Three rendering choices, matched to the surface flatmaps:
+    Rendering choices, matched to the surface flatmaps:
       1. the colorbar starts at the display threshold (vmin = thr), so the
          colour range is [thr, vmax] rather than [~0, vmax];
       2. 'autumn' for positive (activation) maps and 'Blues_r' for negative
          (deactivation) maps, a diverging map for two-sided maps -- the same
          scheme as plot_flatmap;
-      3. nilearn resamples the z-map onto the display itself, via its own
-         `resampling_interpolation='continuous'`; no resampling is done
-         outside nilearn.
+      3. `upsample_mm` refines the z-map with nilearn's `resample_img` BEFORE
+         the threshold, so the silhouette contour is sampled finely and the
+         edges come out smooth *and* crisp (no feathering, no gray fringe).
+         Smaller is smoother and heavier; None/0 plots at native resolution.
 
     Parameters
     ----------
@@ -209,9 +211,19 @@ def plot_glass_brain_z(
         vmax = float(np.nanmax(np.abs(data)))
     vmin = -vmax if symmetric else thr
 
-    # Hand the native-resolution image straight to nilearn and let nilearn do
-    # the resampling onto the display, via its own `resampling_interpolation`.
+    # Refine the data BEFORE the threshold so the silhouette contour is sampled
+    # finely; nearest rendering of a fine grid gives crisp *and* smooth edges
+    # (resample_img is nilearn). The sub-threshold ramp this creates at cluster
+    # edges is hidden again by threshold=thr.
     src = nib.Nifti1Image(data, img.affine, img.header)
+    if upsample_mm:
+        src = image.resample_img(
+            src,
+            target_affine=np.eye(3) * upsample_mm,
+            interpolation='continuous',
+            copy_header=True,
+            force_resample=True,
+        )
 
     disp = plotting.plot_glass_brain(
         src,

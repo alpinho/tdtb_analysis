@@ -663,7 +663,8 @@ def compute_volume_category(category, spec, zcache, brain):
         out_png=png,
         z_threshold=None,                       # already thresholded -> floor
         sign=('neg' if is_deact else 'pos'),    # autumn (act) / Blues_r (deact)
-        resampling_interpolation='continuous',  # nilearn-native resampling only
+        resampling_interpolation='continuous',  # data -> display resampling
+        upsample_mm=0.5,                         # fine contour -> crisp + smooth
         title=category.replace('_', ' '),
         cbar_contrast_label=cap_label(category.replace('_', ' ')),
     )
@@ -762,7 +763,7 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 #   RUN_VOLUME  (bool): whole-brain volume conjunctions (glass brain + NIfTI).
 #   RUN_SURFACE (bool): fs_LR32k surface conjunctions (the figure flatmaps).
 RUN_VOLUME = True
-RUN_SURFACE = False
+RUN_SURFACE = True
 
 # LOAD_PRECOMPUTED_VOLUME_ZMAPS (bool, volume path only): reuse volume z-maps
 # already written by volume_maps.py when present (True, faster) instead of
