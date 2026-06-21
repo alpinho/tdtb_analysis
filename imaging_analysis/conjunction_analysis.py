@@ -151,9 +151,9 @@ from nilearn.glm.thresholding import fdr_threshold
 from nilearn.image import resample_to_img, load_img, math_img
 
 # Re-use the project's machinery (resource paths inside these functions
-# resolve relative to volume_to_surface.py / ols_permutation_tests.py).
+# resolve relative to volume_to_surface.py / volume_maps.py).
 import volume_to_surface as _vts
-from ols_permutation_tests import plot_glass_brain_z
+from volume_maps import plot_glass_brain_z
 from volume_to_surface import (
     build_contrasts,
     individual_surf,
@@ -164,10 +164,12 @@ from volume_to_surface import (
     lh_medial_wall_mask_path,
     rh_medial_wall_mask_path,
 )
-# Per-subject surface smoothing. group_surf (volume_to_surface) hardwires 8 mm;
-# here it is governed by SURFACE_SMOOTHING_FWHM via group_surf_smoothed (below),
-# so the surface kernel is a toggle, the way SMOOTHING_FWHM is for the volume.
-from Functional_Fusion.util import smooth_fs32k_data
+# Per-subject surface smoothing, governed by SURFACE_SMOOTHING_FWHM via
+# group_surf_smoothed (below). Imported from volume_to_surface, NOT from
+# Functional_Fusion, so the conjunction uses the project-local midthickness
+# copy of smooth_fs32k_data (kernel along the folded cortex, no cross-fissure
+# bleed) -- the same one group_surf uses, keeping every surface map consistent.
+from volume_to_surface import smooth_fs32k_data
 # t -> z conversion used by group_surf, re-used by the local group_surf_smoothed
 # so the surface arms keep identical statistics, only the kernel changes.
 from utils import zval_conversion
@@ -658,10 +660,11 @@ def compute_volume_category(category, spec, zcache, brain):
     png = os.path.join(out_dir, f"{category}_glassbrain_{vol_tag}.png")
     plot_glass_brain_z(
         z_map_path=z_path,
-        z_threshold=1e-6,                 # the FDR cut is already in the mask
-        two_sided=is_deact,
-        title=category.replace('_', ' '),
         out_png=png,
+        z_threshold=None,                       # already thresholded -> floor
+        sign=('neg' if is_deact else 'pos'),    # autumn (act) / Blues_r (deact)
+        resampling_interpolation='continuous',  # nilearn-native resampling only
+        title=category.replace('_', ' '),
         cbar_contrast_label=cap_label(category.replace('_', ' ')),
     )
     print(f"[volume] {category}: {int(keep.sum())} voxels "
@@ -758,8 +761,8 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 # Which representation(s) to run; independent booleans, set at least one.
 #   RUN_VOLUME  (bool): whole-brain volume conjunctions (glass brain + NIfTI).
 #   RUN_SURFACE (bool): fs_LR32k surface conjunctions (the figure flatmaps).
-RUN_VOLUME = False
-RUN_SURFACE = True
+RUN_VOLUME = True
+RUN_SURFACE = False
 
 # LOAD_PRECOMPUTED_VOLUME_ZMAPS (bool, volume path only): reuse volume z-maps
 # already written by volume_maps.py when present (True, faster) instead of
@@ -786,13 +789,14 @@ SMOOTHING_FWHM = 8.0
 # SURFACE_SMOOTHING_FWHM (float, mm; 0.0 disables): geodesic smoothing applied
 # to the per-subject fs_LR32k arms before the group surface t-test, governing
 # BOTH the conjunction arms and the reference-network contour. Independent of
-# SMOOTHING_FWHM (volume) and of the 8 mm used elsewhere in the surface
-# pipeline. Set to 0.0 here: the unsmoothed surface arms cannot diffuse signal
-# across the Sylvian fissure, so the cross-modal AND does not produce the
-# spurious peri-Sylvian co-occurrence on the auditory plane. The kernel value
-# is written into every output filename, volume and surface, so runs at
-# different smoothings never overwrite each other.
-SURFACE_SMOOTHING_FWHM = 6.0
+# SMOOTHING_FWHM (volume). Smoothing now runs on the MIDTHICKNESS surface (see
+# smooth_fs32k_data in volume_to_surface.py), so the kernel follows the folded
+# cortex and does not diffuse across the Sylvian fissure; 8 mm therefore keeps
+# the focal auditory gain without producing the spurious peri-Sylvian
+# co-occurrence on the auditory plane. The kernel value is written into every
+# output filename, volume and surface, so runs at different smoothings never
+# overwrite each other.
+SURFACE_SMOOTHING_FWHM = 8.0
 
 # Minimum cluster EXTENT, dropping isolated voxels/vertices that pass the
 # voxelwise FDR conjunction but have no spatial support (FDR controls the

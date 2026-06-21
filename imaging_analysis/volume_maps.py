@@ -28,9 +28,6 @@ from nilearn.glm.second_level import SecondLevelModel
 from nilearn.glm import threshold_stats_img
 from nilearn import plotting
 
-# Re-use your glass-brain plotter from ols_permutation_tests.py
-from ols_permutation_tests import plot_glass_brain_z
-
 
 # %%
 # ========================== HELPERS ====================================
@@ -117,6 +114,126 @@ def apply_visual_mask(src_img_path, mask_path, out_path):
     z_masked = np.where(m, z, 0.0)
     nib.save(nib.Nifti1Image(z_masked, z_img.affine, z_img.header), out_path)
     return out_path
+
+
+def plot_glass_brain_z(
+    z_map_path,
+    out_png,
+    z_threshold=None,
+    two_sided=False,
+    sign='auto',
+    cmap=None,
+    title=None,
+    cbar_contrast_label=None,
+    vmax=None,
+    resampling_interpolation='continuous',
+    display_mode='lyrz',
+    dpi=300,
+):
+    """Glass-brain rendering of a z-map, shared by the single-contrast volume
+    maps here and by the conjunction maps in conjunction_analysis.py.
+
+    Three rendering choices, matched to the surface flatmaps:
+      1. the colorbar starts at the display threshold (vmin = thr), so the
+         colour range is [thr, vmax] rather than [~0, vmax];
+      2. 'autumn' for positive (activation) maps and 'Blues_r' for negative
+         (deactivation) maps, a diverging map for two-sided maps -- the same
+         scheme as plot_flatmap;
+      3. nilearn resamples the z-map onto the display itself, via its own
+         `resampling_interpolation='continuous'`; no resampling is done
+         outside nilearn.
+
+    Parameters
+    ----------
+    z_map_path, out_png : str
+        Input z-map and output PNG.
+    z_threshold : float or None
+        Display floor. Pass the FDR z* for a full z-map (single contrast).
+        Pass None for an already-thresholded conjunction map: the floor is
+        then the lowest non-zero |z| present (the FDR/cluster cut is already
+        baked in). Values <= 1e-3 are treated as "None" for the same reason.
+    two_sided : bool
+        Convenience flag for `sign='auto'`: True -> 'both', False -> 'pos'.
+    sign : {'auto', 'pos', 'neg', 'both'}
+        What to display. 'pos' shows positive z >= thr (autumn); 'neg' shows
+        the magnitude of negative z <= -thr (Blues_r); 'both' shows signed z
+        with a diverging map; 'auto' resolves from `two_sided`.
+    cmap : str or Colormap or None
+        Override the default colormap for the chosen sign mode.
+    vmax : float or None
+        Colour ceiling. None -> nanmax(|displayed z|).
+    """
+    img = nib.load(z_map_path)
+    z = np.asanyarray(img.get_fdata(), dtype=float)
+
+    if sign == 'auto':
+        sign = 'both' if two_sided else 'pos'
+
+    # display floor: explicit z* if meaningfully > 0, else lowest |z| present
+    nz = np.abs(z[z != 0])
+    if nz.size == 0:
+        disp = plotting.plot_glass_brain(None, title=title,
+                                         display_mode=display_mode)
+        disp.savefig(out_png, dpi=dpi)
+        disp.close()
+        return
+    if z_threshold is None or z_threshold <= 1e-3:
+        thr = float(nz.min())
+    else:
+        thr = float(z_threshold)
+
+    # build a (positive-valued) display image + colormap per sign mode.
+    # negatives are removed for 'pos' so a one-sided activation map never
+    # paints deactivations, and flipped to magnitude for 'neg'.
+    if sign == 'pos':
+        data = np.where(z >= thr, z, 0.0)
+        plot_cmap = cmap if cmap is not None else 'autumn'
+        symmetric = False
+    elif sign == 'neg':
+        data = np.where(z <= -thr, -z, 0.0)
+        plot_cmap = cmap if cmap is not None else 'Blues_r'
+        symmetric = False
+    else:  # 'both'
+        data = np.where(np.abs(z) >= thr, z, 0.0)
+        plot_cmap = cmap if cmap is not None else 'cold_hot'
+        symmetric = True
+
+    if not np.any(data):                       # nothing survives in this sign
+        disp = plotting.plot_glass_brain(None, title=title,
+                                         display_mode=display_mode)
+        disp.savefig(out_png, dpi=dpi)
+        disp.close()
+        return
+
+    if vmax is None:
+        vmax = float(np.nanmax(np.abs(data)))
+    vmin = -vmax if symmetric else thr
+
+    # Hand the native-resolution image straight to nilearn and let nilearn do
+    # the resampling onto the display, via its own `resampling_interpolation`.
+    src = nib.Nifti1Image(data, img.affine, img.header)
+
+    disp = plotting.plot_glass_brain(
+        src,
+        threshold=thr,
+        vmin=vmin,
+        vmax=vmax,
+        cmap=plot_cmap,
+        plot_abs=False,
+        symmetric_cbar=symmetric,
+        colorbar=True,
+        resampling_interpolation=resampling_interpolation,
+        title=title,
+        display_mode=display_mode,
+        black_bg=False,
+    )
+    if cbar_contrast_label is not None:
+        try:
+            disp._cbar.set_label(cbar_contrast_label)
+        except Exception:
+            pass
+    disp.savefig(out_png, dpi=dpi)
+    disp.close()
 
 
 def second_level_one(
