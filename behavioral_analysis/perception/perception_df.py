@@ -133,9 +133,13 @@ IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
                 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58]
+ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
 
-GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57]
+GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59]
+
+SB2_SUBJECTS = [51, 52, 57]
+
+SB3_SUBJECTS = []
 
 # #######################################################################
 
@@ -177,7 +181,7 @@ tag = 'behavses'
 # tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
-# SUBJECTS = GOOD_SUBJECTS
+# SUBJECTS = SB2_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
 # SESSTYPES = ['behavioral_session']
 # SESSIONS = ['ses-02']
 # tag = SESSIONS[0]
@@ -224,7 +228,7 @@ tag = 'behavses'
 # %%
 # ========================= PARAMETERS =================================
 
-if SUBJECTS in [GOOD_SB_SUBJECTS, ALL_SB_SUBJECTS]:
+if SUBJECTS in [GOOD_SB_SUBJECTS, ALL_SB_SUBJECTS, SB2_SUBJECTS, SB3_SUBJECTS]:
     batch_tag = 'second'
 else:
     batch_tag = 'first'
