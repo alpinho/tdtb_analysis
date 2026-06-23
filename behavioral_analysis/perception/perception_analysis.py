@@ -1499,6 +1499,10 @@ ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58]
 
 GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57]
 
+SB2_SUBJECTS = [51, 52, 57]
+
+SB3_SUBJECTS = []
+
 # #######################################################################
 
 # TASKS = ['Auditory Perception', 'Visual Perception']
@@ -1567,11 +1571,13 @@ fb_subjects_dic = {
 sb_sessions_dic = {
     'behavses': 'Behavioral Sessions',
     'ses-01': 'Session 1',
+    'ses-02': 'Session 2',
 }
 
 sb_subjects_dic = {
     'behavses': GOOD_SB_SUBJECTS,
     'ses-01': GOOD_SB_SUBJECTS,
+    'ses-02': SB2_SUBJECTS,
 }
 
 # #### Map tag -> integer session list ####
