@@ -83,7 +83,7 @@ from matplotlib.cm import ScalarMappable
 from SUITPy import flatmap
 from volume_to_surface import (
     whole_brain_thresholds, whole_brain_thresholds_signed,
-    regime_rgba, make_regime_cmaps, parse_sides,
+    regime_rgba, make_regime_cmaps,
 )
 
 # setting path
@@ -94,6 +94,37 @@ from utils import zval_conversion
 
 # %%
 # ========================== FUNCTIONS ================================
+
+def parse_sides(spec):
+    """Parse a sidedness spec into (FDR test, displayed tail).
+
+    The FDR test selects the whole-brain threshold: only 'two-sided' is treated
+    specially (-> signed z* via whole_brain_thresholds_signed); anything else
+    uses the one-sided positive z* (whole_brain_thresholds). The tail selects
+    which side of the difference is classified/displayed.
+
+      'two-sided:right' (default) -> ('two-sided', 'right')   # Random > Non-Rand
+      'two-sided:left'            -> ('two-sided', 'left')
+      'two-sided:both'            -> ('two-sided', 'both')
+      'one-sided' / 'greater'     -> ('one-sided', 'right')
+      'less'                      -> ('one-sided', 'left')
+
+    Defined locally so this module no longer depends on volume_to_surface
+    exporting parse_sides (its regime path uses 'one-sided'/'two-sided' directly
+    via resolve_signed). The tail then maps to the classifier's diff_sides in
+    plot_regime_suitflat: 'both' -> two-sided, otherwise one-sided positive.
+    """
+    s = str(spec).strip().lower()
+    test, _, tail = s.partition(':')
+    test, tail = test.strip(), tail.strip()
+    if test in ('greater', 'positive', 'pos', 'right'):
+        return 'one-sided', (tail or 'right')
+    if test in ('less', 'negative', 'neg', 'left'):
+        return 'one-sided', (tail or 'left')
+    if test.startswith('two'):
+        return 'two-sided', (tail or 'both')
+    return 'one-sided', (tail or 'right')
+
 
 def group_suit(group_dir, task_key, contrast_key, subjects, suit_dir):
 
@@ -416,46 +447,45 @@ def plot_suitflat(stats,
 
 
 def plot_regime_suitflat(z_diff, z_active, z_passive, thr_diff, vmax, outpath,
-                         thr_active=0.0, thr_passive=0.0, gate=True,
-                         show_undetermined=True, min_vertices=0,
+                         menu, thr_active=0.0, thr_passive=0.0, gate=True,
+                         cross_both=True, min_vertices=0,
                          display_tail='positive',
-                         warm=('#E1261C', '#FF8C00', '#FFE100'),
-                         cool=('#1A6FE0', '#22C2E8', '#9BE8FF'),
-                         neutral=('#DB2777', '#F9A8D4'),
-                         undetermined=('#7B7239', '#C6BC82'),
                          show_colorbar=True, n_ticks=4, tick_decimals=1):
     """Cerebellar SUIT flatmap of a paired-condition difference, coloured by the
-    rest-referenced regime.
+    rest-referenced regime and grouped into display regimes by `menu`.
 
-    Same classifier as the cortical plot_regime_flatmap (regime_rgba is reused
-    from volume_to_surface): the difference is diff = active - passive; within
-    the displayed tail a vertex is Activation if the active condition is
-    significantly above baseline and the passive is not below, Deactivation if
-    the passive is significantly below and the active is not above, Crossover if
-    active-above and passive-below, Undetermined if neither is anchored. The
-    cerebellum is a single flatmap, so one regime_rgba call suffices.
+    Same classifier as the cortical plot_regime_flatmap: the six atomic regimes
+    and regime_rgba are reused from volume_to_surface, and `menu` (REGIME_MENU)
+    groups them into the display regimes. The cerebellum is a single flatmap, so
+    one regime_rgba call suffices.
 
     z_diff   : 1D signed Z of (active - passive) on the SUIT surface.
     z_active : 1D signed Z of the active condition vs Rest (e.g. Random).
     z_passive: 1D signed Z of the passive condition vs Rest (e.g. Non-Random).
-    thr_diff, thr_active, thr_passive : |Z| FDR z* (whole-brain volume values,
-        identical to the cortical panel, so both panels share the Z scale).
-    vmax : upper |Z| of the intensity ramp (whole-brain, shared with cortex).
-    display_tail : 'positive' | 'negative' | 'both'.
+    thr_diff, thr_active, thr_passive : |Z| thresholds (whole-brain volume z*),
+        shared with the cortical panel so both share the Z scale. thr_diff may be
+        an explicit override (see REGIME_DIFF_THRESHOLD).
+    vmax : upper |Z| of the intensity ramp (shared with cortex).
+    menu : the regime display menu (REGIME_MENU).
+    display_tail : 'positive'/'right' | 'negative'/'left' | 'both'. Mapped to the
+        classifier's diff_sides: 'both' -> two-sided (|z| >= thr_diff), otherwise
+        one-sided positive (z >= thr_diff). The negative tail is not supported by
+        the shared one-sided classifier; flip the difference upstream if needed.
     """
-    cmaps = make_regime_cmaps(warm=warm, cool=cool, neutral=neutral,
-                              undetermined=undetermined)
+    diff_sides = ('two-sided'
+                  if str(display_tail).strip().lower() in ('both', 'two-sided')
+                  else 'one-sided')
+    cmaps = make_regime_cmaps(menu)
     rgba, counts = regime_rgba(
-        z_diff, z_active, z_passive, thr_diff, vmax,
-        thr_active=thr_active, thr_passive=thr_passive, gate=gate,
-        show_undetermined=show_undetermined, min_vertices=min_vertices,
-        display_tail=display_tail, cmaps=cmaps)
+        z_diff, z_active, z_passive, thr_diff, vmax, menu,
+        thr_rand=thr_active, thr_nonrand=thr_passive, gate=gate,
+        cross_both=cross_both, min_vertices=min_vertices,
+        diff_sides=diff_sides, cmaps=cmaps)
 
-    print(f"[regime/suit] displayed vertices -> activation={counts[0]} "
-          f"deactivation={counts[1]} crossover={counts[2]} "
-          f"undetermined={counts[3]}"
-          f"{' (undetermined hidden)' if not show_undetermined else ''}"
-          f"{f' (regimes <{int(min_vertices)} vtx dropped)' if min_vertices else ''}")
+    print("[regime/suit] displayed vertices -> " +
+          ", ".join(f"{menu[g]['label']}={counts.get(g, 0)}" for g in menu) +
+          (f" (regimes <{int(min_vertices)} vtx dropped)"
+           if min_vertices else ""))
 
     flatmap.plot(
         rgba, overlay_type='rgb', new_figure=True, colorbar=False,
@@ -467,23 +497,15 @@ def plot_regime_suitflat(z_diff, z_active, z_passive, thr_diff, vmax, outpath,
         vlim = float(vmax) if (np.isfinite(vmax) and vmax > thr_diff) \
             else float(thr_diff) + 1e-6
         ticks = np.linspace(float(thr_diff), vlim, n_ticks)
-        # One horizontal bar per present regime, same left->right order and
-        # labels as the cortical regime legend: deactivation, crossover,
-        # activation, then undetermined ('no rest anchor'). 'R>NR' is bold for
-        # the single Random > Non-Random direction (valid on the positive tail).
+        # One horizontal bar per plotted menu group with >=1 displayed vertex,
+        # in menu order. The group label sits over the bar; the Z(...) annotation
+        # (menu 'ref') below. Empty / hidden groups drop out and survivors are
+        # re-spaced and centred.
         bar_w, bar_gap, bar_y, bar_h = 0.20, 0.04, 0.06, 0.025
-        undet_n = int(counts[3]) if show_undetermined else 0
         candidates = [
-            (cmaps[1], 'Deactivation',
-             r'$\mathrm{Z\ (Baseline}\gg\mathbf{R{>}NR}\mathrm{)}$', int(counts[1])),
-            (cmaps[2], 'Crossover',
-             r'$\mathrm{Z\ (}\mathbf{R\gg}\mathrm{Baseline}\mathbf{\gg NR}\mathrm{)}$',
-             int(counts[2])),
-            (cmaps[3], 'Undetermined',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{,\ n.s.\ vs\ Baseline)}$',
-             undet_n),
-            (cmaps[0], 'Activation',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Baseline)}$', int(counts[0])),
+            (cmaps[g], menu[g]['label'], menu[g].get('ref', ''),
+             int(counts.get(g, 0)))
+            for g, spec in menu.items() if spec.get('plot', True)
         ]
         present = [(c, ref, lbl) for (c, ref, lbl, n) in candidates if n > 0]
         nb = len(present)
@@ -505,7 +527,7 @@ def plot_regime_suitflat(z_diff, z_active, z_passive, thr_diff, vmax, outpath,
 
     fig.savefig(outpath, dpi=300, bbox_inches='tight')
     plt.close(fig)
-    return tuple(int(x) for x in counts)
+    return dict(counts)
 
 
 # %%
@@ -537,16 +559,55 @@ REGIME_COMPONENTS = {
     'Non-Random vs Random': ('Non-Random', 'Random'),
 }
 REGIME_GATE_SIGNIF = True          # significance-gated classification
-REGIME_FILTER_UNDETERMINED = True  # hide the undetermined class on the map
+REGIME_CROSS_REQUIRE_BOTH_SIGNIF = True  # strict reversal: both conditions sig
 REGIME_MIN_VERTICES = 0            # drop regimes smaller than this (0 = keep all)
 # Sidedness, parsed by parse_sides into (FDR test -> threshold, displayed tail):
 #   'two-sided:right' (default) -> two-sided z* (e.g. 3.343), Random>Non-Random
 #   'two-sided:left' / 'two-sided:both' / 'greater' / 'less' also available.
 REGIME_DIFF_SIDES = 'two-sided:right'
-REGIME_WARM = ('#E1261C', '#FF8C00', '#FFE100')   # activation
-REGIME_COOL = ('#1A6FE0', '#22C2E8', '#9BE8FF')   # deactivation
-REGIME_CROSS = ('#DB2777', '#F9A8D4')             # crossover
-REGIME_UNDETERMINED = ('#7B7239', '#C6BC82')      # undetermined
+# Explicit difference-map threshold for the regime panel (the colorbar floor).
+# None -> use the FDR z* computed below. Set a number to override -- e.g. to
+# share one colorbar with the cortical flatmaps (FDR floor 3.0) when this
+# panel's own FDR floor differs (3.3). NOTE this sets BOTH the colorbar floor
+# and the significance cut on the difference map, so a value below the FDR z*
+# will also DISPLAY sub-FDR vertices, not merely recolour them.
+REGIME_DIFF_THRESHOLD = 3.0
+# Explicit upper |Z| of the intensity ramp (colorbar ceiling). None -> the
+# whole-brain vmax below. A shared colorbar needs BOTH endpoints to match the
+# cortical panel, so set this too when you fix REGIME_DIFF_THRESHOLD.
+REGIME_DIFF_VMAX = None
+# ---- Regime display menu --------------------------------------------------
+# Same structure as REGIME_MENU in volume_to_surface (six atomic regimes
+# both_up / one_up / both_down / one_down / reversal / unanchored, grouped into
+# display regimes). Keep the 'unanchored' label in sync with the cortical panel,
+# since the two share a figure. The 'ref' annotations say "Baseline" rather than
+# "Rest" to match this panel's wording.
+REGIME_MENU = {
+    'activation': dict(
+        regimes=['both_up', 'one_up'],
+        label='Activation',
+        ref=r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{> Rest)}$',
+        color=('#E1261C', '#FF8C00', '#FFE100'),
+        plot=True),
+    'reversal': dict(
+        regimes=['reversal'],
+        label='Crossover',
+        ref=r'$\mathrm{Z\ (}\mathbf{R>}\mathrm{Rest}\mathbf{> NR}\mathrm{)}$',
+        color=('#7B7239', '#C6BC82'),
+        plot=False),
+    'unanchored': dict(
+        regimes=['unanchored'],
+        label='Crosswise',
+        ref=r'$\mathrm{Z\ (}\mathbf{R{>}NR})$',
+        color=('#DB2777', '#F9A8D4'),
+        plot=True),
+    'deactivation': dict(
+        regimes=['both_down', 'one_down'],
+        label='Deactivation',
+        ref=r'$\mathrm{Z\ (Rest}>\mathbf{R{>}NR}\mathrm{)}$',
+        color=('#1A6FE0', '#22C2E8', '#9BE8FF'),
+        plot=True),
+}
 
 
 # %%
@@ -736,9 +797,16 @@ if __name__ == '__main__':
             derivatives_folder, SUBJECTS, task_id, rand_id, wb_gmask_path)
         thr_nonrand, _ = whole_brain_thresholds_signed(
             derivatives_folder, SUBJECTS, task_id, nonrand_id, wb_gmask_path)
-        print(f"[regime/suit] thr_diff={thr_diff:.3f} (test={regime_test}, "
-              f"tail={regime_tail}), thr_active={thr_rand:.3f}, "
-              f"thr_passive={thr_nonrand:.3f}, vmax={vmax_diff:.3f}")
+        # Explicit overrides for a shared colorbar with the cortical flatmaps.
+        thr_src, vmax_src = 'FDR', 'FDR'
+        if REGIME_DIFF_THRESHOLD is not None:
+            thr_diff, thr_src = float(REGIME_DIFF_THRESHOLD), 'input'
+        if REGIME_DIFF_VMAX is not None:
+            vmax_diff, vmax_src = float(REGIME_DIFF_VMAX), 'input'
+        print(f"[regime/suit] thr_diff={thr_diff:.3f} ({thr_src}, "
+              f"test={regime_test}, tail={regime_tail}), "
+              f"thr_active={thr_rand:.3f}, thr_passive={thr_nonrand:.3f}, "
+              f"vmax={vmax_diff:.3f} ({vmax_src})")
 
         regime_dir = os.path.join(contrasts_folder, 'regime', cname.lower())
         os.makedirs(regime_dir, exist_ok=True)
@@ -748,13 +816,12 @@ if __name__ == '__main__':
             "_regime_suit.png")
         plot_regime_suitflat(
             zd, zr, zn, thr_diff, vmax_diff, regime_out,
+            menu=REGIME_MENU,
             thr_active=thr_rand, thr_passive=thr_nonrand,
             gate=REGIME_GATE_SIGNIF,
-            show_undetermined=not REGIME_FILTER_UNDETERMINED,
+            cross_both=REGIME_CROSS_REQUIRE_BOTH_SIGNIF,
             min_vertices=REGIME_MIN_VERTICES,
-            display_tail=regime_tail,
-            warm=REGIME_WARM, cool=REGIME_COOL, neutral=REGIME_CROSS,
-            undetermined=REGIME_UNDETERMINED)
+            display_tail=regime_tail)
         print(f"[regime/suit] saved {regime_out}")
         sys.exit(0)
 

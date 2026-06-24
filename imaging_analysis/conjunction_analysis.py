@@ -837,7 +837,7 @@ SHOW_FLATMAP_BORDERS = False
 # FLATMAP_SHOW_CBAR (bool): draw the colorbar (with its "Z-values" label and
 # ticks) on each flatmap. False = maps only (e.g. when a single shared colorbar
 # is composited later, as in Figure 6).
-FLATMAP_SHOW_CBAR = False
+FLATMAP_SHOW_CBAR = True
 
 
 # %%

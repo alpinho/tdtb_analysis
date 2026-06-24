@@ -1314,170 +1314,153 @@ def plot_flatmap(
     )
 
 
-def make_regime_cmaps(
-    warm=('#E1261C', '#FF8C00', '#FFE100'),
-    cool=('#1A6FE0', '#22C2E8', '#9BE8FF'),
-    neutral=('#DB2777', '#F9A8D4'),
-    undetermined=('#7B7239', '#C6BC82'),
-    n=256,
-):
-    """Four intensity colormaps (low |z| -> high |z|) for the regimes of the
-    combined Random / Non-Random map: activation (warm), deactivation (cool),
-    crossover (neutral), and undetermined (muted olive). The neutral ramp is an
-    arbitrary flag colour for a regime expected to be empty; change it freely.
-    The undetermined ramp is a low-saturation, non-grey hue so those vertices
-    read as a distinct 'no rest anchor' class without dissolving into the grey
-    flat underlay."""
-    return (
-        LinearSegmentedColormap.from_list('regime_act', list(warm), N=n),
-        LinearSegmentedColormap.from_list('regime_deact', list(cool), N=n),
-        LinearSegmentedColormap.from_list('regime_cross', list(neutral), N=n),
-        LinearSegmentedColormap.from_list('regime_undet',
-                                          list(undetermined), N=n),
-    )
+# The six atomic regimes, from the rest-referenced behaviour of the two
+# conditions wherever the Random - Non-Random difference is significant.
+# REGIME_MENU (in INPUTS) groups these into the display regimes that are drawn.
+REGIME_KEYS = ('both_up', 'one_up', 'both_down', 'one_down',
+               'reversal', 'unanchored')
 
 
-def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax,
-                thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
-                show_undetermined=True, min_vertices=0,
-                diff_sides='one-sided', cmaps=None):
-    """Per-vertex RGBA for one hemisphere of the combined Random/Non-Random map.
+def make_regime_cmaps(menu, n=256):
+    """One intensity colormap (low |z| -> high |z|) per display group in
+    `menu`, built from each group's `color` ramp. Returns {group_key: cmap}."""
+    return {g: LinearSegmentedColormap.from_list(
+                f'regime_{g}', list(spec['color']), N=n)
+            for g, spec in menu.items()}
 
-    Each vertex whose Random - Non-Random difference is supra-threshold is
-    coloured by the rest-referenced *regime* of the two underlying conditions,
-    with |Z(Random - Non-Random)| as the within-regime intensity:
 
-        z_rand > 0 and z_nonrand > 0  -> activation   (warm cmap)
-        z_rand < 0 and z_nonrand < 0  -> deactivation (cool cmap)
-        signs differ                  -> crossover     (neutral cmap)
-        neither condition significant -> undetermined  (olive cmap)
+def regime_base_masks(z_diff, z_rand, z_nonrand, thr_diff,
+                      thr_rand=0.0, thr_nonrand=0.0, gate=True,
+                      cross_both=True, diff_sides='one-sided'):
+    """Boolean mask for each of the six atomic regimes (REGIME_KEYS), plus the
+    difference `base` mask and the signed difference used for intensity.
 
-    Parameters
-    ----------
-    z_diff : (nvert,) signed Z of Random - Non-Random.
-    z_rand, z_nonrand : (nvert,) signed Z of each condition vs Rest.
-    thr_diff : |Z| threshold for the difference map (its two-sided FDR z*).
-    vmax : upper |Z| limit of the intensity ramp, shared across regimes.
-    thr_rand, thr_nonrand : |Z| FDR thresholds of each condition vs Rest. With
-        gate=True these set the per-condition significance used to classify the
-        regime, not merely to exclude near-rest vertices.
-    gate : if True (default) the regime is decided by which condition is
-        INDIVIDUALLY significant vs Rest at its own threshold; a vertex with no
-        significant condition is dropped. If False, the raw sign of each
-        condition's group mean is used directly (no significance test).
-    cross_both : how strict the crossover (sign-reversal) class is when
-        gate=True. If True (default) a vertex is 'crossover' only when BOTH
-        conditions are individually significant in OPPOSITE directions
-        (Random > Rest AND Non-Random < Rest); a vertex significant in only one
-        condition is folded into activation or deactivation by that condition.
-        If False, any supra-threshold vertex with opposite condition signs and
-        at least one significant condition is 'crossover' (the looser, one-armed
-        definition).
-    show_undetermined : if True (default) and gate=True, vertices whose
-        Random - Non-Random difference is significant but for which NEITHER
-        condition is significant vs Rest are painted as the 'undetermined'
-        regime (no rest anchor, so no activation/deactivation/crossover label
-        is defensible). If False, those vertices are left transparent.
-    min_vertices : if > 0, any regime with fewer than this many vertices in the
-        hemisphere is dropped (vertices left transparent and excluded from the
-        returned counts), so sub-visible specks do not appear on the map or in
-        the legend. The returned counts therefore reflect what is displayed; set
-        min_vertices=0 to recover the raw counts.
-    cmaps : (warm, cool, neutral, undetermined) colormaps; defaults via
-        make_regime_cmaps().
+    The six masks partition `base` (vertices whose Random - Non-Random
+    difference is supra-threshold):
+        both_up    : Random > Rest AND Non-Random > Rest (both significant)
+        one_up     : exactly one condition significant > Rest, the other n.s.
+        both_down  : both significant < Rest
+        one_down   : exactly one significant < Rest, the other n.s.
+        reversal   : conditions significant in OPPOSITE directions (sign flip)
+        unanchored : neither condition significant vs Rest (no baseline anchor)
 
-    Returns
-    -------
-    rgba : (nvert, 4) array; non-significant / gated-out vertices are NaN
-        (transparent under SUITPy's overlay_type='rgb').
-    counts : (n_activation, n_deactivation, n_crossover, n_undetermined) ints.
-
-    Notes
-    -----
-    A genuine crossover requires evidence for both of its defining signs, so by
-    default (cross_both=True) each condition must clear FDR vs Rest in opposite
-    directions. The looser cross_both=False reproduces the earlier one-armed
-    behaviour, where one significant condition plus a weak, non-significant
-    opposite sign in the other suffices. For this dataset the strict crossover
-    is empty, consistent with the empty crossover conjunction.
+    With gate=False the per-condition significance test is replaced by the raw
+    sign of each condition's group mean: only both_up / both_down / reversal can
+    be populated (the 'one_*' and 'unanchored' classes need the significance
+    test and stay empty).
     """
-    if cmaps is None:
-        cmaps = make_regime_cmaps()
-    cmap_act, cmap_deact, cmap_cross, cmap_undet = cmaps
-
     z_diff = np.asarray(z_diff, float)
     z_rand = np.asarray(z_rand, float)
     z_nonrand = np.asarray(z_nonrand, float)
     nvert = z_diff.size
 
     thr_diff = float(thr_diff)
-    vmax = float(vmax)
-    if not np.isfinite(vmax) or vmax <= thr_diff:
-        vmax = thr_diff + 1e-6
-
     finite = np.isfinite(z_diff) & np.isfinite(z_rand) & np.isfinite(z_nonrand)
     one_sided = str(diff_sides).strip().lower().startswith('one')
     base = finite & ((z_diff >= thr_diff) if one_sided
                      else (np.abs(z_diff) >= thr_diff))
 
+    masks = {k: np.zeros(nvert, bool) for k in REGIME_KEYS}
     if gate:
-        # Per-condition significance vs Rest (signed, at each FDR threshold).
         rps = z_rand >= float(thr_rand)          # Random significantly > Rest
         rns = z_rand <= -float(thr_rand)         # Random significantly < Rest
         nps = z_nonrand >= float(thr_nonrand)    # Non-Random significantly > Rest
         nns = z_nonrand <= -float(thr_nonrand)   # Non-Random significantly < Rest
         anysig = rps | rns | nps | nns
         if cross_both:
-            # Strict crossover: BOTH conditions significant, opposite directions.
-            # A vertex significant in only one condition is assigned to
-            # activation / deactivation by that condition's direction.
-            cross = base & ((rps & nns) | (rns & nps))
-            activ = base & ~cross & (rps | nps)
-            deact = base & ~cross & (rns | nns)
+            # Strict reversal: BOTH conditions significant, opposite directions.
+            reversal = base & ((rps & nns) | (rns & nps))
+            up = base & ~reversal & (rps | nps)
+            down = base & ~reversal & (rns | nns)
         else:
-            # Loose crossover: opposite condition signs with >=1 significant.
+            # Loose reversal: opposite condition signs with >=1 significant.
             opp = (((z_rand > 0) & (z_nonrand < 0)) |
                    ((z_rand < 0) & (z_nonrand > 0)))
-            cross = base & opp & anysig
-            activ = base & ~opp & anysig & (z_rand > 0)
-            deact = base & ~opp & anysig & (z_rand < 0)
-        # Difference significant but NEITHER condition anchored to Rest: the
-        # rest-referenced regime is undetermined (paired contrast is more
-        # sensitive than either condition vs Rest).
-        undet = base & ~anysig
+            reversal = base & opp & anysig
+            up = base & ~opp & anysig & (z_rand > 0)
+            down = base & ~opp & anysig & (z_rand < 0)
+        masks['reversal'] = reversal
+        masks['both_up'] = up & rps & nps
+        masks['one_up'] = up & ~(rps & nps)
+        masks['both_down'] = down & rns & nns
+        masks['one_down'] = down & ~(rns & nns)
+        # Difference significant but NEITHER condition anchored to Rest.
+        masks['unanchored'] = base & ~anysig
     else:
-        # Ungated: raw sign of each condition's group mean (no significance).
-        activ = base & (z_rand > 0) & (z_nonrand > 0)
-        deact = base & (z_rand < 0) & (z_nonrand < 0)
-        cross = base & ~(activ | deact)
-        undet = np.zeros(nvert, bool)
-
-    # Honour the display switches at the mask level so the returned counts match
-    # what is actually painted (and therefore what the colorbar legend shows):
-    # an undetermined hidden by show_undetermined, or any regime smaller than
-    # min_vertices in this hemisphere, is removed before counting and drawing.
-    if not show_undetermined:
-        undet = np.zeros(nvert, bool)
-    if min_vertices and int(min_vertices) > 0:
-        for m in (activ, deact, cross, undet):
-            if 0 < int(m.sum()) < int(min_vertices):
-                m[:] = False
+        bu = base & (z_rand > 0) & (z_nonrand > 0)
+        bd = base & (z_rand < 0) & (z_nonrand < 0)
+        masks['both_up'] = bu
+        masks['both_down'] = bd
+        masks['reversal'] = base & ~(bu | bd)
 
     diff_mag = z_diff if one_sided else np.abs(z_diff)
+    return masks, base, diff_mag
+
+
+def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax, menu,
+                thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
+                min_vertices=0, diff_sides='one-sided', cmaps=None):
+    """Per-vertex RGBA for one hemisphere of the combined Random/Non-Random map.
+
+    Each vertex whose Random - Non-Random difference is supra-threshold is
+    assigned to one of the six atomic regimes (regime_base_masks), then coloured
+    by the display group of `menu` that contains that regime, with
+    |Z(Random - Non-Random)| as the within-group intensity. Groups with
+    plot=False are not painted. See REGIME_MENU for the grouping.
+
+    Parameters
+    ----------
+    menu : ordered dict {group_key: {'regimes': [...], 'color': ramp,
+        'plot': bool, ...}}. Atomic regimes not listed in any plotted group are
+        left transparent.
+    min_vertices : if > 0, any display group with fewer than this many vertices
+        in the hemisphere is dropped (left transparent, counted as 0).
+    cmaps : {group_key: cmap}; defaults to make_regime_cmaps(menu).
+
+    Returns
+    -------
+    rgba : (nvert, 4) array; unpainted vertices are NaN (transparent under
+        SUITPy's overlay_type='rgb').
+    counts : dict {group_key: n_vertices_painted} over the menu groups.
+
+    Notes
+    -----
+    A genuine reversal requires evidence for both of its defining signs, so by
+    default (cross_both=True) each condition must clear FDR vs Rest in opposite
+    directions. The looser cross_both=False reproduces the earlier one-armed
+    behaviour. For this dataset the strict reversal is empty, consistent with
+    the empty crossover conjunction.
+    """
+    if cmaps is None:
+        cmaps = make_regime_cmaps(menu)
+    masks, base, diff_mag = regime_base_masks(
+        z_diff, z_rand, z_nonrand, thr_diff, thr_rand=thr_rand,
+        thr_nonrand=thr_nonrand, gate=gate, cross_both=cross_both,
+        diff_sides=diff_sides)
+    nvert = base.size
+
+    thr_diff = float(thr_diff)
+    vmax = float(vmax)
+    if not np.isfinite(vmax) or vmax <= thr_diff:
+        vmax = thr_diff + 1e-6
     mag = np.clip((diff_mag - thr_diff) / (vmax - thr_diff), 0.0, 1.0)
 
     rgba = np.full((nvert, 4), np.nan, float)
-    if activ.any():
-        rgba[activ] = cmap_act(mag[activ])
-    if deact.any():
-        rgba[deact] = cmap_deact(mag[deact])
-    if cross.any():
-        rgba[cross] = cmap_cross(mag[cross])
-    if undet.any():
-        rgba[undet] = cmap_undet(mag[undet])
-
-    return rgba, (int(activ.sum()), int(deact.sum()),
-                  int(cross.sum()), int(undet.sum()))
+    counts = {}
+    for g, spec in menu.items():
+        if not spec.get('plot', True):
+            counts[g] = 0
+            continue
+        gmask = np.zeros(nvert, bool)
+        for r in spec['regimes']:
+            gmask |= masks.get(r, np.zeros(nvert, bool))
+        # Drop sub-visible groups so the legend matches what is on the map.
+        if min_vertices and 0 < int(gmask.sum()) < int(min_vertices):
+            gmask[:] = False
+        if gmask.any():
+            rgba[gmask] = cmaps[g](mag[gmask])
+        counts[g] = int(gmask.sum())
+    return rgba, counts
 
 
 def regime_exclusion_stats(z_diff, z_rand, thr_diff, thr_rand,
@@ -1538,15 +1521,11 @@ def regime_exclusion_stats(z_diff, z_rand, thr_diff, thr_rand,
 
 def plot_regime_flatmap(
     diff_stats, cond_rand_stats, cond_nonrand_stats,
-    thr_diff, vmax, task_key, contrast_tag, output_dir,
+    thr_diff, vmax, task_key, contrast_tag, output_dir, menu,
     thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
-    show_undetermined=True, min_vertices=0,
+    min_vertices=0,
     diff_sides='one-sided',
     hemi=['L', 'R'],
-    warm=('#E1261C', '#FF8C00', '#FFE100'),
-    cool=('#1A6FE0', '#22C2E8', '#9BE8FF'),
-    neutral=('#DB2777', '#F9A8D4'),
-    undetermined=('#7B7239', '#C6BC82'),
     show_colorbar=True, n_ticks=4, tick_decimals=1,
     contour_stat=None, contour_threshold=None, contour_color='k',
     contour_linewidth=1.0, contour_positive_only=True,
@@ -1555,12 +1534,13 @@ def plot_regime_flatmap(
     """Combined Random/Non-Random flatmap coloured by rest-referenced regime.
 
     The difference contrast (Random - Non-Random) supplies the displayed
-    magnitude; the two condition-vs-Rest maps supply the regime (activation /
-    deactivation / crossover). See regime_rgba for the classification.
+    magnitude; the two condition-vs-Rest maps supply the regime, which is then
+    grouped into display regimes by `menu` (see REGIME_MENU and regime_rgba).
 
     diff_stats         : [lh, rh] signed Z of Random - Non-Random.
     cond_rand_stats    : [lh, rh] signed Z of Random vs Rest.
     cond_nonrand_stats : [lh, rh] signed Z of Non-Random vs Rest.
+    menu               : the regime display menu (REGIME_MENU).
 
     The network outline is optional and independent: pass contour_stat
     ([lh, rh]) and contour_threshold to draw it, or leave them None.
@@ -1576,8 +1556,7 @@ def plot_regime_flatmap(
     surfaces = {h: os.path.join(surf_dir, 'flat', f'fs_LR.32k.{h}.flat.surf.gii')
                 for h in hemi}
 
-    cmaps = make_regime_cmaps(warm=warm, cool=cool, neutral=neutral,
-                              undetermined=undetermined)
+    cmaps = make_regime_cmaps(menu)
 
     fig, axs = plt.subplots(1, len(hemi), figsize=(8, 4),
                             gridspec_kw={'wspace': 0.05})
@@ -1588,16 +1567,17 @@ def plot_regime_flatmap(
         'L': (diff_stats[0], cond_rand_stats[0], cond_nonrand_stats[0]),
         'R': (diff_stats[1], cond_rand_stats[1], cond_nonrand_stats[1]),
     }
-    total = np.zeros(4, int)
+    total = {g: 0 for g in menu}
 
     for ax, h in zip(axs, hemi):
         zd, zr, znr = per_h[h]
         rgba, counts = regime_rgba(
-            zd, zr, znr, thr_diff, vmax,
+            zd, zr, znr, thr_diff, vmax, menu,
             thr_rand=thr_rand, thr_nonrand=thr_nonrand, gate=gate,
-            cross_both=cross_both, show_undetermined=show_undetermined,
+            cross_both=cross_both,
             min_vertices=min_vertices, diff_sides=diff_sides, cmaps=cmaps)
-        total += np.asarray(counts, int)
+        for g in menu:
+            total[g] += int(counts.get(g, 0))
         plt.sca(ax)
         flatmap.plot(
             rgba, overlay_type='rgb',
@@ -1614,37 +1594,25 @@ def plot_regime_flatmap(
                 color=contour_color, linewidth=contour_linewidth,
                 positive_only=contour_positive_only)
 
-    print(f"[regime] displayed vertices -> activation={total[0]} "
-          f"deactivation={total[1]} crossover={total[2]} "
-          f"undetermined={total[3]}"
-          f"{' (undetermined hidden)' if not show_undetermined else ''}"
-          f"{f' (regimes <{int(min_vertices)} vtx/hemi dropped)' if min_vertices else ''}")
+    print("[regime] displayed vertices -> " +
+          ", ".join(f"{menu[g]['label']}={total[g]}" for g in menu) +
+          (f" (regimes <{int(min_vertices)} vtx/hemi dropped)"
+           if min_vertices else ""))
 
     if show_colorbar:
         dec = int(tick_decimals) if tick_decimals is not None else 2
         vlim = float(vmax) if (np.isfinite(vmax)
                                and vmax > thr_diff) else float(thr_diff) + 1e-6
         ticks = np.linspace(float(thr_diff), vlim, n_ticks)
-        # Left -> right: deactivation, crossover, activation, then undetermined
-        # (a separate 'no rest anchor' class). The regime name sits over each
-        # bar; the Z(...) label below gives the rest-referenced ordering of the
-        # conditions, with "R>NR" in bold for the single (Random > Non-Random)
-        # direction (valid for one-sided runs). Only regimes with >=1 vertex get
-        # a bar (a hidden or empty regime drops out), and the survivors are
+        # One bar per plotted menu group with >=1 displayed vertex, in menu
+        # order. The group label sits over each bar; the Z(...) annotation
+        # (menu 'ref') below gives the rest-referenced ordering of the
+        # conditions. Empty or hidden groups drop out and the survivors are
         # re-spaced and centred.
         bar_w, bar_gap, bar_y, bar_h = 0.24, 0.09, 0.085, 0.035
-        undet_n = int(total[3]) if show_undetermined else 0
         candidates = [
-            (cmaps[1], 'Deactivation',
-             r'$\mathrm{Z\ (Rest}\gg\mathbf{R{>}NR}\mathrm{)}$', int(total[1])),
-            (cmaps[2], 'Crossover',
-             r'$\mathrm{Z\ (}\mathbf{R\gg}\mathrm{Rest}\mathbf{\gg NR}\mathrm{)}$',
-             int(total[2])),
-            (cmaps[0], 'Activation',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{\gg Rest)}$', int(total[0])),
-            (cmaps[3], 'Undetermined',
-             r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{,\ n.s.\ vs\ Rest)}$',
-             undet_n),
+            (cmaps[g], menu[g]['label'], menu[g].get('ref', ''), int(total[g]))
+            for g, spec in menu.items() if spec.get('plot', True)
         ]
         present = [(c, ref, lbl) for (c, ref, lbl, n) in candidates if n > 0]
         nb = len(present)
@@ -1659,7 +1627,7 @@ def plot_regime_flatmap(
                 cax = fig.add_axes(rect)
                 cb = fig.colorbar(sm, cax=cax, orientation='horizontal',
                                   ticks=ticks)
-                cb.ax.set_title(ref, fontsize=9, pad=3)    # reference over bar
+                cb.ax.set_title(ref, fontsize=9, pad=3)    # regime label over bar
                 cb.set_label(lbl, fontsize=8, labelpad=4)  # Z(...) below bar
                 cb.ax.set_xticklabels([f'{t:.{dec}f}' for t in ticks])
                 cb.ax.tick_params(labelsize=7)
@@ -1675,7 +1643,7 @@ def plot_regime_flatmap(
     fig.savefig(os.path.join(output_dir, fname),
                 dpi=300, bbox_inches='tight', pad_inches=0.05)
     plt.close(fig)
-    return tuple(int(x) for x in total)
+    return dict(total)
 
 
 def plot_multirois_flatmap(
@@ -2305,18 +2273,8 @@ task_tag = 'NTFD Random'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = [
-    'Visual Beat vs Visual Interval',
-    'Visual Interval vs Visual Beat',
-    'Visual Beat vs Visual Random',
-    'Visual Random vs Visual Beat',
-    'Visual Interval vs Visual Random',
-    'Visual Random vs Visual Interval', 
-    'Visual Non-Random vs Visual Random',
-    'Visual Random vs Visual Non-Random',
-    'Decision'
-    ] # E.g. 'Beat', 'Interval', 'ALL', etc.
-contrast_name2 = None # E.g. 'Interval'
+contrast_name = 'Random vs Non-Random'  # E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name2 = None  # E.g. 'Interval'
 
 # Contour overlay (used only with --contour). The second contrast
 # (contrast_name2) is drawn as an outline and MAY come from a different task
@@ -2397,22 +2355,51 @@ REGIME_CROSS_REQUIRE_BOTH_SIGNIF = True
 #   purely the rest-referenced regime, so cool/deactivation cannot be misread
 #   as the NR>R direction. 'two-sided': also show NR>R using the |z| FDR.
 REGIME_DIFF_SIDES = 'one-sided'
-# Per-regime intensity colormaps (low |z| -> high |z|).
-REGIME_WARM = ('#E1261C', '#FF8C00', '#FFE100')      # activation
-REGIME_COOL = ('#1A6FE0', '#22C2E8', '#9BE8FF')      # deactivation
-REGIME_CROSS = ('#DB2777', '#F9A8D4')                # crossover (pink, dark->light)
-# Undetermined regime: R>NR significant but NEITHER condition significant vs
-# Rest, so no activation/deactivation/crossover label is defensible. Muted
-# olive (low saturation, but not grey, so it does not dissolve into the grey
-# flat underlay), dark->light.
-REGIME_UNDETERMINED = ('#7B7239', '#C6BC82')
-# If True, drop the undetermined regime from the flatmap (those vertices stay
-# transparent). If False, show it as its own colour/colorbar. Set True here:
-# the undetermined band is a transition gradient between activation and
-# deactivation, not a distinct regime, so it is filtered from the figure; the
-# quantitative fraction is kept for the text via regime_exclusion_stats / the
-# printed counts (set this False to inspect it on the map if a reviewer asks).
-REGIME_FILTER_UNDETERMINED = True
+# ---- Regime display menu --------------------------------------------------
+# Six atomic regimes are computed from the rest-referenced behaviour of the two
+# conditions wherever the Random - Non-Random difference is significant:
+#   'both_up'    both conditions significantly > Rest
+#   'one_up'     exactly one significantly > Rest, the other n.s.
+#   'both_down'  both significantly < Rest
+#   'one_down'   exactly one significantly < Rest, the other n.s.
+#   'reversal'   conditions significant in OPPOSITE directions (true sign
+#                reversal); empty for this dataset
+#   'unanchored' difference significant but NEITHER condition significant vs
+#                Rest (no baseline anchor)
+# REGIME_MENU groups those atoms into the display regimes drawn on the flatmap.
+# Each entry: the atoms it merges ('regimes'), the legend 'label', the math
+# annotation 'ref' shown over its colorbar, an intensity 'color' ramp
+# (low |Z| -> high |Z|), and a 'plot' flag. To merge / relabel / recolour a
+# regime, edit one entry; the classifier, the colormaps, and the legend all
+# follow this dict and its order. Atoms left out of every plotted group are
+# transparent. Keep groups disjoint (an atom in two plotted groups is painted
+# by whichever comes last).
+REGIME_MENU = {
+    'activation': dict(
+        regimes=['both_up', 'one_up'],
+        label='Activation',
+        ref=r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{> Rest)}$',
+        color=('#E1261C', '#FF8C00', '#FFE100'),
+        plot=True),
+    'reversal': dict(
+        regimes=['reversal'],
+        label='Crossover',
+        ref=r'$\mathrm{Z\ (}\mathbf{R>}\mathrm{Rest}\mathbf{> NR}\mathrm{)}$',
+        color=('#7B7239', '#C6BC82'),
+        plot=False),
+    'unanchored': dict(
+        regimes=['unanchored'],
+        label='Crosswise',
+        ref=r'$\mathrm{Z\ (}\mathbf{R{>}NR})$',
+        color=('#DB2777', '#F9A8D4'),
+        plot=True),
+    'deactivation': dict(
+        regimes=['both_down', 'one_down'],
+        label='Deactivation',
+        ref=r'$\mathrm{Z\ (Rest}>\mathbf{R{>}NR}\mathrm{)}$',
+        color=('#1A6FE0', '#22C2E8', '#9BE8FF'),
+        plot=True),
+}
 # Minimum vertices per hemisphere for a regime to be drawn and to receive a
 # colorbar. Regimes below this are sub-visible specks, so showing a full
 # colorbar for them is misleading; dropping them keeps the legend matched to
@@ -2832,15 +2819,13 @@ if __name__ == '__main__':
             thr_diff=thr_diff, vmax=vmax_diff,
             task_key=task_id, contrast_tag=cname + contour_tag,
             output_dir=regime_dir,
+            menu=REGIME_MENU,
             thr_rand=thr_rand, thr_nonrand=thr_nonrand,
             gate=REGIME_GATE_SIGNIF,
             cross_both=REGIME_CROSS_REQUIRE_BOTH_SIGNIF,
-            show_undetermined=not REGIME_FILTER_UNDETERMINED,
             min_vertices=REGIME_MIN_VERTICES,
             diff_sides=REGIME_DIFF_SIDES,
             hemi=['L', 'R'],
-            warm=REGIME_WARM, cool=REGIME_COOL, neutral=REGIME_CROSS,
-            undetermined=REGIME_UNDETERMINED,
             show_borders=SHOW_SULCI_BORDERS,
             **contour_kw,
         )
