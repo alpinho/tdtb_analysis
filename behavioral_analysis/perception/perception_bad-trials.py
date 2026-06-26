@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: January 31, 2025
-Last update: February, 2025
+Last update: June 2026
 
 Compatibility: Python 3.10.14
 """
@@ -16,10 +16,14 @@ import numpy as np
 import pandas as pd
 
 
-def missing_trials(df):
-    # Get arrays of response time and answers but only for sessions
-    # 4 and 5 (imaging sessions)
-    rt = df[df['session'].isin([4, 5])]['response_time'].values
+def missing_trials(df, sessions):
+    # Get array of response times but only for the requested sessions
+    rt = df[df['session'].isin(sessions)]['response_time'].values
+
+    # Guard against an empty selection (e.g. requested sessions not in df)
+    if rt.size == 0:
+        raise ValueError(
+            f'No trials found for sessions {sessions} in this dataframe.')
 
     # Total number of trials (includes NaN values)
     total_trials = len(rt)
@@ -41,9 +45,14 @@ def missing_trials(df):
       f'{percentage_automatic:.2f}%')
 
 
-def missing_trials_participant(df):
-    # Filter only sessions 4 and 5 (imaging sessions)
-    df_filtered = df[df['session'].isin([4, 5])]
+def missing_trials_participant(df, sessions):
+    # Filter only the requested sessions
+    df_filtered = df[df['session'].isin(sessions)]
+
+    # Guard against an empty selection (e.g. requested sessions not in df)
+    if df_filtered.empty:
+        raise ValueError(
+            f'No trials found for sessions {sessions} in this dataframe.')
 
     # Dictionary to store missing trial percentages per participant
     missing_trials_stats = []
@@ -86,19 +95,27 @@ def missing_trials_participant(df):
 # =========================== INPUTS ===================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
-DF_DIR = os.path.join(MAIN_DIR, 'perception_results', 'raw_dataframes')
+DF_DIR = os.path.join(
+    MAIN_DIR, 'perception_results_first_batch', 'raw_dataframes')
 
-DF_IMG_DIR = os.path.join(DF_DIR, 'df_perception_allses.tsv')
+# Sessions to analyse. Imaging sessions are 4 and 5; behavioural sessions are
+# 1, 2 and 3. Explicit here instead of hardcoded inside the functions.
+SESSIONS = [4, 5]
+
+# The 'allses' file holds every session, so the SESSIONS list above is the
+# single source of truth for what is analysed.
+DF_FNAME = 'df_perception_allses.tsv'
+DF_PATH = os.path.join(DF_DIR, DF_FNAME)
 
 # %%
 # ============================ RUN =====================================
 
 if __name__ == '__main__':
     # Open dataframes
-    db = pd.read_csv(DF_IMG_DIR, sep='\t')
+    db = pd.read_csv(DF_PATH, sep='\t')
 
     # ************************* Bad Trials *****************************
-    missing_trials(db)
+    # missing_trials(db, SESSIONS)
 
     # ***************** Bad Trials per participant *********************
-    missing_trials_participant(db)
+    missing_trials_participant(db, SESSIONS)
