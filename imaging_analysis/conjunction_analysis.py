@@ -1,39 +1,39 @@
 """
 Script: Cross-modal vs. modality-specific unpredictability maps via CONJUNCTION
-        analysis, in both VOLUME and SURFACE (fs_LR32k). Everything is derived
-        WITHIN the NTFD-Random GLM; the predictive-timing network appears only
-        as an optional display contour, never as a mask.
+        analysis, in VOLUME, SURFACE (fs_LR32k), and SUIT (cerebellar flatmap).
+        Everything is derived WITHIN the NTFD-Random GLM; the predictive-timing
+        network appears only as an optional display contour, never as a mask.
 
 ----------------------------------------------------------------------------
-WHY A CONJUNCTION (and not the pooled Random - Non-Random contrast)
+WHY A CONJUNCTION (and not the pooled Random - Non-Random contrast, or the two
+per-modality difference maps)
 ----------------------------------------------------------------------------
-The pooled Random > Non-Random contrast collapses two distinctions that are
-actually orthogonal, and cannot recover either:
+The pooled Random > Non-Random contrast cannot say whether the unpredictability
+EFFECT is carried equally by the two modalities or is larger in one: a pooled
+effect can be driven entirely by one stream, so pooled significance does not
+imply modality-invariance, and a modality-specific effect can fail to survive
+pooling. Nor can the two per-modality difference maps answer it by being
+compared: "significant in auditory, not in visual" is the difference in
+significance, not the significance of the difference, and here the visual
+difference map is empty everywhere on power alone, so a side-by-side reading
+would wrongly call the whole response auditory-specific.
 
-  (a) Is the unpredictability EFFECT (Random > Non-Random) present in BOTH
-      modalities (cross-modal) or in only ONE (modality-specific)? A pooled
-      effect can be driven entirely by one modality, so pooled significance
-      does not imply cross-modality, and a purely modality-specific effect can
-      fail to survive pooling.
-
-  (b) Relative to REST, is the response an activation or a deactivation? The
-      Random - Non-Random difference is orthogonal to the baseline level, so
-      its sign says nothing about activation vs. deactivation; that needs the
-      condition-vs-Rest maps.
-
-A conjunction under the conjunction-null / minimum-statistic logic (Nichols et
-al., 2005) requires each conjoined contrast to be INDIVIDUALLY significant
-(a logical AND). That is exactly the cross-modality guarantee, and because each
-arm is one-sided it also fixes the activation/deactivation sign. The
-conjunctions run on the per-modality condition-vs-Rest contrasts, never on the
-pooled difference.
+The valid test is the Modality x Predictability INTERACTION, asking directly
+whether the increase is reliably larger in one modality than the other. The
+conjunction conjoins three INDIVIDUALLY-significant, one-sided arms (Nichols et
+al., 2005): the per-modality effect (Random > Non-Random), the per-modality
+activation (Random > Rest, which anchors the gain as an activation rather than a
+deactivation), and the interaction in that modality's direction. The conjunction
+runs on these per-modality, within-GLM contrasts, never on a difference of
+thresholded maps.
 
 ----------------------------------------------------------------------------
 ARMS (per-modality, FDR-thresholded; NTFD-Random GLM)
 ----------------------------------------------------------------------------
-  A_eff / V_eff  = Auditory / Visual (Random > Non-Random)          [pos]
-  A_act / V_act  = Auditory / Visual (Random  vs Rest)              [pos]
-  A_NR  / V_NR   = Auditory / Visual (Non-Random vs Rest)           [neg]
+  A_eff / V_eff  = Auditory / Visual  (Random > Non-Random)         [pos]
+                   the unpredictability EFFECT in each modality
+  A_act / V_act  = Auditory / Visual  (Random > Rest)               [pos]
+                   ABOVE baseline during the unpredictable condition
   AxV            = interaction (A_eff - V_eff), built WITHIN subject
                    (con29 - con41) then taken to the group level; used in two
                    tails, 'aud_gt_vis' (>0) and 'vis_gt_aud' (<0).
@@ -46,36 +46,34 @@ needed -- only access to each subject's individual contrast images (the two
 loaders flagged TODO(paths) below).
 
 ----------------------------------------------------------------------------
-THE CONJUNCTIONS (intersections of FDR-thresholded maps)
+THE CONJUNCTIONS
 ----------------------------------------------------------------------------
-Shared cross-modal NETWORK (both modalities activate above rest for the
-unpredictable condition; the shared timing network itself, independent of
-whether the unpredictability EFFECT is significant). Report it alongside the
-modality-specific enhancement to show "shared network + specific bias":
-  0. cross_modal_shared_activation = A_act & V_act
+Every '&' is a logical AND under the conjunction-null / minimum-statistic logic
+(Nichols et al., 2005): a voxel survives only where EVERY listed arm individually
+survives FDR. The displayed statistic is the least significant of the displayed
+arms, which all share one sign.
 
-Cross-modal (effect in both modalities AND condition-vs-rest in both):
-  1. cross_modal_activation    = A_eff & V_eff & A_act & V_act
-  2. cross_modal_deactivation  = A_eff & V_eff & A_NR  & V_NR
+This analysis answers ONE question: is the Random > Non-Random increase
+modality-specific, and where? The predictability axis -- the shared timing core,
+and activation beyond the predictive-timing network (the anterior Insula) -- is
+resolved by the whole-brain regime map (Figure 6a) and the ROI analysis
+(Figure 6b), NOT by conjunction. No shared-core, beyond, or cross-modal
+conjunction is computed here.
 
-Cross-modal CROSSOVER (the within-GLM replacement for "beyond predictable
-timing"): activated by the unpredictable condition AND suppressed by the
-predictable one, in both modalities --
-  3. cross_modal_crossover     = A_act & V_act & A_NR & V_NR
-A sign dissociation that is opposite the predictive-timing response and is
-established entirely within one GLM, with no absence-of-evidence step.
+MODALITY of the gain: is the Random > Non-Random increase carried equally by the
+two streams or larger in one? Modality specificity is TESTED via the interaction
+arm (AxV>0 auditory-leaning, AxV<0 visual-leaning), not an exclusive '~other'
+mask, and not by comparing the two per-modality difference maps (the difference
+in significance is not the significance of the difference).
 
-Modality-specific (one modality AND the interaction in that direction -- a
-TESTED specificity claim that replaces the old exclusive '~other' mask):
-  4. modality_specific_activation_auditory   = A_eff & A_act & (AxV>0)
-  5. modality_specific_activation_visual     = V_eff & V_act & (AxV<0)
-  6. modality_specific_deactivation_auditory = A_eff & A_NR  & (AxV>0)
-  7. modality_specific_deactivation_visual   = V_eff & V_NR  & (AxV<0)
-  8. modality_specific_crossover_auditory    = A_act & A_NR  & (AxV>0)
-  9. modality_specific_crossover_visual      = V_act & V_NR  & (AxV<0)
+  modality_specific_activation_auditory = A_eff & A_act & (AxV>0)
+  modality_specific_activation_visual   = V_eff & V_act & (AxV<0)
+       The increase is, jointly, significant, above baseline during Random, and
+       reliably larger in this modality than the other. Auditory is the gain to
+       SHOW (posterior STG/PT, within the auditory predictive-timing cortex);
+       visual is its mirror and is expected EMPTY (the no-cluster control).
 
-Every '&' is the conjunction (minimum statistic). There is no exclusive masking
-and no cross-task masking anywhere in the analysis.
+There is no exclusive masking and no cross-task masking anywhere in the analysis.
 
 ----------------------------------------------------------------------------
 PREDICTIVE-TIMING / PREDICTABLE NETWORK -- DISPLAY CONTOUR ONLY
@@ -90,12 +88,12 @@ outline a reference network (PLOT_NETWORK_CONTOUR), chosen by CONTOUR_SOURCE:
                   Cross-task, so kept purely descriptive.
   'predictable' : the WITHIN-GLM predictable response, Non-Random vs Rest from
                   the NTFD-Random task itself; drawn one-sided positive
-                  (Non-Random > Rest). Same GLM as the arms, and the crossover
-                  categories fall outside it by construction (they require
-                  Non-Random < Rest), so the outline visually confirms them.
+                  (Non-Random > Rest). Same GLM as the arms.
 
-CONJUNCTION_CONTOUR maps each category to a contour key ('pooled' for cross-
-modal, 'auditory'/'visual' for the modality-specific ones); CONTOUR_TERMS holds
+For the two modality-specific conjunctions the contour is the per-modality
+predictive-timing reference ('auditory' / 'visual'), which is why the auditory
+gain can be shown to lie within the auditory predictive-timing cortex.
+CONJUNCTION_CONTOUR maps each conjunction to its contour key; CONTOUR_TERMS holds
 the actual contrast (cid / side / threshold) for each key under both sources.
 
 A minimum cluster-EXTENT filter (MIN_CLUSTER_MM3 / MIN_CLUSTER_VERTICES) is
@@ -119,6 +117,18 @@ Surface : results/parametric_tests/surface/<task>/surface_images/
            reference network drawn as a contour; the GIFTI pair mirrors the
            volume NIfTI outputs). <fwhm> records the kernel applied (e.g.
            fwhm8mm for the volume, fwhm0mm for the unsmoothed surface).
+SUIT    : results/parametric_tests/suit/<task>/suit_images/conjunction/
+          <category>/
+            group_<task>_<category>_<fwhm>_suit.png   (cerebellar flatmap)
+          results/parametric_tests/suit/<task>/suit_files/conjunctions/
+          <category>/
+            <category>_zmap_<fwhm>_suit.func.gii       (statistic, SUIT verts)
+          The SUIT panel is the WHOLE-BRAIN VOLUME conjunction (same arms,
+          thresholds, extent filter and minimum statistic as the Volume output)
+          projected onto the cerebellar flatmap with SUITPy's vol_to_surf, the
+          way group_suit projects a group volume map. The cerebellum has no
+          per-subject SUIT group pipeline, so its statistics ARE the volume
+          statistics; nothing is re-thresholded on the flatmap.
 
 The displayed statistic is the conjunction-null minimum statistic: the least
 significant of the conjoined arms shown (min z for activations, max z i.e.
@@ -749,6 +759,92 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
           f"(>= {MIN_CLUSTER_VERTICES}-vertex clusters) -> {out_dir}")
 
 
+def compute_suit_category(category, spec, zcache, brain,
+                          vol_to_surf, plot_suitflat_fn, nt):
+    """Cerebellar SUIT flatmap of one conjunction.
+
+    The conjunction is computed in the WHOLE-BRAIN VOLUME -- identical arms,
+    per-arm whole-brain FDR thresholds, cluster-extent filter, and minimum
+    statistic as compute_volume_category -- and its cerebellar portion is then
+    projected to the SUIT flatmap for display. The cerebellum has no per-subject
+    SUIT group pipeline here (group_suit projects the GROUP volume map), so the
+    cerebellar statistics ARE the whole-brain volume statistics; projecting the
+    volume result keeps the cerebellar panel on the same FDR footing as the
+    cortical and volume panels and identical to the table. `vol_to_surf`,
+    `plot_suitflat_fn` and `nt` are injected by the caller so SUITPy is imported
+    only when RUN_SUIT is on.
+    """
+    import tempfile
+
+    bools = {t: fdr_bool(zcache[t], brain, TERMS[t]['side'], FDR_ALPHA)[0]
+             for t in set(spec['include'] + spec['exclude'] + spec['display'])}
+    cat = conjoin(bools, spec['include'], spec['exclude'])
+    keep, _ = cluster_filter_volume(cat, REF_IMG, MIN_CLUSTER_MM3)
+    stat = min_statistic(zcache, spec['display'], keep)   # zeroed outside keep
+
+    is_deact = {TERMS[t]['side'] for t in spec['display']} == {'neg'}
+    nz = np.abs(stat[stat != 0])
+    if nz.size == 0:
+        print(f"[suit] {category}: empty conjunction in the volume; skipped")
+        return
+
+    # Project BOTH the minimum-statistic and the binary keep mask onto the SUIT
+    # surface. vol_to_surf reads a NIfTI from disk (as group_suit does) and
+    # interpolates, which attenuates values; cerebellar membership is therefore
+    # taken from the projected keep mask (majority vote, >= 0.5), not from a
+    # fixed |z| floor, so a genuine cluster is not pruned by interpolation. The
+    # display floor/ceiling are then read off the surviving projected values.
+    def _project_to_suit(vol_arr):
+        img = nib.Nifti1Image(vol_arr.astype(np.float32), REF_IMG.affine,
+                              REF_IMG.header)
+        tmp = tempfile.NamedTemporaryFile(suffix='.nii', delete=False).name
+        try:
+            nib.save(img, tmp)
+            v = np.squeeze(vol_to_surf(tmp, space='SUIT'), axis=1)
+        finally:
+            os.remove(tmp)
+        return np.nan_to_num(v, nan=0.0)
+
+    suit_stat = _project_to_suit(stat)
+    suit_keep = _project_to_suit(keep.astype(np.float32))
+    suit_stat = np.where(suit_keep >= 0.5, suit_stat, 0.0)
+
+    kept = suit_stat[suit_stat != 0]
+    if kept.size == 0:
+        print(f"[suit] {category}: no cerebellar vertices "
+              "(cluster is supratentorial or sub-voxel on the flatmap); skipped")
+        return
+    thr_disp = float(np.abs(kept).min())   # display floor on the projected scale
+    vmax = float(np.abs(kept).max())
+
+    suit_tag = fwhm_tag(SMOOTHING_FWHM)
+    # GIFTI of the conjunction statistic, mirroring the volume / surface outputs
+    files_dir = os.path.join(SUIT_CONJ_FILES, category)
+    os.makedirs(files_dir, exist_ok=True)
+    gii = nt.gifti.make_func_gifti(
+        suit_stat.astype(np.float32), anatomical_struct='Cerebellum',
+        column_names=[category.replace('_', '-')])
+    nib.save(gii, os.path.join(files_dir,
+                               f"{category}_zmap_{suit_tag}_suit.func.gii"))
+
+    # Filled cerebellar flatmap (single-sign minimum statistic). plot_suitflat's
+    # single-map mode expects a positive intensity ramp, so deactivations are
+    # shown as |z| with the Blues_r colormap; the saved GIFTI keeps the sign.
+    imgs_dir = os.path.join(SUIT_CONJ_IMGS, category)
+    os.makedirs(imgs_dir, exist_ok=True)
+    out_png = os.path.join(
+        imgs_dir,
+        f"group_{analysis_task_id.replace('_', '-')}_{category}_"
+        f"{suit_tag}_suit.png")
+    disp = np.abs(suit_stat) if is_deact else suit_stat
+    plot_suitflat_fn(
+        disp, thr_disp, out_png,
+        colormap=('Blues_r' if is_deact else 'autumn'),
+        vmax=vmax, cmap_title='Z-values')
+    print(f"[suit] {category}: {int(keep.sum())} volume voxels -> cerebellar "
+          f"flatmap {out_png}")
+
+
 # %%
 # ===================== TUNABLE TOGGLES & INPUTS =======================
 # Everything in THIS section is safe to change between runs: which space to
@@ -762,8 +858,12 @@ def compute_surface_category(category, spec, zcache, cortex, net_contour,
 # Which representation(s) to run; independent booleans, set at least one.
 #   RUN_VOLUME  (bool): whole-brain volume conjunctions (glass brain + NIfTI).
 #   RUN_SURFACE (bool): fs_LR32k surface conjunctions (the figure flatmaps).
+#   RUN_SUIT    (bool): cerebellar SUIT flatmaps of each conjunction, projected
+#                from the whole-brain volume result (needs SUITPy installed;
+#                imported lazily, only when this is True).
 RUN_VOLUME = True
 RUN_SURFACE = True
+RUN_SUIT = True
 
 # LOAD_PRECOMPUTED_VOLUME_ZMAPS (bool, volume path only): reuse volume z-maps
 # already written by volume_maps.py when present (True, faster) instead of
@@ -897,10 +997,6 @@ TERMS = {
                       task=analysis_task_tag, side='pos'),
     'vis_act':   dict(cid=33, name='Visual Random',
                       task=analysis_task_tag, side='pos'),
-    'aud_deact': dict(cid=20, name='Auditory Non-Random',
-                      task=analysis_task_tag, side='neg'),
-    'vis_deact': dict(cid=32, name='Visual Non-Random',
-                      task=analysis_task_tag, side='neg'),
     # Modality x structure interaction AxV = A_eff - V_eff = con29 - con41,
     # built WITHIN subject then taken to the group level (see
     # interaction_group_zmap_*). One map, two tails: 'aud_gt_vis' = AxV > 0
@@ -925,16 +1021,12 @@ TERMS = {
 # Each entry: cid / name / task / side / threshold (None = data-driven qFDR).
 CONTOUR_TERMS = {
     'encoding': {
-        'pooled':   dict(cid=1, name='Encoding',          task=network_task_tag,
-                         side='two_pos', threshold=None),
         'auditory': dict(cid=2, name='Auditory Encoding', task=network_task_tag,
                          side='two_pos', threshold=None),
         'visual':   dict(cid=3, name='Visual Encoding',   task=network_task_tag,
                          side='two_pos', threshold=None),
     },
     'predictable': {
-        'pooled':   dict(cid=8,  name='Non-Random',       task=analysis_task_tag,
-                         side='pos', threshold=None),
         'auditory': dict(cid=20, name='Auditory Non-Random',
                          task=analysis_task_tag, side='pos', threshold=None),
         'visual':   dict(cid=32, name='Visual Non-Random',
@@ -949,37 +1041,21 @@ CONTOUR_TERMS = {
 # The display-only contour for each category is set in TOGGLES
 # (CONJUNCTION_CONTOUR + CONTOUR_SOURCE).
 CONJUNCTIONS = {
-    # ---- shared cross-modal NETWORK: both modalities activate above rest for
-    #      the unpredictable condition (Random > rest), regardless of whether
-    #      the unpredictability effect is significant. This is the shared timing
-    #      network; pair it with the modality-specific enhancement to report
-    #      "shared network + specific bias" together.
-    'cross_modal_shared_activation': dict(
-        include=['aud_act', 'vis_act'],
-        exclude=[],
-        display=['aud_act', 'vis_act']),
-    # ---- cross-modal: effect AND condition-vs-rest in BOTH modalities -----
-    'cross_modal_activation': dict(
-        include=['aud_eff', 'vis_eff', 'aud_act', 'vis_act'],
-        exclude=[],
-        display=['aud_act', 'vis_act']),
-    'cross_modal_deactivation': dict(
-        include=['aud_eff', 'vis_eff', 'aud_deact', 'vis_deact'],
-        exclude=[],
-        display=['aud_deact', 'vis_deact']),
-    # ---- cross-modal CROSSOVER: activated by the unpredictable condition AND
-    #      suppressed by the predictable one, in BOTH modalities
-    #      (Random>Rest & Non-Random<Rest). A within-GLM sign dissociation,
-    #      opposite the predictive-timing response; no absence-of-evidence step.
-    #      Display the activation arms (the deactivation arms have opposite sign
-    #      and cannot share one minimum statistic).
-    'cross_modal_crossover': dict(
-        include=['aud_act', 'vis_act', 'aud_deact', 'vis_deact'],
-        exclude=[],
-        display=['aud_act', 'vis_act']),
-    # ---- modality-specific activation: effect + activation in ONE modality AND
-    #      a significant interaction in that modality's direction (TESTED
-    #      specificity, replacing the old exclusive '~other_eff' mask).
+    # ================= MODALITY OF THE UNPREDICTABILITY GAIN ===============
+    # The conjunction analysis serves ONE purpose: to test whether the
+    # Random > Non-Random increase is modality-specific, and where. The
+    # predictability axis (shared timing core; activation beyond predictive
+    # timing) is handled by the whole-brain regime map (Figure 6a) and the ROI
+    # analysis (Figure 6b), NOT by conjunction, so no shared-core / beyond /
+    # cross-modal conjunction is computed here.
+    #
+    # Modality specificity is TESTED with the Modality x Predictability
+    # interaction arm (AxV>0 auditory-leaning, AxV<0 visual-leaning), not an
+    # exclusive '~other' mask. Each category keeps a voxel where the increase is,
+    # jointly: significant (eff), above baseline during Random (act), and
+    # reliably larger in this modality than the other (interaction). The auditory
+    # category is the gain to SHOW (posterior STG/PT); the visual category is its
+    # mirror and is expected EMPTY (reported as the no-cluster control).
     'modality_specific_activation_auditory': dict(
         include=['aud_eff', 'aud_act', 'aud_gt_vis'],
         exclude=[],
@@ -988,32 +1064,6 @@ CONJUNCTIONS = {
         include=['vis_eff', 'vis_act', 'vis_gt_aud'],
         exclude=[],
         display=['vis_eff', 'vis_act']),
-    # ---- modality-specific DEACTIVATION: effect + the predictable condition
-    #      suppressed below baseline (Non-Random < rest) in ONE modality AND a
-    #      significant interaction in that modality's direction. Mirrors the
-    #      activation block with the deactivation arm in place of the activation
-    #      arm, so it tests whether a deactivation-carried unpredictability
-    #      effect (e.g. the right MFG, beyond predictive timing) is itself
-    #      modality-specific. The effect arm (pos) and the deactivation arm (neg)
-    #      have opposite signs, so display the deactivation arm on its own.
-    'modality_specific_deactivation_auditory': dict(
-        include=['aud_eff', 'aud_deact', 'aud_gt_vis'],
-        exclude=[],
-        display=['aud_deact']),
-    'modality_specific_deactivation_visual': dict(
-        include=['vis_eff', 'vis_deact', 'vis_gt_aud'],
-        exclude=[],
-        display=['vis_deact']),
-    # ---- modality-specific CROSSOVER: crossover in one modality AND the
-    #      interaction in that direction.
-    'modality_specific_crossover_auditory': dict(
-        include=['aud_act', 'aud_deact', 'aud_gt_vis'],
-        exclude=[],
-        display=['aud_act']),
-    'modality_specific_crossover_visual': dict(
-        include=['vis_act', 'vis_deact', 'vis_gt_aud'],
-        exclude=[],
-        display=['vis_act']),
 }
 
 
@@ -1025,20 +1075,12 @@ CONTOUR_SOURCE_TAG = {'encoding': 'encoding', 'predictable': 'nonrandom'}
 
 # CONJUNCTION_CONTOUR: the contour KEY each conjunction is outlined with,
 # resolved within the chosen CONTOUR_SOURCE catalog (CONTOUR_TERMS). Fixed by
-# meaning: 'pooled' for the cross-modal categories, 'auditory'/'visual' for the
-# modality-specific ones (each contrast's side/threshold live in CONTOUR_TERMS).
+# meaning: 'auditory'/'visual' for the two modality-specific conjunctions (each
+# contrast's side/threshold live in CONTOUR_TERMS).
 # Display-only; does not affect any statistic.
 CONJUNCTION_CONTOUR = {
-    'cross_modal_shared_activation':         'pooled',
-    'cross_modal_activation':                'pooled',
-    'cross_modal_deactivation':              'pooled',
-    'cross_modal_crossover':                 'pooled',
     'modality_specific_activation_auditory':   'auditory',
     'modality_specific_activation_visual':     'visual',
-    'modality_specific_deactivation_auditory': 'auditory',
-    'modality_specific_deactivation_visual':   'visual',
-    'modality_specific_crossover_auditory':    'auditory',
-    'modality_specific_crossover_visual':      'visual',
 }
 
 
@@ -1086,6 +1128,16 @@ SURF_CONJ_IMGS = os.path.join(SURFPARAMETRIC_FOLDER, analysis_task_id,
 # of the per-arm surface_files folders); mirrors VOL_CONJ_ROOT for the surface.
 SURF_CONJ_FILES = os.path.join(SURF_FOLDER, 'conjunctions')
 
+# ---- SUIT (cerebellum) results tree (same root as volume_to_suit.py) --
+SUITPARAMETRIC_FOLDER = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'results', 'parametric_tests', 'suit')
+# cerebellar conjunction flatmaps and GIFTI data, mirroring the surface tree
+SUIT_CONJ_IMGS = os.path.join(SUITPARAMETRIC_FOLDER, analysis_task_id,
+                              'suit_images', 'conjunction')
+SUIT_CONJ_FILES = os.path.join(SUITPARAMETRIC_FOLDER, analysis_task_id,
+                               'suit_files', 'conjunctions')
+
 
 # %%
 # ============================ RUN ======================================
@@ -1111,17 +1163,16 @@ def main():
                                                      (int, float)), \
             f"CONTOUR_TERMS['{CONTOUR_SOURCE}']['{key}']['threshold'] invalid"
 
-    # ---------------------------- VOLUME -------------------------------
-    if RUN_VOLUME:
-        print('\n[VOLUME] computing conjunction maps (whole-brain, no masking)')
-
-        # group z-maps for every conjunction arm (shared analysis grid). The
-        # first single-contrast arm sets the reference grid.
+    # ---------------- VOLUME ARMS (shared by VOLUME and SUIT) ----------
+    # The SUIT path projects the whole-brain volume conjunction to the
+    # cerebellar flatmap, so it needs the same volume arm z-maps as the volume
+    # path. Build them once when either path is on.
+    if RUN_VOLUME or RUN_SUIT:
         global REF_IMG
         first = next(d for d in TERMS.values() if 'interaction' not in d)
         REF_IMG = load_or_fit_volume_z(first['cid'], first['name'],
                                        task_id[first['task']], SUBJECTS)
-        zcache = {}
+        zcache_vol = {}
         int_cache = {}
         for t, d in TERMS.items():
             if 'interaction' in d:
@@ -1135,12 +1186,28 @@ def main():
                 z_img = load_or_fit_volume_z(d['cid'], d['name'],
                                              task_id[d['task']], SUBJECTS,
                                              ref_img=REF_IMG)
-            zcache[t] = np.asanyarray(z_img.get_fdata(), dtype=float)
-
+            zcache_vol[t] = np.asanyarray(z_img.get_fdata(), dtype=float)
         brain = mask_on_grid(FITTING_MASK_PATH, REF_IMG)
 
+    # ---------------------------- VOLUME -------------------------------
+    if RUN_VOLUME:
+        print('\n[VOLUME] computing conjunction maps (whole-brain, no masking)')
         for category, spec in CONJUNCTIONS.items():
-            compute_volume_category(category, spec, zcache, brain)
+            compute_volume_category(category, spec, zcache_vol, brain)
+
+    # ----------------------------- SUIT --------------------------------
+    if RUN_SUIT:
+        print('\n[SUIT] projecting whole-brain conjunctions to the cerebellar '
+              'flatmap')
+        # Lazy imports: SUITPy is required only here. plot_suitflat is reused
+        # from volume_to_suit (its run-block is guarded by __main__, so the
+        # import does not trigger any analysis).
+        from SUITPy import flatmap as _suit_flatmap
+        from volume_to_suit import plot_suitflat as _plot_suitflat
+        import nitools as _nt
+        for category, spec in CONJUNCTIONS.items():
+            compute_suit_category(category, spec, zcache_vol, brain,
+                                  _suit_flatmap.vol_to_surf, _plot_suitflat, _nt)
 
     # ---------------------------- SURFACE ------------------------------
     if RUN_SURFACE:
