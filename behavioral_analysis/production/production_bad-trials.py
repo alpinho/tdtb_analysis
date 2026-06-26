@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: January 21, 2025
-Last update: February, 2025
+Last update: June, 2026
 
 Compatibility: Python 3.10.14
 """
@@ -15,15 +15,24 @@ import os
 import numpy as np
 import pandas as pd
 
+pd.set_option('display.max_rows', None)      # all rows (your n=31 participants)
+pd.set_option('display.max_columns', None)   # all columns
+pd.set_option('display.width', None)         # don't wrap to terminal width
+pd.set_option('display.max_colwidth', None)  # don't truncate long cell values
+
 
 # %%
 # ========================== FUNCTIONS =================================
 
-def bad_trials(df):
-    # Get array with asynchronies but only for sessions 4 and 5
-    # (imaging sessions)
-    asynchronies = df[df['session'].isin([4, 5])][
+def bad_trials(df, sessions):
+    # Get array with asynchronies but only for the requested sessions
+    asynchronies = df[df['session'].isin(sessions)][
         'signed_asynchrony'].values
+
+    # Guard against an empty selection (e.g. requested sessions not in df)
+    if asynchronies.size == 0:
+        raise ValueError(
+            f'No trials found for sessions {sessions} in this dataframe.')
 
     # Total number of trials (includes NaN values)
     total_trials = len(asynchronies)
@@ -59,9 +68,14 @@ def bad_trials(df):
     print(f'Percentage of bad trials: {percentage_bad:.2f}%')
 
 
-def bad_trials_participant(df):
-    # Filter only sessions 4 and 5 (imaging sessions)
-    df_filtered = df[df['session'].isin([4, 5])]
+def bad_trials_participant(df, sessions):
+    # Filter only the requested sessions
+    df_filtered = df[df['session'].isin(sessions)]
+
+    # Guard against an empty selection (e.g. requested sessions not in df)
+    if df_filtered.empty:
+        raise ValueError(
+            f'No trials found for sessions {sessions} in this dataframe.')
 
     # Dictionary to store bad trial percentages for each participant
     bad_trial_stats = []
@@ -134,12 +148,17 @@ def bad_trials_participant(df):
     print(f"Mean: {mean_bad_trials:.2f}%, SD: {std_bad_trials:.2f}%")
 
 
-def scores(df):
+def scores(df, sessions):
     # Define a good trial as having an absolute synchrony lower than 0.25
     df["good_trial"] = df["signed_asynchrony"].abs() < 0.25
 
-    # Filter for sessions 1, 2, and 3
-    df_filtered = df[df["session"].isin([1, 2, 3])]
+    # Filter for the requested sessions
+    df_filtered = df[df["session"].isin(sessions)]
+
+    # Guard against an empty selection (e.g. requested sessions not in df)
+    if df_filtered.empty:
+        raise ValueError(
+            f'No trials found for sessions {sessions} in this dataframe.')
 
     # Compute the percentage of good trials per participant and modality
     score_df = df_filtered.groupby([
@@ -184,25 +203,42 @@ def scores(df):
 # =========================== INPUTS ===================================
 
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
-DF_DIR = os.path.join(MAIN_DIR, 'production_results', 'dataframes')
+DF_DIR = os.path.join(
+    MAIN_DIR, 'production_results', 'dataframes')
 
-DF_IMG_DIR = os.path.join(DF_DIR, 'df_production_allses.tsv')
+# Feedback offset (auditory, visual, ntfd) in ms used to generate the
+# dataframe. This selects the input file. Use (0, 0, 0) for no offset or
+# (133, 35, 20) for the corrected feedback.
+FEEDBACK_OFFSET = (0, 0, 0)
+
+# Sessions to analyse for the bad-trial functions. Imaging sessions are 4 and
+# 5; behavioural sessions are 1, 2 and 3. Explicit here instead of hardcoded
+# inside the functions.
+SESSIONS = [4, 5]
+
+# Sessions used to compute the behavioural scores (scores() only).
+SCORE_SESSIONS = [4, 5]
+
+# Build the dataframe path from the feedback offset. The 'allses' file holds
+# every session, so the SESSIONS list above is the single source of truth for
+# what is analysed.
+DF_FNAME = 'df_production_fb_{}_{}_{}_allses.tsv'.format(*FEEDBACK_OFFSET)
+DF_PATH = os.path.join(DF_DIR, DF_FNAME)
 
 # %%
 # ============================ RUN =====================================
 
 if __name__ == '__main__':
     # Open dataframes
-    db = pd.read_csv(DF_IMG_DIR, sep='\t')
+    db = pd.read_csv(DF_PATH, sep='\t')
 
     # ************************* Bad Trials *****************************
-    # bad_trials(db)
+    # bad_trials(db, SESSIONS)
 
 
     # ***************** BAD TRIALS PER PARTICIPANT *********************
-    bad_trials_participant(db)
+    bad_trials_participant(db, SESSIONS)
 
 
     # ********************** Compute Scores ****************************
-    # scores(db)
-
+    # scores(db, SCORE_SESSIONS)
