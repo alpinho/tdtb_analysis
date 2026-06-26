@@ -137,7 +137,7 @@ ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
 
 GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60]
 
-SB2_SUBJECTS = [51, 52, 57]
+SB2_SUBJECTS = [50, 51, 52, 57]
 
 SB3_SUBJECTS = []
 
@@ -163,10 +163,10 @@ N_TRIALS = 30
 # tag = 'allses'
 
 # ### For 'All Behavioral Sessions' ###
-# SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = None
-# tag = 'behavses'
+SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
+SESSTYPES = ['behavioral_session']
+SESSIONS = None
+tag = 'behavses'
 
 # ### For 'All Imaging Sessions' ###
 # SUBJECTS = IMG_SUBJECTS
@@ -175,10 +175,10 @@ N_TRIALS = 30
 # tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
-SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
-SESSTYPES = ['behavioral_session']
-SESSIONS = ['ses-01']
-tag = SESSIONS[0]
+# SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-01']
+# tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
 # SUBJECTS = SB2_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
