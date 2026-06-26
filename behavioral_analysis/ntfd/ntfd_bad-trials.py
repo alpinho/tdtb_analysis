@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: January 21, 2025
-Last update: February, 2025
+Last update: June 2026
 
 Compatibility: Python 3.10.14
 """
