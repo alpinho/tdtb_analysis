@@ -29,6 +29,27 @@ import pandas as pd
 # %%
 # ======================== MAIN FUNCTIONS ==============================
 
+# The task variation is determined by the presence of random-condition trials
+# in a run, not by the run number or the trial condition: if a run contains
+# any random trial, every trial in that run (beat, interval and random) is
+# labelled 'NTFD Rand'; otherwise the run is 'NTFD'. (session, run) keys are
+# used because run numbers restart within each session.
+
+def random_run_blocks(trials):
+    # Set of (session, run) blocks that contain at least one random trial.
+    # trials columns: 0 subject, 1 session, 2 run, 3 condition, ...
+    blocks = set()
+    for tr in trials:
+        if tr[3][:6] == 'random':
+            blocks.add((tr[1], tr[2]))
+    return blocks
+
+
+def task_label(session, run, rand_blocks):
+    if (session, run) in rand_blocks:
+        return 'NTFD Rand'
+    return 'NTFD'
+
 
 def ntfd_data(data):
     trials = []
@@ -126,14 +147,19 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             random_trials = np.array([
                 tr for tr in trials_extended if tr[3][:6] == 'random'])
 
-            # Append task info in the third position of the row
-            ntfd_tag = np.array(['NTFD'])
-            ntfd_rand_tag = np.array(['NTFD Rand'])
+            # Determine which (session, run) blocks are NTFD Rand, i.e. the
+            # runs that contain random trials. The whole run inherits that
+            # label, so beat/interval trials in those runs become NTFD Rand.
+            rand_blocks = random_run_blocks(trials_extended)
 
-            tbeat = np.repeat(ntfd_tag, beat_trials.shape[0])
+            # Append task info in the third position of the row, per trial.
+            tbeat = np.array(
+                [task_label(tr[1], tr[2], rand_blocks) for tr in beat_trials])
             beat_trials = np.insert(beat_trials, 3, tbeat, axis=1)
 
-            tinterval = np.repeat(ntfd_tag, interval_trials.shape[0])
+            tinterval = np.array(
+                [task_label(tr[1], tr[2], rand_blocks)
+                 for tr in interval_trials])
             interval_trials = np.insert(interval_trials, 3, tinterval, axis=1)
 
             # Append modality info after task
@@ -151,7 +177,9 @@ def ntfd_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 
             # Do the same for random trials if they exist
             if random_trials.size != 0:
-                trandom = np.repeat(ntfd_rand_tag, random_trials.shape[0])
+                trandom = np.array(
+                    [task_label(tr[1], tr[2], rand_blocks)
+                     for tr in random_trials])
                 random_trials = np.insert(random_trials, 3, trandom, axis=1)
 
                 mrandom = np.repeat(modality, random_trials.shape[0])
@@ -227,10 +255,10 @@ N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) -->
 # tag = 'behavses'
 
 # ### For 'All Imaging Sessions' ###
-# SUBJECTS = IMG_SUBJECTS
-# SESSTYPES = ['imaging_session']
-# SESSIONS = None
-# tag = 'imgses'
+SUBJECTS = IMG_SUBJECTS
+SESSTYPES = ['imaging_session']
+SESSIONS = None
+tag = 'imgses'
 
 # ### For first behav session: 'ses-01' ###
 # SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
@@ -239,10 +267,10 @@ N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) -->
 # tag = SESSIONS[0]
 
 # ### For second behav session: 'ses-02' ###
-SUBJECTS = SB2_SUBJECTS
-SESSTYPES = ['behavioral_session']
-SESSIONS = ['ses-02']
-tag = SESSIONS[0]
+# SUBJECTS = SB2_SUBJECTS
+# SESSTYPES = ['behavioral_session']
+# SESSIONS = ['ses-02']
+# tag = SESSIONS[0]
 
 # ### For third behav session: 'ses-03' ###
 # SUBJECTS = GOOD_SUBJECTS
