@@ -227,11 +227,7 @@ SB2_SUBJECTS = [50, 51, 52, 57]
 
 SB3_SUBJECTS = []
 
-# #######################################################################
-
-# TASKS = ['Auditory No-Temporal Feature Discrimination',
-#          'Visual No-Temporal Feature Discrimination']
-
+# ##################### Trial counts ###################################
 # Total number of trials per run
 N_TRIALS = 30
 # Total number of trials per isi per condition (without random condition)...
@@ -242,104 +238,116 @@ N_ISI_TRIALS_BEHAV = 36  # (3*4*3) --> (n_trials * n_ntfd_runs * n_sessions)
 N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) -->
                        # --> (n_trials * n_ntfd_runs * n_sessions)
 
-# ### For 'All Sessions' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSIONS = None
-# tag = 'allses'
+# ################# Session-aggregation definitions ####################
+# Each session tag maps to (SESSTYPES, SESSIONS) used to generate its
+# dataframe. SESSTYPES is the list of session types; SESSIONS is the list of
+# within-type logfile session ids, or None for all sessions of those types.
+# This is batch-independent: it defines what each aggregation means.
+SESSION_CONFIG = {
+    'allses':   (['behavioral_session', 'imaging_session'], None),
+    'behavses': (['behavioral_session'], None),
+    'imgses':   (['imaging_session'], None),
+    'ses-01':   (['behavioral_session'], ['ses-01']),
+    'ses-02':   (['behavioral_session'], ['ses-02']),
+    'ses-03':   (['behavioral_session'], ['ses-03']),
+    'ses-04':   (['imaging_session'], ['ses-01']),
+    'ses-05':   (['imaging_session'], ['ses-02']),
+    'behav12':  (['behavioral_session'], ['ses-01', 'ses-02']),
+    'behav13':  (['behavioral_session'], ['ses-01', 'ses-03']),
+    'behav23':  (['behavioral_session'], ['ses-02', 'ses-03']),
+}
 
-# ### For 'All Behavioral Sessions' ###
-# SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = None
-# tag = 'behavses'
+# ##################### Per-batch subjects #############################
+# For each batch, map every session tag to its subject list. The keys also
+# decide which aggregations are generated for that batch (e.g. the second
+# batch has no imaging sessions). >>> VERIFY THESE ASSIGNMENTS <<< -- they
+# were inferred from the previous manual blocks and from ntfd_rtscore.py.
+fb_subjects_dic = {
+    'allses':   GOOD_SUBJECTS,
+    'behavses': GOOD_SUBJECTS,
+    'imgses':   IMG_SUBJECTS,
+    'ses-01':   GOOD_SUBJECTS,
+    'ses-02':   GOOD_SUBJECTS,
+    'ses-03':   GOOD_SUBJECTS,
+    'ses-04':   IMG_SUBJECTS,
+    'ses-05':   IMG_SUBJECTS,
+    'behav12':  GOOD_SUBJECTS,
+    'behav13':  GOOD_SUBJECTS,
+    'behav23':  GOOD_SUBJECTS,
+}
 
-# ### For 'All Imaging Sessions' ###
-SUBJECTS = IMG_SUBJECTS
-SESSTYPES = ['imaging_session']
-SESSIONS = None
-tag = 'imgses'
+sb_subjects_dic = {
+    'behavses': GOOD_SB_SUBJECTS,
+    'ses-01':   GOOD_SB_SUBJECTS,
+    'ses-02':   SB2_SUBJECTS,
+}
 
-# ### For first behav session: 'ses-01' ###
-# SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01']
-# tag = SESSIONS[0]
+batch_dic = {
+    'first':  {'subjects': fb_subjects_dic,
+               'results_subfolder': 'ntfd_results_first_batch'},
+    'second': {'subjects': sb_subjects_dic,
+               'results_subfolder': 'ntfd_results_second_batch'},
+}
 
-# ### For second behav session: 'ses-02' ###
-# SUBJECTS = SB2_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-02']
-# tag = SESSIONS[0]
+# ##################### Run selection ##################################
+# Batches to generate: ['first'], ['second'], or ['first', 'second'].
+BATCHES_TO_RUN = ['first', 'second']
 
-# ### For third behav session: 'ses-03' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-03']
-# tag = SESSIONS[0]
-
-# ### For first img session: 'ses-04' ###
-# SUBJECTS = IMG_SUBJECTS
-# SESSTYPES = ['imaging_session']
-# SESSIONS = ['ses-01']
-# tag = 'ses-04'
-
-# ### For second img session: 'ses-05' ###
-# SUBJECTS = IMG_SUBJECTS
-# SESSTYPES = ['imaging_session']
-# SESSIONS = ['ses-02']
-# tag = 'ses-05'
-
-# ### For first and second behav sessions: ###
-# ### 'ses-01' and 'ses-02' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01', 'ses-02']
-# tag = 'behav12'
-
-# ### For first and third behav sessions: ###
-# ### 'ses-01' and 'ses-03' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01', 'ses-03']
-# tag = 'behav13'
-
-# ### For second and third behav sessions: ###
-# ### 'ses-02' and 'ses-03' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-02', 'ses-03']
-# tag = 'behav23'
+# Session aggregations to generate. Set to None to run every tag available
+# for each batch, or list a subset, e.g. ['imgses'] or ['allses', 'imgses'].
+# Tags not defined for a given batch are skipped.
+SESSION_TAGS_TO_RUN = None
 
 
 # %%
 # ========================= PARAMETERS =================================
 
-if SUBJECTS in [GOOD_SB_SUBJECTS, ALL_SB_SUBJECTS, SB2_SUBJECTS, SB3_SUBJECTS]:
-    batch_tag = 'second'
-else:
-    batch_tag = 'first'
-results_subfolder = 'ntfd_results_' + batch_tag + '_batch'
-
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
-RESULTS_FOLDER = os.path.join(MAIN_DIR, results_subfolder, 'dataframes')
 
-if SESSTYPES == ['behavioral_session', 'imaging_session']:
-    N_ISI_TRIALS = N_ISI_TRIALS_BEHAV + N_ISI_TRIALS_IMG
-elif SESSTYPES == ['behavioral_session']:
-    N_ISI_TRIALS = N_ISI_TRIALS_BEHAV
-else:
-    assert SESSTYPES == ['imaging_session']
-    N_ISI_TRIALS = N_ISI_TRIALS_IMG
 
 # %%
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
 
-    if not os.path.exists(RESULTS_FOLDER):
-        os.makedirs(RESULTS_FOLDER)
+    # Every per-batch subject tag must be defined in SESSION_CONFIG.
+    for _dic in (fb_subjects_dic, sb_subjects_dic):
+        _unknown = set(_dic) - set(SESSION_CONFIG)
+        if _unknown:
+            raise KeyError(
+                'Session tags missing from SESSION_CONFIG: ' +
+                str(sorted(_unknown)))
 
-    # Create dataframes
-    ntfd_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES, N_TRIALS,
-                   sesstag=tag, sessions=SESSIONS)
+    for batch_tag in BATCHES_TO_RUN:
+        batch_info = batch_dic[batch_tag]
+        subjects_dic = batch_info['subjects']
+        results_folder = os.path.join(
+            MAIN_DIR, batch_info['results_subfolder'], 'dataframes')
+
+        if not os.path.exists(results_folder):
+            os.makedirs(results_folder)
+
+        if SESSION_TAGS_TO_RUN is None:
+            tags = list(subjects_dic)
+        else:
+            tags = SESSION_TAGS_TO_RUN
+
+        print('\n' + '=' * 64)
+        print(f'Batch: {batch_tag}  |  output: {results_folder}')
+        print('=' * 64)
+
+        for tag in tags:
+            if tag not in subjects_dic:
+                print(f'  Skipping {tag!r}: not defined for the '
+                      f'{batch_tag} batch.')
+                continue
+
+            subjects = subjects_dic[tag]
+            sesstypes, sessions = SESSION_CONFIG[tag]
+
+            print(f'  Generating df_ntfd_{tag}.tsv  '
+                  f'(sesstypes={sesstypes}, sessions={sessions}, '
+                  f'n_subjects={len(subjects)})')
+
+            ntfd_dataframe(subjects, MAIN_DIR, results_folder, sesstypes,
+                           N_TRIALS, sesstag=tag, sessions=sessions)
