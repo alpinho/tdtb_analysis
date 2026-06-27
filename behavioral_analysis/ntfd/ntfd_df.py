@@ -239,10 +239,32 @@ N_ISI_TRIALS_IMG = 16  # (3*2*2 + 2*2*1) -->
                        # --> (n_trials * n_ntfd_runs * n_sessions)
 
 # ################# Session-aggregation definitions ####################
-# Each session tag maps to (SESSTYPES, SESSIONS) used to generate its
-# dataframe. SESSTYPES is the list of session types; SESSIONS is the list of
-# within-type logfile session ids, or None for all sessions of those types.
-# This is batch-independent: it defines what each aggregation means.
+# Maps each session tag to (SESSTYPES, SESSIONS), the two arguments that
+# select which logfiles ntfd_dataframe reads. The mapping is
+# batch-independent: it defines what each aggregation means, while the
+# per-batch dictionaries below decide which subjects each tag uses.
+#
+#   key       -- the session tag; also the output filename suffix, i.e.
+#                df_ntfd_<tag>.tsv.
+#   SESSTYPES -- list of session types to read: 'behavioral_session',
+#                'imaging_session', or both.
+#   SESSIONS  -- list of logfile session ids within those types (e.g.
+#                'ses-01'), or None to take every session of the type(s).
+#                Imaging ids restart at 'ses-01', so imaging 'ses-01' and
+#                'ses-02' are renumbered to output sessions 4 and 5.
+#
+# Entries:
+#   'allses'   -- all behavioural and imaging sessions together (1-5).
+#   'behavses' -- all behavioural sessions (1-3).
+#   'imgses'   -- all imaging sessions (4-5).
+#   'ses-01'   -- behavioural session 1.
+#   'ses-02'   -- behavioural session 2.
+#   'ses-03'   -- behavioural session 3.
+#   'ses-04'   -- imaging session 1 (logfile 'ses-01'), output session 4.
+#   'ses-05'   -- imaging session 2 (logfile 'ses-02'), output session 5.
+#   'behav12'  -- behavioural sessions 1 and 2.
+#   'behav13'  -- behavioural sessions 1 and 3.
+#   'behav23'  -- behavioural sessions 2 and 3.
 SESSION_CONFIG = {
     'allses':   (['behavioral_session', 'imaging_session'], None),
     'behavses': (['behavioral_session'], None),
@@ -260,8 +282,7 @@ SESSION_CONFIG = {
 # ##################### Per-batch subjects #############################
 # For each batch, map every session tag to its subject list. The keys also
 # decide which aggregations are generated for that batch (e.g. the second
-# batch has no imaging sessions). >>> VERIFY THESE ASSIGNMENTS <<< -- they
-# were inferred from the previous manual blocks and from ntfd_rtscore.py.
+# batch has no imaging sessions).
 fb_subjects_dic = {
     'allses':   GOOD_SUBJECTS,
     'behavses': GOOD_SUBJECTS,
@@ -291,7 +312,8 @@ batch_dic = {
 
 # ##################### Run selection ##################################
 # Batches to generate: ['first'], ['second'], or ['first', 'second'].
-BATCHES_TO_RUN = ['first', 'second']
+# BATCHES_TO_RUN = ['first', 'second']
+BATCHES_TO_RUN = ['second']
 
 # Session aggregations to generate. Set to None to run every tag available
 # for each batch, or list a subset, e.g. ['imgses'] or ['allses', 'imgses'].
