@@ -189,84 +189,129 @@ SB2_SUBJECTS = [50, 51, 52, 57]
 
 SB3_SUBJECTS = []
 
-# #######################################################################
-
-# TASKS = ['Visual Production']
-
+# ##################### Trial counts ###################################
 N_TRIALS = 30
 
-AUDIO_LATENCY = 0  # Expy: 133 / Psychopy: 63
-VISUAL_LATENCY = 0  # Expy: 35
-BUTTON_PRESS = 0  # 20
+# ##################### Latency correction #############################
+# Two latency configurations ("input types") are generated per batch:
+#   'latency_corrected' -- the batch's acquisition latencies (ms) are
+#                          subtracted from the response times before the
+#                          asynchronies are computed.
+#   'uncorrected'       -- no correction (0/0/0).
+# The latency values are defined per batch and input type in the *_inputs_dic
+# dictionaries below, and are embedded in the output filename, e.g.
+# df_production_fb_133_35_20_<tag>.tsv vs df_production_fb_0_0_0_<tag>.tsv.
+# Only the audio latency differs between batches (first batch: Expyriment;
+# second batch: PsychoPy); the visual and button-press latencies match.
 
-# ### For 'All Sessions' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session', 'imaging_session']
-# SESSIONS = None
-# tag = 'allses'
+# ################# Session-aggregation definitions ####################
+# Maps each session tag to (SESSTYPES, SESSIONS), the two arguments that
+# select which logfiles production_dataframe reads. The mapping is
+# batch-independent: it defines what each aggregation means, while the
+# per-batch dictionaries below decide which subjects and latencies each tag
+# uses.
+#
+#   key       -- the session tag; also the trailing part of the output
+#                filename:
+#                df_production_<batch>_<audio>_<visual>_<button>_<tag>.tsv.
+#   SESSTYPES -- list of session types to read: 'behavioral_session',
+#                'imaging_session', or both.
+#   SESSIONS  -- list of logfile session ids within those types (e.g.
+#                'ses-01'), or None to take every session of the type(s).
+#                Imaging ids restart at 'ses-01', so imaging 'ses-01' and
+#                'ses-02' are renumbered to output sessions 4 and 5.
+#
+# Entries:
+#   'allses'   -- all behavioural and imaging sessions together (1-5).
+#   'behavses' -- all behavioural sessions (1-3).
+#   'imgses'   -- all imaging sessions (4-5).
+#   'ses-01'   -- behavioural session 1.
+#   'ses-02'   -- behavioural session 2.
+#   'ses-03'   -- behavioural session 3.
+#   'ses-04'   -- imaging session 1 (logfile 'ses-01'), output session 4.
+#   'ses-05'   -- imaging session 2 (logfile 'ses-02'), output session 5.
+#   'behav12'  -- behavioural sessions 1 and 2.
+#   'behav13'  -- behavioural sessions 1 and 3.
+#   'behav23'  -- behavioural sessions 2 and 3.
+SESSION_CONFIG = {
+    'allses':   (['behavioral_session', 'imaging_session'], None),
+    'behavses': (['behavioral_session'], None),
+    'imgses':   (['imaging_session'], None),
+    'ses-01':   (['behavioral_session'], ['ses-01']),
+    'ses-02':   (['behavioral_session'], ['ses-02']),
+    'ses-03':   (['behavioral_session'], ['ses-03']),
+    'ses-04':   (['imaging_session'], ['ses-01']),
+    'ses-05':   (['imaging_session'], ['ses-02']),
+    'behav12':  (['behavioral_session'], ['ses-01', 'ses-02']),
+    'behav13':  (['behavioral_session'], ['ses-01', 'ses-03']),
+    'behav23':  (['behavioral_session'], ['ses-02', 'ses-03']),
+}
 
-# ### For 'All Behavioral Sessions' ###
-SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
-SESSTYPES = ['behavioral_session']
-SESSIONS = None
-tag = 'behavses'
+# ##################### Per-batch configuration ########################
+# For each batch: the filename prefix code ('fb'/'sb'), the subject list per
+# session tag, and the acquisition latencies (applied only when APPLY_LATENCY
+# is True). The subject keys also decide which aggregations are generated for
+# that batch (e.g. the second batch has no imaging sessions).
+# >>> VERIFY THE SUBJECT ASSIGNMENTS <<< -- inferred from the previous manual
+# blocks (matching ntfd_df.py / perception_df.py).
+fb_subjects_dic = {
+    'allses':   GOOD_SUBJECTS,
+    'behavses': GOOD_SUBJECTS,
+    'imgses':   IMG_SUBJECTS,
+    'ses-01':   GOOD_SUBJECTS,
+    'ses-02':   GOOD_SUBJECTS,
+    'ses-03':   GOOD_SUBJECTS,
+    'ses-04':   IMG_SUBJECTS,
+    'ses-05':   IMG_SUBJECTS,
+    'behav12':  GOOD_SUBJECTS,
+    'behav13':  GOOD_SUBJECTS,
+    'behav23':  GOOD_SUBJECTS,
+}
 
-# ### For 'All Imaging Sessions' ###
-# SUBJECTS = IMG_SUBJECTS
-# SESSTYPES = ['imaging_session']
-# SESSIONS = None
-# tag = 'imgses'
+sb_subjects_dic = {
+    'behavses': GOOD_SB_SUBJECTS,
+    'ses-01':   GOOD_SB_SUBJECTS,
+    'ses-02':   SB2_SUBJECTS,
+}
 
-# ### For first behav session: 'ses-01' ###
-# SUBJECTS = GOOD_SB_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01']
-# tag = SESSIONS[0]
+# Latency triples (audio, visual, button-press in ms) per input type.
+# 'latency_corrected' differs by batch (audio 133 vs 63); 'uncorrected' is
+# always 0/0/0.
+fb_inputs_dic = {
+    'latency_corrected': {'audio_latency': 133, 'visual_latency': 35,
+                          'button_press': 20},   # Expyriment
+    'uncorrected':       {'audio_latency': 0, 'visual_latency': 0,
+                          'button_press': 0},
+}
 
-# ### For second behav session: 'ses-02' ###
-# SUBJECTS = SB2_SUBJECTS  # GOOD_SUBJECTS / GOOD_SB_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-02']
-# tag = SESSIONS[0]
+sb_inputs_dic = {
+    'latency_corrected': {'audio_latency': 63, 'visual_latency': 35,
+                          'button_press': 20},   # PsychoPy
+    'uncorrected':       {'audio_latency': 0, 'visual_latency': 0,
+                          'button_press': 0},
+}
 
-# ### For third behav session: 'ses-03' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-03']
-# tag = SESSIONS[0]
+batch_dic = {
+    'first':  {'prefix': 'fb', 'subjects': fb_subjects_dic,
+               'inputs': fb_inputs_dic},
+    'second': {'prefix': 'sb', 'subjects': sb_subjects_dic,
+               'inputs': sb_inputs_dic},
+}
 
-# ### For first img session: 'ses-04' ###
-# SUBJECTS = IMG_SUBJECTS
-# SESSTYPES = ['imaging_session']
-# SESSIONS = ['ses-01']
-# tag = 'ses-04'
+# ##################### Run selection ##################################
+# Batches to generate: ['first'], ['second'], or ['first', 'second'].
+# BATCHES_TO_RUN = ['first', 'second']
+BATCHES_TO_RUN = ['second']
 
-# ### For second img session: 'ses-05' ###
-# SUBJECTS = IMG_SUBJECTS
-# SESSTYPES = ['imaging_session']
-# SESSIONS = ['ses-02']
-# tag = 'ses-05'
+# Latency input types to generate per batch: ['latency_corrected'],
+# ['uncorrected'], or both.
+INPUT_TYPES_TO_RUN = ['latency_corrected', 'uncorrected']
 
-# ### For first and second behav sessions: ###
-# ### 'ses-01' and 'ses-02' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01', 'ses-02']
-# tag = 'behav12'
+# Session aggregations to generate. Set to None to run every tag available
+# for each batch, or list a subset, e.g. ['imgses'] or ['allses', 'imgses'].
+# Tags not defined for a given batch are skipped.
+SESSION_TAGS_TO_RUN = None
 
-# ### For first and third behav sessions: ###
-# ### 'ses-01' and 'ses-03' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-01', 'ses-03']
-# tag = 'behav13'
-
-# ### For second and third behav sessions: ###
-# ### 'ses-02' and 'ses-03' ###
-# SUBJECTS = GOOD_SUBJECTS
-# SESSTYPES = ['behavioral_session']
-# SESSIONS = ['ses-02', 'ses-03']
-# tag = 'behav23'
 
 # %%
 # ========================= PARAMETERS =================================
@@ -274,26 +319,66 @@ tag = 'behavses'
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results', 'dataframes')
 
-if SUBJECTS in [GOOD_SB_SUBJECTS, ALL_SB_SUBJECTS, SB2_SUBJECTS, SB3_SUBJECTS]:
-    batch_tag = 'sb'
-else:
-    batch_tag = 'fb'
-batch = f'df_production_' \
-    f'{batch_tag}_{AUDIO_LATENCY}_{VISUAL_LATENCY}_{BUTTON_PRESS}'
 
 # %%
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
 
+    # Every per-batch subject tag must be defined in SESSION_CONFIG.
+    for _dic in (fb_subjects_dic, sb_subjects_dic):
+        _unknown = set(_dic) - set(SESSION_CONFIG)
+        if _unknown:
+            raise KeyError(
+                'Session tags missing from SESSION_CONFIG: ' +
+                str(sorted(_unknown)))
+
     if not os.path.exists(RESULTS_FOLDER):
         os.makedirs(RESULTS_FOLDER)
 
-    # Create the dataframe
-    production_dataframe(SUBJECTS, MAIN_DIR, RESULTS_FOLDER, SESSTYPES,
-                         N_TRIALS, batch,
-                         sesstag=tag,
-                         sessions=SESSIONS,
-                         audio_latency=AUDIO_LATENCY,
-                         visual_latency=VISUAL_LATENCY,
-                         button_press=BUTTON_PRESS)
+    for batch_tag in BATCHES_TO_RUN:
+        batch_info = batch_dic[batch_tag]
+        subjects_dic = batch_info['subjects']
+        inputs_dic = batch_info['inputs']
+
+        if SESSION_TAGS_TO_RUN is None:
+            tags = list(subjects_dic)
+        else:
+            tags = SESSION_TAGS_TO_RUN
+
+        for input_type in INPUT_TYPES_TO_RUN:
+            latencies = inputs_dic[input_type]
+            audio_latency = latencies['audio_latency']
+            visual_latency = latencies['visual_latency']
+            button_press = latencies['button_press']
+
+            subjects_batch = (
+                f"df_production_{batch_info['prefix']}_"
+                f"{audio_latency}_{visual_latency}_{button_press}")
+
+            print('\n' + '=' * 64)
+            print(f'Batch: {batch_tag}  |  input: {input_type}  |  '
+                  f'prefix: {subjects_batch}')
+            print('=' * 64)
+
+            for tag in tags:
+                if tag not in subjects_dic:
+                    print(f'  Skipping {tag!r}: not defined for the '
+                          f'{batch_tag} batch.')
+                    continue
+
+                subjects = subjects_dic[tag]
+                sesstypes, sessions = SESSION_CONFIG[tag]
+
+                print(f'  Generating {subjects_batch}_{tag}.tsv  '
+                      f'(sesstypes={sesstypes}, sessions={sessions}, '
+                      f'n_subjects={len(subjects)})')
+
+                production_dataframe(
+                    subjects, MAIN_DIR, RESULTS_FOLDER, sesstypes,
+                    N_TRIALS, subjects_batch,
+                    sesstag=tag,
+                    sessions=sessions,
+                    audio_latency=audio_latency,
+                    visual_latency=visual_latency,
+                    button_press=button_press)
