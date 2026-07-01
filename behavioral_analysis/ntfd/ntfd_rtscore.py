@@ -5,7 +5,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 5, 2024
-Last update: June 2026
+Last update: July 2026
 
 Compatibility: Python 3.10.14
 """
@@ -253,11 +253,11 @@ BEHAV_RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
                        41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
+ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61]
 
-GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60]
+GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61]
 
-SB2_SUBJECTS = [50, 51, 52, 57]
+SB2_SUBJECTS = [50, 51, 52, 57, 59]
 
 SB3_SUBJECTS = []
 
