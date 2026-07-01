@@ -1,6 +1,6 @@
 """
 Create dataframe of raw data from Perception Tasks of the
-Music-SDTB project
+TDTB project
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca

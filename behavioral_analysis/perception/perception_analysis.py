@@ -1,5 +1,6 @@
 """
-Analysis of behavioral data for the Perception Tasks of the Music-SDTB project
+Analysis of behavioral data for the Perception Tasks of 
+the TDTB project
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
