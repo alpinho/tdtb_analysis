@@ -1,6 +1,6 @@
 """
-ANCOVA analyses of behavioral data of Production Tasks of the
- Music-SDTB project
+Linear mixed model (LMM) analyses of behavioral data of Production Tasks
+of the TDTB project
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
@@ -28,7 +28,7 @@ from matplotlib import pyplot as plt
 
 
 def ffx_dvar(df, estimator='mean'):
-    """Subject-level dependent variable for ANCOVA analyses."""
+    """Subject-level dependent variable for the LMM analyses."""
     # Fixed Effects within subjects
     df_ffx = df.drop(['session'], axis=1)
     if estimator == 'mean':
@@ -73,7 +73,8 @@ def group_dvar(df_ffx, estimator='mean'):
 
 def wide_dataframe(df, output_folder, estimator_id, sesstag):
     """
-    Convert dataframe in the wide format for ancova analyses with JASP.
+    Convert dataframe to the wide format for ANCOVA in JASP (kept as an
+    independent cross-check of the LMM).
     """
 
     wdf = pd.pivot(df, values='signed_asynchrony',
@@ -124,98 +125,107 @@ def _fit_mixedlm(formula, df, group_col, re_formula=None):
             return model.fit(reml=False, method='lbfgs')
 
 
-def _fixed_effects_table(result):
-    """Return a fixed-effect summary table."""
-    ci = result.conf_int()
-    fe_names = result.fe_params.index
+def _coefficient_rows(result, model_label):
+    """Tidy fixed-effect coefficients, one row per model term.
 
+    'statistic' is a Wald z value (statsmodels MixedLM uses a normal
+    approximation, not a t/F); 'p' and the CI are the matching
+    two-sided Wald quantities.
+    """
+    ci = result.conf_int()
     rows = []
-    for name in fe_names:
+    for name in result.fe_params.index:
         rows.append({
+            'model': model_label,
+            'block': 'coefficient',
             'term': name,
             'estimate': result.fe_params[name],
             'se': result.bse[name],
-            'z': result.tvalues[name],
+            'statistic': result.tvalues[name],   # Wald z
+            'df': np.nan,
             'p': result.pvalues[name],
             'ci_low': ci.loc[name, 0],
             'ci_high': ci.loc[name, 1],
         })
-
     return pd.DataFrame(rows)
 
 
-def _wald_terms_table(result):
-    """Return Wald tests for model terms when available."""
+def _omnibus_rows(result, model_label):
+    """Tidy Wald tests for grouped model terms, one row per factor/term.
+
+    Each row tests the joint null that all coefficients belonging to a
+    term are zero -- the mixed-model analogue of an ANCOVA main effect
+    or interaction. The statistic is a Wald chi-square on 'df' degrees
+    of freedom.
+    """
     try:
-        table = result.wald_test_terms().table
+        table = result.wald_test_terms(scalar=True).table
     except Exception:
         return pd.DataFrame()
 
     table = table.reset_index().rename(columns={'index': 'term'})
-    return table
+    rows = []
+    for _, r in table.iterrows():
+        rows.append({
+            'model': model_label,
+            'block': 'omnibus',
+            'term': r['term'],
+            'estimate': np.nan,
+            'se': np.nan,
+            'statistic': r['statistic'],         # Wald chi-square
+            'df': r['df_constraint'],
+            'p': r['pvalue'],
+            'ci_low': np.nan,
+            'ci_high': np.nan,
+        })
+    return pd.DataFrame(rows)
 
 
-def _model_info_table(result, model_name, formula, re_formula, n_obs,
-                      n_subjects):
-    """Return basic model information."""
+def _re_structure(result):
+    """Human-readable random-effects structure actually fitted.
+
+    Reads the effects that were estimated (not merely requested), so a
+    fallback that drops the random slope is reported truthfully.
+    """
+    names = list(result.model.data.exog_re_names)
+    pretty = ['intercept' if n == 'Group' else n for n in names]
+    return ' + '.join(pretty)
+
+
+def _info_row(result, model_label, formula, n_obs, n_subjects):
+    """One-row model summary / fit diagnostics."""
     return pd.DataFrame([{
-        'model': model_name,
+        'model': model_label,
         'formula': formula,
-        'random_effects': re_formula if re_formula else '1',
+        'random_effects': _re_structure(result),
         'n_obs': n_obs,
         'n_subjects': n_subjects,
         'converged': result.converged,
         'log_likelihood': result.llf,
         'aic': result.aic,
         'bic': result.bic,
-        'scale': result.scale,
     }])
 
 
-def _save_mixedlm_outputs(result, output_folder, prefix, formula,
-                          re_formula, n_obs, n_subjects):
-    """Save fixed-effect, Wald-term, and model-info tables."""
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
-    fixed = _fixed_effects_table(result)
-    fixed.to_csv(
-        os.path.join(output_folder, prefix + '_fixed_effects.tsv'),
-        index=False,
-        sep='\t',
-    )
-
-    terms = _wald_terms_table(result)
-    if not terms.empty:
-        terms.to_csv(
-            os.path.join(output_folder, prefix + '_wald_terms.tsv'),
-            index=False,
-            sep='\t',
-        )
-
-    info = _model_info_table(
-        result,
-        prefix,
-        formula,
-        re_formula,
-        n_obs,
-        n_subjects,
-    )
-    info.to_csv(
-        os.path.join(output_folder, prefix + '_model_info.tsv'),
-        index=False,
-        sep='\t',
-    )
-
-
 def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
-    """Fit Linear Mixed Model (LMM) ANCOVA-style models and save model 
-       tables.
+    """Fit the linear mixed models (LMMs) and save two consolidated TSV
+    files.
 
-    Standard is treated as a continuous within-subject predictor. The
-    two-way model tests Condition, Modality, Standard, and their
-    interactions. The one-way models test Condition and Standard
-    separately within each modality.
+    Standard is treated as a continuous, mean-centred within-subject
+    predictor (standard_c). Three models are fitted on the same data:
+
+      * 2way          : condition * modality * standard_c (all rows)
+      * auditory_1way : condition * standard_c (auditory rows only)
+      * visual_1way   : condition * standard_c (visual rows only)
+
+    Each model carries a per-subject random intercept and random slope
+    for standard_c. Two files are written per (estimator, session):
+
+      lmm_<estimator>_<sesstag>_results.tsv    coefficients + omnibus
+      lmm_<estimator>_<sesstag>_modelinfo.tsv  fit diagnostics
+
+    Every row in the results file is tagged by 'model' (which of the
+    three) and 'block' ('coefficient' or 'omnibus').
     """
     cols = [
         'subject',
@@ -239,53 +249,67 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
     )
     mdf['standard_c'] = mdf['standard'] - mdf['standard'].mean()
 
-    formula = (
-        'signed_asynchrony ~ '
-        'C(condition) * C(modality) * standard_c'
-    )
     re_formula = '~standard_c'
-    result = _fit_mixedlm(
-        formula,
-        mdf,
-        'subject',
-        re_formula=re_formula,
-    )
 
-    prefix = 'lmm_' + estimator_id + '_' + sesstag + '_2way'
-    _save_mixedlm_outputs(
-        result,
-        output_folder,
-        prefix,
-        formula,
-        re_formula,
-        len(mdf),
-        mdf['subject'].nunique(),
-    )
+    # (label, formula, data) for each model fitted on the same DV.
+    specs = [
+        (
+            '2way',
+            'signed_asynchrony ~ C(condition) * C(modality) * standard_c',
+            mdf,
+        ),
+        (
+            'auditory_1way',
+            'signed_asynchrony ~ C(condition) * standard_c',
+            mdf[mdf['modality'] == 'auditory'].copy(),
+        ),
+        (
+            'visual_1way',
+            'signed_asynchrony ~ C(condition) * standard_c',
+            mdf[mdf['modality'] == 'visual'].copy(),
+        ),
+    ]
 
-    for modality in ['auditory', 'visual']:
-        sdf = mdf[mdf['modality'] == modality].copy()
-        formula = 'signed_asynchrony ~ C(condition) * standard_c'
+    results_parts = []
+    info_parts = []
+    for label, formula, data in specs:
         result = _fit_mixedlm(
             formula,
-            sdf,
+            data,
             'subject',
             re_formula=re_formula,
         )
-
-        prefix = (
-            'lmm_' + estimator_id + '_' + sesstag + '_' +
-            modality + '_1way'
-        )
-        _save_mixedlm_outputs(
-            result,
-            output_folder,
-            prefix,
-            formula,
-            re_formula,
-            len(sdf),
-            sdf['subject'].nunique(),
+        results_parts.append(_coefficient_rows(result, label))
+        results_parts.append(_omnibus_rows(result, label))
+        info_parts.append(
+            _info_row(
+                result,
+                label,
+                formula,
+                len(data),
+                data['subject'].nunique(),
+            )
         )
 
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    stem = 'lmm_' + estimator_id + '_' + sesstag
+
+    results = pd.concat(results_parts, ignore_index=True)
+    results.to_csv(
+        os.path.join(output_folder, stem + '_results.tsv'),
+        index=False,
+        sep='\t',
+        na_rep='',
+    )
+
+    info = pd.concat(info_parts, ignore_index=True)
+    info.to_csv(
+        os.path.join(output_folder, stem + '_modelinfo.tsv'),
+        index=False,
+        sep='\t',
+    )
 
 def plot_ancova(x, y, yaxis_name, yname_pos, title,
                 output_folder, fname, y_values=None, legend_loc='lower left',
@@ -451,7 +475,7 @@ SB3_SUBJECTS = []
 MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results')
 DATAFRAMES_FOLDER = os.path.join(RESULTS_FOLDER, 'dataframes')
-ANCOVA_FOLDER = os.path.join(RESULTS_FOLDER, 'ancova')
+LMM_FOLDER = os.path.join(RESULTS_FOLDER, 'lmm')
 
 # #### First Batch ####
 
@@ -574,11 +598,11 @@ if __name__ == "__main__":
             batch_folder = input_info['batch_folder']
 
             jasp_folder = os.path.join(
-                ANCOVA_FOLDER, batch_folder, 'jasp')
+                LMM_FOLDER, batch_folder, 'jasp')
             plots_folder = os.path.join(
-                ANCOVA_FOLDER, batch_folder, 'plots')
+                LMM_FOLDER, batch_folder, 'plots')
             tables_folder = os.path.join(
-                ANCOVA_FOLDER, batch_folder, 'tables')
+                LMM_FOLDER, batch_folder, 'tables')
 
             print('\n' + '=' * 60)
             print(f'Batch: {batch_tag}  |  Input: {input_type}')
@@ -619,19 +643,19 @@ if __name__ == "__main__":
                 wide_dataframe(db_ffx_mean, jasp_folder, 'mean', key)
                 wide_dataframe(db_ffx_std, jasp_folder, 'std', key)
 
-                # Fit LMM ANCOVA-style models and save tables.
+                # Fit the LMMs and save tables.
                 mixed_ancova_tables(
                     db_ffx_mean, tables_folder, 'mean', key)
                 mixed_ancova_tables(
                     db_ffx_std, tables_folder, 'std', key)
 
-                # Plot ANCOVA.
+                # Plot group-level results across standards.
                 plot_ancova(
                     standards, mean_async,
                     'Mean of Signed Asynchrony', .165,
                     'Mean of Signed Asynchrony for every Standard: ' +
                     value,
-                    plots_folder, 'mean_ancova_production_' + key,
+                    plots_folder, 'mean_lmm_production_' + key,
                     hline_legend=r'$RT=Standard$',
                     legend_loc='upper right')
 
@@ -640,5 +664,5 @@ if __name__ == "__main__":
                     'SD of Signed Asynchrony', .165,
                     'Standard Deviation (SD) of Signed Asynchrony '
                     'for every Standard: ' + value,
-                    plots_folder, 'std_ancova_production_' + key,
+                    plots_folder, 'std_lmm_production_' + key,
                     legend_loc='upper right')
