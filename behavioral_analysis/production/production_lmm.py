@@ -19,8 +19,10 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 import numpy as np
 import pandas as pd
+import patsy
 import statsmodels.formula.api as smf
 
+from scipy import stats
 from matplotlib import pyplot as plt
 
 # %%
@@ -207,6 +209,84 @@ def _info_row(result, model_label, formula, n_obs, n_subjects):
     }])
 
 
+def _emm_cells(model_label):
+    """Cells for which to compute estimated marginal means, per model.
+
+    Returns one entry per cell: the modality/condition labels used for
+    reporting, plus a 'data' dict holding exactly the predictors the
+    model's formula references, with standard_c fixed at 0 (the mean
+    standard). The 2way model varies both factors; each 1way model fixes
+    its modality and varies condition.
+    """
+    conditions = ['beat', 'interval']
+    if model_label == '2way':
+        return [
+            {'modality': mod, 'condition': cond,
+             'data': {'condition': cond, 'modality': mod, 'standard_c': 0.0}}
+            for mod in ['auditory', 'visual']
+            for cond in conditions
+        ]
+    modality = 'auditory' if model_label == 'auditory_1way' else 'visual'
+    return [
+        {'modality': modality, 'condition': cond,
+         'data': {'condition': cond, 'standard_c': 0.0}}
+        for cond in conditions
+    ]
+
+
+def _emm_rows(result, model_label, cells):
+    """Estimated marginal means (EMMs) at the mean standard, one row per cell.
+
+    Each cell mean is the linear combination L @ beta of the fixed
+    effects, with L the model's design row for that cell evaluated at
+    standard_c = 0. Its standard error is sqrt(L @ V @ L), where V is the
+    fixed-effect covariance (result.cov_params restricted to the fixed
+    effects). This gives the correct SE for cells that combine several
+    coefficients (e.g. the interval cells), which is not the sum of the
+    coefficient SEs. Inference is Wald z, to match the coefficient block.
+
+    L is built from the model's stored patsy design so it always aligns
+    with the fitted parameters, regardless of the coding used.
+    """
+    design_info = result.model.data.design_info
+    fe_names = list(result.fe_params.index)
+    beta = result.fe_params.values
+
+    cov = result.cov_params()
+    if hasattr(cov, 'loc'):
+        cov_fe = cov.loc[fe_names, fe_names].values
+    else:
+        cov_fe = np.asarray(cov)[:len(fe_names), :len(fe_names)]
+
+    z_crit = stats.norm.ppf(0.975)
+    rows = []
+    for cell in cells:
+        design = patsy.build_design_matrices(
+            [design_info],
+            pd.DataFrame([cell['data']]),
+            return_type='matrix',
+        )[0]
+        contrast = np.asarray(design).ravel()
+
+        estimate = float(contrast @ beta)
+        se = float(np.sqrt(contrast @ cov_fe @ contrast))
+        z = estimate / se
+        rows.append({
+            'model': model_label,
+            'block': 'emm',
+            'modality': cell['modality'],
+            'condition': cell['condition'],
+            'estimate': estimate,
+            'se': se,
+            'statistic': z,               # Wald z
+            'df': np.nan,
+            'p': 2 * stats.norm.sf(abs(z)),
+            'ci_low': estimate - z_crit * se,
+            'ci_high': estimate + z_crit * se,
+        })
+    return pd.DataFrame(rows)
+
+
 def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
     """Fit the linear mixed models (LMMs) and save two consolidated TSV
     files.
@@ -219,13 +299,18 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
       * visual_1way   : condition * standard_c (visual rows only)
 
     Each model carries a per-subject random intercept and random slope
-    for standard_c. Two files are written per (estimator, session):
+    for standard_c. Three files are written per (estimator, session):
 
       lmm_<estimator>_<sesstag>_results.tsv    coefficients + omnibus
+      lmm_<estimator>_<sesstag>_emm.tsv        estimated marginal means
       lmm_<estimator>_<sesstag>_modelinfo.tsv  fit diagnostics
 
     Every row in the results file is tagged by 'model' (which of the
-    three) and 'block' ('coefficient' or 'omnibus').
+    three) and 'block' ('coefficient' or 'omnibus'). The EMM file reports
+    each modality x condition cell mean at the mean standard, with its
+    Wald standard error, z, p and 95% CI, tagged by 'model' and
+    block='emm'. Cells from the 2way model use the pooled fit; cells from
+    the auditory_1way and visual_1way models use each modality's own fit.
     """
     cols = [
         'subject',
@@ -271,6 +356,7 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
     ]
 
     results_parts = []
+    emm_parts = []
     info_parts = []
     for label, formula, data in specs:
         result = _fit_mixedlm(
@@ -281,6 +367,7 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
         )
         results_parts.append(_coefficient_rows(result, label))
         results_parts.append(_omnibus_rows(result, label))
+        emm_parts.append(_emm_rows(result, label, _emm_cells(label)))
         info_parts.append(
             _info_row(
                 result,
@@ -299,6 +386,14 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
     results = pd.concat(results_parts, ignore_index=True)
     results.to_csv(
         os.path.join(output_folder, stem + '_results.tsv'),
+        index=False,
+        sep='\t',
+        na_rep='',
+    )
+
+    emm = pd.concat(emm_parts, ignore_index=True)
+    emm.to_csv(
+        os.path.join(output_folder, stem + '_emm.tsv'),
         index=False,
         sep='\t',
         na_rep='',
@@ -563,10 +658,11 @@ sb_inputs_dic = {
 
 # Keep these lists explicit so each input/output type can be run one at a
 # time by commenting out any entry if needed.
-# BATCHES_TO_RUN = ['first', 'second']
-BATCHES_TO_RUN = ['second']
+BATCHES_TO_RUN = ['first', 'second']
+# BATCHES_TO_RUN = ['second']
 
-INPUT_TYPES_TO_RUN = ['latency_corrected', 'uncorrected']
+# INPUT_TYPES_TO_RUN = ['latency_corrected', 'uncorrected']
+INPUT_TYPES_TO_RUN = ['uncorrected']
 
 batch_dic = {
     'first': {
