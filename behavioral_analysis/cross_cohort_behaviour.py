@@ -23,7 +23,10 @@ perception_analysis.py and ntfd_df.py, so it stays in sync with new data.
 
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
-Created: July 2026
+
+Created: 6th of July 2026
+Last update: July 2026
+
 Compatibility: Python 3.10.14
 """
 
