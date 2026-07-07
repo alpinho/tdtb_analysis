@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 15th of April 2026
-Last update: June 2026
+Last update: July 2026
 
 Compatibility: Python 3.10.14
 
@@ -93,9 +93,9 @@ ROI_PRETTY = {
 # axis, preserved under red-green colour blindness; Both takes the violet corner
 # so it is distinct from both rather than sitting neutral between them.
 MODALITY_COLORS = {
-    "Pooled":   {"Non-Random": "#B27A18", "Random": "#EAD2A0"},  # ochre (Both)
-    "Auditory": {"Non-Random": "#157F66", "Random": "#8FD0C0"},  # teal
-    "Visual":   {"Non-Random": "#5B4FA0", "Random": "#C0B8E0"},  # purple
+    "Pooled":   {"Non-Random": "#CE8D1D", "Random": "#EAD2A0"},  # ochre (Both)
+    "Auditory": {"Non-Random": "#1BB18E", "Random": "#C9F3E9"},  # teal
+    "Visual":   {"Non-Random": "#9A85F6", "Random": "#E1DBFF"},  # purple
 }
 
 # ---- box geometry (UNCHANGED: do not alter the boxplots themselves) ----
