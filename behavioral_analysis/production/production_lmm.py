@@ -557,11 +557,11 @@ BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
                           39, 40, 41, 42, 43, 44, 45, 46, 47]
 
 # Second batch
-ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61]
+ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62]
 
-GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61]
+GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61, 62]
 
-SB2_SUBJECTS = [50, 51, 52, 57, 59]
+SB2_SUBJECTS = [50, 51, 52, 55, 57, 59]
 
 SB3_SUBJECTS = []
 
@@ -658,8 +658,8 @@ sb_inputs_dic = {
 
 # Keep these lists explicit so each input/output type can be run one at a
 # time by commenting out any entry if needed.
-BATCHES_TO_RUN = ['first', 'second']
-# BATCHES_TO_RUN = ['second']
+# BATCHES_TO_RUN = ['first', 'second']
+BATCHES_TO_RUN = ['second']
 
 # INPUT_TYPES_TO_RUN = ['latency_corrected', 'uncorrected']
 INPUT_TYPES_TO_RUN = ['uncorrected']
