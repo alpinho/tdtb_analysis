@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2024
-Last update: June 2026
+Last update: July 2026
 
 Compatibility: Python 3.10.14
 
@@ -1263,7 +1263,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'rand_ntfd_nonrandom'
+folder_name = 'main_tasks'
 
 tags = [
     'i', 
@@ -1572,13 +1572,13 @@ ROI_CONFIGS = {
         #     'roi_names': ['presma', 'sma'],
         #     'crossroi_label': 'presma-sma',
         # },
-        'dstr-sma': {
-            'atlas_dirnames': [fsl_dir, hmat_dir],
-            'atlas_names': ['hos', 'hmat'],
-            'region_names': ['dorsal_striatum', 'motor_area'],
-            'roi_names': ['dstr', 'sma'],
-            'crossroi_label': 'dstr-sma',
-        },
+        # 'dstr-sma': {
+        #     'atlas_dirnames': [fsl_dir, hmat_dir],
+        #     'atlas_names': ['hos', 'hmat'],
+        #     'region_names': ['dorsal_striatum', 'motor_area'],
+        #     'roi_names': ['dstr', 'sma'],
+        #     'crossroi_label': 'dstr-sma',
+        # },
         # 'cereb-sma': {
         #     'atlas_dirnames': [ntk_dir, hmat_dir],
         #     'atlas_names': ['ntk_symmni128', 'hmat'],
@@ -1586,6 +1586,13 @@ ROI_CONFIGS = {
         #     'roi_names': ['cereb', 'sma'],
         #     'crossroi_label': 'cereb-sma',
         # },
+        'dstr-auditory_cortex': {
+            'atlas_dirnames': [fsl_dir, fsl_dir],
+            'atlas_names': ['hos', 'hos'],
+            'region_names': ['dorsal_striatum', 'auditory_cortex'],
+            'roi_names': ['dstr', 'auditory_cortex'],
+            'crossroi_label': 'dstr-auditory_cortex',
+        },
     },
 }
 
