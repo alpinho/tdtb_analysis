@@ -811,7 +811,7 @@ def resolve_contour_display(contour_display, contour_twosided):
 
 def make_signed_gray_threshold_cmap(
     thr, vlim,
-    base_colors=('#1A85FF', '#FFFFFF', "#FFB829"),
+    base_colors=('#1A85FF', '#FFFFFF', "#FFA41C"),
     gray='#999999', n=256,
 ):
     """Diverging colormap for signed (two-sided) thresholded maps in which the
