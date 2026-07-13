@@ -30,6 +30,14 @@ Use flatmaps (default) or dynamic HTML maps (Plotly) by passing a flag:
       The --contour outline is independent and can be added on top by also
       passing --contour (with contrast_name2); run either or both at once.
 
+Individual surface maps (set in the INPUTS section):
+    COMPUTE_INDIVIDUAL_SURF : True recomputes the per-subject volume-to-surface
+    projection (GIFTI + CIFTI) before the group step; False skips it and reuses
+    the per-subject files already on disk (group map, thresholds and plots are
+    still recomputed). Applies to every branch. Passing --isurf on the command
+    line forces it on for that run:
+        python volume_to_surface.py --isurf
+
 Sidedness of the FDR threshold / display (set in the INPUTS section):
     contrast_sides : sidedness of the FILLED map (contrast_name).
     contour_sides  : sidedness of the OUTLINE (contrast_name2, --contour only).
@@ -43,7 +51,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 24th of February 2025
-Last Update: June 2026
+Last Update: July 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
@@ -300,6 +308,33 @@ def individual_surf(
                     f'{contrast.lower()}_{surfspace}.dscalar.nii'
                 )
             )
+
+
+def ensure_individual_surf(compute, derivatives_dir, subjects, task_key,
+                           contrasts_dic, contrast_key, surf_dir,
+                           surfspace='fslr32k', saves=('gifti', 'cifti')):
+    """Project the individual contrast maps to the surface, or reuse them.
+
+    Thin wrapper around individual_surf. When `compute` is False the
+    projection is skipped entirely and the per-subject GIFTI/CIFTI files
+    already on disk are reused by the downstream group-level steps
+    (group_surf reads them from surf_dir). When True, individual_surf is
+    called once per entry of `saves` (GIFTI and CIFTI by default).
+    """
+    contrast = (
+        contrasts_dic[contrast_key].replace(' vs ', '_vs_').replace(' ', '-')
+    )
+    label = f"{task_key} / {contrast_key}_{contrast.lower()}"
+
+    if not compute:
+        print(f"[individual_surf] Skipped, reusing files on disk: {label}")
+        return
+
+    print(f"[individual_surf] Computing: {label}")
+    for save in saves:
+        individual_surf(derivatives_dir, subjects, task_key, contrasts_dic,
+                        contrast_key, surf_dir, surfspace=surfspace,
+                        save=save)
 
 
 def get_isurf_gifti(surf_dir, subjects, task_key, contrast,
@@ -776,7 +811,7 @@ def resolve_contour_display(contour_display, contour_twosided):
 
 def make_signed_gray_threshold_cmap(
     thr, vlim,
-    base_colors=('#1A85FF', '#FFFFFF', '#D41159'),
+    base_colors=('#1A85FF', '#FFFFFF', "#FFB829"),
     gray='#999999', n=256,
 ):
     """Diverging colormap for signed (two-sided) thresholded maps in which the
@@ -813,8 +848,8 @@ def make_signed_gray_threshold_cmap(
         'signed_base', list(base_colors), N=n)
     if not (np.isfinite(thr) and np.isfinite(vlim)) or vlim <= 0 or thr <= 0:
         return base
-    thr = min(float(thr), float(vlim))            # clamp degenerate thr >= vlim
-    pos = np.linspace(0.0, 1.0, n)                # normalized scale positions
+    thr = min(float(thr), float(vlim))         # clamp degenerate thr >= vlim
+    pos = np.linspace(0.0, 1.0, n)             # normalized scale positions
     rgba = base(pos)
     # normalized positions of -thr and +thr over [-vlim, +vlim]
     p_lo = 0.5 - thr / (2.0 * vlim)
@@ -2256,6 +2291,20 @@ def plotly_surfmap(
 SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
             29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
+# Compute the INDIVIDUAL (per-subject) surface maps, i.e. the volume-to-surface
+# projection of the single-subject contrast images (GIFTI + CIFTI in
+# <surf_folder>/<contrast_id>_<contrast_name>/).
+#   True  : (re)compute and overwrite them. Needed the first time a contrast is
+#           run, or after the first-level GLM / individual meshes change.
+#   False : skip the projection and reuse the per-subject files already on
+#           disk. The group z-map, the thresholds and the plots are still
+#           recomputed from those files, so this only saves the (slow)
+#           vol_to_surf step.
+# This flag applies to every branch of the script (single contrast, batch,
+# overlay, contour and regime). It can also be forced on from the command line
+# with --isurf.
+COMPUTE_INDIVIDUAL_SURF = False
+
 # Parent dir for output folders
 surfparametric_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'results', 'parametric_tests', 
@@ -2546,6 +2595,10 @@ if contrast_name2:
 
 if __name__ == '__main__':
 
+    # Individual (per-subject) volume-to-surface projection: taken from the
+    # INPUTS flag, and forced on by passing --isurf on the command line.
+    _compute_isurf = COMPUTE_INDIVIDUAL_SURF or ('--isurf' in sys.argv)
+
     # ------------------ ROI overlap (cortex) ------------------
     # Run independently of contrasts (flatmaps only).
     if '--irois' in sys.argv:
@@ -2713,6 +2766,12 @@ if __name__ == '__main__':
                 np.split(zv, 2, axis=0)[1], rh_medial_wall_mask_path)
             return zl, zr
 
+        # ---- individual surfaces of the three contrasts, optional -------
+        for _rid in (diff_id, rand_id, nonrand_id):
+            ensure_individual_surf(_compute_isurf, derivatives_folder,
+                                   SUBJECTS, task_id, all_contrasts, _rid,
+                                   surf_folder, surfspace='fslr32k')
+
         dL, dR = _group_lr(diff_id, contrast_name)
         rL, rR = _group_lr(rand_id, rand_name)
         nL, nR = _group_lr(nonrand_id, nonrand_name)
@@ -2755,6 +2814,10 @@ if __name__ == '__main__':
             cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
             contour_surf_folder = os.path.join(
                 surfparametric_folder, contour_task_id, 'surface_files')
+            ensure_individual_surf(_compute_isurf, derivatives_folder,
+                                   SUBJECTS, contour_task_id,
+                                   contour_contrasts, contrast_id2,
+                                   contour_surf_folder, surfspace='fslr32k')
             z_values2 = group_surf(
                 contour_surf_folder, SUBJECTS, contour_task_id, contrast_id2,
                 cname2, surfspace='fslr32k')
@@ -2854,13 +2917,10 @@ if __name__ == '__main__':
             _cdir = os.path.join(surf_folder, f"{_cid}_{_tag.lower()}")
             os.makedirs(_cdir, exist_ok=True)
 
-            # ---- compute individual surfaces (gifti + cifti) --------
-            individual_surf(derivatives_folder, SUBJECTS, task_id, 
-                            all_contrasts, _cid, surf_folder, 
-                            surfspace='fslr32k', save='gifti')
-            individual_surf(derivatives_folder, SUBJECTS, task_id, 
-                            all_contrasts, _cid, surf_folder, 
-                            surfspace='fslr32k', save='cifti')
+            # ---- individual surfaces (gifti + cifti), optional ------
+            ensure_individual_surf(_compute_isurf, derivatives_folder,
+                                   SUBJECTS, task_id, all_contrasts, _cid,
+                                   surf_folder, surfspace='fslr32k')
 
             # ---- compute group CIFTI → split → mask -----------------
             z_values = group_surf(surf_folder, SUBJECTS, task_id, _cid, _tag,
@@ -2919,13 +2979,10 @@ if __name__ == '__main__':
         cdir = os.path.join(surf_folder, f"{contrast_id}_{cname.lower()}")
         os.makedirs(cdir, exist_ok=True)
 
-        # ---- compute individual (gifti + cifti) ---------------------
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
-                        contrast_id, surf_folder, 
-                        surfspace='fslr32k', save='gifti')
-        individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts, 
-                        contrast_id, surf_folder, 
-                        surfspace='fslr32k', save='cifti')
+        # ---- individual surfaces (gifti + cifti), optional ----------
+        ensure_individual_surf(_compute_isurf, derivatives_folder, SUBJECTS,
+                               task_id, all_contrasts, contrast_id,
+                               surf_folder, surfspace='fslr32k')
 
         # ---- compute group → split → mask ---------------------------
         z_values = group_surf(surf_folder, SUBJECTS, task_id, contrast_id, 
@@ -2979,7 +3036,7 @@ if __name__ == '__main__':
                 thr_s, task_id, cname, surfplots_folder,
                 hemi=['L', 'R'], vmax=vmax_s, signed=True,
                 show_borders=SHOW_SULCI_BORDERS,
-                cbar_title='Z  (Random \u2212 Non-Random)'
+                cbar_title='Z-values (Random vs. Non-Random)'
             )
         else:
             plot_flatmap(
@@ -3001,12 +3058,9 @@ if __name__ == '__main__':
         # ---- compute + group + mask for contrast 1 ------------------
         cdir1 = os.path.join(surf_folder, f"{contrast_id}_{cname.lower()}")
         os.makedirs(cdir1, exist_ok=True)
-        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
-        #                 contrast_id, surf_folder, 
-        #                 surfspace='fslr32k', save='gifti')
-        # individual_surf(derivatives_folder, SUBJECTS, task_id, all_contrasts,
-        #                 contrast_id, surf_folder, 
-        #                 surfspace='fslr32k', save='cifti')
+        ensure_individual_surf(_compute_isurf, derivatives_folder, SUBJECTS,
+                               task_id, all_contrasts, contrast_id,
+                               surf_folder, surfspace='fslr32k')
         z_values1 = group_surf(surf_folder, SUBJECTS, task_id, contrast_id,
                                cname, surfspace='fslr32k')
         zL1 = mask_cortical_activation(
@@ -3053,6 +3107,12 @@ if __name__ == '__main__':
             cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
             contour_surf_folder = os.path.join(
                 surfparametric_folder, contour_task_id, 'surface_files')
+
+            # individual surfaces of the contour contrast, in ITS OWN task
+            ensure_individual_surf(_compute_isurf, derivatives_folder,
+                                   SUBJECTS, contour_task_id,
+                                   contour_contrasts, contrast_id2,
+                                   contour_surf_folder, surfspace='fslr32k')
 
             # group surface z-map of the contour contrast (read from its
             # own task's surface files; no re-save into another task tree)
@@ -3136,6 +3196,10 @@ if __name__ == '__main__':
             cdir2 = os.path.join(
                 surf_folder, f"{contrast_id2}_{cname2.lower()}")
             os.makedirs(cdir2, exist_ok=True)
+            ensure_individual_surf(_compute_isurf, derivatives_folder,
+                                   SUBJECTS, task_id, all_contrasts,
+                                   contrast_id2, surf_folder,
+                                   surfspace='fslr32k')
             z_values2 = group_surf(
                 surf_folder, SUBJECTS, task_id, contrast_id2, cname2,
                 surfspace='fslr32k'
