@@ -1263,7 +1263,7 @@ task_roidef_id = 'allmain_tasks'  # or 'rand_ntfd'
 #   • 'rand_ntfd_pairs'      -> Category: Beat, Interval, Random
 #   • 'rand_ntfd_nonrandom'  -> Category: Non-Random, Random
 #   • 'all_tasks'            -> main_tasks + rand_ntfd_pairs
-folder_name = 'main_tasks'
+folder_name = 'rand_ntfd_nonrandom'
 
 tags = [
     'i', 
@@ -1491,13 +1491,6 @@ roi_names6 = [
 
 # #######################
 
-atlas_dirnames4 = [hmat_dir, hmat_dir, hmat_dir, hmat_dir]
-atlas_names4 = ['hmat', 'hmat', 'hmat', 'hmat']
-region_names4 = ['motor_area', 'motor_area', 'motor_area', 'motor_area']
-roi_names4 = ['pmd', 'pmv', 'sma', 'presma']
-
-# #######################
-
 atlas_dirnames3 = [fsl_dir, ntk_dir, hmat_dir]
 atlas_names3 = ['hos', 'ntk_symmni128', 'hmat']
 region_names3 = ['dorsal_striatum', 'cerebellum', 'motor_area']
@@ -1533,12 +1526,21 @@ ROI_CONFIGS = {
         },
     },
     4: {
-        'premotor': {
-            'atlas_dirnames': atlas_dirnames4,
-            'atlas_names': atlas_names4,
-            'region_names': region_names4,
-            'roi_names': roi_names4,
-            'crossroi_label': 'premotor',
+        # 'premotor': {
+        #     'atlas_dirnames': [hmat_dir, hmat_dir, hmat_dir, hmat_dir],
+        #     'atlas_names': ['hmat', 'hmat', 'hmat', 'hmat'],
+        #     'region_names': ['motor_area', 'motor_area', 'motor_area', 
+        #                      'motor_area'],
+        #     'roi_names': ['pmd', 'pmv', 'sma', 'presma'],
+        #     'crossroi_label': 'premotor',
+        # },
+        'dstr-presma-pmd-pmv': {
+            'atlas_dirnames': [fsl_dir, hmat_dir, hmat_dir, hmat_dir],
+            'atlas_names': ['hos', 'hmat', 'hmat', 'hmat'],
+            'region_names': ['dorsal_striatum', 'motor_area', 'motor_area', 
+                             'motor_area'],
+            'roi_names': ['dstr', 'presma', 'pmd', 'pmv'],
+            'crossroi_label': 'dstr-presma-pmd-pmv',
         },
     },
     3: {
@@ -1551,13 +1553,13 @@ ROI_CONFIGS = {
         },
     },
     2: {
-        # 'subcortical': {
-        #     'atlas_dirnames': [fsl_dir, ntk_dir],
-        #     'atlas_names': ['hos', 'ntk_symmni128'],
-        #     'region_names': ['dorsal_striatum', 'cerebellum'],
-        #     'roi_names': ['dstr', 'cereb'],
-        #     'crossroi_label': 'subcortical',
-        # },
+        'subcortical': {
+            'atlas_dirnames': [fsl_dir, ntk_dir],
+            'atlas_names': ['hos', 'ntk_symmni128'],
+            'region_names': ['dorsal_striatum', 'cerebellum'],
+            'roi_names': ['dstr', 'cereb'],
+            'crossroi_label': 'subcortical',
+        },
         # 'sensory': {
         #     'atlas_dirnames': [fsl_dir, fsl_dir],
         #     'atlas_names': ['hos', 'hos'],
@@ -1586,13 +1588,13 @@ ROI_CONFIGS = {
         #     'roi_names': ['cereb', 'sma'],
         #     'crossroi_label': 'cereb-sma',
         # },
-        'dstr-auditory_cortex': {
-            'atlas_dirnames': [fsl_dir, fsl_dir],
-            'atlas_names': ['hos', 'hos'],
-            'region_names': ['dorsal_striatum', 'auditory_cortex'],
-            'roi_names': ['dstr', 'auditory_cortex'],
-            'crossroi_label': 'dstr-auditory_cortex',
-        },
+        # 'dstr-auditory_cortex': {
+        #     'atlas_dirnames': [fsl_dir, fsl_dir],
+        #     'atlas_names': ['hos', 'hos'],
+        #     'region_names': ['dorsal_striatum', 'auditory_cortex'],
+        #     'roi_names': ['dstr', 'auditory_cortex'],
+        #     'crossroi_label': 'dstr-auditory_cortex',
+        # },
     },
 }
 
