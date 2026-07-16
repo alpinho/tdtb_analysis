@@ -3249,8 +3249,8 @@ switch what
         
         % %%%%%%%%%%%%%%%%%% DEFAULT VALUES OF VARARGIN %%%%%%%%%%%%%%%%%%%%%%%
         
-        design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
-        % design = {'rand_ntfd'};
+        % design = {'prod', 'percep', 'ntfd', 'allmain_tasks'};
+        design = {'rand_ntfd'};
         
         model = {'rfx_onesample_t_rwls_dbb_hrf128_wb'};
 
