@@ -84,10 +84,10 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
-subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-% subj_n = [10]
+subj_n = [47]
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -137,15 +137,15 @@ loc_AC = {
 
 numDummys = 0;
 
-contrasts = {'Encoding', [0.25 0.25 0.25 0.25 0]; ...                           %1  SCALED
-             'Auditory Encoding', [0.5 0.5 0 0 0]; ...                          %2  SCALED
-             'Visual Encoding', [0 0 0.5 0.5 0]; ...                            %3  SCALED
-             'Auditory vs Visual Encoding', [0.5 0.5 -0.5 -0.5 0]; ...          %4  SCALED
-             'Visual vs Auditory Encoding', [-0.5 -0.5 0.5 0.5 0]; ...          %5  SCALED
-             'Beat', [0.5 0 0.5 0 0]; ...                                       %6  SCALED
-             'Interval', [0 0.5 0 0.5 0]; ...                                   %7  SCALED
-             'Beat vs Interval', [0.5 -0.5 0.5 -0.5 0]; ...                     %8  SCALED
-             'Interval vs Beat', [-0.5 0.5 -0.5 0.5 0]; ...                     %9  SCALED
+contrasts = {'Encoding', [0.25 0.25 0.25 0.25 0]; ...                           %1
+             'Auditory Encoding', [0.5 0.5 0 0 0]; ...                          %2
+             'Visual Encoding', [0 0 0.5 0.5 0]; ...                            %3
+             'Auditory vs Visual Encoding', [0.5 0.5 -0.5 -0.5 0]; ...          %4
+             'Visual vs Auditory Encoding', [-0.5 -0.5 0.5 0.5 0]; ...          %5
+             'Beat', [0.5 0 0.5 0 0]; ...                                       %6
+             'Interval', [0 0.5 0 0.5 0]; ...                                   %7
+             'Beat vs Interval', [0.5 -0.5 0.5 -0.5 0]; ...                     %8
+             'Interval vs Beat', [-0.5 0.5 -0.5 0.5 0]; ...                     %9
              'Auditory Beat', [1 0 0 0 0]; ...                                  %10
              'Auditory Interval', [0 1 0 0 0]; ...                              %11
              'Auditory Beat vs Auditory Interval', [1 -1 0 0 0]; ...            %12
@@ -158,48 +158,51 @@ contrasts = {'Encoding', [0.25 0.25 0.25 0.25 0]; ...                           
              };
 
 
-contrasts_random = {'Encoding', [1/6 1/6 1/6 1/6 1/6 1/6 0]; ...                                   %1  SCALED
-                    'Auditory Encoding', [1/3 1/3 1/3 0 0 0 0]; ...                                %2  SCALED
-                    'Visual Encoding', [0 0 0 1/3 1/3 1/3 0]; ...                                  %3  SCALED
-                    'Auditory vs Visual Encoding', [1/3 1/3 1/3 -1/3 -1/3 -1/3 0]; ...             %4  SCALED
-                    'Visual vs Auditory Encoding', [-1/3 -1/3 -1/3 1/3 1/3 1/3 0]; ...             %5  SCALED
-                    'Beat', [0.5 0 0 0.5 0 0 0]; ...                                               %6  SCALED
-                    'Interval', [0 0.5 0 0 0.5 0 0]; ...                                           %7  SCALED
-                    'Non-Random', [0.25 0.25 0 0.25 0.25 0 0]; ...                                 %8  SCALED
-                    'Random', [0 0 0.5 0 0 0.5 0]; ...                                             %9  SCALED
-                    'Beat vs Interval', [0.5 -0.5 0 0.5 -0.5 0 0]; ...                             %10 SCALED
-                    'Interval vs Beat', [-0.5 0.5 0 -0.5 0.5 0 0]; ...                             %11 SCALED
-                    'Beat vs Random', [0.5 0 -0.5 0.5 0 -0.5 0]; ...                               %12 SCALED
-                    'Random vs Beat', [-0.5 0 0.5 -0.5 0 0.5 0]; ...                               %13 SCALED
-                    'Interval vs Random', [0 0.5 -0.5 0 0.5 -0.5 0]; ...                           %14 SCALED
-                    'Random vs Interval', [0 -0.5 0.5 0 -0.5 0.5 0]; ...                           %15 SCALED
-                    'Non-Random vs Random', [0.5 0.5 -1 0.5 0.5 -1 0]; ...                         %16 FIXED
-                    'Random vs Non-Random', [-0.5 -0.5 1 -0.5 -0.5 1 0]; ...                       %17 FIXED
-                    'Auditory Beat', [1 0 0 0 0 0 0]; ...                                          %18
-                    'Auditory Interval', [0 1 0 0 0 0 0]; ...                                      %19
-                    'Auditory Non-Random', [0.5 0.5 0 0 0 0 0]; ...                                %20 SCALED
-                    'Auditory Random', [0 0 1 0 0 0 0]; ...                                        %21
-                    'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0]; ...                    %22
-                    'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0]; ...                    %23
-                    'Auditory Beat vs Auditory Random', [1 0 -1 0 0 0 0]; ...                      %24
-                    'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0]; ...                      %25
-                    'Auditory Interval vs Auditory Random', [0 1 -1 0 0 0 0]; ...                  %26
-                    'Auditory Random vs Auditory Interval', [0 -1 1 0 0 0 0]; ...                  %27
-                    'Auditory Non-Random vs Auditory Random', [0.5 0.5 -1 0 0 0 0]; ...            %28 FIXED
-                    'Auditory Random vs Auditory Non-Random', [-0.5 -0.5 1 0 0 0 0]; ...           %29 FIXED
-                    'Visual Beat', [0 0 0 1 0 0 0]; ...                                            %30
-                    'Visual Interval', [0 0 0 0 1 0 0]; ...                                        %31
-                    'Visual Non-Random', [0 0 0 0.5 0.5 0 0]; ...                                  %32 SCALED
-                    'Visual Random', [0 0 0 0 0 1 0]; ...                                          %33
-                    'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0]; ...                        %34
-                    'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0]; ...                        %35
-                    'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0]; ...                          %36
-                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...                          %37
-                    'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0]; ...                      %38
-                    'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...                      %39
-                    'Visual Non-Random vs Visual Random', [0 0 0 0.5 0.5 -1 0]; ...                %40 FIXED
-                    'Visual Random vs Visual Non-Random', [0 0 0 -0.5 -0.5 1 0]; ...               %41 FIXED
-                    'Decision', [0 0 0 0 0 0 1]                                                    %42
+contrasts_random = {'Encoding', [1/6 1/6 1/6 1/6 1/6 1/6 0]; ...                                   %1
+                    'Auditory Encoding', [1/3 1/3 1/3 0 0 0 0]; ...                                %2
+                    'Visual Encoding', [0 0 0 1/3 1/3 1/3 0]; ...                                  %3
+                    'Auditory vs Visual Encoding', [1/3 1/3 1/3 -1/3 -1/3 -1/3 0]; ...             %4
+                    'Visual vs Auditory Encoding', [-1/3 -1/3 -1/3 1/3 1/3 1/3 0]; ...             %5
+                    'Beat', [0.5 0 0 0.5 0 0 0]; ...                                               %6
+                    'Interval', [0 0.5 0 0 0.5 0 0]; ...                                           %7
+                    'Non-Random', [0.25 0.25 0 0.25 0.25 0 0]; ...                                 %8
+                    'Random', [0 0 0.5 0 0 0.5 0]; ...                                             %9
+                    'Beat vs Interval', [0.5 -0.5 0 0.5 -0.5 0 0]; ...                             %10
+                    'Interval vs Beat', [-0.5 0.5 0 -0.5 0.5 0 0]; ...                             %11
+                    'Beat vs Random', [0.5 0 -0.5 0.5 0 -0.5 0]; ...                               %12
+                    'Random vs Beat', [-0.5 0 0.5 -0.5 0 0.5 0]; ...                               %13
+                    'Interval vs Random', [0 0.5 -0.5 0 0.5 -0.5 0]; ...                           %14
+                    'Random vs Interval', [0 -0.5 0.5 0 -0.5 0.5 0]; ...                           %15
+                    'Non-Random vs Random', [0.5 0.5 -1 0.5 0.5 -1 0]; ...                         %16
+                    'Random vs Non-Random', [-0.5 -0.5 1 -0.5 -0.5 1 0]; ...                       %17
+                    'Mean Response', [0.125 0.125 0.25 0.125 0.125 0.25 0]; ...                    %18
+                    'Auditory Beat', [1 0 0 0 0 0 0]; ...                                          %19
+                    'Auditory Interval', [0 1 0 0 0 0 0]; ...                                      %20
+                    'Auditory Non-Random', [0.5 0.5 0 0 0 0 0]; ...                                %21
+                    'Auditory Random', [0 0 1 0 0 0 0]; ...                                        %22
+                    'Auditory Beat vs Auditory Interval', [1 -1 0 0 0 0 0]; ...                    %23
+                    'Auditory Interval vs Auditory Beat', [-1 1 0 0 0 0 0]; ...                    %24
+                    'Auditory Beat vs Auditory Random', [1 0 -1 0 0 0 0]; ...                      %25
+                    'Auditory Random vs Auditory Beat', [-1 0 1 0 0 0 0]; ...                      %26
+                    'Auditory Interval vs Auditory Random', [0 1 -1 0 0 0 0]; ...                  %27
+                    'Auditory Random vs Auditory Interval', [0 -1 1 0 0 0 0]; ...                  %28
+                    'Auditory Non-Random vs Auditory Random', [0.5 0.5 -1 0 0 0 0]; ...            %29
+                    'Auditory Random vs Auditory Non-Random', [-0.5 -0.5 1 0 0 0 0]; ...           %30
+                    'Auditory Mean Response', [0.25 0.25 0.5 0 0 0 0]; ...                         %31
+                    'Visual Beat', [0 0 0 1 0 0 0]; ...                                            %32
+                    'Visual Interval', [0 0 0 0 1 0 0]; ...                                        %33
+                    'Visual Non-Random', [0 0 0 0.5 0.5 0 0]; ...                                  %34
+                    'Visual Random', [0 0 0 0 0 1 0]; ...                                          %35
+                    'Visual Beat vs Visual Interval', [0 0 0 1 -1 0 0]; ...                        %36
+                    'Visual Interval vs Visual Beat', [0 0 0 -1 1 0 0]; ...                        %37
+                    'Visual Beat vs Visual Random', [0 0 0 1 0 -1 0]; ...                          %38
+                    'Visual Random vs Visual Beat', [0 0 0 -1 0 1 0]; ...                          %39
+                    'Visual Interval vs Visual Random', [0 0 0 0 1 -1 0]; ...                      %40
+                    'Visual Random vs Visual Interval', [0 0 0 0 -1 1 0]; ...                      %41
+                    'Visual Non-Random vs Visual Random', [0 0 0 0.5 0.5 -1 0]; ...                %42
+                    'Visual Random vs Visual Non-Random', [0 0 0 -0.5 -0.5 1 0]; ...               %43
+                    'Visual Mean Response', [0 0 0 0.25 0.25 0.5 0]; ...                           %44
+                    'Decision', [0 0 0 0 0 0 1]                                                    %45
                     };
 
 %==============================================================================
@@ -1835,8 +1838,8 @@ switch what
         sessrep_mode = 'sess';
 
         % Important note:
-        % When running the 'bothsc' option, for each contrast type a
-        % contrast for each sesssion and all sessions (the ffx) are done.
+        % When running the 'bothsc' option, a contrast for each sesssion and 
+        % all sessions (the ffx) are done for each contrast type .
         % In my current pipeline, analyses rely on the following order of
         % contrasts: for all contrast types, ffx contrast are listed and
         % after for the single sessions (the two next to each other for
@@ -1924,11 +1927,11 @@ switch what
                 spm_jobman('run', matlabbatch);
             end
         end % s (subject)
-        
-    case 'GLM:calc_PSC'
+    
 
-        % Calculate percent signal change for across-run contrasts
-        % based on betas
+    case 'GLM:calc_PSC'
+        % Calculate percent signal change for across-run (ffx) contrasts
+        % based on betas.
         %
         % Example usage:
         % msdtb_imana('GLM:calc_PSC', ...
@@ -1958,7 +1961,7 @@ switch what
             'output_folder', 'delete_existing'});
 
         for s = sn
-            % Go to subject’s directory and load SPM info
+            % Go to subject's directory and load SPM info
             estderiv_subj_dir = fullfile(base_dir, derivatives_dir, ...
                 subj_str{s}, est_dir);
 
@@ -1979,21 +1982,37 @@ switch what
 
                 t_con_name = extractfield(SPM.xCon, 'name');
 
-                % Across-run contrast range only
+                % ---- Derive counts instead of hard-coding them ----------
+                % step = task regressors PER RUN. iC are the regressors of
+                % interest across all runs, so dividing by the run count gives
+                % the per-run block length (7 for rand_ntfd, 5 for the main
+                % design). No table-dependent constant needed. The GLM models
+                % the Decision regressor last within each run's block, so
+                % maxX(step:step:end) selects exactly the Decision peaks.
+                n_reg = numel(SPM.xX.iC);
+                assert(mod(n_reg, numB) == 0, ...
+                    'iC (%d) not divisible by run count (%d).', n_reg, numB);
+                step = n_reg / numB;
+
+                % first_ffx_con is always 1; last_ffx_con = number of ffx
+                % (across-run) contrasts. With sessrep='sess' the ffx cons are
+                % written first, one per contrast-table row, then the
+                % per-session pairs. The ffx block is therefore every contrast
+                % whose name does NOT carry a session tag ('Session k' / Sn(k)).
                 first_ffx_con = 1;
-                if strcmp(design{dg}, 'rand_ntfd')
-                    last_ffx_con = 42;
-                    step = 7;
-                else
-                    last_ffx_con = 18;
-                    step = 5;
+                is_ffx = cellfun(@(nm) isempty(regexp(nm, ...
+                    'Session\s*\d+|Sn\(\d+\)', 'once')), t_con_name);
+                last_ffx_con = find(is_ffx, 1, 'last');
+                if isempty(last_ffx_con)
+                    error('No across-run (ffx) contrasts found for %s.', ...
+                        design{dg});
                 end
 
-                if length(t_con_name) < last_ffx_con
-                    error(['Expected at least %d contrasts for design %s, ' ...
-                        'but only found %d.'], last_ffx_con, design{dg}, ...
-                        length(t_con_name));
-                end
+                % Decision is identified BY NAME, not by position, so adding
+                % contrasts before it (e.g. Mean Response) or after it does not
+                % break the encoding/decision split.
+                is_decision = ~cellfun(@isempty, ...
+                    regexpi(t_con_name, 'decision', 'once'));
 
                 % Delete only across-run PSC files in the relevant range
                 if delete_existing
@@ -2030,14 +2049,14 @@ switch what
                         maxX = maxX(1:3:end);
                     end
 
-                    if con < last_ffx_con
-                        % Remove decision peaks for the encoding contrasts
-                        maxX(step:step:end) = [];
-                        h = min(maxX);
-                    else
+                    if is_decision(con)
                         % Retrieve the decision peaks for the decision contrast
                         decision_max = maxX(step:step:end);
                         h = min(decision_max);
+                    else
+                        % Remove decision peaks for the encoding contrasts
+                        maxX(step:step:end) = [];
+                        h = min(maxX);
                     end
 
                     P{numB+1,1} = fullfile(estdesign_folder, ...
@@ -2069,7 +2088,7 @@ switch what
                 fprintf('%s | %s - Done\n', subj_str{s}, design{dg});
             end
         end
-
+  
     case 'GLM:calc_PSC_runs'
         % Calculate run-specific percent signal change for run-specific
         % contrasts - based on betas from the same multi-run GLM
@@ -2119,14 +2138,34 @@ switch what
                 t_con_name = extractfield(SPM.xCon, 'name');
                 numB = length(SPM.xX.iB);
 
-                % First run-specific contrast index
-                if strcmp(design{dg}, 'rand_ntfd')
-                    first_run_con = 43;
-                    step = 7;
-                else
-                    first_run_con = 19;
-                    step = 5;
+                % ---- Derive counts instead of hard-coding them ----------
+                % step = task regressors PER RUN, from the design matrix:
+                % iC are the regressors of interest across all runs, so
+                % dividing by the run count gives the per-run block length
+                % (7 for rand_ntfd, 5 for the main design). The GLM models the
+                % Decision regressor last within each run, so
+                % maxX(step:step:end) selects exactly the Decision peaks.
+                n_reg = numel(SPM.xX.iC);
+                assert(mod(n_reg, numB) == 0, ...
+                    'iC (%d) not divisible by run count (%d).', n_reg, numB);
+                step = n_reg / numB;
+
+                % first_run_con = first per-session contrast index. With
+                % sessrep='sess' the across-run (ffx) contrasts are written
+                % first (one per contrast-table row), then the per-session
+                % ones, so the first run-specific contrast is the one right
+                % after the last ffx contrast. The ffx contrasts are those
+                % whose name carries NO session tag ('Session k' / Sn(k));
+                % counting them makes this index track the contrast table
+                % automatically, instead of hard-coding it per design.
+                is_ffx = cellfun(@(nm) isempty(regexp(nm, ...
+                    'Session\s*\d+|Sn\(\d+\)', 'once')), t_con_name);
+                last_ffx_con = find(is_ffx, 1, 'last');
+                if isempty(last_ffx_con)
+                    error('No across-run (ffx) contrasts found for %s.', ...
+                        design{dg});
                 end
+                first_run_con = last_ffx_con + 1;
 
                 if length(t_con_name) < first_run_con
                     error(['No session-specific contrasts found for ' ...
@@ -2223,8 +2262,8 @@ switch what
 
                 fprintf('%s | %s - Done\n', subj_str{s}, design{dg});
             end
-        end
-        
+        end   
+    
     case 'CON:norm_smooth'
         % Normalize and smooth individual contrasts or t-maps
         %
@@ -2248,7 +2287,7 @@ switch what
     
         % options: 'con', 'spmT', 'psc', 'beta'
         % (beta refers to the prewhitened files)
-        file_type = 'psc';
+        file_type = 'con';
     
         smoothing_kernel = [8 8 8];
     
@@ -2284,17 +2323,31 @@ switch what
                 use_index_range = ismember(file_type, {'con', 'psc', 'spmT'});
     
                 if use_index_range
-                    if strcmp(design{dg}, 'rand_ntfd')
-                        ffx_first = 1;
-                        ffx_last = 42;
-                        runs_first = 43;
-                        runs_last = 126;
-                    else
-                        ffx_first = 1;
-                        ffx_last = 18;
-                        runs_first = 19;
-                        runs_last = 90;
+                    % Derive the index layout from the contrast table rather
+                    % than hard-coding it, so adding contrasts (e.g. the Mean
+                    % Response rows) does not silently shift these ranges.
+                    %
+                    % With sessrep='sess' the per-subject files are written as:
+                    %   ffx (across-run) block : one image per contrast-table
+                    %                            row, indices 1..n_ffx
+                    %   per-session block      : n_ffx * n_runs images,
+                    %                            indices n_ffx+1 .. n_ffx*(1+n_runs)
+                    %
+                    % n_ffx is the number of rows in the design's contrast
+                    % table; n_runs is the number of runs for that design.
+                    switch design{dg}
+                        case 'rand_ntfd'
+                            n_ffx  = size(contrasts_random, 1);   % table rows
+                            n_runs = 2;
+                        otherwise
+                            n_ffx  = size(contrasts, 1);
+                            n_runs = 4;
                     end
+
+                    ffx_first  = 1;
+                    ffx_last   = n_ffx;
+                    runs_first = n_ffx + 1;
+                    runs_last  = n_ffx * (1 + n_runs);
     
                     if strcmp(contrast_scope, 'ffx')
                         first_idx = ffx_first;
@@ -2480,7 +2533,7 @@ switch what
                     subj_str{s}, design{dg}, file_type, contrast_scope);
     
             end % dg
-        end % s
+        end % s    
         
     case 'GROUP:mask'
         % Example usage: msdtb_imana('GROUP:mask', 'mask_type', 'wrmask_gray')
