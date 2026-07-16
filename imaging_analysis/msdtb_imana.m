@@ -84,10 +84,10 @@ wb_dir   = 'surfaceWB';
 %     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
 % List of all subjects but pilot
-% subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
-%     28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
+subj_n = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, ...
+    28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47];
 
-subj_n = [47]
+% subj_n = [47]
 
 subj_id = 1:length(subj_n);
 for s=subj_id
@@ -2287,7 +2287,7 @@ switch what
     
         % options: 'con', 'spmT', 'psc', 'beta'
         % (beta refers to the prewhitened files)
-        file_type = 'con';
+        file_type = 'psc';
     
         smoothing_kernel = [8 8 8];
     
@@ -2665,17 +2665,31 @@ switch what
                     {'con', 'psc', 'spmT'});
     
                 if use_index_range
-                    if strcmp(design{dg}, 'rand_ntfd')
-                        ffx_first = 1;
-                        ffx_last = 42;
-                        runs_first = 43;
-                        runs_last = 126;
-                    else
-                        ffx_first = 1;
-                        ffx_last = 18;
-                        runs_first = 19;
-                        runs_last = 90;
+                    % Derive the index layout from the contrast table rather
+                    % than hard-coding it, so adding contrasts (e.g. the Mean
+                    % Response rows) does not silently shift these ranges.
+                    %
+                    % With sessrep='sess' the per-subject files are written as:
+                    %   ffx (across-run) block : one image per contrast-table
+                    %                            row, indices 1..n_ffx
+                    %   per-session block      : n_ffx * n_runs images,
+                    %                            indices n_ffx+1 .. n_ffx*(1+n_runs)
+                    %
+                    % n_ffx is the number of rows in the design's contrast
+                    % table; n_runs is the number of runs for that design.
+                    switch design{dg}
+                        case 'rand_ntfd'
+                            n_ffx  = size(contrasts_random, 1);   % table rows
+                            n_runs = 2;
+                        otherwise
+                            n_ffx  = size(contrasts, 1);
+                            n_runs = 4;
                     end
+
+                    ffx_first  = 1;
+                    ffx_last   = n_ffx;
+                    runs_first = n_ffx + 1;
+                    runs_last  = n_ffx * (1 + n_runs);
     
                     if strcmp(contrast_scope, 'ffx')
                         first_idx = ffx_first;
@@ -2893,7 +2907,7 @@ switch what
                     contrast_scope, masktag, mask_smoothed);
     
             end % dg
-        end % s  
+        end % s
         
     case 'GLMCON:run_all'
         % Example usage: msdtb_imana('GLMCON:run_all')
