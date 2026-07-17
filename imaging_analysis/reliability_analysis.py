@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 23rd of March 2026
-Last Update: June 2026
+Last Update: July 2026
 
 Compatibility: Python 3.10.16
 """
@@ -1476,48 +1476,51 @@ ALL_CONTRASTS_MAIN_RUN1 = {
 }
 
 ALL_CONTRASTS_RAND_RUN1 = {
-    43: 'Encoding',
-    45: 'Auditory Encoding',
-    47: 'Visual Encoding',
-    49: 'Auditory vs Visual Encoding',
-    51: 'Visual vs Auditory Encoding',
-    53: 'Beat',
-    55: 'Interval',
-    57: 'Non-Random',
-    59: 'Random',
-    61: 'Beat vs Interval',
-    63: 'Interval vs Beat',
-    65: 'Beat vs Random',
-    67: 'Random vs Beat',
-    69: 'Interval vs Random',
-    71: 'Random vs Interval',
-    73: 'Non-Random vs Random',
-    75: 'Random vs Non-Random',
-    77: 'Auditory Beat',
-    79: 'Auditory Interval',
-    81: 'Auditory Non-Random',
-    83: 'Auditory Random',
-    85: 'Auditory Beat vs Auditory Interval',
-    87: 'Auditory Interval vs Auditory Beat',
-    89: 'Auditory Beat vs Auditory Random',
-    91: 'Auditory Random vs Auditory Beat',
-    93: 'Auditory Interval vs Auditory Random',
-    95: 'Auditory Random vs Auditory Interval',
-    97: 'Auditory Non-Random vs Auditory Random',
-    99: 'Auditory Random vs Auditory Non-Random',
-    101: 'Visual Beat',
-    103: 'Visual Interval',
-    105: 'Visual Non-Random',
-    107: 'Visual Random',
-    109: 'Visual Beat vs Visual Interval',
-    111: 'Visual Interval vs Visual Beat',
-    113: 'Visual Beat vs Visual Random',
-    115: 'Visual Random vs Visual Beat',
-    117: 'Visual Interval vs Visual Random',
-    119: 'Visual Random vs Visual Interval',
-    121: 'Visual Non-Random vs Visual Random',
-    123: 'Visual Random vs Visual Non-Random',
-    125: 'Decision'
+    46: 'Encoding',
+    48: 'Auditory Encoding',
+    50: 'Visual Encoding',
+    52: 'Auditory vs Visual Encoding',
+    54: 'Visual vs Auditory Encoding',
+    56: 'Beat',
+    58: 'Interval',
+    60: 'Non-Random',
+    62: 'Random',
+    64: 'Beat vs Interval',
+    66: 'Interval vs Beat',
+    68: 'Beat vs Random',
+    70: 'Random vs Beat',
+    72: 'Interval vs Random',
+    74: 'Random vs Interval',
+    76: 'Non-Random vs Random',
+    78: 'Random vs Non-Random',
+    80: 'Mean Response',
+    82: 'Auditory Beat',
+    84: 'Auditory Interval',
+    86: 'Auditory Non-Random',
+    88: 'Auditory Random',
+    90: 'Auditory Beat vs Auditory Interval',
+    92: 'Auditory Interval vs Auditory Beat',
+    94: 'Auditory Beat vs Auditory Random',
+    96: 'Auditory Random vs Auditory Beat',
+    98: 'Auditory Interval vs Auditory Random',
+    100: 'Auditory Random vs Auditory Interval',
+    102: 'Auditory Non-Random vs Auditory Random',
+    104: 'Auditory Random vs Auditory Non-Random',
+    106: 'Auditory Mean Response',
+    108: 'Visual Beat',
+    110: 'Visual Interval',
+    112: 'Visual Non-Random',
+    114: 'Visual Random',
+    116: 'Visual Beat vs Visual Interval',
+    118: 'Visual Interval vs Visual Beat',
+    120: 'Visual Beat vs Visual Random',
+    122: 'Visual Random vs Visual Beat',
+    124: 'Visual Interval vs Visual Random',
+    126: 'Visual Random vs Visual Interval',
+    128: 'Visual Non-Random vs Visual Random',
+    130: 'Visual Random vs Visual Non-Random',
+    132: 'Visual Mean Response',
+    134: 'Decision'
 }
 
 selected_contrasts_main = {
@@ -1528,12 +1531,12 @@ selected_contrasts_main = {
 }
 
 selected_contrasts_random = {
-    77: 'Auditory Beat',
-    79: 'Auditory Interval',
-    83: 'Auditory Random',
-    101: 'Visual Beat',
-    103: 'Visual Interval',
-    107: 'Visual Random'
+    82: 'Auditory Beat',
+    84: 'Auditory Interval',
+    88: 'Auditory Random',
+    108: 'Visual Beat',
+    110: 'Visual Interval',
+    114: 'Visual Random'
 }
 
 # Conditions analysed, derived from glm_tasks and the selected
@@ -1602,13 +1605,13 @@ if __name__ == '__main__':
     )
 
     # Create dataframes
-    # reliability_dataframe(
-    #     SUBJECTS, glm_tasks, data_storage,
-    #     selected_contrasts_main, selected_contrasts_random,
-    #     db_taskglm_path, derivative_type, mask_type, smooth)
+    reliability_dataframe(
+        SUBJECTS, glm_tasks, data_storage,
+        selected_contrasts_main, selected_contrasts_random,
+        db_taskglm_path, derivative_type, mask_type, smooth)
 
     # Open dataframe
-    db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
+    # db_taskglm = pd.read_csv(db_taskglm_path, sep='\t')
 
     # Extract signals from derivatives using individualized ROIs
     # Order of conditions:
@@ -1627,52 +1630,52 @@ if __name__ == '__main__':
     #                        ROI_NAMES, hemispheres, iroi_main_dir,
     #                        smooth, roi_signals_folder)
 
-    for itag in itags:
-        data_by_roi = load_roi_signal_arrays(
-            roi_signals_folder,
-            indiv=itag,
-        )
+    # for itag in itags:
+    #     data_by_roi = load_roi_signal_arrays(
+    #         roi_signals_folder,
+    #         indiv=itag,
+    #     )
 
-        results = compute_split_half_pipeline(
-            data_by_roi,
-            condition_names,
-            split_half_folder,
-            hemispheres,
-            itag,
-            SB_CLIP_MIN,
-            SB_CLIP_MAX,
-            use_rest=USE_REST,
-        )
+    #     results = compute_split_half_pipeline(
+    #         data_by_roi,
+    #         condition_names,
+    #         split_half_folder,
+    #         hemispheres,
+    #         itag,
+    #         SB_CLIP_MIN,
+    #         SB_CLIP_MAX,
+    #         use_rest=USE_REST,
+    #     )
 
-        for hemi in hemispheres:
-            print(f"\nTag: {itag} | Hemisphere: {hemi}")
+    #     for hemi in hemispheres:
+    #         print(f"\nTag: {itag} | Hemisphere: {hemi}")
 
-            print("\nSplit-half correlations")
-            print(results[hemi]['split_half_corr'])
+    #         print("\nSplit-half correlations")
+    #         print(results[hemi]['split_half_corr'])
 
-            print("\nSpearman-Brown")
-            print(results[hemi]['spearman_brown'])
+    #         print("\nSpearman-Brown")
+    #         print(results[hemi]['spearman_brown'])
 
-            print("\nPercentage of negative schemes")
-            print(results[hemi]['perc_negative_schemes'])
+    #         print("\nPercentage of negative schemes")
+    #         print(results[hemi]['perc_negative_schemes'])
 
-            print("\nPercentage of Spearman-Brown capped below clip_min")
-            print(results[hemi]['perc_sb_capped_below_clipmin'])
+    #         print("\nPercentage of Spearman-Brown capped below clip_min")
+    #         print(results[hemi]['perc_sb_capped_below_clipmin'])
 
-            print("\nPercentage of Spearman-Brown capped above clip_max")
-            print(results[hemi]['perc_sb_capped_above_clipmax'])
+    #         print("\nPercentage of Spearman-Brown capped above clip_max")
+    #         print(results[hemi]['perc_sb_capped_above_clipmax'])
 
-            print("\nCross-validated ROI-ROI similarity")
-            print(results[hemi]['cv_similarity'])
+    #         print("\nCross-validated ROI-ROI similarity")
+    #         print(results[hemi]['cv_similarity'])
 
-            print("\nReliability ceiling")
-            print(results[hemi]['ceiling'])
+    #         print("\nReliability ceiling")
+    #         print(results[hemi]['ceiling'])
 
-            print("\nCorrected similarity")
-            print(results[hemi]['corrected_similarity'])
+    #         print("\nCorrected similarity")
+    #         print(results[hemi]['corrected_similarity'])
 
-        rtf_path = os.path.join(
-            split_half_folder,
-            f"reliability_report_{itag}.rtf"
-        )
-        save_results_to_rtf(results, rtf_path)
+    #     rtf_path = os.path.join(
+    #         split_half_folder,
+    #         f"reliability_report_{itag}.rtf"
+    #     )
+    #     save_results_to_rtf(results, rtf_path)
