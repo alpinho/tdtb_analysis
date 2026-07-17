@@ -1338,31 +1338,34 @@ ALL_CONTRASTS_RAND = {
     15: 'Random vs Interval',
     16: 'Non-Random vs Random',
     17: 'Random vs Non-Random',
-    18: 'Auditory Beat',
-    19: 'Auditory Interval',
-    20: 'Auditory Non-Random',
-    21: 'Auditory Random',
-    22: 'Auditory Beat vs Auditory Interval',
-    23: 'Auditory Interval vs Auditory Beat',
-    24: 'Auditory Beat vs Auditory Random',
-    25: 'Auditory Random vs Auditory Beat',
-    26: 'Auditory Interval vs Auditory Random',
-    27: 'Auditory Random vs Auditory Interval',
-    28: 'Auditory Non-Random vs Auditory Random',
-    29: 'Auditory Random vs Auditory Non-Random',
-    30: 'Visual Beat',
-    31: 'Visual Interval',
-    32: 'Visual Non-Random',
-    33: 'Visual Random',
-    34: 'Visual Beat vs Visual Interval',
-    35: 'Visual Interval vs Visual Beat',
-    36: 'Visual Beat vs Visual Random',
-    37: 'Visual Random vs Visual Beat',
-    38: 'Visual Interval vs Visual Random',
-    39: 'Visual Random vs Visual Interval',
-    40: 'Visual Non-Random vs Visual Random',
-    41: 'Visual Random vs Visual Non-Random',
-    42: 'Decision'
+    18: 'Mean Response',
+    19: 'Auditory Beat',
+    20: 'Auditory Interval',
+    21: 'Auditory Non-Random',
+    22: 'Auditory Random',
+    23: 'Auditory Beat vs Auditory Interval',
+    24: 'Auditory Interval vs Auditory Beat',
+    25: 'Auditory Beat vs Auditory Random',
+    26: 'Auditory Random vs Auditory Beat',
+    27: 'Auditory Interval vs Auditory Random',
+    28: 'Auditory Random vs Auditory Interval',
+    29: 'Auditory Non-Random vs Auditory Random',
+    30: 'Auditory Random vs Auditory Non-Random',
+    31: 'Auditory Mean Response',
+    32: 'Visual Beat',
+    33: 'Visual Interval',
+    34: 'Visual Non-Random',
+    35: 'Visual Random',
+    36: 'Visual Beat vs Visual Interval',
+    37: 'Visual Interval vs Visual Beat',
+    38: 'Visual Beat vs Visual Random',
+    39: 'Visual Random vs Visual Beat',
+    40: 'Visual Interval vs Visual Random',
+    41: 'Visual Random vs Visual Interval',
+    42: 'Visual Non-Random vs Visual Random',
+    43: 'Visual Random vs Visual Non-Random',
+    44: 'Visual Mean Response',
+    45: 'Decision'
 }
 
 # ------------------ Tasks and selected_contrasts ------------------- #
@@ -1383,13 +1386,13 @@ if folder_name == 'main_tasks':
 elif folder_name == 'rand_ntfd_pairs':
     tasks = {'rand_ntfd': 'NTFD Random'}
     selected_contrasts = {
-        18: 'Auditory Beat',
-        19: 'Auditory Interval',
-        21: 'Auditory Random',
-        30: 'Visual Beat',
-        31: 'Visual Interval',
-        33: 'Visual Random'
-    }
+            19: 'Auditory Beat',
+            20: 'Auditory Interval',
+            22: 'Auditory Random',
+            32: 'Visual Beat',
+            33: 'Visual Interval',
+            35: 'Visual Random'
+        }
 elif folder_name == 'all_tasks':
     tasks = {
         'prod': 'Production',
@@ -1402,10 +1405,10 @@ else:
     assert folder_name == 'rand_ntfd_nonrandom'
     tasks = {'rand_ntfd': 'NTFD Random'}
     selected_contrasts = {
-        20: 'Auditory Non-Random',
-        21: 'Auditory Random',
-        32: 'Visual Non-Random',
-        33: 'Visual Random'
+            21: 'Auditory Non-Random',
+            22: 'Auditory Random',
+            34: 'Visual Non-Random',
+            35: 'Visual Random'
     }
 
 # ###### ROI sets ######
