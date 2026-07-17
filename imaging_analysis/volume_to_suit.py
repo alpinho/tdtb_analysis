@@ -6,7 +6,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 27th of February 2025
-Last Update: June 2026
+Last Update: July 2026
 
 Compatibility: Python 3.10.x, Nilearn, SUITPy
 
@@ -34,17 +34,6 @@ You can now choose between different run modes using CLI flags:
    - Example:
        python volume_to_suit.py --iroi
 
-4. Regime map (`--regime`)
-   - Re-colours a signed difference contrast (e.g. 'Random vs Non-Random')
-     by the rest-referenced regime of its two conditions on the cerebellar
-     flatmap, reusing the classifier from volume_to_surface. Needs
-     task_tag = 'NTFD Random' and contrast_name in REGIME_COMPONENTS.
-   - Example:
-       python volume_to_suit.py --regime
-
-----------------------------------------------------------------------
-Batch mode
-----------------------------------------------------------------------
 
 You can also run **all contrasts sequentially** in single-contrast
 mode:
@@ -83,7 +72,6 @@ from matplotlib.cm import ScalarMappable
 from SUITPy import flatmap
 from volume_to_surface import (
     whole_brain_thresholds, whole_brain_thresholds_signed,
-    regime_rgba, make_regime_cmaps,
 )
 
 # setting path
@@ -109,10 +97,9 @@ def parse_sides(spec):
       'one-sided' / 'greater'     -> ('one-sided', 'right')
       'less'                      -> ('one-sided', 'left')
 
-    Defined locally so this module no longer depends on volume_to_surface
-    exporting parse_sides (its regime path uses 'one-sided'/'two-sided' directly
-    via resolve_signed). The tail then maps to the classifier's diff_sides in
-    plot_regime_suitflat: 'both' -> two-sided, otherwise one-sided positive.
+    Defined locally so this module does not depend on volume_to_surface
+    exporting parse_sides. 'two-sided' maps to signed z* thresholding via
+    whole_brain_thresholds_signed; anything else is one-sided.
     """
     s = str(spec).strip().lower()
     test, _, tail = s.partition(':')
@@ -446,90 +433,6 @@ def plot_suitflat(stats,
     fig.savefig(outpath, dpi=300)
 
 
-def plot_regime_suitflat(z_diff, z_active, z_passive, thr_diff, vmax, outpath,
-                         menu, thr_active=0.0, thr_passive=0.0, gate=True,
-                         cross_both=True, min_vertices=0,
-                         display_tail='positive',
-                         show_colorbar=True, n_ticks=4, tick_decimals=1):
-    """Cerebellar SUIT flatmap of a paired-condition difference, coloured by the
-    rest-referenced regime and grouped into display regimes by `menu`.
-
-    Same classifier as the cortical plot_regime_flatmap: the six atomic regimes
-    and regime_rgba are reused from volume_to_surface, and `menu` (REGIME_MENU)
-    groups them into the display regimes. The cerebellum is a single flatmap, so
-    one regime_rgba call suffices.
-
-    z_diff   : 1D signed Z of (active - passive) on the SUIT surface.
-    z_active : 1D signed Z of the active condition vs Rest (e.g. Random).
-    z_passive: 1D signed Z of the passive condition vs Rest (e.g. Non-Random).
-    thr_diff, thr_active, thr_passive : |Z| thresholds (whole-brain volume z*),
-        shared with the cortical panel so both share the Z scale. thr_diff may be
-        an explicit override (see REGIME_DIFF_THRESHOLD).
-    vmax : upper |Z| of the intensity ramp (shared with cortex).
-    menu : the regime display menu (REGIME_MENU).
-    display_tail : 'positive'/'right' | 'negative'/'left' | 'both'. Mapped to the
-        classifier's diff_sides: 'both' -> two-sided (|z| >= thr_diff), otherwise
-        one-sided positive (z >= thr_diff). The negative tail is not supported by
-        the shared one-sided classifier; flip the difference upstream if needed.
-    """
-    diff_sides = ('two-sided'
-                  if str(display_tail).strip().lower() in ('both', 'two-sided')
-                  else 'one-sided')
-    cmaps = make_regime_cmaps(menu)
-    rgba, counts = regime_rgba(
-        z_diff, z_active, z_passive, thr_diff, vmax, menu,
-        thr_rand=thr_active, thr_nonrand=thr_passive, gate=gate,
-        cross_both=cross_both, min_vertices=min_vertices,
-        diff_sides=diff_sides, cmaps=cmaps)
-
-    print("[regime/suit] displayed vertices -> " +
-          ", ".join(f"{menu[g]['label']}={counts.get(g, 0)}" for g in menu) +
-          (f" (regimes <{int(min_vertices)} vtx dropped)"
-           if min_vertices else ""))
-
-    flatmap.plot(
-        rgba, overlay_type='rgb', new_figure=True, colorbar=False,
-        render='matplotlib', underscale=[-5., 5.])
-    fig = plt.gcf()
-
-    if show_colorbar:
-        dec = int(tick_decimals) if tick_decimals is not None else 2
-        vlim = float(vmax) if (np.isfinite(vmax) and vmax > thr_diff) \
-            else float(thr_diff) + 1e-6
-        ticks = np.linspace(float(thr_diff), vlim, n_ticks)
-        # One horizontal bar per plotted menu group with >=1 displayed vertex,
-        # in menu order. The group label sits over the bar; the Z(...) annotation
-        # (menu 'ref') below. Empty / hidden groups drop out and survivors are
-        # re-spaced and centred.
-        bar_w, bar_gap, bar_y, bar_h = 0.20, 0.04, 0.06, 0.025
-        candidates = [
-            (cmaps[g], menu[g]['label'], menu[g].get('ref', ''),
-             int(counts.get(g, 0)))
-            for g, spec in menu.items() if spec.get('plot', True)
-        ]
-        present = [(c, ref, lbl) for (c, ref, lbl, n) in candidates if n > 0]
-        nb = len(present)
-        if nb:
-            span = nb * bar_w + (nb - 1) * bar_gap
-            x0 = 0.5 - span / 2.0
-            for i, (cmap_i, ref, lbl) in enumerate(present):
-                rect = [x0 + i * (bar_w + bar_gap), bar_y, bar_w, bar_h]
-                sm = ScalarMappable(
-                    norm=Normalize(vmin=float(thr_diff), vmax=vlim), cmap=cmap_i)
-                sm.set_array([])
-                cax = fig.add_axes(rect)
-                cb = fig.colorbar(sm, cax=cax, orientation='horizontal',
-                                  ticks=ticks)
-                cb.ax.set_title(ref, fontsize=9, pad=3)
-                cb.set_label(lbl, fontsize=8, labelpad=4)
-                cb.ax.set_xticklabels([f'{t:.{dec}f}' for t in ticks])
-                cb.ax.tick_params(labelsize=7)
-
-    fig.savefig(outpath, dpi=300, bbox_inches='tight')
-    plt.close(fig)
-    return dict(counts)
-
-
 # %%
 # =========================== INPUTS ==================================
 
@@ -544,70 +447,11 @@ suitparametric_folder = os.path.join(
 
 # Options: 'Production', 'Perception', 'NTFD', 'NTFD Random',
 #          'All Main Tasks'
-# For the cerebellar regime panel (Fig 6a SUIT), use the Random vs Non-Random
-# difference under the NTFD Random task. Change these back for other modes.
+# For the cerebellar difference panel (Fig 6a SUIT), use the Random vs
+# Non-Random difference under the NTFD Random task. Change these for other modes.
 task_tag = 'NTFD Random'
 contrast_name = 'Random vs Non-Random'  # E.g. 'Encoding', 'Beat', 'ALL', etc.
 contrast_name2 = None  # Set to None if not used
-
-# ------------------------- Regime (--regime) ------------------------
-# Difference contrast -> (active, passive) conditions vs Rest. The cerebellar
-# flatmap is then coloured by the rest-referenced regime, reusing the corrected
-# classifier from volume_to_surface. Run with: python volume_to_suit.py --regime
-REGIME_COMPONENTS = {
-    'Random vs Non-Random': ('Random', 'Non-Random'),
-    'Non-Random vs Random': ('Non-Random', 'Random'),
-}
-REGIME_GATE_SIGNIF = True          # significance-gated classification
-REGIME_CROSS_REQUIRE_BOTH_SIGNIF = True  # strict reversal: both conditions sig
-REGIME_MIN_VERTICES = 0            # drop regimes smaller than this (0 = keep all)
-# Sidedness, parsed by parse_sides into (FDR test -> threshold, displayed tail):
-#   'two-sided:right' (default) -> two-sided z* (e.g. 3.343), Random>Non-Random
-#   'two-sided:left' / 'two-sided:both' / 'greater' / 'less' also available.
-REGIME_DIFF_SIDES = 'two-sided:right'
-# Explicit difference-map threshold for the regime panel (the colorbar floor).
-# None -> use the FDR z* computed below. Set a number to override -- e.g. to
-# share one colorbar with the cortical flatmaps (FDR floor 3.0) when this
-# panel's own FDR floor differs (3.3). NOTE this sets BOTH the colorbar floor
-# and the significance cut on the difference map, so a value below the FDR z*
-# will also DISPLAY sub-FDR vertices, not merely recolour them.
-REGIME_DIFF_THRESHOLD = 3.0
-# Explicit upper |Z| of the intensity ramp (colorbar ceiling). None -> the
-# whole-brain vmax below. A shared colorbar needs BOTH endpoints to match the
-# cortical panel, so set this too when you fix REGIME_DIFF_THRESHOLD.
-REGIME_DIFF_VMAX = None
-# ---- Regime display menu --------------------------------------------------
-# Same structure as REGIME_MENU in volume_to_surface (six atomic regimes
-# both_up / one_up / both_down / one_down / reversal / unanchored, grouped into
-# display regimes). Keep the 'unanchored' label in sync with the cortical panel,
-# since the two share a figure. The 'ref' annotations say "Baseline" rather than
-# "Rest" to match this panel's wording.
-REGIME_MENU = {
-    'activation': dict(
-        regimes=['both_up', 'one_up'],
-        label='Activation',
-        ref=r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{> Rest)}$',
-        color=('#E1261C', '#FF8C00', '#FFE100'),
-        plot=True),
-    'reversal': dict(
-        regimes=['reversal'],
-        label='Crossover',
-        ref=r'$\mathrm{Z\ (}\mathbf{R>}\mathrm{Rest}\mathbf{> NR}\mathrm{)}$',
-        color=('#7B7239', '#C6BC82'),
-        plot=False),
-    'unanchored': dict(
-        regimes=['unanchored'],
-        label='Crosswise',
-        ref=r'$\mathrm{Z\ (}\mathbf{R{>}NR})$',
-        color=('#DB2777', '#F9A8D4'),
-        plot=True),
-    'deactivation': dict(
-        regimes=['both_down', 'one_down'],
-        label='Deactivation',
-        ref=r'$\mathrm{Z\ (Rest}>\mathbf{R{>}NR}\mathrm{)}$',
-        color=('#1A6FE0', '#22C2E8', '#9BE8FF'),
-        plot=True),
-}
 
 
 # %%
@@ -692,31 +536,34 @@ else:
         15: 'Random vs Interval',
         16: 'Non-Random vs Random',
         17: 'Random vs Non-Random',
-        18: 'Auditory Beat',
-        19: 'Auditory Interval',
-        20: 'Auditory Non-Random',
-        21: 'Auditory Random',
-        22: 'Auditory Beat vs Auditory Interval',
-        23: 'Auditory Interval vs Auditory Beat',
-        24: 'Auditory Beat vs Auditory Random',
-        25: 'Auditory Random vs Auditory Beat',
-        26: 'Auditory Interval vs Auditory Random',
-        27: 'Auditory Random vs Auditory Interval',
-        28: 'Auditory Non-Random vs Auditory Random',
-        29: 'Auditory Random vs Auditory Non-Random',
-        30: 'Visual Beat',
-        31: 'Visual Interval',
-        32: 'Visual Non-Random',
-        33: 'Visual Random',
-        34: 'Visual Beat vs Visual Interval',
-        35: 'Visual Interval vs Visual Beat',
-        36: 'Visual Beat vs Visual Random',
-        37: 'Visual Random vs Visual Beat',
-        38: 'Visual Interval vs Visual Random',
-        39: 'Visual Random vs Visual Interval',
-        40: 'Visual Non-Random vs Visual Random',
-        41: 'Visual Random vs Visual Non-Random',
-        42: 'Decision'
+        18: 'Mean Response',
+        19: 'Auditory Beat',
+        20: 'Auditory Interval',
+        21: 'Auditory Non-Random',
+        22: 'Auditory Random',
+        23: 'Auditory Beat vs Auditory Interval',
+        24: 'Auditory Interval vs Auditory Beat',
+        25: 'Auditory Beat vs Auditory Random',
+        26: 'Auditory Random vs Auditory Beat',
+        27: 'Auditory Interval vs Auditory Random',
+        28: 'Auditory Random vs Auditory Interval',
+        29: 'Auditory Non-Random vs Auditory Random',
+        30: 'Auditory Random vs Auditory Non-Random',
+        31: 'Auditory Mean Response',
+        32: 'Visual Beat',
+        33: 'Visual Interval',
+        34: 'Visual Non-Random',
+        35: 'Visual Random',
+        36: 'Visual Beat vs Visual Interval',
+        37: 'Visual Interval vs Visual Beat',
+        38: 'Visual Beat vs Visual Random',
+        39: 'Visual Random vs Visual Beat',
+        40: 'Visual Interval vs Visual Random',
+        41: 'Visual Random vs Visual Interval',
+        42: 'Visual Non-Random vs Visual Random',
+        43: 'Visual Random vs Visual Non-Random',
+        44: 'Visual Mean Response',
+        45: 'Decision'
     }
 
 # Output folders
@@ -756,74 +603,6 @@ if __name__ == '__main__':
     mode_both = ('--both' in sys.argv)
     mode_iroi = ('--iroi' in sys.argv)
 
-    # ----------------- Cerebellar regime map (--regime) -----------------
-    # Re-colour a signed difference contrast by the rest-referenced regime of
-    # its two conditions on the SUIT flatmap. Same classifier and thresholds as
-    # the cortical panel (reused from volume_to_surface), so the two panels of
-    # Figure 6a are directly comparable.
-    if '--regime' in sys.argv:
-        if contrast_name not in REGIME_COMPONENTS:
-            raise ValueError(
-                "--regime needs a difference contrast with defined components; "
-                f"got {contrast_name!r}. Known: {list(REGIME_COMPONENTS)}")
-        rand_name, nonrand_name = REGIME_COMPONENTS[contrast_name]
-        _n2id = {v: k for k, v in all_contrasts.items()}
-        diff_id = _n2id.get(contrast_name)
-        rand_id = _n2id.get(rand_name)
-        nonrand_id = _n2id.get(nonrand_name)
-        if None in (diff_id, rand_id, nonrand_id):
-            raise ValueError(
-                "Could not resolve regime contrast ids for "
-                f"{contrast_name!r}/{rand_name!r}/{nonrand_name!r} under task "
-                f"{task_tag!r}. (Set task_tag='NTFD Random'.)")
-
-        # Group z on the SUIT surface: difference and the two conditions.
-        zd = group_suit(group_folder, task_id, diff_id, SUBJECTS, suit_folder)
-        zr = group_suit(group_folder, task_id, rand_id, SUBJECTS, suit_folder)
-        zn = group_suit(group_folder, task_id, nonrand_id, SUBJECTS,
-                        suit_folder)
-
-        # parse_sides: the FDR test sets the threshold, the tail sets which side
-        # is classified. 'two-sided:right' = two-sided z* (e.g. 3.343), shown on
-        # the Random > Non-Random tail (matches Table E.2 / the cortical panel).
-        regime_test, regime_tail = parse_sides(REGIME_DIFF_SIDES)
-        if regime_test == 'two-sided':
-            thr_diff, vmax_diff = whole_brain_thresholds_signed(
-                derivatives_folder, SUBJECTS, task_id, diff_id, wb_gmask_path)
-        else:
-            thr_diff, vmax_diff = whole_brain_thresholds(
-                derivatives_folder, SUBJECTS, task_id, diff_id, wb_gmask_path)
-        thr_rand, _ = whole_brain_thresholds_signed(
-            derivatives_folder, SUBJECTS, task_id, rand_id, wb_gmask_path)
-        thr_nonrand, _ = whole_brain_thresholds_signed(
-            derivatives_folder, SUBJECTS, task_id, nonrand_id, wb_gmask_path)
-        # Explicit overrides for a shared colorbar with the cortical flatmaps.
-        thr_src, vmax_src = 'FDR', 'FDR'
-        if REGIME_DIFF_THRESHOLD is not None:
-            thr_diff, thr_src = float(REGIME_DIFF_THRESHOLD), 'input'
-        if REGIME_DIFF_VMAX is not None:
-            vmax_diff, vmax_src = float(REGIME_DIFF_VMAX), 'input'
-        print(f"[regime/suit] thr_diff={thr_diff:.3f} ({thr_src}, "
-              f"test={regime_test}, tail={regime_tail}), "
-              f"thr_active={thr_rand:.3f}, thr_passive={thr_nonrand:.3f}, "
-              f"vmax={vmax_diff:.3f} ({vmax_src})")
-
-        regime_dir = os.path.join(contrasts_folder, 'regime', cname.lower())
-        os.makedirs(regime_dir, exist_ok=True)
-        regime_out = os.path.join(
-            regime_dir,
-            f"group_{task_id.replace('_', '-')}_{cname.lower()}"
-            "_regime_suit.png")
-        plot_regime_suitflat(
-            zd, zr, zn, thr_diff, vmax_diff, regime_out,
-            menu=REGIME_MENU,
-            thr_active=thr_rand, thr_passive=thr_nonrand,
-            gate=REGIME_GATE_SIGNIF,
-            cross_both=REGIME_CROSS_REQUIRE_BOTH_SIGNIF,
-            min_vertices=REGIME_MIN_VERTICES,
-            display_tail=regime_tail)
-        print(f"[regime/suit] saved {regime_out}")
-        sys.exit(0)
 
     # Resolve default if no explicit flag was given
     if not (mode_single or mode_both or mode_iroi):

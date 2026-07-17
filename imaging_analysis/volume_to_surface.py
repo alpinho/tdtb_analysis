@@ -22,11 +22,6 @@ Use flatmaps (default) or dynamic HTML maps (Plotly) by passing a flag:
       (first filled, second as a thresholded outline):
         set contrast_name and contrast_name2 and run with --contour
 
-    - Combined regime map of a signed difference contrast (e.g.
-      'Random vs Non-Random'), re-colored by the rest-referenced regime of its
-      two conditions so activation, deactivation and crossover are visually
-      separable on one flatmap:
-        set contrast_name to the difference and run with --regime
       The --contour outline is independent and can be added on top by also
       passing --contour (with contrast_name2); run either or both at once.
 
@@ -142,31 +137,34 @@ def build_contrasts(task_id):
         15: 'Random vs Interval',
         16: 'Non-Random vs Random',
         17: 'Random vs Non-Random',
-        18: 'Auditory Beat',
-        19: 'Auditory Interval',
-        20: 'Auditory Non-Random',
-        21: 'Auditory Random',
-        22: 'Auditory Beat vs Auditory Interval',
-        23: 'Auditory Interval vs Auditory Beat',
-        24: 'Auditory Beat vs Auditory Random',
-        25: 'Auditory Random vs Auditory Beat',
-        26: 'Auditory Interval vs Auditory Random',
-        27: 'Auditory Random vs Auditory Interval',
-        28: 'Auditory Non-Random vs Auditory Random',
-        29: 'Auditory Random vs Auditory Non-Random',
-        30: 'Visual Beat',
-        31: 'Visual Interval',
-        32: 'Visual Non-Random',
-        33: 'Visual Random',
-        34: 'Visual Beat vs Visual Interval',
-        35: 'Visual Interval vs Visual Beat',
-        36: 'Visual Beat vs Visual Random',
-        37: 'Visual Random vs Visual Beat',
-        38: 'Visual Interval vs Visual Random',
-        39: 'Visual Random vs Visual Interval',
-        40: 'Visual Non-Random vs Visual Random',
-        41: 'Visual Random vs Visual Non-Random',
-        42: 'Decision'
+        18: 'Mean Response',
+        19: 'Auditory Beat',
+        20: 'Auditory Interval',
+        21: 'Auditory Non-Random',
+        22: 'Auditory Random',
+        23: 'Auditory Beat vs Auditory Interval',
+        24: 'Auditory Interval vs Auditory Beat',
+        25: 'Auditory Beat vs Auditory Random',
+        26: 'Auditory Random vs Auditory Beat',
+        27: 'Auditory Interval vs Auditory Random',
+        28: 'Auditory Random vs Auditory Interval',
+        29: 'Auditory Non-Random vs Auditory Random',
+        30: 'Auditory Random vs Auditory Non-Random',
+        31: 'Auditory Mean Response',
+        32: 'Visual Beat',
+        33: 'Visual Interval',
+        34: 'Visual Non-Random',
+        35: 'Visual Random',
+        36: 'Visual Beat vs Visual Interval',
+        37: 'Visual Interval vs Visual Beat',
+        38: 'Visual Beat vs Visual Random',
+        39: 'Visual Random vs Visual Beat',
+        40: 'Visual Interval vs Visual Random',
+        41: 'Visual Random vs Visual Interval',
+        42: 'Visual Non-Random vs Visual Random',
+        43: 'Visual Random vs Visual Non-Random',
+        44: 'Visual Mean Response',
+        45: 'Decision'
     }
 
 
@@ -1349,338 +1347,6 @@ def plot_flatmap(
     )
 
 
-# The six atomic regimes, from the rest-referenced behaviour of the two
-# conditions wherever the Random - Non-Random difference is significant.
-# REGIME_MENU (in INPUTS) groups these into the display regimes that are drawn.
-REGIME_KEYS = ('both_up', 'one_up', 'both_down', 'one_down',
-               'reversal', 'unanchored')
-
-
-def make_regime_cmaps(menu, n=256):
-    """One intensity colormap (low |z| -> high |z|) per display group in
-    `menu`, built from each group's `color` ramp. Returns {group_key: cmap}."""
-    return {g: LinearSegmentedColormap.from_list(
-                f'regime_{g}', list(spec['color']), N=n)
-            for g, spec in menu.items()}
-
-
-def regime_base_masks(z_diff, z_rand, z_nonrand, thr_diff,
-                      thr_rand=0.0, thr_nonrand=0.0, gate=True,
-                      cross_both=True, diff_sides='one-sided'):
-    """Boolean mask for each of the six atomic regimes (REGIME_KEYS), plus the
-    difference `base` mask and the signed difference used for intensity.
-
-    The six masks partition `base` (vertices whose Random - Non-Random
-    difference is supra-threshold):
-        both_up    : Random > Rest AND Non-Random > Rest (both significant)
-        one_up     : exactly one condition significant > Rest, the other n.s.
-        both_down  : both significant < Rest
-        one_down   : exactly one significant < Rest, the other n.s.
-        reversal   : conditions significant in OPPOSITE directions (sign flip)
-        unanchored : neither condition significant vs Rest (no baseline anchor)
-
-    With gate=False the per-condition significance test is replaced by the raw
-    sign of each condition's group mean: only both_up / both_down / reversal can
-    be populated (the 'one_*' and 'unanchored' classes need the significance
-    test and stay empty).
-    """
-    z_diff = np.asarray(z_diff, float)
-    z_rand = np.asarray(z_rand, float)
-    z_nonrand = np.asarray(z_nonrand, float)
-    nvert = z_diff.size
-
-    thr_diff = float(thr_diff)
-    finite = np.isfinite(z_diff) & np.isfinite(z_rand) & np.isfinite(z_nonrand)
-    one_sided = str(diff_sides).strip().lower().startswith('one')
-    base = finite & ((z_diff >= thr_diff) if one_sided
-                     else (np.abs(z_diff) >= thr_diff))
-
-    masks = {k: np.zeros(nvert, bool) for k in REGIME_KEYS}
-    if gate:
-        rps = z_rand >= float(thr_rand)          # Random significantly > Rest
-        rns = z_rand <= -float(thr_rand)         # Random significantly < Rest
-        nps = z_nonrand >= float(thr_nonrand)    # Non-Random significantly > Rest
-        nns = z_nonrand <= -float(thr_nonrand)   # Non-Random significantly < Rest
-        anysig = rps | rns | nps | nns
-        if cross_both:
-            # Strict reversal: BOTH conditions significant, opposite directions.
-            reversal = base & ((rps & nns) | (rns & nps))
-            up = base & ~reversal & (rps | nps)
-            down = base & ~reversal & (rns | nns)
-        else:
-            # Loose reversal: opposite condition signs with >=1 significant.
-            opp = (((z_rand > 0) & (z_nonrand < 0)) |
-                   ((z_rand < 0) & (z_nonrand > 0)))
-            reversal = base & opp & anysig
-            up = base & ~opp & anysig & (z_rand > 0)
-            down = base & ~opp & anysig & (z_rand < 0)
-        masks['reversal'] = reversal
-        masks['both_up'] = up & rps & nps
-        masks['one_up'] = up & ~(rps & nps)
-        masks['both_down'] = down & rns & nns
-        masks['one_down'] = down & ~(rns & nns)
-        # Difference significant but NEITHER condition anchored to Rest.
-        masks['unanchored'] = base & ~anysig
-    else:
-        bu = base & (z_rand > 0) & (z_nonrand > 0)
-        bd = base & (z_rand < 0) & (z_nonrand < 0)
-        masks['both_up'] = bu
-        masks['both_down'] = bd
-        masks['reversal'] = base & ~(bu | bd)
-
-    diff_mag = z_diff if one_sided else np.abs(z_diff)
-    return masks, base, diff_mag
-
-
-def regime_rgba(z_diff, z_rand, z_nonrand, thr_diff, vmax, menu,
-                thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
-                min_vertices=0, diff_sides='one-sided', cmaps=None):
-    """Per-vertex RGBA for one hemisphere of the combined Random/Non-Random map.
-
-    Each vertex whose Random - Non-Random difference is supra-threshold is
-    assigned to one of the six atomic regimes (regime_base_masks), then coloured
-    by the display group of `menu` that contains that regime, with
-    |Z(Random - Non-Random)| as the within-group intensity. Groups with
-    plot=False are not painted. See REGIME_MENU for the grouping.
-
-    Parameters
-    ----------
-    menu : ordered dict {group_key: {'regimes': [...], 'color': ramp,
-        'plot': bool, ...}}. Atomic regimes not listed in any plotted group are
-        left transparent.
-    min_vertices : if > 0, any display group with fewer than this many vertices
-        in the hemisphere is dropped (left transparent, counted as 0).
-    cmaps : {group_key: cmap}; defaults to make_regime_cmaps(menu).
-
-    Returns
-    -------
-    rgba : (nvert, 4) array; unpainted vertices are NaN (transparent under
-        SUITPy's overlay_type='rgb').
-    counts : dict {group_key: n_vertices_painted} over the menu groups.
-
-    Notes
-    -----
-    A genuine reversal requires evidence for both of its defining signs, so by
-    default (cross_both=True) each condition must clear FDR vs Rest in opposite
-    directions. The looser cross_both=False reproduces the earlier one-armed
-    behaviour. For this dataset the strict reversal is empty, consistent with
-    the empty crossover conjunction.
-    """
-    if cmaps is None:
-        cmaps = make_regime_cmaps(menu)
-    masks, base, diff_mag = regime_base_masks(
-        z_diff, z_rand, z_nonrand, thr_diff, thr_rand=thr_rand,
-        thr_nonrand=thr_nonrand, gate=gate, cross_both=cross_both,
-        diff_sides=diff_sides)
-    nvert = base.size
-
-    thr_diff = float(thr_diff)
-    vmax = float(vmax)
-    if not np.isfinite(vmax) or vmax <= thr_diff:
-        vmax = thr_diff + 1e-6
-    mag = np.clip((diff_mag - thr_diff) / (vmax - thr_diff), 0.0, 1.0)
-
-    rgba = np.full((nvert, 4), np.nan, float)
-    counts = {}
-    for g, spec in menu.items():
-        if not spec.get('plot', True):
-            counts[g] = 0
-            continue
-        gmask = np.zeros(nvert, bool)
-        for r in spec['regimes']:
-            gmask |= masks.get(r, np.zeros(nvert, bool))
-        # Drop sub-visible groups so the legend matches what is on the map.
-        if min_vertices and 0 < int(gmask.sum()) < int(min_vertices):
-            gmask[:] = False
-        if gmask.any():
-            rgba[gmask] = cmaps[g](mag[gmask])
-        counts[g] = int(gmask.sum())
-    return rgba, counts
-
-
-def regime_exclusion_stats(z_diff, z_rand, thr_diff, thr_rand,
-                           diff_sides='one-sided', cortex_mask=None):
-    """Quantify how much of a Random - Non-Random significant map is NOT backed
-    by a significant Random vs Rest activation, i.e. the vertices that would be
-    excluded if Random significance vs rest were required. At those vertices the
-    Random - Non-Random difference is carried by suppression of the Non-Random
-    condition rather than by Random rising above rest.
-
-    Parameters
-    ----------
-    z_diff : (nvert,) signed Z of Random - Non-Random (concatenated L+R).
-    z_rand : (nvert,) signed Z of Random vs Rest (concatenated L+R).
-    thr_diff : |Z| FDR threshold of the difference map.
-    thr_rand : |Z| FDR threshold of Random vs Rest. A vertex counts as
-        "Random not significant" when |z_rand| < thr_rand (two-sided, i.e.
-        Random is indistinguishable from rest in either direction). Pass the
-        one-sided positive threshold instead to mean "not significantly
-        activated".
-    cortex_mask : optional (nvert,) bool, True for cortical (non-medial-wall)
-        vertices; used as the 'total' denominator. If None, all finite vertices
-        are used.
-
-    Returns
-    -------
-    dict with vertex counts and the two requested percentages:
-        pct_within_contrast : excluded / (Random - Non-Random significant)
-        pct_of_total_cortex : excluded / (all cortical vertices)
-    """
-    z_diff = np.asarray(z_diff, float)
-    z_rand = np.asarray(z_rand, float)
-    finite = np.isfinite(z_diff) & np.isfinite(z_rand)
-    cortex = finite if cortex_mask is None else (
-        np.asarray(cortex_mask, bool) & finite)
-
-    n_total = int(cortex.sum())
-    one_sided = str(diff_sides).strip().lower().startswith('one')
-    in_contrast = cortex & ((z_diff >= float(thr_diff)) if one_sided
-                            else (np.abs(z_diff) >= float(thr_diff)))
-    n_contrast = int(in_contrast.sum())
-    excluded = in_contrast & (np.abs(z_rand) < float(thr_rand))
-    n_excluded = int(excluded.sum())
-
-    pct_contrast = (100.0 * n_contrast / n_total) if n_total else float('nan')
-    pct_within = (100.0 * n_excluded / n_contrast) if n_contrast \
-        else float('nan')
-    pct_total = (100.0 * n_excluded / n_total) if n_total else float('nan')
-    return {
-        'n_total_cortex': n_total,
-        'n_contrast': n_contrast,
-        'pct_contrast_of_total': pct_contrast,
-        'n_excluded_random_ns': n_excluded,
-        'pct_within_contrast': pct_within,
-        'pct_of_total_cortex': pct_total,
-    }
-
-
-def plot_regime_flatmap(
-    diff_stats, cond_rand_stats, cond_nonrand_stats,
-    thr_diff, vmax, task_key, contrast_tag, output_dir, menu,
-    thr_rand=0.0, thr_nonrand=0.0, gate=True, cross_both=True,
-    min_vertices=0,
-    diff_sides='one-sided',
-    hemi=['L', 'R'],
-    show_colorbar=True, n_ticks=4, tick_decimals=1,
-    contour_stat=None, contour_threshold=None, contour_color='k',
-    contour_linewidth=1.0, contour_positive_only=True,
-    show_borders=True,
-):
-    """Combined Random/Non-Random flatmap coloured by rest-referenced regime.
-
-    The difference contrast (Random - Non-Random) supplies the displayed
-    magnitude; the two condition-vs-Rest maps supply the regime, which is then
-    grouped into display regimes by `menu` (see REGIME_MENU and regime_rgba).
-
-    diff_stats         : [lh, rh] signed Z of Random - Non-Random.
-    cond_rand_stats    : [lh, rh] signed Z of Random vs Rest.
-    cond_nonrand_stats : [lh, rh] signed Z of Non-Random vs Rest.
-    menu               : the regime display menu (REGIME_MENU).
-
-    The network outline is optional and independent: pass contour_stat
-    ([lh, rh]) and contour_threshold to draw it, or leave them None.
-    """
-    contrast = contrast_tag.lower()
-    task_name = task_key.replace('_', '-')
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    surf_dir = os.path.join(script_dir, 'fslr32k_meshes')
-    borders = {h: os.path.join(surf_dir, 'borders', f'fs_LR.32k.{h}.border')
-               for h in hemi}
-    underlays = {h: os.path.join(surf_dir, 'flat', f'fs_LR.32k.{h}.shape.gii')
-                 for h in hemi}
-    surfaces = {h: os.path.join(surf_dir, 'flat', f'fs_LR.32k.{h}.flat.surf.gii')
-                for h in hemi}
-
-    cmaps = make_regime_cmaps(menu)
-
-    fig, axs = plt.subplots(1, len(hemi), figsize=(8, 4),
-                            gridspec_kw={'wspace': 0.05})
-    if len(hemi) == 1:
-        axs = [axs]
-
-    per_h = {
-        'L': (diff_stats[0], cond_rand_stats[0], cond_nonrand_stats[0]),
-        'R': (diff_stats[1], cond_rand_stats[1], cond_nonrand_stats[1]),
-    }
-    total = {g: 0 for g in menu}
-
-    for ax, h in zip(axs, hemi):
-        zd, zr, znr = per_h[h]
-        rgba, counts = regime_rgba(
-            zd, zr, znr, thr_diff, vmax, menu,
-            thr_rand=thr_rand, thr_nonrand=thr_nonrand, gate=gate,
-            cross_both=cross_both,
-            min_vertices=min_vertices, diff_sides=diff_sides, cmaps=cmaps)
-        for g in menu:
-            total[g] += int(counts.get(g, 0))
-        plt.sca(ax)
-        flatmap.plot(
-            rgba, overlay_type='rgb',
-            surf=surfaces[h], underlay=underlays[h], undermap='gray',
-            underscale=[-1.5, 1],
-            borders=(borders[h] if show_borders else None),
-            bordersize=1.5, bordercolor='k',
-            new_figure=False, frame=None,
-        )
-        if contour_stat is not None and contour_threshold is not None:
-            c2 = contour_stat[0] if h == 'L' else contour_stat[1]
-            overlay_region_contour(
-                ax, surfaces[h], c2, float(contour_threshold),
-                color=contour_color, linewidth=contour_linewidth,
-                positive_only=contour_positive_only)
-
-    print("[regime] displayed vertices -> " +
-          ", ".join(f"{menu[g]['label']}={total[g]}" for g in menu) +
-          (f" (regimes <{int(min_vertices)} vtx/hemi dropped)"
-           if min_vertices else ""))
-
-    if show_colorbar:
-        dec = int(tick_decimals) if tick_decimals is not None else 2
-        vlim = float(vmax) if (np.isfinite(vmax)
-                               and vmax > thr_diff) else float(thr_diff) + 1e-6
-        ticks = np.linspace(float(thr_diff), vlim, n_ticks)
-        # One bar per plotted menu group with >=1 displayed vertex, in menu
-        # order. The group label sits over each bar; the Z(...) annotation
-        # (menu 'ref') below gives the rest-referenced ordering of the
-        # conditions. Empty or hidden groups drop out and the survivors are
-        # re-spaced and centred.
-        bar_w, bar_gap, bar_y, bar_h = 0.24, 0.09, 0.085, 0.035
-        candidates = [
-            (cmaps[g], menu[g]['label'], menu[g].get('ref', ''), int(total[g]))
-            for g, spec in menu.items() if spec.get('plot', True)
-        ]
-        present = [(c, ref, lbl) for (c, ref, lbl, n) in candidates if n > 0]
-        nb = len(present)
-        if nb:
-            span = nb * bar_w + (nb - 1) * bar_gap
-            x0 = 0.5 - span / 2.0
-            for i, (cmap_i, ref, lbl) in enumerate(present):
-                rect = [x0 + i * (bar_w + bar_gap), bar_y, bar_w, bar_h]
-                sm = ScalarMappable(
-                    norm=Normalize(vmin=float(thr_diff), vmax=vlim), cmap=cmap_i)
-                sm.set_array([])
-                cax = fig.add_axes(rect)
-                cb = fig.colorbar(sm, cax=cax, orientation='horizontal',
-                                  ticks=ticks)
-                cb.ax.set_title(ref, fontsize=9, pad=3)    # regime label over bar
-                cb.set_label(lbl, fontsize=8, labelpad=4)  # Z(...) below bar
-                cb.ax.set_xticklabels([f'{t:.{dec}f}' for t in ticks])
-                cb.ax.tick_params(labelsize=7)
-
-    plt.subplots_adjust(left=0, right=1, top=0.98, bottom=0.06)
-    fig.set_size_inches(6, 3.0)
-    suffix = 'flat_regime_contour' if contour_stat is not None else 'flat_regime'
-    fname = (
-        f'group_{task_name}_{contrast}_{suffix}_fslr32k.png'
-        if len(hemi) == 2 else
-        f'group_{task_name}_{contrast}_{suffix}_fslr32k_{hemi[0]}.png'
-    )
-    fig.savefig(os.path.join(output_dir, fname),
-                dpi=300, bbox_inches='tight', pad_inches=0.05)
-    plt.close(fig)
-    return dict(total)
-
-
 def plot_multirois_flatmap(
     stats,
     threshold,
@@ -2301,9 +1967,9 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 #           recomputed from those files, so this only saves the (slow)
 #           vol_to_surf step.
 # This flag applies to every branch of the script (single contrast, batch,
-# overlay, contour and regime). It can also be forced on from the command line
+# overlay and contour). It can also be forced on from the command line
 # with --isurf.
-COMPUTE_INDIVIDUAL_SURF = False
+COMPUTE_INDIVIDUAL_SURF = True
 
 # Parent dir for output folders
 surfparametric_folder = os.path.join(
@@ -2322,7 +1988,11 @@ task_tag = 'NTFD Random'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = 'Random vs Non-Random'  # E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name = ['Visual Random vs Visual Interval', 
+                 'Visual Non-Random vs Visual Random', 
+                 'Visual Random vs Visual Non-Random', 
+                 'Visual Mean Response', 
+                 'Decision'] # E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None  # E.g. 'Interval'
 
 # Contour overlay (used only with --contour). The second contrast
@@ -2345,7 +2015,7 @@ contour_threshold_override = None  # e.g. 3.09
 # Note: with contour_threshold_override set, that fixed |z| value is used for
 # the outline regardless of contour_sides; contour_sides then only controls
 # whether the outline traces activations only or both tails.
-contrast_sides = None        # e.g. 'one-sided', 'two-sided', or None (auto)
+contrast_sides = 'one-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
 contour_sides = 'two-sided'  # outline of activations AND deactivations
 
 # contour_display : which tail(s) of the OUTLINE to draw, independent of the
@@ -2359,104 +2029,10 @@ contour_display = 'positive'
 
 # Display the sulcal/gyral border outlines (the dotted lines from the fs_LR
 # border files) on the cortical flatmaps. Set to False for a clean underlay
-# with no sulcal borders. Applies to every flatmap (single, overlay, regime,
+# with no sulcal borders. Applies to every flatmap (single, overlay,
 # contour and multi-ROI). It does NOT affect the region contour drawn with
 # --contour (e.g. the Encoding-vs-Rest outline), which is controlled separately.
 SHOW_SULCI_BORDERS = True
-
-# ------------- Combined regime visualization (--contour) -------------
-# Used only with: python volume_to_surface.py --regime
-# Re-colours the signed difference map `contrast_name` (e.g.
-# 'Random vs Non-Random') by the rest-referenced regime of its two underlying
-# conditions, so that on a single flatmap one can tell apart:
-#   activation   (both conditions above rest; warm),
-#   deactivation (both conditions below rest; cool), and
-#   crossover    (the two conditions disagree in sign; neutral, expected empty).
-# The intensity within each regime is |Z(Random - Non-Random)|.
-#
-# REGIME_COMPONENTS maps each supported difference contrast to its two
-# component conditions (each vs Rest). This is where you choose which contrast
-# the regime visualization is applied to (set contrast_name accordingly).
-REGIME_COMPONENTS = {
-    'Random vs Non-Random': ('Random', 'Non-Random'),
-    'Auditory Random vs Auditory Non-Random':
-        ('Auditory Random', 'Auditory Non-Random'),
-    'Visual Random vs Visual Non-Random':
-        ('Visual Random', 'Visual Non-Random'),
-}
-# If True, a vertex receives a regime label only when its dominant condition
-# (the one with the larger |z|) is significant vs rest at its own two-sided
-# whole-brain FDR, so vertices hovering at rest are not labelled. If False,
-# classify by the raw sign of each condition's group mean.
-REGIME_GATE_SIGNIF = True
-# When the gate is on, how strict the crossover (sign-reversal) class is. If
-# True (default) a vertex is 'crossover' only when BOTH conditions are
-# individually significant vs Rest in OPPOSITE directions (Random > Rest AND
-# Non-Random < Rest); a vertex significant in only one condition is folded into
-# activation or deactivation. If False, one significant condition with an
-# opposite (possibly non-significant) sign in the other is enough. The strict
-# setting is empty for this dataset, and its colorbar is then dropped
-# automatically.
-REGIME_CROSS_REQUIRE_BOTH_SIGNIF = True
-# Sidedness of the difference (Random - Non-Random) shown on the regime map.
-# 'one-sided' (default): only Random > Non-Random (positive tail, one-sided
-#   FDR); the colorbar magnitude is then unambiguously Z (R>NR) and the hue is
-#   purely the rest-referenced regime, so cool/deactivation cannot be misread
-#   as the NR>R direction. 'two-sided': also show NR>R using the |z| FDR.
-REGIME_DIFF_SIDES = 'one-sided'
-# ---- Regime display menu --------------------------------------------------
-# Six atomic regimes are computed from the rest-referenced behaviour of the two
-# conditions wherever the Random - Non-Random difference is significant:
-#   'both_up'    both conditions significantly > Rest
-#   'one_up'     exactly one significantly > Rest, the other n.s.
-#   'both_down'  both significantly < Rest
-#   'one_down'   exactly one significantly < Rest, the other n.s.
-#   'reversal'   conditions significant in OPPOSITE directions (true sign
-#                reversal); empty for this dataset
-#   'unanchored' difference significant but NEITHER condition significant vs
-#                Rest (no baseline anchor)
-# REGIME_MENU groups those atoms into the display regimes drawn on the flatmap.
-# Each entry: the atoms it merges ('regimes'), the legend 'label', the math
-# annotation 'ref' shown over its colorbar, an intensity 'color' ramp
-# (low |Z| -> high |Z|), and a 'plot' flag. To merge / relabel / recolour a
-# regime, edit one entry; the classifier, the colormaps, and the legend all
-# follow this dict and its order. Atoms left out of every plotted group are
-# transparent. Keep groups disjoint (an atom in two plotted groups is painted
-# by whichever comes last).
-REGIME_MENU = {
-    'activation': dict(
-        regimes=['both_up', 'one_up'],
-        label='Activation',
-        ref=r'$\mathrm{Z\ (}\mathbf{R{>}NR}\mathrm{> Rest)}$',
-        color=('#E1261C', '#FF8C00', '#FFE100'),
-        plot=True),
-    'reversal': dict(
-        regimes=['reversal'],
-        label='Crossover',
-        ref=r'$\mathrm{Z\ (}\mathbf{R>}\mathrm{Rest}\mathbf{> NR}\mathrm{)}$',
-        color=('#7B7239', '#C6BC82'),
-        plot=False),
-    'unanchored': dict(
-        regimes=['unanchored'],
-        label='Crosswise',
-        ref=r'$\mathrm{Z\ (}\mathbf{R{>}NR})$',
-        color=('#DB2777', '#F9A8D4'),
-        plot=True),
-    'deactivation': dict(
-        regimes=['both_down', 'one_down'],
-        label='Deactivation',
-        ref=r'$\mathrm{Z\ (Rest}>\mathbf{R{>}NR}\mathrm{)}$',
-        color=('#1A6FE0', '#22C2E8', '#9BE8FF'),
-        plot=True),
-}
-# Minimum vertices per hemisphere for a regime to be drawn and to receive a
-# colorbar. Regimes below this are sub-visible specks, so showing a full
-# colorbar for them is misleading; dropping them keeps the legend matched to
-# what is actually on the map. The strict crossover is a handful of vertices on
-# the surface (zero in the volume), so this removes its empty-looking bar.
-# Check the printed crossover count and raise this just above it if needed; set
-# 0 to disable.
-REGIME_MIN_VERTICES = 10
 
 # ========================= PARAMETERS ================================
 
@@ -2733,166 +2309,6 @@ if __name__ == '__main__':
 
         sys.exit(0)
 
-    # ----------------- Combined regime map (--regime) -----------------
-    # Re-colour a signed difference contrast (contrast_name) by the
-    # rest-referenced regime of its two conditions. Independent of --contour:
-    # pass --contour as well (with contrast_name2) to add the network outline.
-    if '--regime' in sys.argv:
-        if contrast_name not in REGIME_COMPONENTS:
-            raise ValueError(
-                "--regime needs a difference contrast with defined "
-                f"components; got {contrast_name!r}. "
-                f"Known: {list(REGIME_COMPONENTS)}")
-        rand_name, nonrand_name = REGIME_COMPONENTS[contrast_name]
-        _name2id = {v: k for k, v in all_contrasts.items()}
-        diff_id = _name2id.get(contrast_name)
-        rand_id = _name2id.get(rand_name)
-        nonrand_id = _name2id.get(nonrand_name)
-        if None in (diff_id, rand_id, nonrand_id):
-            raise ValueError(
-                "Could not resolve regime contrast ids for "
-                f"{contrast_name!r} / {rand_name!r} / {nonrand_name!r}.")
-        cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
-
-        def _group_lr(cid, cnm):
-            """Group surface z-map (signed) -> medial-wall-masked L, R."""
-            zv = group_surf(
-                surf_folder, SUBJECTS, task_id, cid,
-                cnm.replace(' vs ', '_vs_').replace(' ', '-'),
-                surfspace='fslr32k')
-            zl = mask_cortical_activation(
-                np.split(zv, 2, axis=0)[0], lh_medial_wall_mask_path)
-            zr = mask_cortical_activation(
-                np.split(zv, 2, axis=0)[1], rh_medial_wall_mask_path)
-            return zl, zr
-
-        # ---- individual surfaces of the three contrasts, optional -------
-        for _rid in (diff_id, rand_id, nonrand_id):
-            ensure_individual_surf(_compute_isurf, derivatives_folder,
-                                   SUBJECTS, task_id, all_contrasts, _rid,
-                                   surf_folder, surfspace='fslr32k')
-
-        dL, dR = _group_lr(diff_id, contrast_name)
-        rL, rR = _group_lr(rand_id, rand_name)
-        nL, nR = _group_lr(nonrand_id, nonrand_name)
-
-        # Difference threshold + vmax. One-sided (R>NR positive tail) by
-        # default, so the colorbar magnitude is unambiguously Z(R>NR); set
-        # REGIME_DIFF_SIDES='two-sided' to also display the NR>R tail (|z| FDR).
-        if str(REGIME_DIFF_SIDES).strip().lower().startswith('one'):
-            thr_diff, vmax_diff = whole_brain_thresholds(
-                derivatives_folder, SUBJECTS, task_id, diff_id, wb_gmask)
-        else:
-            thr_diff, vmax_diff = whole_brain_thresholds_signed(
-                derivatives_folder, SUBJECTS, task_id, diff_id, wb_gmask)
-
-        # Condition |z| FDR thresholds vs rest. Always computed: the gate uses
-        # them when REGIME_GATE_SIGNIF, and thr_rand is also used by the
-        # Random-vs-Rest exclusion diagnostic below.
-        thr_rand, _ = whole_brain_thresholds_signed(
-            derivatives_folder, SUBJECTS, task_id, rand_id, wb_gmask)
-        thr_nonrand, _ = whole_brain_thresholds_signed(
-            derivatives_folder, SUBJECTS, task_id, nonrand_id, wb_gmask)
-
-        # Optional network outline (independent toggle: --contour).
-        contour_kw = {}
-        contour_tag = ''
-        if '--contour' in sys.argv and contrast_name2:
-            contour_task_id = (
-                {v: k for k, v in tasks.items()}.get(contour_task_tag)
-                if contour_task_tag else task_id)
-            if contour_task_id is None:
-                raise ValueError(
-                    f"Unknown contour_task_tag: {contour_task_tag}")
-            contour_contrasts = build_contrasts(contour_task_id)
-            contrast_id2 = \
-                {v: k for k, v in contour_contrasts.items()}.get(contrast_name2)
-            if contrast_id2 is None:
-                raise ValueError(
-                    f"Unknown contour contrast '{contrast_name2}' "
-                    f"for task '{contour_task_tag or task_tag}'")
-            cname2 = contrast_name2.replace(' vs ', '_vs_').replace(' ', '-')
-            contour_surf_folder = os.path.join(
-                surfparametric_folder, contour_task_id, 'surface_files')
-            ensure_individual_surf(_compute_isurf, derivatives_folder,
-                                   SUBJECTS, contour_task_id,
-                                   contour_contrasts, contrast_id2,
-                                   contour_surf_folder, surfspace='fslr32k')
-            z_values2 = group_surf(
-                contour_surf_folder, SUBJECTS, contour_task_id, contrast_id2,
-                cname2, surfspace='fslr32k')
-            cL2 = mask_cortical_activation(
-                np.split(z_values2, 2, axis=0)[0], lh_medial_wall_mask_path)
-            cR2 = mask_cortical_activation(
-                np.split(z_values2, 2, axis=0)[1], rh_medial_wall_mask_path)
-            signed_contrasts = (
-                'Random vs Non-Random',
-                'Auditory Random vs Auditory Non-Random',
-                'Visual Random vs Visual Non-Random',
-            )
-            contour_twosided = resolve_signed(
-                contour_sides, contrast_name2, signed_contrasts)
-            if contour_threshold_override is not None:
-                thr2 = float(contour_threshold_override)
-            elif contour_twosided:
-                thr2, _ = whole_brain_thresholds_signed(
-                    derivatives_folder, SUBJECTS, contour_task_id,
-                    contrast_id2, wb_gmask)
-            else:
-                thr2, _ = whole_brain_thresholds(
-                    derivatives_folder, SUBJECTS, contour_task_id,
-                    contrast_id2, wb_gmask)
-            contour_tag = '_with_' + cname2
-            contour_kw = dict(
-                contour_stat=[cL2, cR2], contour_threshold=thr2,
-                contour_positive_only=resolve_contour_display(
-                    contour_display, contour_twosided))
-
-        # Diagnostic: fraction of the Random - Non-Random significant map that
-        # is NOT backed by a significant Random vs Rest activation (would be
-        # excluded if Random significance were required). Total denominator =
-        # cortical (non-medial-wall) vertices from the medial-wall masks.
-        _cortexL = nib.load(
-            lh_medial_wall_mask_path).darrays[0].data.astype(bool)
-        _cortexR = nib.load(
-            rh_medial_wall_mask_path).darrays[0].data.astype(bool)
-        _excl = regime_exclusion_stats(
-            np.concatenate([dL, dR]),
-            np.concatenate([rL, rR]),
-            thr_diff, thr_rand,
-            diff_sides=REGIME_DIFF_SIDES,
-            cortex_mask=np.concatenate([_cortexL, _cortexR]))
-        print(f"[regime] Random-vs-Rest exclusion within {contrast_name!r}:")
-        print(f"  total cortical vertices          : "
-              f"{_excl['n_total_cortex']}")
-        print(f"  Random-vs-Non-Random significant : {_excl['n_contrast']} "
-              f"({_excl['pct_contrast_of_total']:.2f}% of cortex)")
-        print(f"  of those, Random vs Rest n.s.    : "
-              f"{_excl['n_excluded_random_ns']}")
-        print(f"    -> {_excl['pct_within_contrast']:.2f}% within contrast, "
-              f"{_excl['pct_of_total_cortex']:.2f}% of cortex")
-
-        regime_dir = os.path.join(
-            contrasts_folder, 'regime', (cname + contour_tag).lower())
-        os.makedirs(regime_dir, exist_ok=True)
-        plot_regime_flatmap(
-            diff_stats=[dL, dR],
-            cond_rand_stats=[rL, rR],
-            cond_nonrand_stats=[nL, nR],
-            thr_diff=thr_diff, vmax=vmax_diff,
-            task_key=task_id, contrast_tag=cname + contour_tag,
-            output_dir=regime_dir,
-            menu=REGIME_MENU,
-            thr_rand=thr_rand, thr_nonrand=thr_nonrand,
-            gate=REGIME_GATE_SIGNIF,
-            cross_both=REGIME_CROSS_REQUIRE_BOTH_SIGNIF,
-            min_vertices=REGIME_MIN_VERTICES,
-            diff_sides=REGIME_DIFF_SIDES,
-            hemi=['L', 'R'],
-            show_borders=SHOW_SULCI_BORDERS,
-            **contour_kw,
-        )
-        sys.exit(0)
 
     # -------- detect batch mode without reordering inputs ---------------
     _batch = None
@@ -3027,6 +2443,7 @@ if __name__ == '__main__':
             'Random vs Non-Random',
             'Auditory Random vs Auditory Non-Random',
             'Visual Random vs Visual Non-Random',
+            'Mean Response',
         )
         if resolve_signed(contrast_sides, contrast_name, signed_contrasts):
             thr_s, vmax_s = whole_brain_thresholds_signed(
@@ -3129,6 +2546,7 @@ if __name__ == '__main__':
                 'Random vs Non-Random',
                 'Auditory Random vs Auditory Non-Random',
                 'Visual Random vs Visual Non-Random',
+                'Mean Response',
             )
             is_signed = resolve_signed(
                 contrast_sides, contrast_name, signed_contrasts)
