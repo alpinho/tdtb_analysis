@@ -2011,7 +2011,7 @@ contour_threshold_override = None  # e.g. 3.09
 # Note: with contour_threshold_override set, that fixed |z| value is used for
 # the outline regardless of contour_sides; contour_sides then only controls
 # whether the outline traces activations only or both tails.
-contrast_sides = 'two-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
+contrast_sides = 'one-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
 contour_sides = 'two-sided'  # outline of activations AND deactivations
 
 # contour_display : which tail(s) of the OUTLINE to draw, independent of the
@@ -2029,6 +2029,12 @@ contour_display = 'positive'
 # contour and multi-ROI). It does NOT affect the region contour drawn with
 # --contour (e.g. the Encoding-vs-Rest outline), which is controlled separately.
 SHOW_SULCI_BORDERS = True
+
+# Whether to draw the colorbar on the whole-brain flatmaps (single, batch
+# and contour/overlay branches). Set to False for a bare map with no
+# colorbar (e.g. when the scale is shown once in a shared figure legend).
+# Does not affect the --irois multi-ROI panel, which has its own legend.
+SHOW_COLORBAR = True
 
 # ========================= PARAMETERS ================================
 
@@ -2367,6 +2373,12 @@ if __name__ == '__main__':
                 )
 
             # ---- thresholds (volume) + plot flatmaps ----------------
+            thresh, v_max = whole_brain_thresholds(
+                derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
+            )
+            out_dir = os.path.join(contrasts_folder, f"{_cid}_{_tag.lower()}")
+            os.makedirs(out_dir, exist_ok=True)
+
             # Resolve sidedness PER CONTRAST (using _cname, not the outer
             # contrast_name), so signed difference contrasts get the signed
             # threshold + diverging colormap in batch mode too. Previously the
@@ -2379,9 +2391,6 @@ if __name__ == '__main__':
                 'Visual Random vs Visual Non-Random',
                 'Mean Response',
             )
-            out_dir = os.path.join(contrasts_folder, f"{_cid}_{_tag.lower()}")
-            os.makedirs(out_dir, exist_ok=True)
-
             if resolve_signed(contrast_sides, _cname, signed_contrasts):
                 _thr_s, _vmax_s = whole_brain_thresholds_signed(
                     derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
@@ -2391,17 +2400,16 @@ if __name__ == '__main__':
                     _thr_s, task_id, _tag, out_dir,
                     hemi=['L', 'R'], vmax=_vmax_s, signed=True,
                     show_borders=SHOW_SULCI_BORDERS,
+                    show_colorbar=SHOW_COLORBAR,
                     cbar_title=f'Z-values ({_cname})',
                 )
             else:
-                _thresh, _v_max = whole_brain_thresholds(
-                    derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
-                )
                 plot_flatmap(
                     [zvals_lh_masked, zvals_rh_masked],
-                    _thresh, task_id, _tag, out_dir,
-                    hemi=['L', 'R'], colormap='viridis', vmax=_v_max,
+                    thresh, task_id, _tag, out_dir,
+                    hemi=['L', 'R'], colormap='viridis', vmax=v_max,
                     show_borders=SHOW_SULCI_BORDERS,
+                    show_colorbar=SHOW_COLORBAR,
                 )
 
         sys.exit(0)  # do not fall through to single/overlay
@@ -2474,6 +2482,7 @@ if __name__ == '__main__':
                 thr_s, task_id, cname, surfplots_folder,
                 hemi=['L', 'R'], vmax=vmax_s, signed=True,
                 show_borders=SHOW_SULCI_BORDERS,
+                show_colorbar=SHOW_COLORBAR,
                 cbar_title=f'Z-values ({contrast_name})'
             )
         else:
@@ -2481,7 +2490,7 @@ if __name__ == '__main__':
                 [zvals_lh_masked, zvals_rh_masked],
                 thresh, task_id, cname, surfplots_folder,
                 hemi=['L', 'R'], colormap='viridis', vmax=v_max,
-                show_colorbar=False,
+                show_colorbar=SHOW_COLORBAR,
                 show_borders=SHOW_SULCI_BORDERS,
             )
 
