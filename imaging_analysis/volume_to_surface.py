@@ -1969,7 +1969,7 @@ SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26, 28,
 # This flag applies to every branch of the script (single contrast, batch,
 # overlay and contour). It can also be forced on from the command line
 # with --isurf.
-COMPUTE_INDIVIDUAL_SURF = True
+COMPUTE_INDIVIDUAL_SURF = False
 
 # Parent dir for output folders
 surfparametric_folder = os.path.join(
@@ -1988,11 +1988,7 @@ task_tag = 'NTFD Random'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = ['Visual Random vs Visual Interval', 
-                 'Visual Non-Random vs Visual Random', 
-                 'Visual Random vs Visual Non-Random', 
-                 'Visual Mean Response', 
-                 'Decision'] # E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name = ['Random vs Non-Random'] # E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None  # E.g. 'Interval'
 
 # Contour overlay (used only with --contour). The second contrast
@@ -2015,7 +2011,7 @@ contour_threshold_override = None  # e.g. 3.09
 # Note: with contour_threshold_override set, that fixed |z| value is used for
 # the outline regardless of contour_sides; contour_sides then only controls
 # whether the outline traces activations only or both tails.
-contrast_sides = 'one-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
+contrast_sides = 'two-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
 contour_sides = 'two-sided'  # outline of activations AND deactivations
 
 # contour_display : which tail(s) of the OUTLINE to draw, independent of the
@@ -2371,17 +2367,42 @@ if __name__ == '__main__':
                 )
 
             # ---- thresholds (volume) + plot flatmaps ----------------
-            thresh, v_max = whole_brain_thresholds(
-                derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
+            # Resolve sidedness PER CONTRAST (using _cname, not the outer
+            # contrast_name), so signed difference contrasts get the signed
+            # threshold + diverging colormap in batch mode too. Previously the
+            # loop always used the one-sided threshold and viridis, so a signed
+            # contrast rendered two-sided when run as a single string but
+            # one-sided when run inside a list.
+            signed_contrasts = (
+                'Random vs Non-Random',
+                'Auditory Random vs Auditory Non-Random',
+                'Visual Random vs Visual Non-Random',
+                'Mean Response',
             )
             out_dir = os.path.join(contrasts_folder, f"{_cid}_{_tag.lower()}")
             os.makedirs(out_dir, exist_ok=True)
-            plot_flatmap(
-                [zvals_lh_masked, zvals_rh_masked],
-                thresh, task_id, _tag, out_dir,
-                hemi=['L', 'R'], colormap='viridis', vmax=v_max,
-                show_borders=SHOW_SULCI_BORDERS,
-            )
+
+            if resolve_signed(contrast_sides, _cname, signed_contrasts):
+                _thr_s, _vmax_s = whole_brain_thresholds_signed(
+                    derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
+                )
+                plot_flatmap(
+                    [zvals_lh_masked, zvals_rh_masked],
+                    _thr_s, task_id, _tag, out_dir,
+                    hemi=['L', 'R'], vmax=_vmax_s, signed=True,
+                    show_borders=SHOW_SULCI_BORDERS,
+                    cbar_title=f'Z-values ({_cname})',
+                )
+            else:
+                _thresh, _v_max = whole_brain_thresholds(
+                    derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
+                )
+                plot_flatmap(
+                    [zvals_lh_masked, zvals_rh_masked],
+                    _thresh, task_id, _tag, out_dir,
+                    hemi=['L', 'R'], colormap='viridis', vmax=_v_max,
+                    show_borders=SHOW_SULCI_BORDERS,
+                )
 
         sys.exit(0)  # do not fall through to single/overlay
 
@@ -2453,7 +2474,7 @@ if __name__ == '__main__':
                 thr_s, task_id, cname, surfplots_folder,
                 hemi=['L', 'R'], vmax=vmax_s, signed=True,
                 show_borders=SHOW_SULCI_BORDERS,
-                cbar_title='Z-values (Random vs. Non-Random)'
+                cbar_title=f'Z-values ({contrast_name})'
             )
         else:
             plot_flatmap(
