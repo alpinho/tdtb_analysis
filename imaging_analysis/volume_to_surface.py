@@ -2477,6 +2477,8 @@ if __name__ == '__main__':
             'Auditory Random vs Auditory Non-Random',
             'Visual Random vs Visual Non-Random',
             'Mean Response',
+            'Auditory Mean Response',
+            'Visual Mean Response'
         )
         if resolve_signed(contrast_sides, contrast_name, signed_contrasts):
             thr_s, vmax_s = whole_brain_thresholds_signed(
