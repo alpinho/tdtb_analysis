@@ -1988,7 +1988,7 @@ task_tag = 'NTFD Random'
 # contrast_name = 'Beat'
 # contrast_name2 = 'Interval' (must be contrast name or list of names)
 # For single or overlay, keep contrast_name/contrast_name2 as strings
-contrast_name = ['Random vs Non-Random'] # E.g. 'Beat', 'Interval', 'ALL', etc.
+contrast_name = ['Random vs Non-Random', 'Mean Response'] # E.g. 'Beat', 'Interval', 'ALL', etc.
 contrast_name2 = None  # E.g. 'Interval'
 
 # Contour overlay (used only with --contour). The second contrast
@@ -2011,7 +2011,7 @@ contour_threshold_override = None  # e.g. 3.09
 # Note: with contour_threshold_override set, that fixed |z| value is used for
 # the outline regardless of contour_sides; contour_sides then only controls
 # whether the outline traces activations only or both tails.
-contrast_sides = 'one-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
+contrast_sides = 'two-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
 contour_sides = 'two-sided'  # outline of activations AND deactivations
 
 # contour_display : which tail(s) of the OUTLINE to draw, independent of the
@@ -2030,11 +2030,15 @@ contour_display = 'positive'
 # --contour (e.g. the Encoding-vs-Rest outline), which is controlled separately.
 SHOW_SULCI_BORDERS = True
 
-# Whether to draw the colorbar on the whole-brain flatmaps (single, batch
-# and contour/overlay branches). Set to False for a bare map with no
-# colorbar (e.g. when the scale is shown once in a shared figure legend).
-# Does not affect the --irois multi-ROI panel, which has its own legend.
+# Whether to draw the colorbar on the whole-brain flatmaps (single, batch and
+# contour/overlay branches). False = bare map. Not for the --irois panel.
 SHOW_COLORBAR = True
+
+# Fix the colour-scale maximum (|z|) for SIGNED maps so two panels read together
+# share one linear grading (equal colour = equal z). Each map keeps its OWN FDR
+# threshold for the gray band (vmin), so gray width differs per map. None = auto
+# per-map vmax (legacy). Set e.g. 6.6 to cover both maps.
+SHARED_SIGNED_VMAX = 6.6
 
 # ========================= PARAMETERS ================================
 
@@ -2373,41 +2377,41 @@ if __name__ == '__main__':
                 )
 
             # ---- thresholds (volume) + plot flatmaps ----------------
-            thresh, v_max = whole_brain_thresholds(
-                derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
-            )
-            out_dir = os.path.join(contrasts_folder, f"{_cid}_{_tag.lower()}")
-            os.makedirs(out_dir, exist_ok=True)
-
-            # Resolve sidedness PER CONTRAST (using _cname, not the outer
-            # contrast_name), so signed difference contrasts get the signed
-            # threshold + diverging colormap in batch mode too. Previously the
-            # loop always used the one-sided threshold and viridis, so a signed
-            # contrast rendered two-sided when run as a single string but
-            # one-sided when run inside a list.
+            # Resolve sidedness PER CONTRAST (using _cname): signed difference
+            # contrasts get the signed threshold + diverging colormap in batch
+            # mode too (else a signed contrast rendered two-sided as a single
+            # string but one-sided inside a list).
             signed_contrasts = (
                 'Random vs Non-Random',
                 'Auditory Random vs Auditory Non-Random',
                 'Visual Random vs Visual Non-Random',
                 'Mean Response',
             )
+            out_dir = os.path.join(contrasts_folder, f"{_cid}_{_tag.lower()}")
+            os.makedirs(out_dir, exist_ok=True)
+
             if resolve_signed(contrast_sides, _cname, signed_contrasts):
                 _thr_s, _vmax_s = whole_brain_thresholds_signed(
                     derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
                 )
+                _vmax_use = (SHARED_SIGNED_VMAX
+                             if SHARED_SIGNED_VMAX is not None else _vmax_s)
                 plot_flatmap(
                     [zvals_lh_masked, zvals_rh_masked],
                     _thr_s, task_id, _tag, out_dir,
-                    hemi=['L', 'R'], vmax=_vmax_s, signed=True,
+                    hemi=['L', 'R'], vmax=_vmax_use, signed=True,
                     show_borders=SHOW_SULCI_BORDERS,
                     show_colorbar=SHOW_COLORBAR,
                     cbar_title=f'Z-values ({_cname})',
                 )
             else:
+                _thresh, _v_max = whole_brain_thresholds(
+                    derivatives_folder, SUBJECTS, task_id, _cid, wb_gmask
+                )
                 plot_flatmap(
                     [zvals_lh_masked, zvals_rh_masked],
-                    thresh, task_id, _tag, out_dir,
-                    hemi=['L', 'R'], colormap='viridis', vmax=v_max,
+                    _thresh, task_id, _tag, out_dir,
+                    hemi=['L', 'R'], colormap='viridis', vmax=_v_max,
                     show_borders=SHOW_SULCI_BORDERS,
                     show_colorbar=SHOW_COLORBAR,
                 )
@@ -2477,10 +2481,12 @@ if __name__ == '__main__':
         if resolve_signed(contrast_sides, contrast_name, signed_contrasts):
             thr_s, vmax_s = whole_brain_thresholds_signed(
                 derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask)
+            _vmax_use = (SHARED_SIGNED_VMAX
+                         if SHARED_SIGNED_VMAX is not None else vmax_s)
             plot_flatmap(
                 [zvals_lh_masked, zvals_rh_masked],
                 thr_s, task_id, cname, surfplots_folder,
-                hemi=['L', 'R'], vmax=vmax_s, signed=True,
+                hemi=['L', 'R'], vmax=_vmax_use, signed=True,
                 show_borders=SHOW_SULCI_BORDERS,
                 show_colorbar=SHOW_COLORBAR,
                 cbar_title=f'Z-values ({contrast_name})'
