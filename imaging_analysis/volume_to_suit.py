@@ -230,6 +230,11 @@ def plot_suitflat(stats,
             )
             fig = plt.gcf()
             _bar_vmin, _bar_vmax, _bar_cmap = -vlim, vlim, diverging
+            # Ticks that explicitly mark the FDR threshold (+/- vmin) so the
+            # gray-band edge on the colorbar IS the cut used for masking.
+            # Tick the edges of the gray (non-significant) band, matching
+            # volume_to_surface.py (no zero tick).
+            _bar_ticks = [-vlim, -vmin, vmin, vlim]
         else:
             show_cbar1 = show_colorbar and np.isfinite(vmin) and \
                 np.nanmax(stats) >= vmin
@@ -245,6 +250,7 @@ def plot_suitflat(stats,
             )
             fig = plt.gcf()
             _bar_vmin, _bar_vmax, _bar_cmap = vmin, vmax, None
+            _bar_ticks = None  # one-sided: keep default ticks
 
         if show_cbar1 and use_horizontal:
             # Build a standalone mappable so we can control placement,
@@ -258,8 +264,9 @@ def plot_suitflat(stats,
 
             rect = cbar_rect if cbar_rect is not None else [.2, .1, .6, .03]
             cax = fig.add_axes(rect)
+            _ticks_use = _bar_ticks if _bar_ticks is not None else cbar_ticks
             cb = fig.colorbar(sm, cax=cax, orientation='horizontal', 
-                              ticks=cbar_ticks)
+                              ticks=_ticks_use)
 
             cb.ax.tick_params(labelsize=14)
 
@@ -270,6 +277,11 @@ def plot_suitflat(stats,
                 cb.ax.xaxis.set_major_formatter(
                     ticker.FuncFormatter(lambda x, pos: f"{x:.1e}")
                 )
+            elif _bar_ticks is not None:
+                # signed map: show the threshold value (1 decimal, matching
+                # volume_to_surface.py's tick_decimals=1 default)
+                cb.ax.xaxis.set_major_formatter(
+                    ticker.FormatStrFormatter('%.1f'))
 
             # Center the title on the bar
             cb.set_label(cmap_title, fontsize=15, labelpad=8)
@@ -281,6 +293,15 @@ def plot_suitflat(stats,
             cax = fig.axes[-1]
             cax.tick_params(labelsize=14)
             cax.set_position([.825, .2, .03, .6])
+
+            # Mark the FDR threshold (+/- vmin) explicitly on the bar so the
+            # labelled gray-band edge is the actual masking cut, not a rounded
+            # default tick.
+            if _bar_ticks is not None:
+                cax.set_yticks(_bar_ticks)
+                if tick_decimals is None and not sci_notation:
+                    cax.yaxis.set_major_formatter(
+                        ticker.FormatStrFormatter('%.1f'))
 
             if tick_decimals is not None:
                 cax.yaxis.set_major_formatter(
@@ -485,7 +506,7 @@ contrast_name2 = None  # Set to None if not used
 # difference/mean contrasts listed below, one-sided otherwise). Applies to BOTH
 # a single string contrast and a list of contrasts (each element uses this same
 # setting).
-contrast_sides = 'one-sided'
+contrast_sides = 'two-sided'
 
 # Auto-set used only when contrast_sides is None.
 signed_contrasts = (
@@ -501,7 +522,7 @@ signed_contrasts = (
 # shares one linear grading with its cortical counterpart (equal colour = equal
 # z). Each map keeps its OWN FDR threshold for the gray band (vmin). None = auto
 # per-map vmax. Set e.g. 6.6 to match the cortical maps.
-SHARED_SIGNED_VMAX = None
+SHARED_SIGNED_VMAX = 6.6
 
 # Draw the colorbar on the SUIT flatmaps. False = bare map.
 SHOW_COLORBAR = True

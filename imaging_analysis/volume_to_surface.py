@@ -2011,7 +2011,7 @@ contour_threshold_override = None  # e.g. 3.09
 # Note: with contour_threshold_override set, that fixed |z| value is used for
 # the outline regardless of contour_sides; contour_sides then only controls
 # whether the outline traces activations only or both tails.
-contrast_sides = 'two-sided' # e.g. 'one-sided', 'two-sided', or None (auto)
+contrast_sides = 'two-sided'  # e.g. 'one-sided', 'two-sided', or None (auto)
 contour_sides = 'two-sided'  # outline of activations AND deactivations
 
 # contour_display : which tail(s) of the OUTLINE to draw, independent of the
