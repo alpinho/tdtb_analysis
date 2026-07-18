@@ -72,6 +72,7 @@ from matplotlib.cm import ScalarMappable
 from SUITPy import flatmap
 from volume_to_surface import (
     whole_brain_thresholds, whole_brain_thresholds_signed,
+    make_signed_gray_threshold_cmap, resolve_signed,
 )
 
 # setting path
@@ -174,7 +175,9 @@ def plot_suitflat(stats,
                   cbar_rect=None,
                   cmap_title_loc=(.775, .69),
                   cmap_title='Z-values',
-                  cbar_ticks=None
+                  cbar_ticks=None,
+                  signed=False,
+                  show_colorbar=True
     ):
     """
     Plot one or two contrasts on a SUIT flatmap.
@@ -202,31 +205,54 @@ def plot_suitflat(stats,
     if not is_overlay:
         # ——— single contrast ———
         vmin = threshold
-        # Only show a colorbar if threshold is finite and at least one value
-        # is ≥ threshold.
-        show_cbar1 = np.isfinite(vmin) and np.nanmax(stats) >= vmin
 
-        # For horizontal bars we create a dedicated colorbar axis (SUITPy's
-        # internal colorbar is vertical and harder to reposition cleanly).
-        use_horizontal = (cbar_orientation == 'horizontal')
-
-        flatmap.plot(
-            stats,
-            cmap=colormap,
-            cscale=[vmin, vmax],
-            underscale=[-5., 5.],
-            threshold=vmin,
-            colorbar=(show_cbar1 and not use_horizontal),
-            render='matplotlib'
-        )
-        fig = plt.gcf()
+        if signed:
+            # Two-tailed: symmetric scale + diverging gray-banded colormap
+            # (blue = negative, gray = |z| < threshold, red = positive), the
+            # SAME make_signed_gray_threshold_cmap used by the cortical maps.
+            # vmax fixes the symmetric colour limit; threshold stays per-map FDR.
+            vlim = vmax if (vmax is not None and np.isfinite(vmax)
+                            and vmax > 0) else float(vmin) + 1e-6
+            _s = np.asarray(stats, float).copy()
+            _s[np.abs(_s) < vmin] = np.nan
+            diverging = make_signed_gray_threshold_cmap(vmin, vlim)
+            show_cbar1 = (show_colorbar and np.isfinite(vmin)
+                          and np.nanmax(np.abs(np.asarray(stats, float))) >= vmin)
+            use_horizontal = (cbar_orientation == 'horizontal')
+            flatmap.plot(
+                _s,
+                cmap=diverging,
+                cscale=[-vlim, vlim],
+                underscale=[-5., 5.],
+                threshold=None,
+                colorbar=(show_cbar1 and not use_horizontal),
+                render='matplotlib'
+            )
+            fig = plt.gcf()
+            _bar_vmin, _bar_vmax, _bar_cmap = -vlim, vlim, diverging
+        else:
+            show_cbar1 = show_colorbar and np.isfinite(vmin) and \
+                np.nanmax(stats) >= vmin
+            use_horizontal = (cbar_orientation == 'horizontal')
+            flatmap.plot(
+                stats,
+                cmap=colormap,
+                cscale=[vmin, vmax],
+                underscale=[-5., 5.],
+                threshold=vmin,
+                colorbar=(show_cbar1 and not use_horizontal),
+                render='matplotlib'
+            )
+            fig = plt.gcf()
+            _bar_vmin, _bar_vmax, _bar_cmap = vmin, vmax, None
 
         if show_cbar1 and use_horizontal:
             # Build a standalone mappable so we can control placement,
             # tick formatting and the label.
-            cmap = plt.get_cmap(colormap)
+            cmap = _bar_cmap if _bar_cmap is not None \
+                else plt.get_cmap(colormap)
             sm = ScalarMappable(
-                norm=Normalize(vmin=vmin, vmax=vmax), cmap=cmap
+                norm=Normalize(vmin=_bar_vmin, vmax=_bar_vmax), cmap=cmap
             )
             sm.set_array([])
 
@@ -450,8 +476,38 @@ suitparametric_folder = os.path.join(
 # For the cerebellar difference panel (Fig 6a SUIT), use the Random vs
 # Non-Random difference under the NTFD Random task. Change these for other modes.
 task_tag = 'NTFD Random'
-contrast_name = 'Random vs Non-Random'  # E.g. 'Encoding', 'Beat', 'ALL', etc.
+contrast_name = ['Random vs Non-Random', 'Mean Response']  # E.g. 'Encoding', 'Beat', 'ALL', etc.
 contrast_name2 = None  # Set to None if not used
+
+# Sidedness of the FDR threshold / display, exactly as in volume_to_surface.py.
+# 'one-sided' -> positive tail only (viridis); 'two-sided' -> |z| FDR, both
+# tails, diverging gray-banded colormap; None -> auto (two-sided for the signed
+# difference/mean contrasts listed below, one-sided otherwise). Applies to BOTH
+# a single string contrast and a list of contrasts (each element uses this same
+# setting).
+contrast_sides = 'one-sided'
+
+# Auto-set used only when contrast_sides is None.
+signed_contrasts = (
+    'Random vs Non-Random',
+    'Auditory Random vs Auditory Non-Random',
+    'Visual Random vs Visual Non-Random',
+    'Mean Response',
+    'Auditory Mean Response',
+    'Visual Mean Response'
+)
+
+# Fix the colour-scale maximum (|z|) for SIGNED maps so the cerebellar panel
+# shares one linear grading with its cortical counterpart (equal colour = equal
+# z). Each map keeps its OWN FDR threshold for the gray band (vmin). None = auto
+# per-map vmax. Set e.g. 6.6 to match the cortical maps.
+SHARED_SIGNED_VMAX = None
+
+# Draw the colorbar on the SUIT flatmaps. False = bare map.
+SHOW_COLORBAR = True
+
+# Colorbar orientation on the SUIT flatmaps: 'vertical' or 'horizontal'.
+CBAR_ORIENTATION = 'vertical'
 
 
 # %%
@@ -575,8 +631,14 @@ irois_folder = os.path.join(suitparametric_folder, task_id,
                             'suit_irois')
 
 # Contrasts definitions
-contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
-cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
+# Guard the single-contrast precompute: when contrast_name is a list (batch)
+# or 'ALL', these must not run -- the batch loop computes its own per-contrast
+# id/tag. Matches volume_to_surface.py.
+if isinstance(contrast_name, str) and contrast_name.strip().upper() != 'ALL':
+    contrast_id = {v: k for k, v in all_contrasts.items()}.get(contrast_name)
+    cname = contrast_name.replace(' vs ', '_vs_').replace(' ', '-')
+else:
+    contrast_id, cname = None, None
 
 # Check if a second contrast is provided
 if contrast_name2:
@@ -676,13 +738,32 @@ if __name__ == '__main__':
                     f"Batch contrast '{_cname}': FDR threshold = "
                     f"{_thr:.3f}, max z = {_zmax:.3f}"
                 )
-                # Plot single-contrast SUIT flatmap
+                # Per-contrast sidedness first (sets threshold, vmax, name).
+                _signed = resolve_signed(contrast_sides, _cname,
+                                         signed_contrasts)
+                if _signed:
+                    _thr, _zmax = whole_brain_thresholds_signed(
+                        derivatives_folder, SUBJECTS, task_id, _cid,
+                        wb_gmask_path
+                    )
+                _vmax_use = (SHARED_SIGNED_VMAX
+                             if (_signed and SHARED_SIGNED_VMAX is not None)
+                             else _zmax)
+
+                # Plot single-contrast SUIT flatmap. Signed maps get a distinct
+                # filename so a two-sided run does not overwrite a one-sided one.
+                _sgn_suffix = '_signed' if _signed else ''
                 _fname = (
                     f"group_{task_id.replace('_', '-')}_"
-                    f"{_tag.lower()}_suit.png"
+                    f"{_tag.lower()}{_sgn_suffix}_suit.png"
                 )
                 _fpath = os.path.join(_suitplots_folder, _fname)
-                plot_suitflat(_zvals, _thr, _fpath, vmax=_zmax)
+                plot_suitflat(
+                    _zvals, _thr, _fpath, vmax=_vmax_use,
+                    signed=_signed, show_colorbar=SHOW_COLORBAR,
+                    cbar_orientation=CBAR_ORIENTATION,
+                    cmap_title='Z-values',
+                )
 
             # After batch single, do not fall through to overlay
             sys.exit(0)
@@ -701,12 +782,31 @@ if __name__ == '__main__':
             derivatives_folder, SUBJECTS, task_id, contrast_id, wb_gmask_path
         )
 
-        # Plot single-contrast SUIT flatmap
+        # Resolve sidedness first (it sets the threshold, vmax and filename).
+        _signed = resolve_signed(contrast_sides, contrast_name,
+                                 signed_contrasts)
+        if _signed:
+            fdr_thresh, zmax = whole_brain_thresholds_signed(
+                derivatives_folder, SUBJECTS, task_id, contrast_id,
+                wb_gmask_path
+            )
+        _vmax_use = (SHARED_SIGNED_VMAX
+                     if (_signed and SHARED_SIGNED_VMAX is not None) else zmax)
+
+        # Plot single-contrast SUIT flatmap. Signed maps get a distinct
+        # filename so a two-sided run does not overwrite a one-sided one.
+        _sgn_suffix = '_signed' if _signed else ''
         contrast_fname = (
-            f"group_{task_id.replace('_', '-')}_{cname.lower()}_suit.png"
+            f"group_{task_id.replace('_', '-')}_"
+            f"{cname.lower()}{_sgn_suffix}_suit.png"
         )
         contrast_fpath = os.path.join(suitplots_folder, contrast_fname)
-        plot_suitflat(z_values, fdr_thresh, contrast_fpath, vmax=zmax)
+        plot_suitflat(
+            z_values, fdr_thresh, contrast_fpath, vmax=_vmax_use,
+            signed=_signed, show_colorbar=SHOW_COLORBAR,
+            cbar_orientation=CBAR_ORIENTATION,
+            cmap_title='Z-values',
+        )
 
     # ------------------- optional overlay after single ---------------
     if mode_both and contrast_name2:
