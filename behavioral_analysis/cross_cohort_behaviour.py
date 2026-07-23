@@ -146,48 +146,7 @@ def load_metric(task, batch, grouping, modality):
               & (d["condition"].isin(["beat", "interval"]))].copy()
         d = d.dropna(subset=["reaction_time"])
         d["reaction_time"] = (d["reaction_time"].astype(float)
-                              - NTFD_LATENCY[modality][batch])\begin{table*}[htbp]
-\centering
-\caption{\textbf{$\!\!\!\mid\!$ Comparison of Behavioural Performance between Cohorts.}}
-\setlength{\aboverulesep}{0pt}\setlength{\belowrulesep}{0pt}
-\setlength{\extrarowheight}{2.5pt}\setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.2}
-\rowcolors{2}{white}{nhbGreenRow}
-\footnotesize
-% --- column widths: edit the \hsize factors; they MUST sum to 6 ---
-\begin{tabularx}{\textwidth}{
-  >{\hsize=1.4\hsize\raggedright\arraybackslash}X   % 1 Task
-  >{\hsize=1.5\hsize\raggedleft\arraybackslash}X    % 2 First cohort
-  >{\hsize=1.5\hsize\raggedleft\arraybackslash}X    % 3 Second cohort
-  >{\hsize=0.8\hsize\raggedleft\arraybackslash}X    % 4 Welch t (df)
-  >{\hsize=0.4\hsize\raggedleft\arraybackslash}X    % 5 p
-  >{\hsize=0.4\hsize\raggedleft\arraybackslash}X}   % 6 BF01
-\toprule
-\rowcolor{nhbGreenHeader}
-\textbf{Task (Effect)} & \multicolumn{1}{c}{\textbf{First cohort ($N=31$)}} & \multicolumn{1}{c}{\textbf{Second cohort ($N=14$)}} & \multicolumn{1}{c}{\textbf{Welch $t$ (df)}} & \multicolumn{1}{c}{\textbf{$p$}} & \multicolumn{1}{c}{\textbf{$\mathrm{BF}_{01}$}} \\
-\rowcolor{nhbGreenHeader}
- & \multicolumn{1}{c}{\textbf{Interval$-$Beat [95\% CI]}} & \multicolumn{1}{c}{\textbf{Interval$-$Beat [95\% CI]}} &  &  & \\
-\midrule
-\multicolumn{6}{l}{\textit{Auditory}} \\
-\midrule
-Production (Mean SA) & $0.027$ [$0.017$, $0.037$] & $0.029$ [$0.006$, $0.053$] & $-0.19$ (18.1) & $0.85$ & $3.1$ \\
-Perception (DL) & $-0.001$ [$-0.008$, $0.007$] & $0.008$ [$-0.011$, $0.027$] & $-0.88$ (17.5) & $0.39$ & $2.4$ \\
-NTFD (RT, ms) & $2.9$ [$-1.7$, $7.5$] & $9.9$ [$-12.8$, $32.7$] & $-0.65$ (14.2) & $0.52$ & $2.7$ \\
-\midrule
-\multicolumn{6}{l}{\textit{Visual}} \\
-\midrule
-Production (Mean SA) & $0.041$ [$0.025$, $0.056$] & $0.040$ [$0.005$, $0.076$] & $0.03$ (18.7) & $0.97$ & $3.2$ \\
-Perception (DL) & $-0.002$ [$-0.016$, $0.012$] & $-0.029$ [$-0.074$, $0.016$] & $1.23$ (16.0) & $0.24$ & $1.8$ \\
-NTFD (RT, ms) & $2.6$ [$-2.7$, $8.0$] & $-0.2$ [$-13.9$, $13.5$] & $0.41$ (17.6) & $0.69$ & $3.0$ \\
-\bottomrule
-\end{tabularx}
-
-\vspace{6pt}
-{\footnotesize
-\leftskip=0pt \rightskip=0pt \parfillskip=0pt plus 1fil \parindent=0pt
-The condition effect (Interval $-$ Beat) is given per cohort with its $95\%$ CI, followed by the Welch two-sample test of the Cohort $\times$ Condition interaction -- equivalently, whether the cohorts' condition effects differ -- and a default-prior JZS Bayes factor $\mathrm{BF}_{01}$ (evidence for no interaction; $1$--$3$ weak, $3$--$10$ moderate). The auditory tasks test the re-implementation, in which the second cohort used PsychoPy; the visual tasks, run in Expyriment for both cohorts, are a same-software control isolating the sample. Metrics: \textit{Mean Signed Asynchrony} (Production, proportion of $S$), \textit{Difference Limen} (Perception, proportion), Reaction Time (NTFD, ms). The first cohort is the imaging sample.\par}
-\label{etab:cohort_consistency}
-\end{table*}
+                              - NTFD_LATENCY[modality][batch])
         if NTFD_FILTER_BAD_TRIALS:
             d = d[(d["reaction_time"] >= 100) & (d["reaction_time"] <= 700)
                   & (d["score"] == 1)]
