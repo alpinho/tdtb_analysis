@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 28th of January, 2026
-Last update: June 2026
+Last update: July 2026
 
 Compatibility: Python 3.10.14
 """
@@ -2160,7 +2160,7 @@ if __name__ == "__main__":
         y_limits={
             "auditory_cortex": (-0.4, 1.6),
             "visual_cortex": (-0.4, 1.6),
-            "dstr": (-0.4, 1.6),
+            "dstr": (-0.2, 1.2),
             "presma": (-0.2, 1.2),
             "sma": (-0.2, 1.2),
             "pmd": (-0.2, 1.2),
@@ -2170,8 +2170,8 @@ if __name__ == "__main__":
         show_yaxis={
             "auditory_cortex": True,
             "visual_cortex": False,
-            "dstr": False,
-            "cereb": True,
+            "dstr": True,
+            "cereb": False,
             "presma": False,
             "sma": False,
             "pmd": False,
@@ -2188,79 +2188,79 @@ if __name__ == "__main__":
         ),
     )
 
-    # Only with audio and visual plots
-    outpath_av = Path(OUTPUT_PATH)
-    outpath_av = outpath_av.with_name(
-        outpath_av.stem + "_audivisual_only" + outpath_av.suffix
-    )
-    plot_psc_boxplots(
-        df=df_in,
-        outpath=outpath_av,
-        figsize_scale=args.figscale,
-        audivisual_only=True,
-        include_ntfd_random=False,
-        y_limits={
-            "auditory_cortex": (-0.4, 1.6),
-            "visual_cortex": (-0.4, 1.6),
-            "dstr": (-0.4, 1.6),
-            "presma": (-0.2, 1.2),
-            "sma": (-0.2, 1.2),
-            "pmd": (-0.2, 1.2),
-            "pmv": (-0.2, 1.2),
-            "cereb": (-0.2, 1.2),
-        },
-        show_yaxis={
-            "auditory_cortex": True,
-            "visual_cortex": False,
-            "dstr": False,
-            "cereb": True,
-            "presma": False,
-            "sma": False,
-            "pmd": False,
-            "pmv": False,
-        },
-        x_leg_dx=-0.175,
-        tag_dx_beat=-0.056,
-        tag_dx_interval=-0.001,
-        tag_dy=-0.00075,
-        row_gap=0.005,
-        within_modality_bracket_height_fig=(
-            WITHIN_MODALITY_BRACKET_HEIGHT_FIG
-        ),
-        between_modality_bracket_height_fig=(
-            BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
-        ),
-    )
+    # # Only with audio and visual plots
+    # outpath_av = Path(OUTPUT_PATH)
+    # outpath_av = outpath_av.with_name(
+    #     outpath_av.stem + "_audivisual_only" + outpath_av.suffix
+    # )
+    # plot_psc_boxplots(
+    #     df=df_in,
+    #     outpath=outpath_av,
+    #     figsize_scale=args.figscale,
+    #     audivisual_only=True,
+    #     include_ntfd_random=False,
+    #     y_limits={
+    #         "auditory_cortex": (-0.4, 1.6),
+    #         "visual_cortex": (-0.4, 1.6),
+    #         "dstr": (-0.4, 1.6),
+    #         "presma": (-0.2, 1.2),
+    #         "sma": (-0.2, 1.2),
+    #         "pmd": (-0.2, 1.2),
+    #         "pmv": (-0.2, 1.2),
+    #         "cereb": (-0.2, 1.2),
+    #     },
+    #     show_yaxis={
+    #         "auditory_cortex": True,
+    #         "visual_cortex": False,
+    #         "dstr": False,
+    #         "cereb": True,
+    #         "presma": False,
+    #         "sma": False,
+    #         "pmd": False,
+    #         "pmv": False,
+    #     },
+    #     x_leg_dx=-0.175,
+    #     tag_dx_beat=-0.056,
+    #     tag_dx_interval=-0.001,
+    #     tag_dy=-0.00075,
+    #     row_gap=0.005,
+    #     within_modality_bracket_height_fig=(
+    #         WITHIN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
+    #     between_modality_bracket_height_fig=(
+    #         BETWEEN_MODALITY_BRACKET_HEIGHT_FIG
+    #     ),
+    # )
 
-    # 1c) Combined panel: re-arrange the individual ROI plots into rows.
-    #     Each cell is the exact plot plot_psc_boxplots() produces; cells are
-    #     bottom-aligned within a row so the PSC = 0 lines align, and only the
-    #     left-most cell of each row shows the y-axis. Edit `panel_rows` /
-    #     `panel_row_ylims` to re-arrange or to aggregate other plots.
-    outpath_panel = Path(OUTPUT_PATH)
-    outpath_panel = outpath_panel.with_name(
-        outpath_panel.stem + "_panel" + outpath_panel.suffix
-    )
-    panel_rows = [
-        [("auditory_cortex", "audivisual"),
-         ("visual_cortex", "audivisual"),
-         ("dstr", "pooled")],
-        [("cereb", "pooled"),
-         ("presma", "pooled"),
-         ("sma", "pooled"),
-         ("pmd", "audivisual"),
-         ("pmv", "pooled")],
-    ]
-    panel_row_ylims = [(-0.4, 1.6), (-0.2, 1.2)]
-    assemble_panel(
-        df=df_in,
-        outpath=outpath_panel,
-        rows=panel_rows,
-        row_ylims=panel_row_ylims,
-        include_ntfd_random=False,
-        legend="full",      # full Beat/Interval colour key at the top-right
-        cell_kwargs=dict(tag_dx_beat=-0.056, tag_dx_interval=-0.001),
-    )
+    # # 1c) Combined panel: re-arrange the individual ROI plots into rows.
+    # #     Each cell is the exact plot plot_psc_boxplots() produces; cells are
+    # #     bottom-aligned within a row so the PSC = 0 lines align, and only the
+    # #     left-most cell of each row shows the y-axis. Edit `panel_rows` /
+    # #     `panel_row_ylims` to re-arrange or to aggregate other plots.
+    # outpath_panel = Path(OUTPUT_PATH)
+    # outpath_panel = outpath_panel.with_name(
+    #     outpath_panel.stem + "_panel" + outpath_panel.suffix
+    # )
+    # panel_rows = [
+    #     [("auditory_cortex", "audivisual"),
+    #      ("visual_cortex", "audivisual"),
+    #      ("dstr", "pooled")],
+    #     [("cereb", "pooled"),
+    #      ("presma", "pooled"),
+    #      ("sma", "pooled"),
+    #      ("pmd", "audivisual"),
+    #      ("pmv", "pooled")],
+    # ]
+    # panel_row_ylims = [(-0.4, 1.6), (-0.2, 1.2)]
+    # assemble_panel(
+    #     df=df_in,
+    #     outpath=outpath_panel,
+    #     rows=panel_rows,
+    #     row_ylims=panel_row_ylims,
+    #     include_ntfd_random=False,
+    #     legend="full",      # full Beat/Interval colour key at the top-right
+    #     cell_kwargs=dict(tag_dx_beat=-0.056, tag_dx_interval=-0.001),
+    # )
 
     # 1b) Pooled-only figure (pooled modality block only)
     # outpath_pooled = Path(OUTPUT_PATH)
