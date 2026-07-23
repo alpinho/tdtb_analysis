@@ -250,6 +250,39 @@ def _resolve_roi(name: str, roi_values: Sequence[str]) -> str | None:
     return None
 
 
+def _row_ylim(
+    row: Sequence[Tuple[str, str]],
+    y_limits: Dict[str, Tuple[float, float]],
+    step: float = YTICK_STEP,
+) -> Tuple[float, float]:
+    """Union of the per-ROI y-limits of a panel row, snapped to tick multiples.
+
+    Derives ``(lo, hi)`` from the ROIs actually present in ``row`` so that the
+    panel rescales automatically when regions are added to or removed from the
+    row definition, instead of inheriting a hard-coded range.
+
+    Notes
+    -----
+    ``EXPAND_TOP_FOR_ANNOTATIONS`` is False, so the returned top is honored
+    exactly and must already contain the bracket headroom.  This is the case as
+    long as the per-ROI entries of ``y_limits`` do: the union of ranges that
+    each fit their own annotations also fits them.
+    """
+    lims = []
+    for roi_key, _mode in row:
+        key = _roi_key(roi_key) or roi_key
+        if key not in y_limits:
+            raise KeyError(f"no y-limits defined for ROI {roi_key!r}")
+        lims.append(y_limits[key])
+    lo = min(float(l) for l, _ in lims)
+    hi = max(float(h) for _, h in lims)
+    # round() removes the float noise of the snap (e.g. -0.6000000000000001),
+    # which would otherwise show up in the tick labels.
+    lo = round(float(np.floor(lo / step + 1e-9) * step), 6)
+    hi = round(float(np.ceil(hi / step - 1e-9) * step), 6)
+    return (lo, hi)
+
+
 def _pts_to_figfrac_y(fig: plt.Figure, pts: float) -> float:
     """Convert a vertical distance in points to a figure-height fraction."""
     return float(pts) / (fig.get_figheight() * 72.0)
@@ -1450,6 +1483,7 @@ if __name__ == "__main__":
          ("pmd", "pooled"),
          ("pmv", "pooled")],
     ]
+
     # One uniform y-range per row (encompassing the regions in that row).
     panel_row_ylims = [(-0.6, 1.6), (-0.2, 1.0)]
     assemble_panel(
@@ -1461,11 +1495,13 @@ if __name__ == "__main__":
         cell_kwargs=dict(center_singleline_xlabels=True),
     )
 
-    # 4) Combined panel in one single row.  The same broader y-range used for
-    #    the first row of the two-row panel is applied to every ROI.
+    # 4) Combined panel in one single row.  The y-range is derived from the
+    #    per-ROI limits of the regions actually listed below, so commenting a
+    #    region in or out rescales the row automatically.
     panel_rows_single = [
-        [("auditory_cortex", "audivisual"),
-         ("visual_cortex", "audivisual"),
+        [
+        #  ("auditory_cortex", "audivisual"),
+        #  ("visual_cortex", "audivisual"),
          ("dstr", "pooled"),
          ("cereb", "pooled"),
          ("presma", "pooled"),
@@ -1473,7 +1509,9 @@ if __name__ == "__main__":
          ("pmd", "pooled"),
          ("pmv", "pooled")],
     ]
-    panel_row_ylims_single = [panel_row_ylims[0]]
+    panel_row_ylims_single = [
+        _row_ylim(row, y_limits) for row in panel_rows_single
+    ]
     assemble_panel(
         df=df_in,
         outpath=OUTPUT_PATH_PANEL_SINGLE_ROW,
