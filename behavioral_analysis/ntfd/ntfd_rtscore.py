@@ -256,10 +256,11 @@ BEHAV_RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
 ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
                    62, 63]
 
+# Note: add sub-54 when we get the 2 missing runs
 GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61,
                     62, 63]
 
-SB2_SUBJECTS = [50, 51, 52, 55, 57, 59, 62]
+SB2_SUBJECTS = [50, 51, 52, 55, 56, 57, 59, 61, 62]
 
 SB3_SUBJECTS = []
 
