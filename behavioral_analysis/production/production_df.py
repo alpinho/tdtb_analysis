@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: July 2026
+Last update: August 2026
 
 Compatibility: Python 3.10.14
 """
@@ -163,9 +163,13 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
 
 
 # %%
-# =========================== INPUTS ===================================
+# =========================== INPUTS ==================================
 
-# ##################### Subjects' lists ################################
+# ##################### Subjects' lists ###############################
+
+# *********************** First Batch *********************************
+# Expyriment / Implicit
+
 # All subjects
 ALL_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
                 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36,
@@ -180,22 +184,36 @@ GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
 IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
                 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# Second batch
+# *********************** Second Batch ********************************
+# Psychopy / Implicit
+
+# All subjects
 ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
                    62, 63]
 
-# Note: add sub-54 when we get the 2 missing runs
+# First Session completed
 GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61,
                     62, 63]
 
+# Second Session completed
 SB2_SUBJECTS = [50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
 
-SB3_SUBJECTS = []
+# *********************** Third Batch *********************************
+# Psychopy / Explicit
 
-# ##################### Trial counts ###################################
+# All subjects
+ALL_TB_SUBJECTS = [64, 65, 66, 68]
+
+# First Session completed
+GOOD_TB_SUBJECTS = [64, 65, 66, 68]
+
+# Second Session completed
+TB2_SUBJECTS = [65, 66]
+
+# ##################### Trial counts ##################################
 N_TRIALS = 30
 
-# ##################### Latency correction #############################
+# ##################### Latency correction ############################
 # Two latency configurations ("input types") are generated per batch:
 #   'latency_corrected' -- the batch's acquisition latencies (ms) are
 #                          subtracted from the response times before the
@@ -277,6 +295,12 @@ sb_subjects_dic = {
     'ses-02':   SB2_SUBJECTS,
 }
 
+tb_subjects_dic = {
+    'behavses': GOOD_TB_SUBJECTS,
+    'ses-01':   GOOD_TB_SUBJECTS,
+    'ses-02':   TB2_SUBJECTS,
+}
+
 # Latency triples (audio, visual, button-press in ms) per input type.
 # 'latency_corrected' differs by batch (audio 133 vs 63); 'uncorrected' is
 # always 0/0/0.
@@ -294,17 +318,28 @@ sb_inputs_dic = {
                           'button_press': 0},
 }
 
+tb_inputs_dic = {
+    'latency_corrected': {'audio_latency': 63, 'visual_latency': 35,
+                          'button_press': 20},   # PsychoPy
+    'uncorrected':       {'audio_latency': 0, 'visual_latency': 0,
+                          'button_press': 0},
+}
+
 batch_dic = {
     'first':  {'prefix': 'fb', 'subjects': fb_subjects_dic,
                'inputs': fb_inputs_dic},
     'second': {'prefix': 'sb', 'subjects': sb_subjects_dic,
                'inputs': sb_inputs_dic},
+    'third':  {'prefix': 'tb', 'subjects': tb_subjects_dic,
+               'inputs': tb_inputs_dic},
 }
 
 # ##################### Run selection ##################################
 # Batches to generate: ['first'], ['second'], or ['first', 'second'].
 # BATCHES_TO_RUN = ['first', 'second']
-BATCHES_TO_RUN = ['second']
+# BATCHES_TO_RUN = ['second', 'third']
+# BATCHES_TO_RUN = ['second']
+BATCHES_TO_RUN = ['third']
 
 # Latency input types to generate per batch: ['latency_corrected'],
 # ['uncorrected'], or both.
@@ -330,7 +365,7 @@ RESULTS_FOLDER = os.path.join(MAIN_DIR, 'production_results', 'dataframes')
 if __name__ == "__main__":
 
     # Every per-batch subject tag must be defined in SESSION_CONFIG.
-    for _dic in (fb_subjects_dic, sb_subjects_dic):
+    for _dic in (fb_subjects_dic, sb_subjects_dic, tb_subjects_dic):
         _unknown = set(_dic) - set(SESSION_CONFIG)
         if _unknown:
             raise KeyError(
