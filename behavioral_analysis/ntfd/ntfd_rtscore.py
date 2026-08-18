@@ -232,6 +232,9 @@ def has_random_condition(df):
 # %%
 # ========================== INPUTS ====================================
 
+# *********************** First Batch *********************************
+# Expyriment / Implicit
+
 # All good subjects including img pilot (sub-04)
 GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
                  18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32,
@@ -252,17 +255,31 @@ BEHAV_RAND_SUBJECTS = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
                        26, 27, 28, 29, 32, 34, 35, 38, 39, 40,
                        41, 42, 43, 44, 45, 46, 47]
 
-# Second batch
+# *********************** Second Batch ********************************
+# Psychopy / Implicit
+
+# All subjects
 ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
                    62, 63]
 
-# Note: add sub-54 when we get the 2 missing runs
+# First Session completed
 GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61,
                     62, 63]
 
+# Second Session completed
 SB2_SUBJECTS = [50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
 
-SB3_SUBJECTS = []
+# *********************** Third Batch *********************************
+# Psychopy / Explicit
+
+# All subjects
+ALL_TB_SUBJECTS = [64, 65, 66, 68]
+
+# First Session completed
+GOOD_TB_SUBJECTS = [64, 65, 66, 68]
+
+# Second Session completed
+TB2_SUBJECTS = [65, 66]
 
 # #####################################################################
 
@@ -312,6 +329,20 @@ sb_subjects_dic = {
     'ses-02': SB2_SUBJECTS,
 }
 
+# #### Third Batch ####
+
+tb_sessions_dic = {
+    'behavses': 'Behavioral Sessions',
+    'ses-01': 'Session 1',
+    'ses-02': 'Session 2',
+}
+
+tb_subjects_dic = {
+    'behavses': GOOD_TB_SUBJECTS,
+    'ses-01':   GOOD_TB_SUBJECTS,
+    'ses-02':   TB2_SUBJECTS,
+}
+
 # #### Map tag -> integer session list ####
 
 sessions_list_dic = {
@@ -333,33 +364,44 @@ sessions_list_dic = {
 # Reaction times are always latency-corrected in this script.
 # First batch: Expyriment auditory latency.
 # Second batch: PsychoPy auditory latency.
+# Third batch: PsychoPy auditory latency.
 
-fb_audio_latency = 133
-sb_audio_latency = 63
-visual_latency = 35
+expy_audio_latency = 133
+psychopy_audio_latency = 63
+expy_visual_latency = 35
 button_press = 20
 
 # Keep this list explicit so each batch can be run one at a time
 # by commenting out any entry if needed.
 # BATCHES_TO_RUN = ['first', 'second']
-BATCHES_TO_RUN = ['second']
+# BATCHES_TO_RUN = ['second', 'third']
+# BATCHES_TO_RUN = ['second']
+BATCHES_TO_RUN = ['third']
 
 batch_dic = {
     'first': {
         'sessions': fb_sessions_dic,
         'subjects': fb_subjects_dic,
-        'audio_latency': fb_audio_latency,
-        'visual_latency': visual_latency,
+        'audio_latency': expy_audio_latency,
+        'visual_latency': expy_visual_latency,
         'button_press': button_press,
         'results_folder': os.path.join(MAIN_DIR, 'ntfd_results_first_batch'),
     },
     'second': {
         'sessions': sb_sessions_dic,
         'subjects': sb_subjects_dic,
-        'audio_latency': sb_audio_latency,
-        'visual_latency': visual_latency,
+        'audio_latency': psychopy_audio_latency,
+        'visual_latency': expy_visual_latency,
         'button_press': button_press,
         'results_folder': os.path.join(MAIN_DIR, 'ntfd_results_second_batch'),
+    },
+    'third': {
+        'sessions': tb_sessions_dic,
+        'subjects': tb_subjects_dic,
+        'audio_latency': psychopy_audio_latency,
+        'visual_latency': expy_visual_latency,
+        'button_press': button_press,
+        'results_folder': os.path.join(MAIN_DIR, 'ntfd_results_third_batch'),
     },
 }
 

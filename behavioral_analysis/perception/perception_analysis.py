@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: February, 2023
-Last update: July 2026
+Last update: August 2026
 
 Compatibility: Python 3.10.14
 """
@@ -1475,7 +1475,9 @@ def twoway_repanova(df, output_dir, sesstag, min_valid_standards,
 # %%
 # =========================== INPUTS ===================================
 
-# ##################### Subjects' lists ################################
+# *********************** First Batch *********************************
+# Expyriment / Implicit
+
 # All subjects
 ALL_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
                 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36,
@@ -1490,22 +1492,31 @@ GOOD_SUBJECTS = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
 IMG_SUBJECTS = [3, 7, 8, 10, 11, 12, 13, 14, 15, 16, 18, 20, 21, 22, 23, 26,
                 28, 29, 32, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
 
-# Subjects who did all behavioral sessions with the random condition...
-# ... in the NTFD task and img sessions
-BEHAVIMG_RAND_SUBJECTS = [16, 18, 20, 21, 22, 23, 26, 28, 29, 32, 34, 35, 38,
-                          39, 40, 41, 42, 43, 44, 45, 46, 47]
+# *********************** Second Batch ********************************
+# Psychopy / Implicit
 
-# Second batch
+# All subjects
 ALL_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
                    62, 63]
 
-# Note: add sub-54 when we get the 2 missing runs
+# First Session completed
 GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61,
                     62, 63]
 
+# Second Session completed
 SB2_SUBJECTS = [50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
 
-SB3_SUBJECTS = []
+# *********************** Third Batch *********************************
+# Psychopy / Explicit
+
+# All subjects
+ALL_TB_SUBJECTS = [64, 65, 66, 68]
+
+# First Session completed
+GOOD_TB_SUBJECTS = [64, 65, 66, 68]
+
+# Second Session completed
+TB2_SUBJECTS = [65, 66]
 
 # #######################################################################
 
@@ -1584,6 +1595,20 @@ sb_subjects_dic = {
     'ses-02': SB2_SUBJECTS,
 }
 
+# #### Third Batch ####
+
+tb_sessions_dic = {
+    'behavses': 'Behavioral Sessions',
+    'ses-01': 'Session 1',
+    'ses-02': 'Session 2',
+}
+
+tb_subjects_dic = {
+    'behavses': GOOD_TB_SUBJECTS,
+    'ses-01':   GOOD_TB_SUBJECTS,
+    'ses-02':   TB2_SUBJECTS,
+}
+
 # #### Map tag -> integer session list ####
 
 sessions_list_dic = {
@@ -1615,7 +1640,8 @@ if __name__ == "__main__":
 
     for batch_tag, sessions_dic, subjects_dic in [
         # ('first',  fb_sessions_dic,  fb_subjects_dic),
-        ('second', sb_sessions_dic,  sb_subjects_dic),
+        # ('second', sb_sessions_dic,  sb_subjects_dic),
+        ('third', tb_sessions_dic, tb_subjects_dic),
     ]:
 
         results_subfolder = 'perception_results_' + batch_tag + '_batch'
