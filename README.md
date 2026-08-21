@@ -6,7 +6,7 @@ and timing validation — are in
 [alpinho/tdtb_protocols](https://github.com/alpinho/tdtb_protocols).
 
 The battery crosses three tasks (production, perception, and non-temporal feature
-discrimination) with two temporal conditions (beat and interval) and two sensory modalities
+discrimination) with three temporal conditions (beat, interval and random) and two sensory modalities
 (auditory and visual), in behavioral and imaging sessions. The code here takes the raw
 logfiles and functional images through to the statistics and figures reported in the
 associated publications.
