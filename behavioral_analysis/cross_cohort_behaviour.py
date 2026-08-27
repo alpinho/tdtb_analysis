@@ -24,10 +24,9 @@ perception_analysis.py and ntfd_df.py, so it stays in sync with new data.
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
-Created: 6th of July 2026
-Last update: July 2026
-
+Created: August 2026
 Compatibility: Python 3.10.14
+
 """
 
 import os
@@ -219,14 +218,16 @@ def interaction(diffs_a, diffs_b):
     v1, v2, n1, n2 = a.var(ddof=1), b.var(ddof=1), len(a), len(b)
     df = ((v1 / n1 + v2 / n2) ** 2
           / ((v1 / n1) ** 2 / (n1 - 1) + (v2 / n2) ** 2 / (n2 - 1)))
+    sd_pool = np.sqrt(((n1 - 1) * v1 + (n2 - 1) * v2) / (n1 + n2 - 2))
+    d = (a.mean() - b.mean()) / sd_pool          # Cohen's d for the interaction
     bf01 = 1.0 / jzs_bf10(t, n1, n2)
-    return dict(t=t, df=df, p=p, bf01=bf01)
+    return dict(t=t, df=df, p=p, bf01=bf01, d=d)
 
 
 # =========================== LATEX OUTPUT ============================
-TASK_LABEL = {"Production": "Production (Mean SA)",
-              "Perception": "Perception (DL)",
-              "NTFD": "NTFD (RT, ms)"}
+TASK_LABEL = {"Production": "Production",
+              "Perception": "Perception",
+              "NTFD": "NTFD"}
 TASK_DEC = {"Production": 3, "Perception": 3, "NTFD": 1}
 
 
@@ -256,28 +257,28 @@ def gen_latex(summary, names, ns, modalities):
         r"\renewcommand{\arraystretch}{1.2}",
         r"\rowcolors{2}{white}{nhbGreenRow}",
         r"\footnotesize",
-        r"% --- column widths: edit the \hsize factors; they MUST sum to 6 ---",
+        r"% --- 3 flexible X columns (\hsize weights sum to 3) + 4 natural r ---",
+        r"% (narrow numeric columns are r, not X: colortbl fills them without gaps)",
         r"\begin{tabularx}{\textwidth}{",
-        r"  >{\hsize=1.4\hsize\raggedright\arraybackslash}X   % 1 Task",
-        r"  >{\hsize=1.5\hsize\raggedleft\arraybackslash}X    % 2 First cohort",
-        r"  >{\hsize=1.5\hsize\raggedleft\arraybackslash}X    % 3 Second cohort",
-        r"  >{\hsize=0.8\hsize\raggedleft\arraybackslash}X    % 4 Welch t (df)",
-        r"  >{\hsize=0.4\hsize\raggedleft\arraybackslash}X    % 5 p",
-        r"  >{\hsize=0.4\hsize\raggedleft\arraybackslash}X}   % 6 BF01",
+        r"  >{\hsize=0.7\hsize\raggedright\arraybackslash}X   % 1 Task",
+        r"  >{\hsize=1.15\hsize\raggedleft\arraybackslash}X   % 2 First cohort",
+        r"  >{\hsize=1.15\hsize\raggedleft\arraybackslash}X   % 3 Second cohort",
+        r"  r r r r}   % 4 Cohen's d, 5 Welch t, 6 p, 7 BF01",
         r"\toprule",
         r"\rowcolor{nhbGreenHeader}",
-        r"\textbf{Task (Effect)} & "
+        r"\textbf{Task} & "
         + hcell(f"{names[0]} ($N={ns[names[0]]}$)") + " & "
         + hcell(f"{names[1]} ($N={ns[names[1]]}$)") + " & "
-        + hcell(r"Welch $t$ (df)") + " & " + hcell(r"$p$") + " & "
+        + hcell(r"Cohen's $d$") + " & "
+        + hcell(r"Welch's $t$") + " & " + hcell(r"$p$") + " & "
         + hcell(r"$\mathrm{BF}_{01}$") + r" \\",
         r"\rowcolor{nhbGreenHeader}",
         " & " + hcell(r"Interval$-$Beat [95\% CI]") + " & "
-        + hcell(r"Interval$-$Beat [95\% CI]") + r" &  &  & \\",
+        + hcell(r"Interval$-$Beat [95\% CI]") + r" &  &  &  & \\",
     ]
     for mi, mod in enumerate(modalities):
         L.append(r"\midrule")
-        L.append(r"\multicolumn{6}{l}{\textit{" + mod.capitalize()
+        L.append(r"\multicolumn{7}{l}{\textit{" + mod.capitalize()
                  + r"}} \\")
         L.append(r"\midrule")
         for task in ["Production", "Perception", "NTFD"]:
@@ -286,9 +287,9 @@ def gen_latex(summary, names, ns, modalities):
             dec = TASK_DEC[task]
             c0 = _cell(r["eff0"], r["ci0_low"], r["ci0_high"], dec)
             c1 = _cell(r["eff1"], r["ci1_low"], r["ci1_high"], dec)
-            welch = f"${r['welch_t']:.2f}$ ({r['welch_df']:.1f})"
-            L.append(f"{TASK_LABEL[task]} & {c0} & {c1} & {welch} & "
-                     f"${r['p']:.2f}$ & ${r['bf01']:.1f}$ " + r"\\")
+            welch = f"${r['welch_t']:.2f}$"
+            L.append(f"{TASK_LABEL[task]} & {c0} & {c1} & ${r['d']:+.2f}$ & "
+                     f"{welch} & ${r['p']:.2f}$ & ${r['bf01']:.1f}$ " + r"\\")
     L += [
         r"\bottomrule",
         r"\end{tabularx}",
@@ -298,11 +299,15 @@ def gen_latex(summary, names, ns, modalities):
         r"\leftskip=0pt \rightskip=0pt \parfillskip=0pt plus 1fil "
         r"\parindent=0pt",
         r"The condition effect (Interval $-$ Beat) is given per cohort with "
-        r"its $95\%$ CI, followed by the Welch's two-sample test of the Cohort "
-        r"$\times$ Condition interaction -- equivalently, whether the "
-        r"cohorts' condition effects differ -- and a default-prior JZS Bayes "
+        r"its $95\%$ CI. Cohen's $d$ is the standardized effect size of the "
+        r"Cohort $\times$ Condition interaction (the between-cohort difference "
+        r"in Interval $-$ Beat, in pooled-standard-deviation units), tested by "
+        r"the Welch two-sample statistic -- equivalently, whether the "
+        r"cohorts' condition effects differ -- and accompanied by a "
+        r"default-prior JZS Bayes "
         r"factor $\mathrm{BF}_{01}$ (evidence for no interaction; $1$--$3$ "
-        r"weak, $3$--$10$ moderate). The auditory tasks test the "
+        r"weak, $3$--$10$ moderate). Welch--Satterthwaite degrees of freedom "
+        r"ranged from $13$ to $17$. The auditory tasks test the "
         r"re-implementation, in which the second cohort used PsychoPy; the "
         r"visual tasks, run in Expyriment for both cohorts, are a "
         r"same-software control isolating the sample. Metrics: \textit{Mean "
@@ -347,7 +352,8 @@ def main():
                 ci0_high=effs[names[0]]["ci_high"],
                 eff1=effs[names[1]]["mean"], ci1_low=effs[names[1]]["ci_low"],
                 ci1_high=effs[names[1]]["ci_high"],
-                welch_t=it["t"], welch_df=it["df"], p=it["p"], bf01=it["bf01"]))
+                welch_t=it["t"], welch_df=it["df"], p=it["p"], bf01=it["bf01"],
+                d=it["d"]))
 
     per_cohort = pd.DataFrame(per_cohort_rows)
     summary = pd.DataFrame(summary_rows)

@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: July 2026
+Last update: August 2026
 
 Compatibility: Python 3.10.14
 """
@@ -235,10 +235,10 @@ SB2_SUBJECTS = [50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
 # Psychopy / Explicit
 
 # All subjects
-ALL_TB_SUBJECTS = [64, 65, 66, 68]
+ALL_TB_SUBJECTS = [64, 65, 66, 68, 69]
 
 # First Session completed
-GOOD_TB_SUBJECTS = [64, 65, 66, 68]
+GOOD_TB_SUBJECTS = [64, 65, 66, 68, 70, 71, 72]
 
 # Second Session completed
 TB2_SUBJECTS = [65, 66]
