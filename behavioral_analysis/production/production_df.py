@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: August 2026
+Last update: September 2026
 
 Compatibility: Python 3.10.14
 """
@@ -202,13 +202,13 @@ SB2_SUBJECTS = [50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
 # Psychopy / Explicit
 
 # All subjects
-ALL_TB_SUBJECTS = [64, 65, 66, 68, 69]
+ALL_TB_SUBJECTS = [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75]
 
 # First Session completed
-GOOD_TB_SUBJECTS = [64, 65, 66, 68, 70, 71, 72]
+GOOD_TB_SUBJECTS = [64, 65, 66, 67, 68, 70, 71, 72, 73, 74, 75]
 
 # Second Session completed
-TB2_SUBJECTS = [65, 66]
+TB2_SUBJECTS = [65, 66, 68, 72, 73, 75]
 
 # ##################### Trial counts ##################################
 N_TRIALS = 30
