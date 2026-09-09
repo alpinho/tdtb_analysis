@@ -196,7 +196,7 @@ GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61,
                     62, 63]
 
 # Second Session completed
-SB2_SUBJECTS = [50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
+SB2_SUBJECTS = [48, 50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
 
 # *********************** Third Batch *********************************
 # Psychopy / Explicit
@@ -338,8 +338,8 @@ batch_dic = {
 # Batches to generate: ['first'], ['second'], or ['first', 'second'].
 # BATCHES_TO_RUN = ['first', 'second']
 # BATCHES_TO_RUN = ['second', 'third']
-# BATCHES_TO_RUN = ['second']
-BATCHES_TO_RUN = ['third']
+BATCHES_TO_RUN = ['second']
+# BATCHES_TO_RUN = ['third']
 
 # Latency input types to generate per batch: ['latency_corrected'],
 # ['uncorrected'], or both.
