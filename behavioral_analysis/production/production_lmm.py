@@ -2,6 +2,39 @@
 Linear mixed model (LMM) analyses of behavioral data of Production Tasks
 of the TDTB project
 
+Runs the same analysis pipeline on two dependent variables, both read
+from the trial-level dataframes written by production_df.py and both
+expressed as a fraction of the standard interval:
+
+    signed_asynchrony    A = (R - S) / S, the constant error, negative
+                         for anticipations and positive for lags, so
+                         the two cancel when averaged.
+    absolute_asynchrony  |A|, the magnitude of the error irrespective
+                         of direction.
+
+Each dependent variable writes into its own subtree, so the two
+analyses never overwrite each other:
+
+    lmm/<batch_folder>/<dependent_variable>/jasp/
+    lmm/<batch_folder>/<dependent_variable>/plots/
+    lmm/<batch_folder>/<dependent_variable>/tables/
+
+For each dependent variable and session tag, two estimators are formed
+per subject, condition, modality and standard: the mean over trials and
+the standard deviation over trials. Each is then passed through the wide
+export for JASP, the three mixed models (2way, auditory_1way,
+visual_1way) and the group-level plot across standards.
+
+Two things to keep in mind when reading the absolute results. The
+absolute measure mixes bias and variability, since a subject with no
+systematic bias still has a positive mean |A| that grows with their
+inconsistency; a condition effect there can therefore come from a
+difference in variability alone, and the signed mean and its standard
+deviation are what separate the two. And |A| is bounded below by zero
+and right-skewed at the trial level, although the models are fitted on
+subject-level means over roughly thirty trials, which are far closer to
+normal than the raw trials are.
+
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
@@ -46,8 +79,15 @@ def ffx_dvar(df, estimator='mean'):
     return df_ffx
 
 
-def group_dvar(df_ffx, estimator='mean'):
-    """Group-level dependent variable for plotting."""
+def group_dvar(df_ffx, dvar, estimator='mean'):
+    """Group-level dependent variable for plotting.
+
+    ``dvar`` names the column to summarise, either 'signed_asynchrony'
+    or 'absolute_asynchrony'. Returns a nested list ordered as
+    [[auditory beat, auditory interval], [visual beat, visual
+    interval]], each entry holding one value per standard in ascending
+    order, which is the layout plot_ancova expects.
+    """
     # Group effect for plotting
     df_group = df_ffx.drop(['subject'], axis=1)
     if estimator == 'mean':
@@ -58,28 +98,27 @@ def group_dvar(df_ffx, estimator='mean'):
         df_group = df_group.groupby([
             'condition', 'modality', 'standard']).std().reset_index()
 
-    async_ab = df_group[df_group.modality=='auditory'][
-        df_group.condition=='beat'].signed_asynchrony.values
-    async_ai = df_group[df_group.modality=='auditory'][
-        df_group.condition=='interval'].signed_asynchrony.values
-    async_vb = df_group[df_group.modality=='visual'][
-        df_group.condition=='beat'].signed_asynchrony.values
-    async_vi = df_group[df_group.modality=='visual'][
-        df_group.condition=='interval'].signed_asynchrony.values
+    def cell(modality, condition):
+        mask = ((df_group['modality'] == modality) &
+                (df_group['condition'] == condition))
+        return df_group[mask][dvar].values.tolist()
 
-    group_async = [[async_ab.tolist()] + [async_ai.tolist()]] + \
-                   [[async_vb.tolist()] + [async_vi.tolist()]]
+    group_async = [[cell('auditory', 'beat'), cell('auditory', 'interval')],
+                   [cell('visual', 'beat'), cell('visual', 'interval')]]
 
     return group_async
 
 
-def wide_dataframe(df, output_folder, estimator_id, sesstag):
+def wide_dataframe(df, dvar, output_folder, estimator_id, sesstag):
     """
     Convert dataframe to the wide format for ANCOVA in JASP (kept as an
     independent cross-check of the LMM).
+
+    ``dvar`` names the column to pivot, either 'signed_asynchrony' or
+    'absolute_asynchrony'.
     """
 
-    wdf = pd.pivot(df, values='signed_asynchrony',
+    wdf = pd.pivot(df, values=dvar,
                    index=['subject', 'standard'],
                    columns=['modality', 'condition'])
 
@@ -287,9 +326,13 @@ def _emm_rows(result, model_label, cells):
     return pd.DataFrame(rows)
 
 
-def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
+def mixed_ancova_tables(df, dvar, output_folder, estimator_id, sesstag):
     """Fit the linear mixed models (LMMs) and save two consolidated TSV
     files.
+
+    ``dvar`` names the dependent variable, either 'signed_asynchrony'
+    or 'absolute_asynchrony'. Both enter the models the same way, as a
+    subject-level mean or standard deviation over trials.
 
     Standard is treated as a continuous, mean-centred within-subject
     predictor (standard_c). Three models are fitted on the same data:
@@ -317,7 +360,7 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
         'condition',
         'modality',
         'standard',
-        'signed_asynchrony',
+        dvar,
     ]
     mdf = df[cols].dropna().copy()
 
@@ -340,17 +383,17 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
     specs = [
         (
             '2way',
-            'signed_asynchrony ~ C(condition) * C(modality) * standard_c',
+            dvar + ' ~ C(condition) * C(modality) * standard_c',
             mdf,
         ),
         (
             'auditory_1way',
-            'signed_asynchrony ~ C(condition) * standard_c',
+            dvar + ' ~ C(condition) * standard_c',
             mdf[mdf['modality'] == 'auditory'].copy(),
         ),
         (
             'visual_1way',
-            'signed_asynchrony ~ C(condition) * standard_c',
+            dvar + ' ~ C(condition) * standard_c',
             mdf[mdf['modality'] == 'visual'].copy(),
         ),
     ]
@@ -405,6 +448,7 @@ def mixed_ancova_tables(df, output_folder, estimator_id, sesstag):
         index=False,
         sep='\t',
     )
+
 
 def plot_ancova(x, y, yaxis_name, yname_pos, title,
                 output_folder, fname, y_values=None, legend_loc='lower left',
@@ -532,6 +576,7 @@ def plot_ancova(x, y, yaxis_name, yname_pos, title,
         os.path.join(output_folder, fname + '.png'),
         dpi=300,
         bbox_inches='tight')
+
 
 # %%
 # ========================== INPUTS ===================================
@@ -715,13 +760,40 @@ batch_dic = {
 
 # Keep these lists explicit so each input/output type can be run one at a
 # time by commenting out any entry if needed.
+BATCHES_TO_RUN = ['first', 'second', 'third']
 # BATCHES_TO_RUN = ['first', 'second']
 # BATCHES_TO_RUN = ['second', 'third']
-BATCHES_TO_RUN = ['second']
+# BATCHES_TO_RUN = ['second']
 # BATCHES_TO_RUN = ['third']
 
 # INPUT_TYPES_TO_RUN = ['latency_corrected', 'uncorrected']
 INPUT_TYPES_TO_RUN = ['uncorrected']
+
+# #### Dependent variables ####
+# Each dependent variable gets its own subfolder inside the batch folder,
+# holding its own jasp/, plots/ and tables/ directories, so the two
+# analyses never overwrite each other.
+#
+#   label   -- used in the axis names and titles of the plots.
+#   hline   -- draw the dashed line at zero. Meaningful for the signed
+#              measure, where zero separates anticipation from lag. The
+#              absolute measure is bounded below by zero, so the line
+#              would sit on the axis and mark a floor rather than a
+#              crossing point.
+dvars_dic = {
+    'signed_asynchrony': {
+        'label': 'Signed Asynchrony',
+        'hline': True,
+    },
+    'absolute_asynchrony': {
+        'label': 'Absolute Asynchrony',
+        'hline': False,
+    },
+}
+
+# DVARS_TO_RUN = ['signed_asynchrony']
+# DVARS_TO_RUN = ['absolute_asynchrony']
+DVARS_TO_RUN = ['signed_asynchrony', 'absolute_asynchrony']
 
 # %%
 # ============================ RUN ====================================
@@ -738,13 +810,6 @@ if __name__ == "__main__":
             input_info = inputs_dic[input_type]
             db_fname = input_info['db_fname']
             batch_folder = input_info['batch_folder']
-
-            jasp_folder = os.path.join(
-                LMM_FOLDER, batch_folder, 'jasp')
-            plots_folder = os.path.join(
-                LMM_FOLDER, batch_folder, 'plots')
-            tables_folder = os.path.join(
-                LMM_FOLDER, batch_folder, 'tables')
 
             print('\n' + '=' * 60)
             print(f'Batch: {batch_tag}  |  Input: {input_type}')
@@ -766,45 +831,73 @@ if __name__ == "__main__":
                 df_subfiltered = db[db['subject'].isin(subjects_dic[key])]
 
                 # Filter Dataframe according to list of sessions.
-                df = df_subfiltered[
+                df_sessions = df_subfiltered[
                     df_subfiltered['session'].isin(sessions_list)]
 
-                # Remove rows with 'NaN' entries.
-                df = df.dropna(subset=['signed_asynchrony'])
+                for dvar in DVARS_TO_RUN:
+                    dvar_info = dvars_dic[dvar]
+                    dvar_label = dvar_info['label']
 
-                # Extract covariate.
-                standards = np.unique(df['standard'])
+                    if dvar not in df_sessions.columns:
+                        print(f'  Skipping {dvar}: column absent from '
+                              f'{os.path.basename(db_path)}. Regenerate the '
+                              'dataframe with production_df.py.')
+                        continue
 
-                # Extract dependent variable.
-                db_ffx_mean = ffx_dvar(df, estimator='mean')
-                db_ffx_std = ffx_dvar(df, estimator='std')
-                mean_async = group_dvar(db_ffx_mean, estimator='mean')
-                std_async = group_dvar(db_ffx_std, estimator='mean')
+                    print(f'  Dependent variable: {dvar}')
 
-                # Convert dataframe in the wide format for JASP.
-                wide_dataframe(db_ffx_mean, jasp_folder, 'mean', key)
-                wide_dataframe(db_ffx_std, jasp_folder, 'std', key)
+                    # Each dependent variable writes into its own subtree.
+                    dvar_folder = os.path.join(
+                        LMM_FOLDER, batch_folder, dvar)
+                    jasp_folder = os.path.join(dvar_folder, 'jasp')
+                    plots_folder = os.path.join(dvar_folder, 'plots')
+                    tables_folder = os.path.join(dvar_folder, 'tables')
 
-                # Fit the LMMs and save tables.
-                mixed_ancova_tables(
-                    db_ffx_mean, tables_folder, 'mean', key)
-                mixed_ancova_tables(
-                    db_ffx_std, tables_folder, 'std', key)
+                    # Remove rows with 'NaN' entries. Both asynchronies
+                    # are NaN on the same trials, since one is the
+                    # absolute value of the other, but the drop is done
+                    # per variable so that each analysis is explicit
+                    # about the rows it used.
+                    df = df_sessions.dropna(subset=[dvar])
 
-                # Plot group-level results across standards.
-                plot_ancova(
-                    standards, mean_async,
-                    'Mean of Signed Asynchrony', .165,
-                    'Mean of Signed Asynchrony for every Standard: ' +
-                    value,
-                    plots_folder, 'mean_lmm_production_' + key,
-                    hline_legend=r'$RT=Standard$',
-                    legend_loc='upper right')
+                    # Extract covariate.
+                    standards = np.unique(df['standard'])
 
-                plot_ancova(
-                    standards, std_async,
-                    'SD of Signed Asynchrony', .165,
-                    'Standard Deviation (SD) of Signed Asynchrony '
-                    'for every Standard: ' + value,
-                    plots_folder, 'std_lmm_production_' + key,
-                    legend_loc='upper right')
+                    # Extract dependent variable.
+                    db_ffx_mean = ffx_dvar(df, estimator='mean')
+                    db_ffx_std = ffx_dvar(df, estimator='std')
+                    mean_async = group_dvar(
+                        db_ffx_mean, dvar, estimator='mean')
+                    std_async = group_dvar(
+                        db_ffx_std, dvar, estimator='mean')
+
+                    # Convert dataframe in the wide format for JASP.
+                    wide_dataframe(
+                        db_ffx_mean, dvar, jasp_folder, 'mean', key)
+                    wide_dataframe(
+                        db_ffx_std, dvar, jasp_folder, 'std', key)
+
+                    # Fit the LMMs and save tables.
+                    mixed_ancova_tables(
+                        db_ffx_mean, dvar, tables_folder, 'mean', key)
+                    mixed_ancova_tables(
+                        db_ffx_std, dvar, tables_folder, 'std', key)
+
+                    # Plot group-level results across standards.
+                    plot_ancova(
+                        standards, mean_async,
+                        'Mean of ' + dvar_label, .165,
+                        'Mean of ' + dvar_label + ' for every Standard: ' +
+                        value,
+                        plots_folder, 'mean_lmm_production_' + key,
+                        hline_legend=(r'$RT=Standard$'
+                                      if dvar_info['hline'] else None),
+                        legend_loc='upper right')
+
+                    plot_ancova(
+                        standards, std_async,
+                        'SD of ' + dvar_label, .165,
+                        'Standard Deviation (SD) of ' + dvar_label +
+                        ' for every Standard: ' + value,
+                        plots_folder, 'std_lmm_production_' + key,
+                        legend_loc='upper right')

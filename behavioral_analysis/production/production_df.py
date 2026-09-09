@@ -2,6 +2,44 @@
 Create dataframe of data from Production Tasks of the
 TDTB project
 
+Reads the production logfiles of one batch, one latency configuration and
+one session aggregation, and writes a trial-level TSV with the columns:
+
+    subject, session, run, modality, condition, standard, response_time,
+    response_time_corrected, signed_asynchrony, absolute_asynchrony
+
+The response time is corrected by subtracting the acquisition latency of
+the modality and the button-press latency:
+
+    R = response_time - latency - button_press
+
+Both asynchronies are relative, that is, expressed as a fraction of the
+standard interval S of the trial, so that trials with different standards
+are comparable:
+
+    signed_asynchrony    A = (R - S) / S
+    absolute_asynchrony  |A| = |R - S| / S
+
+The signed measure is the constant error: it is negative when the response
+anticipates the standard and positive when it lags, so anticipations and
+lags cancel when averaged. The absolute measure is the magnitude of the
+error regardless of direction. Note that the absolute value is taken per
+trial, before any averaging, because the mean of the absolute values is
+not the absolute value of the mean; a subject who anticipates on half the
+trials and lags on the other half has a signed mean near zero and a large
+absolute mean.
+
+The absolute measure mixes bias and variability: for an approximately
+normal A with mean mu and standard deviation sigma, E|A| reduces to
+0.798 * sigma when mu is zero, so a subject with no bias still has a
+positive absolute asynchrony that grows with their inconsistency. A
+condition difference in absolute asynchrony can therefore come from a
+difference in variability alone. Report the standard deviation of the
+signed measure alongside it if the two need to be told apart.
+
+Both asynchronies are rounded to ASYNCHRONY_DECIMALS decimal places. A
+trial whose response time is missing yields NaN in both columns.
+
 author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
@@ -53,6 +91,20 @@ def production_data(data):
     return trials
 
 
+def relative_asynchrony(numeric, corrected, decimals):
+    """Return the signed asynchrony as a fraction of the standard.
+
+    ``numeric`` holds the standard in its first column and the raw
+    response time in its second; ``corrected`` holds the response time
+    after the latency correction. A row with any NaN yields NaN, so a
+    missing response never produces a spurious asynchrony.
+    """
+    with np.errstate(invalid='ignore'):
+        return np.where(
+            np.isnan(numeric).any(axis=1), np.nan,
+            np.round((corrected - numeric[:, 0]) / numeric[:, 0], decimals))
+
+
 def symlog_transform(arr, shift):
     """About this function, consult:
     https://pythonmatplotlibtips.blogspot.com/2018/11/x-symlog-with-shift.html
@@ -76,7 +128,8 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
     # Define columns of dataframe
     df = pd.DataFrame(columns=[
         'subject', 'session', 'run', 'modality', 'condition', 'standard',
-        'response_time', 'response_time_corrected', 'signed_asynchrony'])
+        'response_time', 'response_time_corrected', 'signed_asynchrony',
+        'absolute_asynchrony'])
 
     logfiles_dir = os.path.join(
         os.path.abspath(os.path.join(this_dir, os.pardir, os.pardir)),
@@ -117,25 +170,27 @@ def production_dataframe(subjects, this_dir, output_dir, sesstype, n_trials,
             beat_corr = beat_numeric[:, 1] - latency - button_press
             interval_corr = interval_numeric[:, 1] - latency - button_press
 
-            with np.errstate(invalid='ignore'):  # Avoid warnings for NaN operations
-                ss_beat = np.where(
-                    np.isnan(beat_numeric).any(axis=1), np.nan,
-                    np.round((beat_corr - beat_numeric[:, 0]) /
-                             beat_numeric[:, 0], 2))
-                ss_interval = np.where(
-                    np.isnan(interval_numeric).any(axis=1), np.nan,
-                    np.round((interval_corr - interval_numeric[:, 0]) /
-                             interval_numeric[:, 0], 2))
+            ss_beat = relative_asynchrony(
+                beat_numeric, beat_corr, ASYNCHRONY_DECIMALS)
+            ss_interval = relative_asynchrony(
+                interval_numeric, interval_corr, ASYNCHRONY_DECIMALS)
+
+            # The absolute value is taken per trial, never after
+            # averaging, so that anticipations and lags do not cancel.
+            abs_beat = np.abs(ss_beat)
+            abs_interval = np.abs(ss_interval)
 
             # Append corrected response times and asynchronies as the last
             # elements of the row
             beat_trials = np.hstack((beat_trials,
                                      beat_corr.reshape(-1, 1),
-                                     ss_beat.reshape(-1, 1)
+                                     ss_beat.reshape(-1, 1),
+                                     abs_beat.reshape(-1, 1)
                                      ))
             interval_trials = np.hstack((interval_trials,
                                          interval_corr.reshape(-1, 1),
-                                         ss_interval.reshape(-1, 1)
+                                         ss_interval.reshape(-1, 1),
+                                         abs_interval.reshape(-1, 1)
                                          ))
 
             # Append modality info in the third position of the row
@@ -212,6 +267,14 @@ TB2_SUBJECTS = [65, 66, 68, 72, 73, 75]
 
 # ##################### Trial counts ##################################
 N_TRIALS = 30
+
+# ##################### Asynchrony precision ##########################
+# Decimal places kept for signed_asynchrony and absolute_asynchrony.
+# Both are fractions of the standard, so 4 decimals is a resolution of
+# 0.01% of the standard, about 0.04 ms against a 400 ms standard. Two
+# decimals would quantise the absolute measure heavily, since its values
+# pile up near zero.
+ASYNCHRONY_DECIMALS = 4
 
 # ##################### Latency correction ############################
 # Two latency configurations ("input types") are generated per batch:
@@ -336,9 +399,10 @@ batch_dic = {
 
 # ##################### Run selection ##################################
 # Batches to generate: ['first'], ['second'], or ['first', 'second'].
+BATCHES_TO_RUN = ['first', 'second', 'third']
 # BATCHES_TO_RUN = ['first', 'second']
 # BATCHES_TO_RUN = ['second', 'third']
-BATCHES_TO_RUN = ['second']
+# BATCHES_TO_RUN = ['second']
 # BATCHES_TO_RUN = ['third']
 
 # Latency input types to generate per batch: ['latency_corrected'],
