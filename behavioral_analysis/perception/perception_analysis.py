@@ -1504,7 +1504,7 @@ GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61,
                     62, 63]
 
 # Second Session completed
-SB2_SUBJECTS = [50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
+SB2_SUBJECTS = [48, 50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
 
 # *********************** Third Batch *********************************
 # Psychopy / Explicit
@@ -1640,8 +1640,8 @@ if __name__ == "__main__":
 
     for batch_tag, sessions_dic, subjects_dic in [
         # ('first',  fb_sessions_dic,  fb_subjects_dic),
-        # ('second', sb_sessions_dic,  sb_subjects_dic),
-        ('third', tb_sessions_dic, tb_subjects_dic),
+        ('second', sb_sessions_dic,  sb_subjects_dic),
+        # ('third', tb_sessions_dic, tb_subjects_dic),
     ]:
 
         results_subfolder = 'perception_results_' + batch_tag + '_batch'
