@@ -46,6 +46,28 @@ def _expected_runs(session, task_name):
     return RUNS_SESXX.get(task_name)
 
 
+def _split_row(line, ncols=None):
+    """Split a registry line on tabs, falling back to whitespace.
+
+    Rows are meant to be tab-separated, but a row typed or aligned with
+    spaces should not break the pipeline. When the tab split does not
+    yield enough fields, the line is split on whitespace instead,
+    keeping everything after the first ncols - 1 fields as the reason,
+    which is the only field allowed to contain spaces.
+    """
+    fields = [f.strip() for f in line.rstrip('\n').split('\t')]
+    fields = [f for f in fields if f]
+
+    if ncols is not None and len(fields) >= ncols:
+        return fields
+    if ncols is None and len(fields) > 1:
+        return fields
+
+    maxsplit = (ncols - 1) if ncols is not None else -1
+
+    return [f.strip() for f in line.split(None, maxsplit) if f.strip()]
+
+
 def load_missing_data():
     """Read missing_data.tsv once and cache it.
 
@@ -67,17 +89,27 @@ def load_missing_data():
         print('No ' + MISSING_DATA_FILE + '; every absent run will raise.')
         return _MISSING_DATA
 
-    with open(MISSING_DATA_FILE, newline='') as open_file:
-        rows = [r for r in csv.reader(open_file, delimiter='\t')]
+    with open(MISSING_DATA_FILE) as open_file:
+        lines = open_file.readlines()
 
     header = None
-    for row in rows:
-        if not row or not row[0].strip() or row[0].lstrip().startswith('#'):
+    for lineno, line in enumerate(lines, 1):
+        if not line.strip() or line.lstrip().startswith('#'):
             continue
+
         if header is None:
-            header = [f.strip() for f in row]
+            header = _split_row(line)
             continue
-        entry = dict(zip(header, [f.strip() for f in row]))
+
+        fields = _split_row(line, len(header))
+        if len(fields) < len(header) - 1:
+            raise ValueError(
+                'Line %d of %s has %d field(s), expected %d: %r'
+                % (lineno, MISSING_DATA_FILE, len(fields), len(header),
+                   line.strip()))
+
+        fields += [''] * (len(header) - len(fields))
+        entry = dict(zip(header, fields))
         key = (int(entry['subject']), entry['sesstype'], entry['session'],
                entry['task'], entry['modality'].lower())
         _MISSING_DATA.setdefault(key, []).append(entry)
