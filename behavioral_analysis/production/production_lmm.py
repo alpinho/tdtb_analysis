@@ -760,9 +760,9 @@ batch_dic = {
 
 # Keep these lists explicit so each input/output type can be run one at a
 # time by commenting out any entry if needed.
-BATCHES_TO_RUN = ['first', 'second', 'third']
+# BATCHES_TO_RUN = ['first', 'second', 'third']
 # BATCHES_TO_RUN = ['first', 'second']
-# BATCHES_TO_RUN = ['second', 'third']
+BATCHES_TO_RUN = ['second', 'third']
 # BATCHES_TO_RUN = ['second']
 # BATCHES_TO_RUN = ['third']
 

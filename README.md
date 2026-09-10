@@ -17,7 +17,8 @@ associated publications.
 | --- | --- |
 | `behavioral_analysis/` | Parsing of logfiles and analysis of behavioral performance, one subdirectory per task, plus the cross-cohort comparison |
 | `imaging_analysis/` | Preprocessing and first-level modelling in MATLAB, and second-level, ROI and multivariate analyses in Python; includes the striatal and fs_LR32k surface meshes used for projection |
-| `utils.py` | Helpers shared across the repository (logfile naming, timestamps, image handling) |
+| `missing_data.tsv` | Registry of behavioral runs known to be absent from the logfiles, one row per run with the reason; read by the behavioral parsers so that only undeclared gaps stop them |
+| `utils.py` | Helpers shared across the repository (logfile naming, timestamps, image handling, and the `missing_data.tsv` run-completeness check) |
 | `xpd_isi_analysis.py` | Comparison of nominal and delivered intervals as logged in the `.xpd` files of an acquisition |
 
 ### Behavioral analysis
@@ -28,8 +29,16 @@ computes the dependent measure — a linear mixed model over the mean signed asy
 production (`production_lmm.py`), psychometric fits and difference limens for perception
 (`perception_analysis.py`), and reaction-time scores for NTFD (`ntfd_rtscore.py`).
 `cross_cohort_behaviour.py` and `cohort_estimation_plot.py` then test and plot whether the
-condition effect replicates across cohorts. Each task directory documents its own missing
-data in a `README_missing_data_*` file.
+condition effect replicates across cohorts.
+
+The logfiles were collected in successive cohorts (batches), and each `*_df.py` chooses which
+to parse and which participants each session grouping uses through the constants at the top
+of the script. Runs that are genuinely absent from disk must be declared in `missing_data.tsv`
+at the repository root: `utils.check_runs` compares the logfiles found for every behavioral
+session against the expected run count and stops the parser on any gap that is not declared
+there, so that file is the record of which behavioral runs were never collected. The per-task
+`README_missing_data_*` files instead document the trial screening and participant exclusion
+applied downstream of parsing.
 
 ### Imaging analysis
 
