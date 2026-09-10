@@ -9,6 +9,133 @@ from scipy import stats
 from nilearn.image import load_img, new_img_like, math_img
 
 
+class MissingRunError(RuntimeError):
+    """Raised when a run is absent from disk and not declared missing."""
+
+
+# Registry of runs known to be absent. It lives next to this file, in
+# the same directory as logfiles/, so the three parser scripts share it.
+MISSING_DATA_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'missing_data.tsv')
+
+# Expected number of runs per modality, for behavioural sessions only.
+# Session 1 differs from the later behavioural sessions; batches with no
+# ses-03 simply never ask for it. Imaging sessions are out of scope
+# here, since their missing data is handled elsewhere.
+RUNS_SES01 = {'Production': 4, 'Perception': 4, 'NTFD': 4}
+RUNS_SESXX = {'Production': 4, 'Perception': 6, 'NTFD': 4}
+
+_MISSING_DATA = None
+_REPORTED = set()
+
+
+def _task_parts(task):
+    """Split 'Visual Production' into ('visual', 'Production')."""
+    modality, _, name = task.partition(' ')
+    if name == 'No-Temporal Feature Discrimination':
+        name = 'NTFD'
+
+    return modality.lower(), name
+
+
+def _expected_runs(session, task_name):
+    """Runs expected for one behavioural session and task."""
+    if session == 'ses-01':
+        return RUNS_SES01.get(task_name)
+
+    return RUNS_SESXX.get(task_name)
+
+
+def load_missing_data():
+    """Read missing_data.tsv once and cache it.
+
+    Tab-separated, with the header:
+
+        subject  sesstype  session  task  modality  run  reason
+
+    'session' is the directory name on disk, 'task' is Production,
+    Perception or NTFD. Blank lines and lines starting with '#' are
+    ignored. A file that does not exist is treated as empty, so every
+    gap raises.
+    """
+    global _MISSING_DATA
+    if _MISSING_DATA is not None:
+        return _MISSING_DATA
+
+    _MISSING_DATA = {}
+    if not os.path.exists(MISSING_DATA_FILE):
+        print('No ' + MISSING_DATA_FILE + '; every absent run will raise.')
+        return _MISSING_DATA
+
+    with open(MISSING_DATA_FILE, newline='') as open_file:
+        rows = [r for r in csv.reader(open_file, delimiter='\t')]
+
+    header = None
+    for row in rows:
+        if not row or not row[0].strip() or row[0].lstrip().startswith('#'):
+            continue
+        if header is None:
+            header = [f.strip() for f in row]
+            continue
+        entry = dict(zip(header, [f.strip() for f in row]))
+        key = (int(entry['subject']), entry['sesstype'], entry['session'],
+               entry['task'], entry['modality'].lower())
+        _MISSING_DATA.setdefault(key, []).append(entry)
+
+    return _MISSING_DATA
+
+
+def check_runs(observed_runs, subject_no, sesstype, session, task):
+    """Stop unless the runs found on disk match what is expected.
+
+    Behavioural sessions only. Imaging sessions are left alone, since
+    their missing data is handled elsewhere.
+
+    ``observed_runs`` holds one entry per logfile found for this task,
+    labelled with the run number(s) it contains. The number of logfiles
+    is what gets compared, since run numbers are not unique per task and
+    modality in every batch. Runs declared in missing_data.tsv make up
+    the difference; anything left over raises MissingRunError.
+    """
+    if sesstype != 'behavioral_session':
+        return
+
+    modality, task_name = _task_parts(task)
+    expected = _expected_runs(session, task_name)
+    label = 'sub-%02d %s %s %s' % (subject_no, sesstype, session, task)
+
+    if expected is None:
+        if (session, task_name) not in _REPORTED:
+            _REPORTED.add((session, task_name))
+            print('    No expected run count for %s %s; check skipped.'
+                  % (session, task_name))
+        return
+
+    declared = load_missing_data().get(
+        (subject_no, sesstype, session, task_name, modality), [])
+    found = len(observed_runs)
+
+    if found - expected > 0:
+        print('    ' + label + ': found %d runs, expected %d. Check for '
+              'duplicate logfiles.' % (found, expected))
+        return
+
+    if expected - found > len(declared):
+        raise MissingRunError(
+            '%s: expected %d runs, found %d logfile(s) (runs %s). '
+            '%d declared in %s. '
+            'Add the absent run(s) there if this is known, or fix the '
+            'logfiles.'
+            % (label, expected, found,
+               ','.join(sorted(observed_runs)) or 'none',
+               len(declared), os.path.basename(MISSING_DATA_FILE)))
+
+    if declared:
+        print('    ' + label + ': found %d of %d, %d declared missing (%s).'
+              % (found, expected, len(declared),
+                 '; '.join(e['run'] + ': ' + e['reason'] for e in declared)))
+
+
 def extract_timestamp(filename):
     """Function to extract a timestamp from XPD and CSV filenames."""
     # Old XPD names use YYYYMMDDHHMM before the extension.
@@ -176,6 +303,7 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
 
             # Pick log files of selected task
             allruns = []
+            observed_runs = []
             for i, inputs_list in enumerate(inputs_lists, 1):
                 ttag = task + ' - ' + sesstype.replace('_', ' ')
                 if _is_selected_task(inputs_list, task, sesstype):
@@ -225,6 +353,15 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                                     assert trial[1] == '2'
                                     trial[1] = '5'
 
+                    # One logfile is one run. Run numbers are only kept
+                    # for the message: they are not unique per task and
+                    # modality in every batch, so they cannot be counted.
+                    runs_in_file = sorted({
+                        row[2] for row in trials_info
+                        if len(row) > 2 and row[0] == str(subject_no)})
+                    observed_runs.append(
+                        '/'.join(runs_in_file) if runs_in_file else '?')
+
                     if concatenate:
                         allruns.extend(trials_info)
                     else:
@@ -235,6 +372,8 @@ def parse_logfile(parent_dir, subject_no, sesstypes, task, n_trials,
                 if i == len(inputs_lists) and not allruns:
                     raise NameError(
                         'Log file for selected task does not exist!')
+
+            check_runs(observed_runs, subject_no, sesstype, session, task)
 
             if concatenate:
                 allsessions.extend(allruns)
