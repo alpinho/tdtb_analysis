@@ -35,7 +35,7 @@ def reliability_dataframe(
     """Build the inputs DataFrame, save it, and return it."""
 
     derivatives_dir = os.path.join(
-        base_dir, 'data', 'Cerebellum', 'music-sdtb', 'derivatives')
+        base_dir, 'data', 'Cerebellum', 'tdtb', 'derivatives')
 
     rows = []
     for subj in subjects:

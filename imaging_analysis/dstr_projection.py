@@ -677,7 +677,7 @@ FWHM = 5.15  # in mm
 #     'diedrichsen_data',
 #     'data',
 #     'Cerebellum',
-#     'music-sdtb',
+#     'tdtb',
 #     'derivatives'
 # )
 # group_folder = os.path.join(derivatives_folder, 'group')

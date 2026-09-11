@@ -1,6 +1,6 @@
 % List of folders containing SPM.mat files
 spm_dirs = {
-    '/cifs/diedrichsen/data/Cerebellum/music-sdtb/derivatives/sub-46/estimates/allmain_tasks/ffx_rwls_dbb_hrf128'
+    '/cifs/diedrichsen/data/Cerebellum/tdtb/derivatives/sub-46/estimates/allmain_tasks/ffx_rwls_dbb_hrf128'
     % Add more subject/session paths here
 };
 

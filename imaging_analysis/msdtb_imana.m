@@ -54,7 +54,7 @@ defaults.stats.maxmem = 16 * 1024^3;  % 16 GB in bytes
 
 global base_dir
 
-base_dir = sprintf('%s/Cerebellum/music-sdtb', workdir);
+base_dir = sprintf('%s/Cerebellum/tdtb', workdir);
 
 %%% Freesurfer stuff
 path1 = getenv('PATH');
@@ -1327,7 +1327,7 @@ switch what
                 '/home/analu/mygit/music_sdtb/tdtb_analysis/imaging_analysis/events');
         end
         destination = fullfile(workdir, ...
-            'Cerebellum/music-sdtb/derivatives');
+            'Cerebellum/tdtb/derivatives');
 
         if isempty(paradigm_type)
             suffix = paradigm_type;
