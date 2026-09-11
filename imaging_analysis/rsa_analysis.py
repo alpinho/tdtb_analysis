@@ -41,7 +41,7 @@ def rsa_dataframe(subjects, task_models, base_dir, cond_mapping, output_path,
     """Builds the inputs DataFrame, saves it, and returns it."""
 
     derivatives_dir = os.path.join(
-        base_dir, 'data', 'Cerebellum', 'music-sdtb', 'derivatives')
+        base_dir, 'data', 'Cerebellum', 'tdtb', 'derivatives')
 
     if glm_type == 'task_glm':
         filtered_models = [tm for tm in task_models if tm != 'allmain_tasks']

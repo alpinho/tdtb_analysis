@@ -375,7 +375,7 @@ if os.path.isdir('/home/analu/diedrichsen_data/data'):
 else:
     base_dir = '/cifs/diedrichsen/data'
 
-data_dir = os.path.join(base_dir, 'Cerebellum/music-sdtb/derivatives')
+data_dir = os.path.join(base_dir, 'Cerebellum/tdtb/derivatives')
 
 # Tasks dict
 # Note: this dictionary determines the order of the tasks in the 

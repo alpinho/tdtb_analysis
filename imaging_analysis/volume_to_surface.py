@@ -2048,7 +2048,7 @@ if os.path.isdir('/home/analu/diedrichsen_data/data'):
 else:
     base_dir = '/cifs/diedrichsen/data'
 
-music = os.path.join(base_dir, 'Cerebellum', 'music-sdtb')
+music = os.path.join(base_dir, 'Cerebellum', 'tdtb')
 derivatives_folder = os.path.join(music, 'derivatives')
 wb_gmask = os.path.join(derivatives_folder, 'group', 'anat',
                         'group_mask_noskull.nii')
