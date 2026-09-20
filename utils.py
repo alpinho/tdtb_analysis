@@ -278,6 +278,8 @@ def _is_selected_task(inputs_list, task, sesstype):
     xpd_task = task + ' - ' + sesstype_tag
     csv_task = _csv_task_label(task)
 
+    # Imaging logfiles list two tasks (one per modality), so every task line
+    # in the header must be checked, not only the first.
     for row in inputs_list[:12]:
         if not row:
             continue
@@ -285,7 +287,8 @@ def _is_selected_task(inputs_list, task, sesstype):
         line = row[0]
         if line.startswith('#e Task:'):
             task_label = line.split(':', 1)[1].strip()
-            return task_label in [xpd_task, csv_task]
+            if task_label in [xpd_task, csv_task]:
+                return True
 
     return False
 
