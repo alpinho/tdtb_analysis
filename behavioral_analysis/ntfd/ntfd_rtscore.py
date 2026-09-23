@@ -9,7 +9,11 @@ Group level, in <results>/rt_and_success/group/
     One value per subject and condition, obtained by averaging over
     trials and sessions. Conditions are compared with a paired t-test
     across subjects, and displayed as boxplots. This is the level that
-    carries the inference.
+    carries the inference, so the pairwise tests are corrected for
+    multiple comparisons with the Holm--Bonferroni procedure, by default
+    over the condition pairs of each modality (see the group-level
+    options). The annotated p-values are the corrected ones; both are
+    printed when the figures are produced.
 
 Individual level, in <results>/rt_and_success/individual/sub-<nn>/
     Single trials of one subject, treated as independent samples within
@@ -20,10 +24,11 @@ Individual level, in <results>/rt_and_success/individual/sub-<nn>/
     and near ceiling the conditions differ by so few errors that an
     exact test can only return a couple of distinct p-values.
 
-    These figures are descriptive. With a few tens of trials per
-    condition the individual tests have low power, so a non-significant
-    annotation is weak evidence rather than evidence of absence, and
-    the inference should be read off the group level.
+    These figures are descriptive, and their p-values are left
+    uncorrected. With a few tens of trials per condition the individual
+    tests have low power, so a non-significant annotation is weak
+    evidence rather than evidence of absence, and the inference should
+    be read off the group level.
 
 No trials are excluded other than by the dropna on 'reaction_time',
 which removes non-responses. No reaction-time window and no trimming
@@ -609,6 +614,72 @@ def pairwise_pvalues(arrays, test_fn):
         for i, j in itertools.combinations(range(len(arrays)), 2)]
 
 
+def holm_adjust(pvalues):
+    """Holm--Bonferroni step-down adjustment of a list of p-values.
+
+    Returns adjusted p-values in the input order, so that comparing them
+    with alpha controls the family-wise error rate at alpha. NaNs, which
+    mark comparisons that could not be tested, are left untouched and do
+    not count towards the size of the family.
+    """
+    raw = np.asarray(pvalues, dtype=float)
+    adjusted = np.full(raw.shape, np.nan)
+
+    positions = np.flatnonzero(np.isfinite(raw))
+    n_tests = positions.size
+    if n_tests == 0:
+        return adjusted.tolist()
+
+    order = positions[np.argsort(raw[positions], kind='stable')]
+    running = 0.
+    for rank, position in enumerate(order):
+        running = max(running, (n_tests - rank) * raw[position])
+        adjusted[position] = min(running, 1.)
+
+    return adjusted.tolist()
+
+
+def correct_group_pvalues(pvalues_audio, pvalues_visual):
+    """Correct the pairwise p-values of one group figure.
+
+    The family is set by ``GROUP_CORRECTION_SCOPE``: 'modality' corrects
+    the condition pairs of each panel separately, 'figure' corrects the
+    two panels together. ``GROUP_PVALUE_CORRECTION`` set to None returns
+    the uncorrected values.
+    """
+    if GROUP_PVALUE_CORRECTION is None:
+        return list(pvalues_audio), list(pvalues_visual)
+
+    if GROUP_PVALUE_CORRECTION != 'holm':
+        raise ValueError(
+            "GROUP_PVALUE_CORRECTION must be 'holm' or None.")
+
+    if GROUP_CORRECTION_SCOPE == 'modality':
+        return holm_adjust(pvalues_audio), holm_adjust(pvalues_visual)
+
+    if GROUP_CORRECTION_SCOPE == 'figure':
+        n_audio = len(pvalues_audio)
+        adjusted = holm_adjust(list(pvalues_audio) + list(pvalues_visual))
+        return adjusted[:n_audio], adjusted[n_audio:]
+
+    raise ValueError(
+        "GROUP_CORRECTION_SCOPE must be 'modality' or 'figure'.")
+
+
+def report_group_pvalues(measure, condition_labels, raw_audio, adj_audio,
+                         raw_visual, adj_visual):
+    """Print the uncorrected and corrected p-values of one group figure."""
+    pairs = list(itertools.combinations(condition_labels, 2))
+    for modality, raw, adjusted in (('auditory', raw_audio, adj_audio),
+                                    ('visual', raw_visual, adj_visual)):
+        for (label_a, label_b), p_raw, p_adj in zip(pairs, raw, adjusted):
+            print(
+                '  %s, %s, %s vs %s: p = %s, corrected p = %s'
+                % (measure, modality, label_a, label_b,
+                   'nan' if not np.isfinite(p_raw) else '%.4f' % p_raw,
+                   'nan' if not np.isfinite(p_adj) else '%.4f' % p_adj))
+
+
 def has_random_condition(df):
     """Return True when random trials exist for both modalities."""
     random_df = df[df['condition'] == 'random']
@@ -657,10 +728,21 @@ def make_group_plots(df_trials, key, value, output_dir,
             f'found auditory={n_audio}, visual={n_visual}.')
         return
 
-    pvals_rt_audio = pairwise_pvalues(rt_audio_arrays, paired_pvalue)
-    pvals_rt_visual = pairwise_pvalues(rt_visual_arrays, paired_pvalue)
-    pvals_score_audio = pairwise_pvalues(score_audio_arrays, paired_pvalue)
-    pvals_score_visual = pairwise_pvalues(score_visual_arrays, paired_pvalue)
+    raw_rt_audio = pairwise_pvalues(rt_audio_arrays, paired_pvalue)
+    raw_rt_visual = pairwise_pvalues(rt_visual_arrays, paired_pvalue)
+    raw_score_audio = pairwise_pvalues(score_audio_arrays, paired_pvalue)
+    raw_score_visual = pairwise_pvalues(score_visual_arrays, paired_pvalue)
+
+    pvals_rt_audio, pvals_rt_visual = correct_group_pvalues(
+        raw_rt_audio, raw_rt_visual)
+    pvals_score_audio, pvals_score_visual = correct_group_pvalues(
+        raw_score_audio, raw_score_visual)
+
+    report_group_pvalues('reaction time', labels, raw_rt_audio,
+                         pvals_rt_audio, raw_rt_visual, pvals_rt_visual)
+    report_group_pvalues('success rate', labels, raw_score_audio,
+                         pvals_score_audio, raw_score_visual,
+                         pvals_score_visual)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -961,9 +1043,9 @@ button_press = 20
 
 # Keep this list explicit so each batch can be run one at a time
 # by commenting out any entry if needed.
-# BATCHES_TO_RUN = ['first', 'second', 'third']
+BATCHES_TO_RUN = ['first', 'second', 'third']
 # BATCHES_TO_RUN = ['second', 'third']
-BATCHES_TO_RUN = ['second']
+# BATCHES_TO_RUN = ['second']
 # BATCHES_TO_RUN = ['third']
 
 batch_dic = {
@@ -1002,6 +1084,19 @@ HIDE_NON_SIGNIFICANT = False
 # Draw the figure title above each panel pair. Kept False to reproduce
 # the previous output, where the title was computed but never rendered.
 SHOW_FIGURE_TITLE = False
+
+# #### Group-level options ####
+
+# Multiple-comparison correction of the pairwise tests shown in the
+# group figures: 'holm' for the Holm--Bonferroni step-down procedure, as
+# used throughout the project, or None to display uncorrected p-values.
+GROUP_PVALUE_CORRECTION = 'holm'
+
+# Family over which the correction is applied: 'modality' for the
+# condition pairs of each panel, i.e. one comparison when only Beat and
+# Interval are present and three when Random is added, or 'figure' for
+# the auditory and visual panels together.
+GROUP_CORRECTION_SCOPE = 'modality'
 
 # #### Individual-level options ####
 

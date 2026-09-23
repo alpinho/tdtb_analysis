@@ -402,8 +402,8 @@ batch_dic = {
 # BATCHES_TO_RUN = ['first', 'second', 'third']
 # BATCHES_TO_RUN = ['first', 'second']
 # BATCHES_TO_RUN = ['second', 'third']
-BATCHES_TO_RUN = ['second']
-# BATCHES_TO_RUN = ['third']
+# BATCHES_TO_RUN = ['second']
+BATCHES_TO_RUN = ['third']
 
 # Latency input types to generate per batch: ['latency_corrected'],
 # ['uncorrected'], or both.
