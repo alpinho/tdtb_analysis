@@ -12,8 +12,10 @@ and writes, in results/:
     learning.tsv            Session x Condition RM ANOVA per cohort, task and
                             modality, on participants complete for the
                             sessions listed, plus the per-session effects
-    retest.tsv              test-retest correlation of the per-participant
-                            effect between pairs of sessions
+    retest.tsv              test-retest correlation between pairs of
+                            sessions of the per-participant effect
+                            (Interval - Beat) and of their level (the mean
+                            of the two conditions)
     cohort_comparison.tsv   Explicit (third batch) vs implicit cohorts:
                             Welch test of the Cohort x Condition interaction
                             with Cohen's d and BF01, as in cross_cohort_
@@ -309,24 +311,30 @@ def retest(ses):
             for mod in MODALITIES:
                 d = d0[(d0['task'] == task) & (d0['modality'] == mod)]
                 d = d.dropna(subset=['value'])
-                eff = (d.pivot_table(index=['subject', 'session'],
-                                     columns='condition', values='value')
-                       .dropna())
-                eff = (eff['interval'] - eff['beat']).unstack('session')
-                for s1, s2 in SESSION_PAIRS:
-                    if s1 not in eff or s2 not in eff:
-                        continue
-                    pair = eff[[s1, s2]].dropna()
-                    if len(pair) < 5:
-                        continue
-                    r, p = stats.pearsonr(pair[s1], pair[s2])
-                    icc = pg.intraclass_corr(
-                        data=pair.stack().rename('v').reset_index(),
-                        targets='subject', raters='session', ratings='v')
-                    icc = icc.set_index('Type').loc['ICC3', 'ICC']
-                    rows.append(dict(cohort=cohort, task=task, modality=mod,
-                                     sessions=f'{s1}-{s2}', n=len(pair),
-                                     r=r, p=p, icc3=icc))
+                wide = (d.pivot_table(index=['subject', 'session'],
+                                      columns='condition', values='value')
+                        .dropna())
+                measures = {
+                    'effect': wide['interval'] - wide['beat'],
+                    'level': (wide['interval'] + wide['beat']) / 2,
+                }
+                for measure, series in measures.items():
+                    eff = series.unstack('session')
+                    for s1, s2 in SESSION_PAIRS:
+                        if s1 not in eff or s2 not in eff:
+                            continue
+                        pair = eff[[s1, s2]].dropna()
+                        if len(pair) < 5:
+                            continue
+                        r, p = stats.pearsonr(pair[s1], pair[s2])
+                        icc = pg.intraclass_corr(
+                            data=pair.stack().rename('v').reset_index(),
+                            targets='subject', raters='session', ratings='v')
+                        icc = icc.set_index('Type').loc['ICC3', 'ICC']
+                        rows.append(dict(cohort=cohort, task=task,
+                                         modality=mod, measure=measure,
+                                         sessions=f'{s1}-{s2}', n=len(pair),
+                                         r=r, p=p, icc3=icc))
     return pd.DataFrame(rows)
 
 

@@ -763,8 +763,8 @@ batch_dic = {
 # BATCHES_TO_RUN = ['first', 'second', 'third']
 # BATCHES_TO_RUN = ['first', 'second']
 # BATCHES_TO_RUN = ['second', 'third']
-BATCHES_TO_RUN = ['second']
-# BATCHES_TO_RUN = ['third']
+# BATCHES_TO_RUN = ['second']
+BATCHES_TO_RUN = ['third']
 
 # INPUT_TYPES_TO_RUN = ['latency_corrected', 'uncorrected']
 INPUT_TYPES_TO_RUN = ['uncorrected']
