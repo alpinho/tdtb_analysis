@@ -148,7 +148,7 @@ GOOD_SB_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 60, 61,
                     62, 63, 76]
 
 # Second Session completed
-SB2_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63]
+SB2_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63, 76]
 
 # *********************** Third Batch *********************************
 # Psychopy / Explicit
@@ -184,7 +184,7 @@ N_TRIALS = 30
 #   'allses'   -- all behavioural and imaging sessions together (1-5).
 #   'behavses' -- all behavioural sessions (1-3).
 #   'imgses'   -- all imaging sessions (4-5).
-#   'ses-01'   -- behavioural session 1.
+#   'ses-01'   -- behavioural session 1.B
 #   'ses-02'   -- behavioural session 2.
 #   'ses-03'   -- behavioural session 3.
 #   'ses-04'   -- imaging session 1 (logfile 'ses-01'), output session 4.
@@ -249,8 +249,8 @@ batch_dic = {
 # Batches to generate: ['first'], ['second'], or ['first', 'second'].
 # BATCHES_TO_RUN = ['first', 'second']
 # BATCHES_TO_RUN = ['second', 'third']
-# BATCHES_TO_RUN = ['second']
-BATCHES_TO_RUN = ['third']
+BATCHES_TO_RUN = ['second']
+# BATCHES_TO_RUN = ['third']
 
 # Session aggregations to generate. Set to None to run every tag available
 # for each batch, or list a subset, e.g. ['imgses'] or ['allses', 'imgses'].
