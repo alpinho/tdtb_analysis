@@ -6,14 +6,16 @@ present) random conditions, separately for the auditory and the visual
 modality, at two levels of analysis.
 
 Group level, in <results>/rt_and_success/group/
-    One value per subject and condition, obtained by averaging over
-    trials and sessions. Conditions are compared with a paired t-test
-    across subjects, and displayed as boxplots. This is the level that
-    carries the inference, so the pairwise tests are corrected for
-    multiple comparisons with the Holm--Bonferroni procedure, by default
-    over the condition pairs of each modality (see the group-level
-    options). The annotated p-values are the corrected ones; both are
-    printed when the figures are produced.
+    One value per subject and condition, obtained by averaging trials
+    within each Standard, then the Standards of a run, the runs of a
+    session, and finally the sessions.
+    Conditions are compared with a paired t-test across subjects, and
+    displayed as boxplots. This is the level that carries the inference,
+    so the pairwise tests are corrected for multiple comparisons with
+    the Holm--Bonferroni procedure, by default over the condition pairs
+    of each modality (see the group-level options). The annotated
+    p-values are the corrected ones; both are printed when the figures
+    are produced.
 
 Individual level, in <results>/rt_and_success/individual/sub-<nn>/
     Single trials of one subject, treated as independent samples within
@@ -67,11 +69,25 @@ from statannotations.Annotator import Annotator
 # ======================== MAIN FUNCTIONS ==============================
 
 def ffx_dvar(df):
-    # Fixed Effects within subjects, averaged across subjects
-    df_ffx = df.drop(['session'], axis=1)
-    df_ffx = df_ffx.groupby([
-        'condition', 'modality', 'subject']).mean(
-            numeric_only=True).reset_index()
+    """Fixed Effects within subjects, averaged across subjects.
+
+    Trials are collapsed from the inside out: within each Standard of a
+    run, then across the Standards of that run, then across the runs of
+    a session, then across sessions. Each level is averaged with equal
+    weight, so that a participant's condition mean cannot be shifted by
+    an uneven number of valid trials across Standards, runs or sessions
+    -- which matters because reaction times change with practice and the
+    number of completed runs and sessions differs between participants.
+    The per-Standard step also matches the aggregation used for the
+    Production and Perception tasks, where the per-Standard estimate is
+    the unit of analysis.
+    """
+    keys = ['condition', 'modality', 'subject']
+    df_ffx = df.groupby(keys + ['session', 'run', 'standard']).mean(
+        numeric_only=True)
+    df_ffx = df_ffx.groupby(keys + ['session', 'run']).mean()
+    df_ffx = df_ffx.groupby(keys + ['session']).mean()
+    df_ffx = df_ffx.groupby(keys).mean().reset_index()
 
     return df_ffx
 
