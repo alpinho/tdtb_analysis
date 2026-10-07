@@ -6,7 +6,7 @@ author: Ana Luisa Pinho
 e-mail: agrilopi@uwo.ca
 
 Created: May 4, 2024
-Last update: September 2026
+Last update: October 2026
 
 Compatibility: Python 3.10.14
 """
@@ -242,7 +242,7 @@ ALL_TB_SUBJECTS = [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75]
 GOOD_TB_SUBJECTS = [64, 65, 66, 67, 68, 70, 71, 72, 73, 74, 75]
 
 # Second Session completed
-TB2_SUBJECTS = [65, 66, 68, 71, 72, 73, 75]
+TB2_SUBJECTS = [64, 65, 66, 68, 71, 72, 73, 75]
 
 # ##################### Trial counts ###################################
 # Total number of trials per run
@@ -339,8 +339,8 @@ batch_dic = {
 # Batches to generate: ['first'], ['second'], or ['first', 'second'].
 # BATCHES_TO_RUN = ['first', 'second']
 # BATCHES_TO_RUN = ['second', 'third']
-BATCHES_TO_RUN = ['second']
-# BATCHES_TO_RUN = ['third']
+# BATCHES_TO_RUN = ['second']
+BATCHES_TO_RUN = ['third']
 
 # Session aggregations to generate. Set to None to run every tag available
 # for each batch, or list a subset, e.g. ['imgses'] or ['allses', 'imgses'].
