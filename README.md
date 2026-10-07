@@ -69,6 +69,7 @@ the top of each script.
 
 The data themselves are not distributed in this repository.
 
-## Author
+## Authors
 
 - Ana Luísa Pinho, 2021 - present
+- Anmar Alsibaie, 2026 - present
