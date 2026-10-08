@@ -1,0 +1,11 @@
+# Runs known to be absent from the logfiles.
+# Anything missing and not listed here stops the parser scripts.
+#
+#   subject   integer, no 'sub-' prefix
+#   sesstype  behavioral_session (imaging sessions are not checked here)
+#   session   directory name on disk (ses-01, ses-02, ...)
+#   task      Production, Perception or NTFD
+#   modality  auditory or visual
+#   run       run number as it appears in the logfiles
+subject	sesstype	session	task	modality	run
+71	behavioral_session	ses-02	Production	visual	4

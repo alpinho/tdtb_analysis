@@ -46,26 +46,14 @@ def _expected_runs(session, task_name):
     return RUNS_SESXX.get(task_name)
 
 
-def _split_row(line, ncols=None):
-    """Split a registry line on tabs, falling back to whitespace.
+def _split_row(line):
+    """Split a registry line into fields.
 
     Rows are meant to be tab-separated, but a row typed or aligned with
-    spaces should not break the pipeline. When the tab split does not
-    yield enough fields, the line is split on whitespace instead,
-    keeping everything after the first ncols - 1 fields as the reason,
-    which is the only field allowed to contain spaces.
+    spaces should not break the pipeline. No field contains spaces, so
+    the line is split on any whitespace.
     """
-    fields = [f.strip() for f in line.rstrip('\n').split('\t')]
-    fields = [f for f in fields if f]
-
-    if ncols is not None and len(fields) >= ncols:
-        return fields
-    if ncols is None and len(fields) > 1:
-        return fields
-
-    maxsplit = (ncols - 1) if ncols is not None else -1
-
-    return [f.strip() for f in line.split(None, maxsplit) if f.strip()]
+    return line.split()
 
 
 def load_missing_data():
@@ -73,7 +61,7 @@ def load_missing_data():
 
     Tab-separated, with the header:
 
-        subject  sesstype  session  task  modality  run  reason
+        subject  sesstype  session  task  modality  run
 
     'session' is the directory name on disk, 'task' is Production,
     Perception or NTFD. Blank lines and lines starting with '#' are
@@ -101,14 +89,13 @@ def load_missing_data():
             header = _split_row(line)
             continue
 
-        fields = _split_row(line, len(header))
-        if len(fields) < len(header) - 1:
+        fields = _split_row(line)
+        if len(fields) != len(header):
             raise ValueError(
                 'Line %d of %s has %d field(s), expected %d: %r'
                 % (lineno, MISSING_DATA_FILE, len(fields), len(header),
                    line.strip()))
 
-        fields += [''] * (len(header) - len(fields))
         entry = dict(zip(header, fields))
         key = (int(entry['subject']), entry['sesstype'], entry['session'],
                entry['task'], entry['modality'].lower())
@@ -163,9 +150,10 @@ def check_runs(observed_runs, subject_no, sesstype, session, task):
                len(declared), os.path.basename(MISSING_DATA_FILE)))
 
     if declared:
-        print('    ' + label + ': found %d of %d, %d declared missing (%s).'
+        print('    ' + label + ': found %d of %d, %d declared missing '
+              '(run %s).'
               % (found, expected, len(declared),
-                 '; '.join(e['run'] + ': ' + e['reason'] for e in declared)))
+                 ', '.join(e['run'] for e in declared)))
 
 
 def extract_timestamp(filename):

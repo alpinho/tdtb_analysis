@@ -25,6 +25,8 @@ __pycache__/
 # Vscode
 .vscode/
 
-
 # mac-specific files
 .DS_store
+
+# Inputs of the analysis, not results
+!missing_data.tsv
