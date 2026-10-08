@@ -45,7 +45,7 @@ from subject_lists import (ALL_SUBJECTS, BEHAV_SUBJECTS,  # noqa: E402
 # your copy of that folder is elsewhere.
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           'goldmsi_scores')
-INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_private/forms')
+INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_admin/tdtb_private/forms')
 
 # One output table per group of subjects (written to OUTPUT_DIR)
 GROUPS = {'goldmsi_scores_all_fb': ALL_SUBJECTS,              # first batch

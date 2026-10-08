@@ -44,7 +44,7 @@ from subject_lists import (BEHAV_SUBJECTS, IMG_SUBJECTS,  # noqa: E402
 # your copy of that folder is elsewhere.
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           'postses_results')
-INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_private/forms')
+INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_admin/tdtb_private/forms')
 
 # Sessions of each kind: behavioral sessions 1-3 and imaging sessions 1-2
 BEHAV_SESSIONS = ['behav_ses-01', 'behav_ses-02', 'behav_ses-03']
