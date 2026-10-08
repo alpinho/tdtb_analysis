@@ -15,8 +15,8 @@ import sys
 
 import pandas as pd
 
-# The subject lists are in the parent folder (questionnaires)
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# The subject lists are in the same folder as this script
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from subject_lists import (ALL_SUBJECTS, BEHAV_SUBJECTS,  # noqa: E402
                            IMG_SUBJECTS, GOOD_SB_SUBJECTS,
                            GOOD_TB_SUBJECTS)
@@ -24,16 +24,18 @@ from subject_lists import (ALL_SUBJECTS, BEHAV_SUBJECTS,  # noqa: E402
 # %%
 # =========================== INPUTS ===================================
 # Subject lists per batch are shared with the other questionnaire
-# scripts, in ../subject_lists.py
+# scripts, in subject_lists.py
 
-# Outputs are written next to this script. The curated sheets (sub-XX
-# folders) contain participant data and are kept outside the
-# repository, in the private OneDrive folder of the project; change
-# INPUT_DIR if your copy of that folder is elsewhere.
-OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Outputs are written to the demographic_data folder, next to this
+# script (created if missing). The curated sheets (sub-XX folders)
+# contain participant data and are kept outside the repository, in
+# the private OneDrive folder of the project; change INPUT_DIR if
+# your copy of that folder is elsewhere.
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          'demographic_data')
 INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_private/forms')
 
-# One output table per group of subjects (written next to this script)
+# One output table per group of subjects (written to OUTPUT_DIR)
 GROUPS = {'all_subjects_fb': ALL_SUBJECTS,                # first batch
           'behavioral_subjects_fb': BEHAV_SUBJECTS,       # first batch
           'imaging_subjects_fb': IMG_SUBJECTS,            # first batch
@@ -116,6 +118,8 @@ def summarize_group(df):
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     for output_fname, subjects in GROUPS.items():
         df = extract_group(subjects)
         output_path = os.path.join(OUTPUT_DIR, output_fname + '.tsv')

@@ -27,8 +27,8 @@ import sys
 
 import pandas as pd
 
-# The subject lists are in the parent folder (questionnaires)
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# The subject lists are in the same folder as this script
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from subject_lists import (ALL_SUBJECTS, BEHAV_SUBJECTS,  # noqa: E402
                            IMG_SUBJECTS, GOOD_SB_SUBJECTS,
                            GOOD_TB_SUBJECTS)
@@ -36,16 +36,18 @@ from subject_lists import (ALL_SUBJECTS, BEHAV_SUBJECTS,  # noqa: E402
 # %%
 # =========================== INPUTS ===================================
 # Subject lists per batch are shared with the other questionnaire
-# scripts, in ../subject_lists.py
+# scripts, in subject_lists.py
 
-# Outputs are written next to this script. The curated sheets (sub-XX
-# folders) contain participant data and are kept outside the
-# repository, in the private OneDrive folder of the project; change
-# INPUT_DIR if your copy of that folder is elsewhere.
-OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Outputs are written to the goldmsi_scores folder, next to this
+# script (created if missing). The curated sheets (sub-XX folders)
+# contain participant data and are kept outside the repository, in
+# the private OneDrive folder of the project; change INPUT_DIR if
+# your copy of that folder is elsewhere.
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          'goldmsi_scores')
 INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_private/forms')
 
-# One output table per group of subjects (written next to this script)
+# One output table per group of subjects (written to OUTPUT_DIR)
 GROUPS = {'goldmsi_scores_all_fb': ALL_SUBJECTS,              # first batch
           'goldmsi_scores_behavioral_fb': BEHAV_SUBJECTS,     # first batch
           'goldmsi_scores_imaging_fb': IMG_SUBJECTS,          # first batch
@@ -215,7 +217,7 @@ def check_public(df):
 
 
 def save(df, fname, public=True):
-    """Save a table next to this script."""
+    """Save a table in OUTPUT_DIR."""
     if public:
         check_public(df)
     output_path = os.path.join(OUTPUT_DIR, fname + '.tsv')
@@ -229,6 +231,8 @@ def save(df, fname, public=True):
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     for fname, subjects in GROUPS.items():
         _, scores_df = score_group(subjects)
         save(scores_df, fname)

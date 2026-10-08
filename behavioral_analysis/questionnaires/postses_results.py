@@ -27,21 +27,23 @@ import sys
 
 import pandas as pd
 
-# The subject lists are in the parent folder (questionnaires)
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# The subject lists are in the same folder as this script
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from subject_lists import (BEHAV_SUBJECTS, IMG_SUBJECTS,  # noqa: E402
                            GOOD_SB_SUBJECTS, GOOD_TB_SUBJECTS)
 
 # %%
 # =========================== INPUTS ===================================
 # Subject lists per batch are shared with the other questionnaire
-# scripts, in ../subject_lists.py
+# scripts, in subject_lists.py
 
-# Outputs are written next to this script. The curated sheets (sub-XX
-# folders) contain participant data and are kept outside the
-# repository, in the private OneDrive folder of the project; change
-# INPUT_DIR if your copy of that folder is elsewhere.
-OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Outputs are written to the postses_results folder, next to this
+# script (created if missing). The curated sheets (sub-XX folders)
+# contain participant data and are kept outside the repository, in
+# the private OneDrive folder of the project; change INPUT_DIR if
+# your copy of that folder is elsewhere.
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          'postses_results')
 INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_private/forms')
 
 # Sessions of each kind: behavioral sessions 1-3 and imaging sessions 1-2
@@ -51,7 +53,7 @@ IMG_SESSIONS = ['mri_ses-01', 'mri_ses-02']
 # Per batch, one output table for the behavioral sessions, one for the
 # imaging sessions and one for all sessions; batches without imaging
 # sessions only have the first. Each table is (subjects, sessions) and is
-# written next to this script.
+# written to OUTPUT_DIR.
 GROUPS = {
     # First batch
     'postses_results_behavioral_sessions_fb': (BEHAV_SUBJECTS,
@@ -245,7 +247,7 @@ def extract_group(subjects, sessions):
 
 
 def save(df, fname):
-    """Save a table next to this script."""
+    """Save a table in OUTPUT_DIR."""
     output_path = os.path.join(OUTPUT_DIR, fname + '.tsv')
     df.to_csv(output_path, sep='\t', index=False, na_rep=MISSING)
     print('Saved %s (%d subjects, %d sessions, %d corrected answers)'
@@ -257,6 +259,8 @@ def save(df, fname):
 # ============================ RUN =====================================
 
 if __name__ == "__main__":
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     check_reversed_scales()
 
     for fname, (subjects, sessions) in GROUPS.items():
