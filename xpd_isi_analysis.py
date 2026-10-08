@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -18,8 +17,9 @@ group with columns:
   subject, session, block, file, theoretical, real, diff
 
 Usage example:
+  zip -r logfiles.zip logfiles -x 'logfiles/sub-04/*'
   python xpd_isi_analysis.py \\
-    --zip /path/to/logfiles_filtered.zip \\
+    --zip /path/to/logfiles.zip \\
     --out out_dir \\
     --imaging-only \\
     --group "fast:367,404,408,449,450,468,490" \\
@@ -30,6 +30,9 @@ Notes
 * Lines are expected to be comma-separated like:
     47,2,3,2,interval03,interval_1,370425,482,561,561,-,-
   where columns -4 and -3 are theoretical and real ISI.
+* sub-04 is excluded from the archive above: it is the imaging pilot
+  and is not part of IMG_SUBJECTS, but it does have imaging_sessions/
+  data that --imaging-only would otherwise pick up.
 * Rows that cannot be parsed are skipped.
 * All statistics are in milliseconds.
 """
