@@ -4,8 +4,8 @@ imaging sessions) and correct the answers given on a reversed scale.
 
 Questions 1-6 are answered on a 1-6 scale. Some participants answered
 some questions as if the scale were reversed (the evidence is in
-suspected_reversed_scales.tsv, at the top of the private folder of the
-project, tdtb_private). The answers listed
+postsess_suspected_reversed_scales.tsv, at the top of the private folder
+of the project, ~/OneDrive/tdtb_admin/tdtb_private). The answers listed
 in REVERSED_SCALES are recoded as 7 - answer; each entry lists one or
 more questions of a session. To stop or start correcting answers, edit
 REVERSED_SCALES.
@@ -112,7 +112,7 @@ SCALE_MAX = 6
 # Each line is one session: comment it out to keep the answers as given,
 # remove a question from it to keep only that answer as given, or add a
 # line to correct other answers. The likelihood comes from
-# suspected_reversed_scales.tsv (private folder); "possible" cases
+# postsess_suspected_reversed_scales.tsv (private folder); "possible" cases
 # are listed but commented out.
 REVERSED_SCALES = [
     # (4, 'behav_ses-01', 'Q6'),             # possible (single item)
