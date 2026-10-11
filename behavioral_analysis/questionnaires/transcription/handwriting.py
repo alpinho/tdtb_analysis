@@ -29,6 +29,10 @@ NUM_CTX = 4096
 # rows and MAX_HEIGHT pixels (before reduction by SHEET_SCALE) per call
 MAX_ROWS = 12
 MAX_HEIGHT = 1400
+# Large free-text areas (post-session strategy and comments) are read one
+# at a time: read together, the model put the text of one in both (in 25
+# of the 99 curated forms where both had writing)
+ALONE_AREA = 25000      # square points
 SHEET_SCALE = 0.6
 
 # A short prompt: long prompts (e.g. with the question text) are slower
@@ -108,6 +112,10 @@ class Reader:
         out, chunk, height = [None] * len(items), [], 0
         chunks = []
         for k, (img, fl) in enumerate(items):
+            r = fl.rect
+            if r and (r[2] - r[0]) * (r[3] - r[1]) >= ALONE_AREA:
+                chunks.append([k])
+                continue
             if chunk and (len(chunk) == MAX_ROWS
                           or height + img.shape[0] > MAX_HEIGHT):
                 chunks.append(chunk)

@@ -50,7 +50,8 @@ Run from `behavioral_analysis/questionnaires/`, in the
 2. **Review.** Open `review_sub-78.pdf` next to the paper forms. Each
    answer is shown next to the part of the scan it was read from, with the
    chosen option framed in green. **Orange rows** must be checked: unclear
-   marks, and all handwriting (the model can misread). Compare the answer
+   marks, and all handwriting (the model can misread). Green rows were
+   read from clear marks; **grey rows** are empty (`n/a`). Compare the answer
    of every orange row with its crop, not only that the row is orange
    (e.g. a date with day and month swapped is only seen this way). Correct
    the answers
@@ -83,9 +84,15 @@ Run from `behavioral_analysis/questionnaires/`, in the
    more that are not yet recorded in
    `postsess_suspected_reversed_scales.tsv`; it also prints how its
    ratings compare with the ratings given by hand.
-   Record the assessment there, and its outcome in `REVERSED_SCALES` of
-   `postses_results.py`. The sheets always keep the answers as written on
-   the paper (a crossed-out answer is not an answer).
+   It also adds a row `to assess` for each new session to
+   `postsess_suspected_reversed_scales.tsv`, with its rating and reasons.
+   After the assessment on paper, complete that row (status `verified on
+   paper`, likelihood, evidence), then run the screen again: it adds the session to `REVERSED_SCALES` of
+   `postses_results.py`, active if rated likely or very likely, commented
+   out if possible, and warns if an entry already listed disagrees with
+   the assessment. Then run `postses_results.py`. The sheets always keep
+   the answers as written on the paper (a crossed-out answer is not an
+   answer).
 
 5. Add the subject to `subject_lists.py` (and the lists of the other
    behavioral scripts) as usual.
@@ -114,10 +121,15 @@ Run from `behavioral_analysis/questionnaires/`, in the
   or when a second option also has a clear mark (`one may be crossed
   out`: a crossed-out answer has more ink than a circle; it is not an
   answer). On Gold-MSI pages 2-4 the whole table cell of an option
-  counts, as some participants tick the middle of the cell.
+  counts, as some participants tick the middle of the cell. On the
+  Gold-MSI lists (pages 6-7), a tick goes to the box nearest its tip, as
+  its long stroke often rises towards the box above.
 - **Handwriting:** strokes centred outside an answer area (e.g. a circle
   around the answer of the question above) are ignored. An area with no
-  handwriting gives `n/a`, marked `ok`.
+  handwriting gives `n/a`, marked `ok` (grey), unless there is ink
+  around it (`written outside?`, marked `check`, with a wider cut-out):
+  on the curated scans this caught 11 of the 15 answers written outside
+  their area, for 14 truly empty areas marked `check`.
 - **Dates** are `DD/MM/YYYY`. The model sometimes swaps day and month: a
   date that matches another form's date only when swapped is swapped
   back (and marked `check`), and a date whose day and month could be
@@ -125,8 +137,19 @@ Run from `behavioral_analysis/questionnaires/`, in the
 - **Gold-MSI pages 2-4 look alike.** A page whose identity is uncertain
   is taken as the one page missing from the form (`page identified by
   elimination`; its answers are marked `check`).
-- **School level** (demographic form): if several boxes are ticked, the
-  highest level is kept and the row is marked `check`.
+- **School level** (demographic form) and **education attained**
+  (Gold-MSI): if several boxes are ticked, the highest level obtained is
+  kept ("still in education" is not a level) and the row is marked
+  `check`. On the Gold-MSI, a light second tick counts too.
+- **Strategies** (post-session form): "No" with a strategy described
+  below becomes "Yes" (marked `check`), unless the description only says
+  there was none.
+- The handwriting model sometimes talks instead of reading
+  ("Transcription of ...", "I am sorry, I cannot ...") or reads "N/A" as
+  "N/15"; a single stroke in a free-text area is usually a line drawn to
+  leave it blank. These give `n/a`, marked `check` (`handwriting found
+  but not read`). The strategy and comment areas of the post-session form
+  are read one at a time (read together, the model mixed them up).
 - Unidentified pages and missing pages are listed at the top of the
   review PDF.
 
@@ -173,6 +196,11 @@ answer and status (`ok`/`check`), the questions that disagree most, and
 the reversed-scale ratings (from the drafts and from the sheets) against
 the ratings given by hand. The answers that matter most are those marked
 `ok` that disagree with the sheet: the review does not catch them.
+
+Result (October 2026, 74 participants, 8,658 answers): 1.0% of the
+answers were marked `ok` but differ from the sheet (a quarter of them the
+Gold-MSI date, which `finalize` copies from the reviewed demographic
+date); 34% were marked `check`.
 
 To run it unattended:
 

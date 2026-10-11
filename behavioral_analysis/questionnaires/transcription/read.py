@@ -47,6 +47,13 @@ SECOND = 0.5
 MIN_STROKE = 15
 # Added ink pixels in a handwriting area below which it is empty
 MIN_TEXT_PIXELS = 80
+# An empty handwriting area with at least RING_INK added ink pixels
+# around it (within RING points, outside every answer area of the page)
+# is marked check: the answer may be written outside the area. (On the
+# curated scans: 11 of the 15 empty areas whose sheet has an answer, and
+# 14 of the 188 truly empty ones.)
+RING = 40
+RING_INK = 500
 
 # Gold-MSI pages are printed sideways; text is turned upright before it
 # is read
@@ -58,6 +65,32 @@ SCHOOL_RANK = ['Elementary School', 'Less than Grade 12',
                'Some university undergraduate schooling',
                'College Degree (2 years)', "Bachelor's degree",
                'Postgraduate degree']
+# Gold-MSI education attained: the same rule ("still in education" is not
+# a level); a light tick also counts there (on the curated scans, both
+# double ticks had a second tick of 30-50 pixels, against 113-124 for the
+# first)
+GOLD_RANK = ['I am still in education',
+             'Did not complete any school qualification',
+             'Completed first school qualification at about 16 years',
+             'Completed Second qualification',
+             'Undergraduate degree or professional qualification',
+             'Postgraduate degree']
+RANKS = {'What level did you attain': SCHOOL_RANK,
+         'What is the highest educational qualification': GOLD_RANK}
+# Post-session strategy: a description overrules a "No" (answer Yes),
+# unless it only says there was none
+STRATEGY = ('Did you use/develop any specific strategies',
+            'If yes, please describe briefly')
+# The model talking instead of transcribing ("Transcription of ...",
+# "I am sorry, I cannot ...": 56 answers on the curated scans where the
+# sheet has n/a, 1 where it has text) and "N/A" misread as "N/15" (43,
+# all n/a): not read, marked check
+MODEL_TALK = re.compile(r"transcri\w*|please provide|i'?m sorry|i am sorry|"
+                        r"(can'?t|cannot|could not|unable to) "
+                        r"(help|assist|transcribe|read)|the image|as an ai",
+                        re.I)
+NA_MISREAD = re.compile(r'n\s*/\s*[a-z0-9]{1,2}', re.I)
+NONE_WRITTEN = re.compile(r'(no(ne|thing)?|n/?a|-+)\W*', re.I)
 
 
 @dataclass
@@ -133,10 +166,14 @@ def _inside(stroke, rects):
     return best
 
 
-def mark_ink(fields, shifts, added):
+def mark_ink(fields, shifts, added, sideways=False):
     """Give each stroke of added ink to an option; return the options.
 
     Strokes lying mostly in a handwriting area are writing, not marks.
+    On a sideways page, a tick in a list goes to the box nearest its tip:
+    its long stroke rises towards the box above. (On the curated Gold-MSI
+    lists, placing ticks by their centre gave 264 right answers and 14
+    wrong but marked ok; by their tip, 273 and 7.)
     """
     writing = [_px(fl.rect, shifts[i]) for i, fl in enumerate(fields)
                if fl.rect]
@@ -183,6 +220,14 @@ def mark_ink(fields, shifts, added):
                                nearest.box[3] - nearest.box[1]) + 8 * PT
         if np.hypot(nearest.centre[0] - cx, nearest.centre[1] - cy) > reach:
             continue
+        if sideways and fields[nearest.field].kind == 'tick':
+            # The tip is the reader's bottom of the stroke: its smallest x
+            ys, xs = np.nonzero((labels[y:y + h, x:x + w] == k)
+                                & added[y:y + h, x:x + w])
+            tip = xs <= xs.min() + 3
+            tx, ty = x + xs[tip].mean(), y + ys[tip].mean()
+            nearest = min(touching, key=lambda o: (o.centre[0] - tx) ** 2
+                          + (o.centre[1] - ty) ** 2)
         nearest.ink += pixels
     return options
 
@@ -281,11 +326,34 @@ def has_text(warped, blank, rect, shift):
     return int((crop < np.clip(otsu, 140, 200)).sum()) >= MIN_TEXT_PIXELS
 
 
+def ink_around(added, rect, shift, areas):
+    """Added ink (pixels) within RING points around rect, outside every
+    answer area of the page (areas, in points, padded by 4 points)."""
+    h, w = added.shape
+    x0, y0, x1, y1 = (int(round(v)) for v in _px(
+        (rect[0] - RING, rect[1] - RING, rect[2] + RING, rect[3] + RING),
+        shift))
+    x0, y0, x1, y1 = max(0, x0), max(0, y0), min(w, x1), min(h, y1)
+    win = added[y0:y1, x0:x1].copy()
+    for r in areas:
+        ax0, ay0, ax1, ay1 = (int(round(v)) for v in _px(
+            (r[0] - 4, r[1] - 4, r[2] + 4, r[3] + 4), shift))
+        win[max(0, ay0 - y0):max(0, ay1 - y0),
+            max(0, ax0 - x0):max(0, ax1 - x0)] = False
+    return int(win.sum())
+
+
 def clean_text(text, text_kind):
     """Normalise a model answer; return (answer, problem or '')."""
     t = ' '.join(text.strip().strip('"').split())
-    if not t or t.upper().strip('.') == 'EMPTY':
+    if not t or t.upper().strip('.') == 'EMPTY' or MODEL_TALK.search(t):
         return MISSING, ''
+    if NA_MISREAD.fullmatch(t):
+        return MISSING, 'N/A written?'
+    if text_kind == 'text' and len(t) == 1:
+        # A line drawn across a free-text area: left blank on purpose (on
+        # the curated scans, 9 such answers were n/a, 2 were text)
+        return MISSING, 'a single stroke: a line drawn to leave it blank?'
     t = t.rstrip('.')
     if text_kind == 'number':
         t = t.replace(' ', '').replace(',', '.')
@@ -332,19 +400,28 @@ def read_page(fields, warped, blank, form, reader):
         area = _union(rects)
         areas.append(area)
         shifts.append(align.local_shift(warped, blank, _px(area)))
-    options = mark_ink(fields, shifts, added)
+    options = mark_ink(fields, shifts, added, sideways)
 
     # 1. Marks, and the handwriting areas that need reading
     answers, wanted = [], []        # wanted: (answer index, field)
+    empty = []                      # handwriting areas with no writing
     for i, fl in enumerate(fields):
         area = areas[i]
         a = Answer(fl.row, crop=(area[0] - 10, area[1] - 10,
                                  area[2] + 10, area[3] + 10))
         if fl.kind in ('circle', 'tick', 'yes_text'):
             mine = [o for o in options if o.field == i]
-            multiple = fl.row.startswith('What level did you attain')
+            rank = next((r for p, r in RANKS.items()
+                         if fl.row.startswith(p)), None)
+            multiple = rank is not None
             values, a.status, a.detail = choose(
                 [(o.value, o.ink) for o in mine], multiple)
+            light = [o.value for o in mine if o.ink >= BLANK
+                     and o.value not in values]
+            if rank is GOLD_RANK and values and light:
+                values += light
+                a.status = 'check'
+                a.detail += ' (also a light tick)'
             a.marks = [(o.rect, o.value in values) for o in mine]
             if fl.kind == 'tick' and len(fl.options) == 1:
                 # Single box ("do not contact"): ticked = Yes, else No
@@ -352,19 +429,32 @@ def read_page(fields, warped, blank, form, reader):
                 if not values:
                     a.status = 'ok'     # an empty box is an answer
             elif multiple and len(values) > 1:
-                ranked = [v for v in SCHOOL_RANK if v in values]
+                ranked = [v for v in rank if v in values]
                 a.answer = ranked[-1] if ranked else values[0]
                 a.detail += '; highest level kept'
             elif values:
                 a.answer = values[0]
             # "Other (please specify)" and health "Yes, describe"
-            if fl.rect and a.answer in ('Other', 'Yes') \
-                    and has_text(warped, blank, fl.rect, shifts[i]):
-                wanted.append((i, fl))
+            if fl.rect and a.answer in ('Other', 'Yes'):
+                if has_text(warped, blank, fl.rect, shifts[i]):
+                    wanted.append((i, fl))
+                else:
+                    empty.append(i)
         elif fl.kind == 'text':
             if has_text(warped, blank, fl.rect, shifts[i]):
                 wanted.append((i, fl))
+            else:
+                empty.append(i)
         answers.append(a)
+    # An empty area with ink around it: the answer may be written outside
+    for i in empty:
+        if ink_around(added, fields[i].rect, shifts[i], areas) >= RING_INK:
+            a, area = answers[i], areas[i]
+            a.status = 'check'
+            a.detail = (a.detail + '; ' if a.detail else '') + \
+                'no writing in the box, but ink around it: written outside?'
+            a.crop = (area[0] - RING, area[1] - RING,
+                      area[2] + RING, area[3] + RING)
 
     # 2. Handwriting, one model call for the page
     crops = [text_crop(warped, fl.rect, shifts[i], sideways, blank)
@@ -383,7 +473,8 @@ def read_page(fields, warped, blank, form, reader):
             # Ink was found but the model read nothing: never silently n/a
             a.status = 'check'
             a.detail = (a.detail + '; ' if a.detail else '') + \
-                'handwriting found but not read'
+                'handwriting found but not read' + \
+                (' (%s)' % problem if problem else '')
             continue
         if fl.kind == 'text':
             a.answer = value
@@ -392,4 +483,14 @@ def read_page(fields, warped, blank, form, reader):
             a.answer = '%s: %s' % (a.answer, value)
             a.detail += '; handwriting'
         a.status = 'check'
+    # A strategy described below a "No": the answer is Yes
+    by_row = {a.row: a for a in answers}
+    q = next((a for r, a in by_row.items() if r.startswith(STRATEGY[0])),
+             None)
+    d = next((a for r, a in by_row.items() if r.startswith(STRATEGY[1])),
+             None)
+    if q and d and q.answer == 'No' and d.answer != MISSING \
+            and not NONE_WRITTEN.fullmatch(d.answer.strip()):
+        q.answer, q.status = 'Yes', 'check'
+        q.detail += '; No marked, but a strategy is described: Yes'
     return answers

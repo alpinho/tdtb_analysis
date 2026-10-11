@@ -133,12 +133,12 @@ REVERSED_SCALES = [
     (18, 'behav_ses-03', ('Q1', 'Q3')),      # likely
     (18, 'mri_ses-01', ('Q1', 'Q3')),        # likely
     (18, 'mri_ses-02', ('Q1', 'Q3')),        # likely
-    # (25, 'behav_ses-01', 'Q3'),            # possible
+    (25, 'behav_ses-01', 'Q3'),              # likely
     (26, 'behav_ses-01', 'Q1'),              # likely
     # (32, 'behav_ses-03', 'Q6'),            # possible (single item)
     (35, 'behav_ses-02', 'Q1'),              # likely
-    (40, 'behav_ses-01', ('Q1', 'Q3')),      # likely
-    (40, 'behav_ses-02', ('Q1', 'Q3')),      # likely
+    (40, 'behav_ses-01', ('Q1', 'Q3')),      # very likely
+    (40, 'behav_ses-02', ('Q1', 'Q3')),      # very likely
     # (45, 'behav_ses-01', 'Q1'),            # possible
     # (46, 'mri_ses-02', 'Q6'),              # possible (single item)
     (48, 'behav_ses-02', 'Q1'),              # likely
@@ -152,6 +152,11 @@ REVERSED_SCALES = [
     (72, 'behav_ses-01', ('Q1', 'Q3')),      # likely
     (77, 'behav_ses-01', ('Q1')),            # very likely
     (77, 'behav_ses-02', ('Q1')),            # very likely
+    (45, 'behav_ses-03', 'Q3'),              # likely
+    (61, 'behav_ses-02', 'Q1'),              # likely
+    # (61, 'behav_ses-01', 'Q1'),            # possible
+    # (21, 'mri_ses-02', 'Q3'),              # possible (single item)
+    # (38, 'mri_ses-01', 'Q3'),              # possible
 ]
 
 # Missing values follow the BIDS convention

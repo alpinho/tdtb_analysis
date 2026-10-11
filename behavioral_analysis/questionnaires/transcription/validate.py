@@ -34,7 +34,7 @@ import os
 import re
 import time
 
-from . import layout, transcribe
+from . import handwriting, layout, transcribe
 from .sheets import MISSING
 
 SCAN_DIR = os.path.join(transcribe.PRIVATE_DIR, 'forms_scanned')
@@ -163,6 +163,17 @@ def reversed_report():
     return '\n'.join(lines)
 
 
+def unload_model():
+    """Unload the handwriting model, so that the next call starts a fresh
+    one: a model that fails once may keep failing until reloaded."""
+    try:
+        import ollama
+        ollama.Client(host=handwriting.HOST).generate(
+            model=handwriting.MODEL, keep_alive=0)
+    except Exception:
+        pass
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description='Accuracy of the '
                                 'transcription on already curated scans.')
@@ -197,6 +208,7 @@ def main(argv=None):
                 errors[type(e).__name__] += 1
                 print('a subject failed (%s), attempt %d'
                       % (type(e).__name__, attempt), flush=True)
+                unload_model()
                 time.sleep(60)
         else:
             continue

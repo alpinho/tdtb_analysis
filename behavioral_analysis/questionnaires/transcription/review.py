@@ -3,7 +3,8 @@ Review PDF: each answer next to the part of the scan it was read from.
 
 Rows in orange need a check against the paper form (unclear marks and
 all handwriting, which the model may misread); rows in green were read
-from clear marks or are empty. On each cut-out, the chosen option is
+from clear marks; rows in grey are empty (n/a: no mark, no writing in
+or around the area). On each cut-out, the chosen option is
 framed in green and the other options in grey.
 
 Author: Ana Luisa Pinho
@@ -20,12 +21,14 @@ import cv2
 import pymupdf
 
 from . import read
+from .sheets import MISSING
 
 PAGE_W, PAGE_H = 595, 842
 MARGIN = 30
 COL_LABEL, COL_ANSWER, COL_IMAGE = 30, 240, 375
 IMG_W, IMG_H = 190, 80
 COLORS = {'ok': (0.1, 0.55, 0.1), 'check': (0.9, 0.45, 0.0)}
+EMPTY_COLOR = (0.55, 0.55, 0.55)     # ok and n/a
 
 
 def _crop(warped, a, sideways):
@@ -84,6 +87,8 @@ class Review:
         if self.y + height > PAGE_H - MARGIN:
             self._new_page()
         color = COLORS.get(status, (0, 0, 0))
+        if status == 'ok' and answer == MISSING:
+            color = EMPTY_COLOR
         self.page.draw_rect(pymupdf.Rect(MARGIN - 6, self.y,
                                          MARGIN - 3, self.y + height - 4),
                             color=color, fill=color)
