@@ -35,28 +35,28 @@ Run from `behavioral_analysis/questionnaires/`, in the
 `forms-ocr-py312` environment.
 
 1. **Draft.** Give the subject number and all of their scanned PDFs, in
-   any order and grouping (e.g. one PDF with everything but the
-   post-session form of session 2, plus one PDF with that form):
+   any order and grouping:
 
    ```
    python -m transcription.transcribe 78 ~/scans/sub-78/*.pdf
    ```
 
-   It writes to `~/OneDrive/tdtb_admin/tdtb_private/forms_drafts/sub-78/`:
-   one draft per sheet (`*.draft.tsv`) and `review_sub-78.pdf`.
-   It takes about 4-5 minutes per participant (mostly the handwriting
-   model; close other large applications, as the model needs memory).
+   It writes to `~/OneDrive/tdtb_admin/tdtb_private/forms_drafts/sub-78/`
+   one draft per sheet (`*.draft.tsv`) and `review_sub-78.pdf`, in about
+   5 minutes. Close other large applications: the model needs memory.
 
 2. **Review.** Open `review_sub-78.pdf` next to the paper forms. Each
    answer is shown next to the part of the scan it was read from, with the
-   chosen option framed in green. **Orange rows** must be checked: unclear
-   marks, and all handwriting (the model can misread). Green rows were
-   read from clear marks; **grey rows** are empty (`n/a`). Compare the answer
-   of every orange row with its crop, not only that the row is orange
-   (e.g. a date with day and month swapped is only seen this way). Correct
-   the answers
-   in the draft sheets (column `answer`; any spreadsheet editor, saved as
-   TSV). Missing answers are `n/a`.
+   chosen option framed in green.
+   - **Orange rows** (`check`) must be checked: unclear marks and all
+     handwriting. Compare the answer with its crop, as the reason given
+     may not be the only problem (e.g. day and month swapped in a date).
+   - **Green rows** (`ok`) were read from clear marks.
+   - **Grey rows** are empty (`n/a`).
+   - Notes at the top list unidentified, missing or uncertain pages.
+
+   Correct the answers in the draft sheets (column `answer`; any
+   spreadsheet editor, saved as TSV). Missing answers are `n/a`.
 
 3. **Finalize.**
 
@@ -76,89 +76,49 @@ Run from `behavioral_analysis/questionnaires/`, in the
    cd ..; python reversed_scales_screen.py
    ```
 
-   Rates each post-session questionnaire for a reversed scale (likely,
-   possible, unlikely, self-corrected), weighing an understanding or
-   concentration answer of 5-6 against the participant's other answers and
-   any crossed-out answer, and lists in
-   `tdtb_private/reversed_scales_to_assess.tsv` those rated possible or
-   more that are not yet recorded in
-   `postsess_suspected_reversed_scales.tsv`; it also prints how its
-   ratings compare with the ratings given by hand.
-   It also adds a row `to assess` for each new session to
-   `postsess_suspected_reversed_scales.tsv`, with its rating and reasons.
-   After the assessment on paper, complete that row (status `verified on
-   paper`, likelihood, evidence), then run the screen again: it adds the session to `REVERSED_SCALES` of
-   `postses_results.py`, active if rated likely or very likely, commented
-   out if possible, and warns if an entry already listed disagrees with
-   the assessment. Then run `postses_results.py`. The sheets always keep
-   the answers as written on the paper (a crossed-out answer is not an
-   answer).
+   Rates each post-session questionnaire for a reversed scale and adds a
+   `to assess` row for each new session to
+   `tdtb_private/postsess_suspected_reversed_scales.tsv`. After checking
+   the paper, complete that row (status `verified on paper`, likelihood,
+   evidence) and run the screen again: it adds the session to
+   `REVERSED_SCALES` in `postses_results.py`, active if likely or very
+   likely, commented out if possible, and warns if an entry already
+   listed disagrees with the assessment. Then run `postses_results.py`.
+   The sheets always keep the answers as written on the paper.
 
 5. Add the subject to `subject_lists.py` (and the lists of the other
    behavioral scripts) as usual.
 
-## What to know
+## What to know when reviewing
 
-- **Post-session forms** are assigned to sessions by page order (across
-  the PDFs, in the order given on the command line), except that a form
-  from a PDF whose file name holds a session label (`ses-02`) takes that
-  session. Behavioral sessions come before imaging sessions; the number of
-  sessions comes from `subject_lists.py` (a new subject not yet listed is
-  assumed to have 2 behavioral sessions and no imaging session). If the
-  dates read on the forms do not follow that order, the forms are marked
-  `check`. On the curated scans this rule was right for 94% of the forms;
-  sorting by the dates (a quarter of them misread) or by session labels
-  written on the forms (mostly misread by the model) did worse.
-- **Not on the forms:** *Date of Birth* (the demographic form has no such
-  field; `n/a` unless filled in by hand) and the Gold-MSI *Date* (copied
-  from the demographic form by `finalize`).
-- **Never read:** the Participant ID on every form and the name, email and
-  anonymous ID of Gold-MSI page 8. They are not defined in `layout.py`,
-  so they are never read or written.
-- **Marks** (circles, ticks) are found by the ink they add to the blank
-  form. An answer is marked `check` when no option has a mark (`no mark
-  found`: the mark may be outside the options), when the mark is faint
-  (except on Yes/No questions, where faint marks were right 334 times out
-  of 335),
-  or when a second option also has a clear mark (`one may be crossed
-  out`: a crossed-out answer has more ink than a circle; it is not an
-  answer). On the post-session form the option with less ink is then
-  taken as the answer (right for 74 of 81 such answers on the curated
-  scans); on the other forms, the one with more ink. On Gold-MSI pages 2-4 the whole table cell of an option
-  counts, as some participants tick the middle of the cell. On the
-  Gold-MSI lists (pages 6-7), a tick goes to the box nearest its tip, as
-  its long stroke often rises towards the box above.
-- **Handwriting:** strokes centred outside an answer area (e.g. a circle
-  around the answer of the question above) are ignored. An area with no
-  handwriting gives `n/a`, marked `ok` (grey), unless there is ink
-  around it (`written outside?`, marked `check`, with a wider cut-out):
-  on the curated scans this caught 11 of the 15 answers written outside
-  their area, for 14 truly empty areas marked `check`.
-- **Dates** are `DD/MM/YYYY`. The model sometimes swaps day and month: a
-  date that matches another form's date only when swapped is swapped
-  back (and marked `check`), and a date whose day and month could be
-  swapped says so.
-- **Gold-MSI pages 2-4 look alike.** A page whose identity is uncertain
-  is taken as the one page missing from the form (`page identified by
-  elimination`, noted at the top of the review PDF: check that its
-  questions match the paper; its clear marks stay `ok`).
-- **School level** (demographic form) and **education attained**
-  (Gold-MSI): if several boxes are ticked, the highest level obtained is
-  kept ("still in education" is not a level) and the row is marked
-  `check`. On the Gold-MSI, a light second tick counts too.
+- **Post-session forms** are assigned to sessions in page order (across
+  the PDFs, in the order given), unless the PDF file name holds a session
+  label (`ses-02`). Behavioral sessions come before imaging sessions; the
+  number of sessions comes from `subject_lists.py` (a subject not yet
+  listed is assumed to have 2 behavioral sessions). If the dates on the
+  forms do not follow that order, the forms are marked `check`.
+- **Never read:** the Participant ID on every form, and the name, email
+  and anonymous ID on Gold-MSI page 8.
+- **Not on the forms:** *Date of Birth* (`n/a` unless filled in by hand)
+  and the Gold-MSI *Date* (copied from the reviewed demographic date by
+  `finalize`).
+- **Crossed-out answers:** when two options are marked, the post-session
+  form keeps the one with less ink (a crossed-out answer has more ink),
+  the other forms the one with more ink; both are marked `check`.
+- **Several levels ticked** (school level, Gold-MSI education): the
+  highest level obtained is kept ("still in education" is not a level).
 - **Strategies** (post-session form): "No" with a strategy described
-  below becomes "Yes" (marked `check`), unless the description only says
-  there was none. A description box with little ink (below
-  `STRATEGY_INK`, a stray mark or specks) counts as empty and is not sent
-  to the model, which would otherwise "read" text in it.
-- The handwriting model sometimes talks instead of reading
-  ("Transcription of ...", "I am sorry, I cannot ...") or reads "N/A" as
-  "N/15"; a single stroke in a free-text area is usually a line drawn to
-  leave it blank. These give `n/a`, marked `check` (`handwriting found
-  but not read`). The strategy and comment areas of the post-session form
-  are read one at a time (read together, the model mixed them up).
-- Unidentified pages and missing pages are listed at the top of the
-  review PDF.
+  below becomes "Yes" (marked `check`).
+- **Empty areas:** an area with ink around it but not inside is marked
+  `check` (`written outside?`). Handwriting the model could not read
+  (e.g. "N/A", or a line drawn to leave the area blank) is `n/a`, marked
+  `check`.
+- **Dates** are `DD/MM/YYYY`. A date whose day and month could be swapped
+  says so; one that matches another form only when swapped is swapped
+  back.
+- **Gold-MSI pages 2-4 look alike:** a page identified by elimination is
+  noted at the top of the review PDF; check that its questions match the
+  paper.
 
 ## Files
 
@@ -174,7 +134,7 @@ Run from `behavioral_analysis/questionnaires/`, in the
 | `sheets.py` | Rows of the sheets (wording must not change) |
 | `synthetic.py` | Makes fake filled-in forms for testing |
 | `validate.py` | Accuracy check on the scans that already have sheets |
-| `../reversed_scales_screen.py` | Step 4: reversed-scale rating and list |
+| `../reversed_scales_screen.py` | Step 4: reversed-scale screen |
 
 ## Testing without real data
 
@@ -189,29 +149,17 @@ are in `/tmp/fake/drafts/sub-99/`.
 ## Accuracy check on the curated scans
 
 ```
-python -m transcription.validate
-```
-
-Transcribes the scans of every participant that already has curated
-sheets (`tdtb_private/forms_scanned/`) into
-`tdtb_private/forms_validation/sub-NN/` and compares each draft with its
-sheet. It takes 5-6 hours for the 74 participants; a participant already
-compared is skipped, so an interrupted run resumes where it stopped
-(rename or remove the folder to start again). Only counts are written, to
-`forms_validation/accuracy.txt` and `run.log`: agreement per form, kind of
-answer and status (`ok`/`check`), the questions that disagree most, and
-the reversed-scale ratings (from the drafts and from the sheets) against
-the ratings given by hand. The answers that matter most are those marked
-`ok` that disagree with the sheet: the review does not catch them.
-
-Result (October 2026, 74 participants, 8,658 answers): 1.0% of the
-answers were marked `ok` but differ from the sheet (a quarter of them the
-Gold-MSI date, which `finalize` copies from the reviewed demographic
-date); 34% were marked `check`.
-
-To run it unattended:
-
-```
 nohup setsid ~/anaconda3/envs/forms-ocr-py312/bin/python \
     -m transcription.validate > /dev/null 2>&1 &
 ```
+
+Transcribes the scans of every participant that already has curated
+sheets into `tdtb_private/forms_validation/sub-NN/` and compares each
+draft with its sheet, writing only counts to
+`forms_validation/accuracy.txt`. It takes 5-6 hours for 74 participants
+and resumes where it stopped if interrupted. Run it after changing the
+code that reads the forms.
+
+Result (October 2026, 74 participants, 8,658 answers): 0.4% of the
+answers were marked `ok` but differ from the sheet (these are not caught
+by the review); about 29% are marked `check`.
