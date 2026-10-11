@@ -43,6 +43,9 @@ PT = align.DPI / 72          # pixels per point
 BLANK = 15
 MARKED = 100
 SECOND = 0.5
+# A faint mark is ok on a Yes/No question (on the curated scans, 334 of
+# 335 such answers were right), check elsewhere
+FAINT_OK = {'Yes', 'No'}
 # Strokes smaller than this (pixels) are specks, not marks
 MIN_STROKE = 15
 # Added ink pixels in a handwriting area below which it is empty
@@ -262,7 +265,8 @@ def choose(scores, multiple=False, less_ink=False):
         # as blank had a mark outside the options than were really blank
         return [], 'check', detail + ' (no mark found)'
     if best < MARKED:
-        return [ranked[0][0]], 'check', detail + ' (faint mark)'
+        status = 'ok' if {v for v, _ in scores} == FAINT_OK else 'check'
+        return [ranked[0][0]], status, detail + ' (faint mark)'
     if second >= SECOND * best:
         marked = [v for v, s in ranked if s >= SECOND * best]
         return (marked if multiple else [ranked[0][0]], 'check',

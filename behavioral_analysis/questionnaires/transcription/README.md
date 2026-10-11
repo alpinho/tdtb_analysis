@@ -117,7 +117,9 @@ Run from `behavioral_analysis/questionnaires/`, in the
   so they are never read or written.
 - **Marks** (circles, ticks) are found by the ink they add to the blank
   form. An answer is marked `check` when no option has a mark (`no mark
-  found`: the mark may be outside the options), when the mark is faint,
+  found`: the mark may be outside the options), when the mark is faint
+  (except on Yes/No questions, where faint marks were right 334 times out
+  of 335),
   or when a second option also has a clear mark (`one may be crossed
   out`: a crossed-out answer has more ink than a circle; it is not an
   answer). On the post-session form the option with less ink is then
