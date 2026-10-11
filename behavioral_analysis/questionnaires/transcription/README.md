@@ -120,7 +120,9 @@ Run from `behavioral_analysis/questionnaires/`, in the
   found`: the mark may be outside the options), when the mark is faint,
   or when a second option also has a clear mark (`one may be crossed
   out`: a crossed-out answer has more ink than a circle; it is not an
-  answer). On Gold-MSI pages 2-4 the whole table cell of an option
+  answer). On the post-session form the option with less ink is then
+  taken as the answer (right for 74 of 81 such answers on the curated
+  scans); on the other forms, the one with more ink. On Gold-MSI pages 2-4 the whole table cell of an option
   counts, as some participants tick the middle of the cell. On the
   Gold-MSI lists (pages 6-7), a tick goes to the box nearest its tip, as
   its long stroke often rises towards the box above.
@@ -136,7 +138,8 @@ Run from `behavioral_analysis/questionnaires/`, in the
   swapped says so.
 - **Gold-MSI pages 2-4 look alike.** A page whose identity is uncertain
   is taken as the one page missing from the form (`page identified by
-  elimination`; its answers are marked `check`).
+  elimination`, noted at the top of the review PDF: check that its
+  questions match the paper; its clear marks stay `ok`).
 - **School level** (demographic form) and **education attained**
   (Gold-MSI): if several boxes are ticked, the highest level obtained is
   kept ("still in education" is not a level) and the row is marked

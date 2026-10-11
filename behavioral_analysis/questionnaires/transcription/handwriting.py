@@ -24,6 +24,8 @@ HOST = 'http://127.0.0.1:11434'   # local only; never a remote address
 # Short answers need little context; a small context lets the model fit
 # on a 4 GB graphics card, which is several times faster
 NUM_CTX = 4096
+# Seconds to wait after unloading a stuck model, before trying again
+RETRY_WAIT = 20
 # Each call costs ~20 s whatever the image size, so the answers of a page
 # are read together: stacked in one image, numbered, at most MAX_ROWS
 # rows and MAX_HEIGHT pixels (before reduction by SHEET_SCALE) per call
@@ -92,12 +94,26 @@ class Reader:
         self.model = model
         self.calls, self.seconds = 0, 0.0
 
+    def _chat(self, **kw):
+        """A model call. The model can get stuck (an error on every call
+        until it is reloaded): after an error, it is unloaded and the call
+        tried again once."""
+        try:
+            return self.client.chat(**kw)
+        except Exception:
+            try:
+                self.client.generate(model=self.model, keep_alive=0)
+            except Exception:
+                pass
+            time.sleep(RETRY_WAIT)
+            return self.client.chat(**kw)
+
     def __call__(self, image, fl):
         ok, png = cv2.imencode('.png', image)
         hint = fl.prompt or HINTS[fl.text_kind]
         prompt = ' '.join((PROMPT % hint).split())
         t0 = time.time()
-        r = self.client.chat(
+        r = self._chat(
             model=self.model, keep_alive='10m',
             options={'temperature': 0, 'num_predict': 60,
                      'num_ctx': NUM_CTX},
@@ -137,7 +153,7 @@ class Reader:
             ok, png = cv2.imencode('.png', _sheet([items[k][0]
                                                    for k in chunk]))
             t0 = time.time()
-            r = self.client.chat(
+            r = self._chat(
                 model=self.model, keep_alive='10m',
                 options={'temperature': 0, 'num_predict': 40 * len(chunk),
                          'num_ctx': NUM_CTX},
@@ -158,7 +174,7 @@ class Reader:
     def ask(self, image, prompt):
         """Free question about an image (e.g. a session label)."""
         ok, png = cv2.imencode('.png', image)
-        r = self.client.chat(
+        r = self._chat(
             model=self.model, keep_alive='10m',
             options={'temperature': 0, 'num_predict': 20,
                      'num_ctx': NUM_CTX},

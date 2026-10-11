@@ -251,7 +251,8 @@ def run(subject, pdfs, out_dir, use_model=True, log=print):
                                     reader):
                 a.page = pno
                 if sp.by_elimination:
-                    a.status = 'check'
+                    # Clear marks keep their status (on the curated scans,
+                    # 137 of 137 were right); the review notes the page
                     a.detail = ((a.detail + '; ') if a.detail else '') + \
                         'page identified by elimination'
                 fm.answers.append(a)
@@ -286,6 +287,11 @@ def run(subject, pdfs, out_dir, use_model=True, log=print):
 
     rev = review.Review('sub-%02d - transcription drafts - check the '
                         'orange rows against the paper forms' % subject)
+    for sp in pages:
+        if sp.by_elimination:
+            notes.append('%s page %d identified by elimination (it looks like '
+                         'other pages of the form): check that its questions '
+                         'match the paper' % (sp.match.form, sp.match.page + 1))
     if notes or unknown:
         rev.heading('Notes', '')
         for n in notes:

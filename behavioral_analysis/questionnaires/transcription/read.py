@@ -58,6 +58,11 @@ RING_INK = 500
 # Gold-MSI pages are printed sideways; text is turned upright before it
 # is read
 SIDEWAYS = {'gold_msi'}
+# Forms where, of two marked options, the one with less ink is the answer:
+# participants circle the answer and scribble over the one they reject (on
+# the curated post-session scans, 74 of 81 such answers; on the other
+# forms, the option with more ink was right)
+LESS_INK = {'postexp'}
 
 # School level: if several boxes are ticked, the highest level is kept
 SCHOOL_RANK = ['Elementary School', 'Less than Grade 12',
@@ -232,9 +237,18 @@ def mark_ink(fields, shifts, added, sideways=False):
     return options
 
 
-def choose(scores, multiple=False):
-    """Return (values, status, detail) from [(value, ink)]."""
+def choose(scores, multiple=False, less_ink=False):
+    """Return (values, status, detail) from [(value, ink)].
+
+    less_ink: when two options are marked, the one with less ink is the
+    answer (the other is crossed out).
+    """
     ranked = sorted(scores, key=lambda s: -s[1])
+    if less_ink and not multiple and len(ranked) > 1 \
+            and ranked[1][1] >= MARKED:
+        values, status, detail = choose(scores, multiple)
+        return [ranked[1][0]], status, detail + '; the option with less ' \
+            'ink kept'
     best = ranked[0][1]
     second = ranked[1][1] if len(ranked) > 1 else 0
     detail = 'ink ' + ', '.join('%s=%d' % (v, s) for v, s in scores)
@@ -357,6 +371,10 @@ def clean_text(text, text_kind):
     t = t.rstrip('.')
     if text_kind == 'number':
         t = t.replace(' ', '').replace(',', '.')
+        # A unit of hours or years after the number: the sheets hold the
+        # number only (13 of 13 such answers on the curated scans)
+        t = re.sub(r'(?<=\d)(h|hrs?|hours?|y|yrs?|years?)\.?$', '', t,
+                   flags=re.I)
         if not re.fullmatch(r'\d+(\.\d+)?(-\d+(\.\d+)?)?', t):
             return t, 'not a number'
     elif text_kind == 'date':
@@ -415,7 +433,8 @@ def read_page(fields, warped, blank, form, reader):
                          if fl.row.startswith(p)), None)
             multiple = rank is not None
             values, a.status, a.detail = choose(
-                [(o.value, o.ink) for o in mine], multiple)
+                [(o.value, o.ink) for o in mine], multiple,
+                less_ink=form in LESS_INK)
             light = [o.value for o in mine if o.ink >= BLANK
                      and o.value not in values]
             if rank is GOLD_RANK and values and light:
