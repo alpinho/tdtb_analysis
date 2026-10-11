@@ -146,7 +146,9 @@ Run from `behavioral_analysis/questionnaires/`, in the
   `check`. On the Gold-MSI, a light second tick counts too.
 - **Strategies** (post-session form): "No" with a strategy described
   below becomes "Yes" (marked `check`), unless the description only says
-  there was none.
+  there was none. A description box with little ink (below
+  `STRATEGY_INK`, a stray mark or specks) counts as empty and is not sent
+  to the model, which would otherwise "read" text in it.
 - The handwriting model sometimes talks instead of reading
   ("Transcription of ...", "I am sorry, I cannot ...") or reads "N/A" as
   "N/15"; a single stroke in a free-text area is usually a line drawn to

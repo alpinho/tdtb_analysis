@@ -86,6 +86,11 @@ RANKS = {'What level did you attain': SCHOOL_RANK,
 # unless it only says there was none
 STRATEGY = ('Did you use/develop any specific strategies',
             'If yes, please describe briefly')
+# A description box with less handwriting ink than this (pixels, as in
+# has_text) is empty. On the curated scans every real description had at
+# least 1945; all 34 boxes with 80 to 1499 were empty in the sheets, and
+# the model "read" text in them (8 wrong flips of No to Yes).
+STRATEGY_INK = 1500
 # The model talking instead of transcribing ("Transcription of ...",
 # "I am sorry, I cannot ...": 56 answers on the curated scans where the
 # sheet has n/a, 1 where it has text) and "N/A" misread as "N/15" (43,
@@ -331,13 +336,18 @@ def _erase_strays(crop, warped, blank, shift, origin, inner, margin=60):
     crop[:sub.shape[0], :sub.shape[1]][sub] = 255
 
 
-def has_text(warped, blank, rect, shift):
-    """True if the area holds handwriting: ink that is not printed, with
+def text_ink(warped, blank, rect, shift):
+    """Handwriting ink in the area (pixels): ink that is not printed, with
     a thin margin around the printing (writing often sits on the lines)."""
     crop = text_crop(warped, rect, shift, False, blank)
     otsu, _ = cv2.threshold(warped, 0, 255,
                             cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return int((crop < np.clip(otsu, 140, 200)).sum()) >= MIN_TEXT_PIXELS
+    return int((crop < np.clip(otsu, 140, 200)).sum())
+
+
+def has_text(warped, blank, rect, shift, least=MIN_TEXT_PIXELS):
+    """True if the area holds handwriting."""
+    return text_ink(warped, blank, rect, shift) >= least
 
 
 def ink_around(added, rect, shift, areas):
@@ -460,7 +470,9 @@ def read_page(fields, warped, blank, form, reader):
                 else:
                     empty.append(i)
         elif fl.kind == 'text':
-            if has_text(warped, blank, fl.rect, shifts[i]):
+            least = (STRATEGY_INK if fl.row.startswith(STRATEGY[1])
+                     else MIN_TEXT_PIXELS)
+            if has_text(warped, blank, fl.rect, shifts[i], least):
                 wanted.append((i, fl))
             else:
                 empty.append(i)
