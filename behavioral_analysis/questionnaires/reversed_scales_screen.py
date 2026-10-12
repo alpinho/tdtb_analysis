@@ -36,8 +36,7 @@ Against the assessments by hand (October 2026, 78 participants): 26 of
 the 27 sessions rated likely or very likely are rated possible or more
 (listed for assessment), against 2 of the 6 rated unlikely.
 
-Run it whenever sheets are added or corrected. The list goes to
-tdtb_private/reversed_scales_to_assess.tsv; only counts are printed.
+Run it whenever sheets are added or corrected; only counts are printed.
 The rating is a screen: the decision is taken on paper and recorded by
 hand in the assessment file, as before: each session to assess gets a
 row "to assess" in the assessment file, with the screen's rating and
@@ -77,7 +76,6 @@ PRIVATE_DIR = os.path.expanduser('~/OneDrive/tdtb_admin/tdtb_private')
 FORMS_DIR = os.path.join(PRIVATE_DIR, 'forms')
 DRAFT_DIR = os.path.join(PRIVATE_DIR, 'forms_drafts')
 ASSESSED = os.path.join(PRIVATE_DIR, 'postsess_suspected_reversed_scales.tsv')
-OUTPUT = os.path.join(PRIVATE_DIR, 'reversed_scales_to_assess.tsv')
 RESULTS_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               'postses_results.py')
 
@@ -501,19 +499,11 @@ def main(argv=None):
     rated = rate_all(sessions)
     todo = sorted(k for k, r in rated.items()
                   if k not in done and r[0] != 'unlikely')
-    with open(OUTPUT, 'w', newline='', encoding='utf-8') as f:
-        w = csv.writer(f, delimiter='\t', lineterminator='\n')
-        w.writerow(['subject', 'session', 'rating', 'score', 'reasons'])
-        for k in todo:
-            rating, score, reasons = rated[k]
-            w.writerow(['sub-%02d' % k[0], k[1], rating,
-                        '' if score is None else score, '; '.join(reasons)])
     n_new = add_draft_rows(todo, rated, sessions)
     print('sessions rated: %d' % len(rated))
     print('  already assessed: %d' % sum(k in done for k in rated))
     print('  still to assess (rated possible or more, or self-corrected): '
-          '%d (%d participants), listed in %s'
-          % (len(todo), len({s for s, _ in todo}), OUTPUT))
+          '%d (%d participants)' % (len(todo), len({s for s, _ in todo})))
     print('  rows "%s" added to %s: %d sessions'
           % (TO_ASSESS, os.path.basename(ASSESSED), n_new))
     added, warnings = sync_reversed_scales()
