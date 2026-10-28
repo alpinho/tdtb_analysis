@@ -236,13 +236,13 @@ SB2_SUBJECTS = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 59, 61, 62, 63, 76,
 # Psychopy / Explicit
 
 # All subjects
-ALL_TB_SUBJECTS = [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75]
+ALL_TB_SUBJECTS = [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 78]
 
 # First Session completed
-GOOD_TB_SUBJECTS = [64, 65, 66, 67, 68, 70, 71, 72, 73, 74, 75]
+GOOD_TB_SUBJECTS = [64, 65, 66, 67, 68, 70, 71, 72, 73, 74, 75, 78]
 
 # Second Session completed
-TB2_SUBJECTS = [64, 65, 66, 68, 71, 72, 73, 75]
+TB2_SUBJECTS = [64, 65, 66, 68, 71, 72, 73, 74, 75]
 
 # ##################### Trial counts ###################################
 # Total number of trials per run
