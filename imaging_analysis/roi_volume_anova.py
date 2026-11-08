@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: October 2024
-Last update: July 2026
+Last update: November 2026
 
 Compatibility: Python 3.10.14
 
@@ -870,6 +870,100 @@ def twoway_rm_roicat(df, tasks_dic, out_dir, prefix,
                 os.path.join(out_dir, base + 'posthoc.tsv'),
                 sep='\t', index=False
             )
+
+
+def onesample_mean_response(df, tasks_dic, out_dir, prefix,
+                           alternative='two-sided',
+                           hems=('lh', 'rh', 'bh')):
+    """One-sample t-tests of the mean response against zero, per ROI.
+
+    For each participant and ROI, the mean response is the average PSC
+    over all Modality x Category cells of the task:
+
+      - rand_ntfd_nonrandom (Category: Non-Random, Random): 4 cells, so
+        Non-Random and Random each weigh 1/2, matching the whole-brain
+        mean-response map (Non-Random = mean of Beat and Interval).
+      - rand_ntfd_pairs (Category: Beat, Interval, Random): 6 cells, so
+        Beat, Interval and Random each weigh 1/3 (equal weights).
+
+    The mean response is tested against zero with a one-sample t-test
+    (equivalent to the intercept of the Modality x Category RM-ANOVA,
+    F = t^2). P-values are Holm-Bonferroni-corrected across ROIs,
+    separately for each hemisphere (lh, rh, bh are distinct families).
+
+    Output: one TSV per hemisphere, one row per ROI,
+        <out_dir>/<prefix>_<hem>_1samp-meanresponse.tsv
+    """
+    if isinstance(df, str):
+        df = pd.read_csv(df, sep='\t')
+
+    df = df.copy()
+    if 'Contrast' in df.columns:
+        df = df.drop(columns=['Contrast'])
+    df['PSC'] = pd.to_numeric(df['PSC'], errors='coerce')
+
+    assert len(tasks_dic) == 1, (
+        'onesample_mean_response expects a single task (NTFD Random); '
+        f'got {list(tasks_dic.values())}.'
+    )
+    task = list(tasks_dic.values())[0]
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    for hem in hems:
+        db = df[(df.Task == task) & (df.Hemisphere == hem)].copy()
+        where = f'1samp {task} {hem}'
+
+        _assert_no_nan_psc(db, where=where)
+        _assert_unique_cells(
+            db, ['Subject', 'ROI', 'Modality', 'Category'], where=where
+        )
+        _assert_complete_within(
+            db, 'Subject', ['ROI', 'Modality', 'Category'], where=where
+        )
+
+        categories = sorted(db['Category'].unique())
+        n_cells = db['Modality'].nunique() * len(categories)
+
+        # Mean response per participant and ROI (equal weight per cell)
+        mresp = db.groupby(['ROI', 'Subject'], as_index=False)['PSC'].mean()
+
+        rows = []
+        for roi in mresp['ROI'].unique():
+            x = mresp.loc[mresp.ROI == roi, 'PSC'].to_numpy()
+            res = pg.ttest(x, 0, alternative=alternative)
+            # Column names differ across pingouin versions
+            # (<= 0.5: 'p-val', 'CI95%', 'cohen-d'; >= 0.6: 'p_val', ...)
+            col = {k: next(c for c in cands if c in res.columns)
+                   for k, cands in {'p': ('p-val', 'p_val'),
+                                    'ci': ('CI95%', 'CI95'),
+                                    'd': ('cohen-d', 'cohen_d')}.items()}
+            rows.append({
+                'ROI': roi,
+                'Categories': ', '.join(categories),
+                'n_cells': n_cells,
+                'n': len(x),
+                'mean': x.mean(),
+                'std': x.std(ddof=1),
+                'T': res['T'].iloc[0],
+                'dof': res['dof'].iloc[0],
+                'alternative': alternative,
+                'p-unc': res[col['p']].iloc[0],
+                'CI95%': res[col['ci']].iloc[0],
+                'cohen-d': res[col['d']].iloc[0],
+            })
+
+        out = pd.DataFrame(rows)
+        _, out['p-holm'] = pg.multicomp(
+            out['p-unc'].to_numpy(), method='holm'
+        )
+        out.insert(out.columns.get_loc('p-unc') + 1, 'p-holm',
+                   out.pop('p-holm'))
+
+        out.to_csv(
+            os.path.join(out_dir, f"{prefix}_{hem}_1samp-meanresponse.tsv"),
+            sep='\t', index=False
+        )
 
 
 def twoway_rm_roitask(df, out_dir, prefix,
@@ -1855,6 +1949,15 @@ if __name__ == '__main__':
             twoway_rm_roicat(
                 dfrois, tasks, cat_dir_v, tag, modality='visual'
             )
+
+            # mean response vs rest (NTFD-Random runs, 8 ROIs only)
+            if (folder_name in ('rand_ntfd_nonrandom', 'rand_ntfd_pairs')
+                    and n_rois == 8):
+                os_dir = os.path.join(
+                    msdtb_dir,
+                    f"1samp-meanresponse{crossroi_suffix}_{n_rois}rois"
+                )
+                onesample_mean_response(dfrois, tasks, os_dir, tag)
 
             # timing-ROI (main_tasks only) + posthoc plots
             if folder_name == 'main_tasks':
