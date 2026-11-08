@@ -46,7 +46,7 @@ Author: Ana Luisa Pinho
 Email: agrilopi@uwo.ca
 
 Creation: 24th of February 2025
-Last Update: July 2026
+Last Update: November 2026
 
 Compatibility: Python 3.10.14, nilearn 0.11.1
 
@@ -2034,6 +2034,18 @@ SHOW_SULCI_BORDERS = True
 # contour/overlay branches). False = bare map. Not for the --irois panel.
 SHOW_COLORBAR = True
 
+# Colour-bar titles for the signed flatmaps. Difference contrasts are written
+# as "A - B" so the sign of the colour scale is explicit; any contrast not
+# listed here falls back to 'Z-values (<contrast name>)'.
+CBAR_TITLES = {
+    'Random vs Non-Random': 'Z-values (Random − Non-Random)',
+    'Auditory Random vs Auditory Non-Random':
+        'Z-values (Auditory Random − Auditory Non-Random)',
+    'Visual Random vs Visual Non-Random':
+        'Z-values (Visual Random − Visual Non-Random)',
+    'Mean Response': 'Z-values (Mean Response \u2212 Rest)'
+}
+
 # Fix the colour-scale maximum (|z|) for SIGNED maps so two panels read together
 # share one linear grading (equal colour = equal z). Each map keeps its OWN FDR
 # threshold for the gray band (vmin), so gray width differs per map. None = auto
@@ -2402,7 +2414,8 @@ if __name__ == '__main__':
                     hemi=['L', 'R'], vmax=_vmax_use, signed=True,
                     show_borders=SHOW_SULCI_BORDERS,
                     show_colorbar=SHOW_COLORBAR,
-                    cbar_title=f'Z-values ({_cname})',
+                    cbar_title=CBAR_TITLES.get(
+                        _cname, f'Z-values ({_cname})'),
                 )
             else:
                 _thresh, _v_max = whole_brain_thresholds(
@@ -2491,7 +2504,8 @@ if __name__ == '__main__':
                 hemi=['L', 'R'], vmax=_vmax_use, signed=True,
                 show_borders=SHOW_SULCI_BORDERS,
                 show_colorbar=SHOW_COLORBAR,
-                cbar_title=f'Z-values ({contrast_name})'
+                cbar_title=CBAR_TITLES.get(
+                    contrast_name, f'Z-values ({contrast_name})')
             )
         else:
             plot_flatmap(
@@ -2631,8 +2645,9 @@ if __name__ == '__main__':
                 colormap='viridis',
                 vmax=v1,
                 signed=is_signed,
-                cbar_title=('Z-values (Random \u2212 Non-Random)' if is_signed
-                            else 'Z-values'),
+                cbar_title=(CBAR_TITLES.get(
+                                contrast_name, f'Z-values ({contrast_name})')
+                            if is_signed else 'Z-values'),
                 contour_stat=[zL2, zR2],
                 contour_threshold=thr2,
                 contour_color='k',

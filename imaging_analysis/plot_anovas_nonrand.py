@@ -5,7 +5,7 @@ Author: Ana Luisa Pinho
 email: agrilopi@uwo.ca
 
 Created: 15th of April 2026
-Last update: July 2026
+Last update: November 2026
 
 Compatibility: Python 3.10.14
 
@@ -93,8 +93,8 @@ ROI_PRETTY = {
 # axis, preserved under red-green colour blindness; Both takes the violet corner
 # so it is distinct from both rather than sitting neutral between them.
 MODALITY_COLORS = {
-    "Pooled":   {"Non-Random": "#CE8D1D", "Random": "#EAD2A0"},  # ochre (Both)
-    "Auditory": {"Non-Random": "#1BB18E", "Random": "#C9F3E9"},  # teal
+    "Pooled":   {"Non-Random": "#1BB18E", "Random": "#C9F3E9"},  # teal (Both)
+    "Auditory": {"Non-Random": "#CE8D1D", "Random": "#EAD2A0"},  # amber
     "Visual":   {"Non-Random": "#9A85F6", "Random": "#E1DBFF"},  # purple
 }
 
@@ -1145,7 +1145,7 @@ def _panel_legend(fig, x_right_fig, y_top_fig, mods, axis_label_fs,
 
 # Named legend presets: each value is the list of modalities to show.
 PANEL_LEGENDS = {
-    "full": ["Pooled", "Auditory", "Visual"],
+    "full": ["Auditory", "Visual", "Pooled"],
     "audivisual": ["Auditory", "Visual"],
     "pooled": ["Pooled"],
 }
@@ -1500,8 +1500,8 @@ if __name__ == "__main__":
     #    region in or out rescales the row automatically.
     panel_rows_single = [
         [
-        #  ("auditory_cortex", "audivisual"),
-        #  ("visual_cortex", "audivisual"),
+         ("auditory_cortex", "audivisual"),
+         ("visual_cortex", "audivisual"),
          ("dstr", "pooled"),
          ("cereb", "pooled"),
          ("presma", "pooled"),
