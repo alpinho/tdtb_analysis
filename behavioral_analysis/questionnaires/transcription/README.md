@@ -13,21 +13,76 @@ image or answer is sent anywhere.
 
 ## Setup (once)
 
-```
-conda create -n forms-ocr-py312 python=3.12
-conda activate forms-ocr-py312
-pip install opencv-python-headless pymupdf numpy ollama
+The same steps work on macOS, Windows and Linux. Commands are typed in a
+terminal (macOS, Linux) or in the Anaconda Prompt (Windows).
 
-curl -fsSL https://ollama.com/install.sh | sh    # Ollama (needs sudo)
-ollama pull qwen2.5vl:3b                         # the handwriting model
-```
+### Requirements
 
-The blank forms used as templates are in `music-sdtb_protocols`,
+- **Anaconda or Miniconda.**
+- **Ollama** with the handwriting model (step 2). It needs a fair amount
+  of memory: close other large applications while transcribing.
+- **The `tdtb_admin` folder** on the local computer, anywhere. The
+  participant data are never in the repository; the scripts read and
+  write them inside `tdtb_admin`, whose structure is fixed:
+
+  ```
+  tdtb_admin/
+  └── tdtb_private/
+      ├── forms_scanned/sub-NN/    scanned PDFs (input)
+      ├── forms_drafts/sub-NN/     drafts and review PDF (transcribe.py)
+      ├── forms/sub-NN/            final sheets (finalize.py)
+      └── forms_validation/        accuracy check (validate.py)
+  ```
+
+### Steps
+
+1. **Python environment.**
+
+   ```
+   conda create -n forms-ocr-py312 python=3.12
+   conda activate forms-ocr-py312
+   pip install opencv-python-headless pymupdf numpy ollama
+   ```
+
+2. **Handwriting model.** Install Ollama from
+   <https://ollama.com/download>, then:
+
+   ```
+   ollama pull qwen2.5vl:3b
+   ```
+
+3. **Path of `tdtb_admin`.** Open `behavioral_analysis/questionnaires/admin_paths.py`
+   and set `ADMIN_DIR` to where `tdtb_admin` is on your computer, e.g.
+
+   ```python
+   ADMIN_DIR = '~/OneDrive/tdtb_admin'                       # macOS, Linux
+   ADMIN_DIR = r'C:\Users\you\Documents\tdtb_admin'          # Windows
+   ```
+
+   Do not commit this change: it is your own path. To keep git from
+   picking it up, run once, from the repository:
+
+   ```
+   git update-index --skip-worktree behavioral_analysis/questionnaires/admin_paths.py
+   ```
+
+4. **Check.** From `behavioral_analysis/questionnaires/`:
+
+   ```
+   python admin_paths.py
+   ```
+
+   It prints the `tdtb_admin` folder the scripts will use, or stops if
+   `tdtb_private` is not inside it.
+
+The blank forms used as templates are in `templates/`, next to the
+scripts. They are copies of the forms in `music-sdtb_protocols`,
 `experiments/behavioral/ethics/give_to_the_participant_2026/`:
 `GOLD-MSI.pdf`, and `demographic_questionnaire_Grahn_2019.pdf` and
 `post_experiment_questionnaire.pdf` **exported from Microsoft Word**
 (LibreOffice lays these pages out differently from the printed copies).
-If a form changes, re-export it and update `layout.py`.
+If a form changes, re-export it, copy it into `templates/` and update
+`layout.py`.
 
 ## Use (per participant)
 
@@ -41,7 +96,7 @@ Run from `behavioral_analysis/questionnaires/`, in the
    python -m transcription.transcribe 78 ~/scans/sub-78/*.pdf
    ```
 
-   It writes to `~/OneDrive/tdtb_admin/tdtb_private/forms_drafts/sub-78/`
+   It writes to `tdtb_admin/tdtb_private/forms_drafts/sub-78/`
    one draft per sheet (`*.draft.tsv`) and `review_sub-78.pdf`, in about
    5 minutes. Close other large applications: the model needs memory.
 
@@ -66,7 +121,7 @@ Run from `behavioral_analysis/questionnaires/`, in the
 
    It checks every answer (rows, options, numbers, dates `DD/MM/YYYY`,
    percentages) and writes the final sheets to
-   `~/OneDrive/tdtb_admin/tdtb_private/forms/sub-78/`. Without
+   `tdtb_admin/tdtb_private/forms/sub-78/`. Without
    `--reviewed` it refuses while rows are still marked `check`. It never
    replaces an existing sheet unless given `--overwrite`.
 

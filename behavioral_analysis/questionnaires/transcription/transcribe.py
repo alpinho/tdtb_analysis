@@ -52,8 +52,8 @@ from .sheets import MISSING, SHEET_FNAMES
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import subject_lists  # noqa: E402
+from admin_paths import PRIVATE_DIR  # noqa: E402
 
-PRIVATE_DIR = os.path.expanduser('~/OneDrive/tdtb_admin/tdtb_private')
 DRAFT_DIR = os.path.join(PRIVATE_DIR, 'forms_drafts')
 
 N_PAGES = {'demographic': 3, 'gold_msi': 8, 'postexp': 2}

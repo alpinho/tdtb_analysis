@@ -20,6 +20,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from subject_lists import (ALL_SUBJECTS, BEHAV_SUBJECTS,  # noqa: E402
                            IMG_SUBJECTS, GOOD_SB_SUBJECTS,
                            GOOD_TB_SUBJECTS)
+from admin_paths import PRIVATE_DIR  # noqa: E402
 
 # %%
 # =========================== INPUTS ===================================
@@ -29,11 +30,11 @@ from subject_lists import (ALL_SUBJECTS, BEHAV_SUBJECTS,  # noqa: E402
 # Outputs are written to the demographic_data folder, next to this
 # script (created if missing). The curated sheets (sub-XX folders)
 # contain participant data and are kept outside the repository, in
-# the private OneDrive folder of the project; change INPUT_DIR if
-# your copy of that folder is elsewhere.
+# the private folder of the project (tdtb_admin, whose path is set
+# in admin_paths.py).
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           'demographic_data')
-INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_admin/tdtb_private/forms')
+INPUT_DIR = os.path.join(PRIVATE_DIR, 'forms')
 
 # One output table per group of subjects (written to OUTPUT_DIR)
 GROUPS = {'all_subjects_fb': ALL_SUBJECTS,                # first batch

@@ -71,8 +71,13 @@ import csv
 import glob
 import os
 import re
+import sys
 
-PRIVATE_DIR = os.path.expanduser('~/OneDrive/tdtb_admin/tdtb_private')
+# The path of the private folders is set in admin_paths.py, next to
+# this script
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from admin_paths import PRIVATE_DIR  # noqa: E402
+
 FORMS_DIR = os.path.join(PRIVATE_DIR, 'forms')
 DRAFT_DIR = os.path.join(PRIVATE_DIR, 'forms_drafts')
 ASSESSED = os.path.join(PRIVATE_DIR, 'postsess_suspected_reversed_scales.tsv')

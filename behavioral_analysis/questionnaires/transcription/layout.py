@@ -2,7 +2,8 @@
 Where each answer is on the blank forms.
 
 The positions come from the text of the blank forms themselves (the PDFs
-in music-sdtb_protocols, give_to_the_participant_2026): every option
+in templates/, copied from music-sdtb_protocols,
+give_to_the_participant_2026): every option
 ("1" ... "6", "Yes", "Male", a tick box) is located by its printed text
 near a position given here, so the boxes follow the PDFs exactly. All
 coordinates are PDF points of the blank page (1/72 inch).
@@ -25,9 +26,8 @@ import pymupdf
 
 from . import sheets
 
-TEMPLATE_DIR = os.path.expanduser(
-    '~/mygit/music_sdtb/music-sdtb_protocols/experiments/behavioral/'
-    'ethics/give_to_the_participant_2026')
+TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'templates')
 TEMPLATE_FILES = {'demographic': 'demographic_questionnaire_Grahn_2019.pdf',
                   'gold_msi': 'GOLD-MSI.pdf',
                   'postexp': 'post_experiment_questionnaire.pdf'}

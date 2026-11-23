@@ -5,7 +5,7 @@ imaging sessions) and correct the answers given on a reversed scale.
 Questions 1-6 are answered on a 1-6 scale. Some participants answered
 some questions as if the scale were reversed (the evidence is in
 postsess_suspected_reversed_scales.tsv, at the top of the private folder
-of the project, ~/OneDrive/tdtb_admin/tdtb_private). The answers listed
+of the project, tdtb_admin/tdtb_private). The answers listed
 in REVERSED_SCALES are recoded as 7 - answer; each entry lists one or
 more questions of a session. To stop or start correcting answers, edit
 REVERSED_SCALES.
@@ -31,6 +31,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from subject_lists import (BEHAV_SUBJECTS, IMG_SUBJECTS,  # noqa: E402
                            GOOD_SB_SUBJECTS, GOOD_TB_SUBJECTS)
+from admin_paths import PRIVATE_DIR  # noqa: E402
 
 # %%
 # =========================== INPUTS ===================================
@@ -40,11 +41,11 @@ from subject_lists import (BEHAV_SUBJECTS, IMG_SUBJECTS,  # noqa: E402
 # Outputs are written to the postses_results folder, next to this
 # script (created if missing). The curated sheets (sub-XX folders)
 # contain participant data and are kept outside the repository, in
-# the private OneDrive folder of the project; change INPUT_DIR if
-# your copy of that folder is elsewhere.
+# the private folder of the project (tdtb_admin, whose path is set
+# in admin_paths.py).
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           'postses_results')
-INPUT_DIR = os.path.expanduser('~/OneDrive/tdtb_admin/tdtb_private/forms')
+INPUT_DIR = os.path.join(PRIVATE_DIR, 'forms')
 
 # Sessions of each kind: behavioral sessions 1-3 and imaging sessions 1-2
 BEHAV_SESSIONS = ['behav_ses-01', 'behav_ses-02', 'behav_ses-03']
