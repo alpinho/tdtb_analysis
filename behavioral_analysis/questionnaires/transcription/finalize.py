@@ -3,8 +3,8 @@ Check the corrected draft sheets of one subject and write the final
 sheets read by the questionnaire scripts.
 
 Usage:
-    python -m transcription.finalize SUBJECT [--reviewed] [--overwrite]
-        [--drafts DIR] [--forms DIR]
+    python -m transcription.finalize SUBJECT [DRAFT ...] [--reviewed]
+        [--overwrite] [--drafts DIR] [--forms DIR]
 
 Run it after checking the review PDF and correcting the answers in the
 draft sheets (*.draft.tsv; only the answer column matters). Rows still
@@ -16,7 +16,13 @@ circled and ticked questions, numbers, dates (DD/MM/YYYY) and
 percentages; missing answers must be n/a. The date of the Gold-MSI sheet
 is the date of the demographic form. Final sheets are 2-column TSVs
 (UTF-8, no BOM, LF line ends), written to DIR/sub-NN (default: the forms
-folder of tdtb_private); existing sheets are kept unless --overwrite.
+folder of tdtb_private).
+
+Which drafts: without DRAFT, every draft of the subject that has no
+final sheet yet (drafts whose sheet exists are skipped, so forms added
+later are finalized alone); with --overwrite, every draft. With DRAFT
+(one or more draft files, by name or path), only those; replacing an
+existing sheet then needs --overwrite.
 
 Author: Ana Luisa Pinho
 e-mail: alpinho@uwo.ca
@@ -35,9 +41,7 @@ import sys
 
 from . import layout
 from .sheets import MISSING, SHEET_ROWS
-from .transcribe import DRAFT_DIR, PRIVATE_DIR
-
-FORMS_DIR = os.path.join(PRIVATE_DIR, 'forms')
+from .transcribe import DRAFT_DIR, FORMS_DIR
 
 PATTERNS = {'number': r'\d+(\.\d+)?(-\d+(\.\d+)?)?',
             'date': r'\d{2}/\d{2}/\d{4}',
@@ -113,13 +117,46 @@ def write_sheet(path, rows):
             w.writerow([q, a])
 
 
-def run(subject, drafts_dir, forms_dir, reviewed=False, overwrite=False,
-        log=print):
+def select_drafts(subject, drafts_dir, forms_dir, files, overwrite, log):
+    """Paths of the drafts to finalize, or None if a named one is wrong."""
     sub = 'sub-%02d' % subject
+    out_dir = os.path.join(forms_dir, sub)
+    if files:
+        paths, ok = [], True
+        for f in files:
+            path = f if os.path.exists(f) else os.path.join(
+                drafts_dir, sub, os.path.basename(f))
+            if not path.endswith('.draft.tsv') or not os.path.isfile(path):
+                log('%s: no such draft (in %s)'
+                    % (f, os.path.join(drafts_dir, sub)))
+                ok = False
+            paths.append(path)
+        return paths if ok else None
     drafts = sorted(glob.glob(os.path.join(drafts_dir, sub, '*.draft.tsv')))
-    if not drafts:
-        log('No drafts in %s' % os.path.join(drafts_dir, sub))
+    if overwrite:
+        return drafts
+    new = []
+    for path in drafts:
+        fname = os.path.basename(path).replace('.draft.tsv', '.tsv')
+        if os.path.exists(os.path.join(out_dir, fname)):
+            log('%s: skipped, already final (name it and use --overwrite '
+                'to replace)' % fname)
+        else:
+            new.append(path)
+    return new
+
+
+def run(subject, drafts_dir, forms_dir, reviewed=False, overwrite=False,
+        files=None, log=print):
+    sub = 'sub-%02d' % subject
+    drafts = select_drafts(subject, drafts_dir, forms_dir, files, overwrite,
+                           log)
+    if drafts is None:
+        log('Nothing written.')
         return False
+    if not drafts:
+        log('No drafts to finalize in %s' % os.path.join(drafts_dir, sub))
+        return not files
     fields = layout.load_fields()
     out_dir = os.path.join(forms_dir, sub)
     sheets, failed = {}, False
@@ -182,6 +219,9 @@ def main(argv=None):
         description='Check the corrected drafts of one subject and write '
                     'the final sheets (see the module docstring).')
     p.add_argument('subject', type=int)
+    p.add_argument('files', nargs='*', metavar='DRAFT',
+                   help='draft(s) to finalize, by name or path (default: '
+                        'those without a final sheet)')
     p.add_argument('--reviewed', action='store_true',
                    help='all rows marked "check" were checked')
     p.add_argument('--overwrite', action='store_true',
@@ -189,7 +229,8 @@ def main(argv=None):
     p.add_argument('--drafts', default=DRAFT_DIR)
     p.add_argument('--forms', default=FORMS_DIR)
     a = p.parse_args(argv)
-    ok = run(a.subject, a.drafts, a.forms, a.reviewed, a.overwrite)
+    ok = run(a.subject, a.drafts, a.forms, a.reviewed, a.overwrite,
+             a.files)
     sys.exit(0 if ok else 1)
 
 

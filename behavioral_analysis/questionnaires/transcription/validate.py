@@ -201,7 +201,8 @@ def main(argv=None):
         for attempt in (1, 2):
             try:
                 transcribe.run(subject, pdfs, out,
-                               use_model=not a.no_model, log=lambda *x: None)
+                               use_model=not a.no_model, log=lambda *x: None,
+                               overwrite=True)
                 c, per_q = compare_subject(out, subject, kinds)
                 break
             except Exception as e:          # report the type only
